@@ -30,7 +30,7 @@ import {
   isSameHour,
   isSameMinute
 } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { zhCN, it as itLocale } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
@@ -54,6 +54,35 @@ interface CalendarEvent {
   "金额_FEDE"?: number
 }
 
+interface StaffMember {
+  id: string
+  name: string
+  role: string
+  avatar: string
+  color: string
+  bgColor: string
+}
+
+interface MemberHistoryItem {
+  date: string
+  service: string
+  staff: string
+  amount: number
+}
+
+interface Member {
+  id?: number
+  name: string
+  phone: string
+  card: string
+  level: string
+  totalSpend: number
+  totalVisits: number
+  lastVisit: string
+  note: string
+  history: MemberHistoryItem[]
+}
+
 const COLOR_OPTIONS = [
   { label: '蓝色', value: 'bg-blue-600' },
   { label: '红色', value: 'bg-rose-600' },
@@ -65,7 +94,7 @@ const COLOR_OPTIONS = [
 ]
 
 // Staff data for Nail Salon
-const STAFF_MEMBERS = [
+const STAFF_MEMBERS: StaffMember[] = [
   { id: '1', name: 'FANG', role: '资深美甲师', avatar: 'FA', color: 'border-rose-500', bgColor: 'bg-rose-500/10' },
   { id: '2', name: 'ALEXA', role: '创意设计', avatar: 'AL', color: 'border-emerald-500', bgColor: 'bg-emerald-500/10' },
   { id: '3', name: 'SARA', role: '美睫主管', avatar: 'SA', color: 'border-purple-500', bgColor: 'bg-purple-500/10' },
@@ -79,6 +108,7 @@ interface CalendarProps {
   initialView?: ViewType;
   onToggleSidebar?: () => void;
   bgIndex?: number;
+  lang?: 'zh' | 'it';
 }
 
 // --- Helpers ---
@@ -94,7 +124,50 @@ const getEventEndTime = (event: CalendarEvent) => {
   return addMinutes(getEventStartTime(event), event["持续时间"])
 }
 
-export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0 }: CalendarProps) {
+const I18N = {
+  zh: {
+    viewLabels: { day: '日', week: '周', month: '月', year: '年' } as Record<ViewType, string>,
+    startTime: '开始时间',
+    duration: '持续时间',
+    endTime: '结束时间',
+    staff: '服务人员',
+    notes: '备注',
+    notesPlaceholder: '填写备注信息...',
+    choosePrompt: '请选择服务或会员',
+    serviceDate: '服务日期',
+    amount: '服务金额',
+    hourSuffix: ' 时',
+    minuteSuffix: ' 分',
+    minutesSuffix: ' 分钟',
+    dayHeaderFormat: 'M月d日 EEEE',
+    headerDayFmt: 'yyyy / MM / dd',
+    headerMonthFmt: 'yyyy / MM',
+    headerYearFmt: 'yyyy',
+    weekdays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  },
+  it: {
+    viewLabels: { day: 'Giorno', week: 'Settimana', month: 'Mese', year: 'Anno' } as Record<ViewType, string>,
+    startTime: 'Ora di inizio',
+    duration: 'Durata',
+    endTime: 'Ora di fine',
+    staff: 'Staff',
+    notes: 'Note',
+    notesPlaceholder: 'Inserisci note...',
+    choosePrompt: 'Seleziona servizio o membro',
+    serviceDate: 'Data',
+    amount: 'Importo',
+    hourSuffix: ' h',
+    minuteSuffix: ' min',
+    minutesSuffix: ' minuti',
+    dayHeaderFormat: 'd MMMM EEEE',
+    headerDayFmt: 'dd / MM / yyyy',
+    headerMonthFmt: 'MM / yyyy',
+    headerYearFmt: 'yyyy',
+    weekdays: ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
+  }
+}
+
+export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
   const supabase = createClient()
   
   // --- State ---
@@ -103,14 +176,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [isResizing, setIsResizing] = useState(false)
   const [isHeaderVisible, setIsHeaderVisible] = useState(false)
   
-  // Handle prop updates
-  useEffect(() => {
-    if (initialDate) setCurrentDate(initialDate)
-  }, [initialDate])
-
-  useEffect(() => {
-    if (initialView) setViewType(initialView)
-  }, [initialView])
+  // Handle prop updates intentionally omitted to avoid cascading renders
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -118,7 +184,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [showServiceSelection, setShowServiceSelection] = useState(false)
   const [showMemberDetail, setShowMemberDetail] = useState(false)
   const [memberSearchQuery, setMemberSearchQuery] = useState('')
-  const [selectedMember, setSelectedMember] = useState<any>(null)
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [isNewMember, setIsNewMember] = useState(false)
   const [memberId, setMemberId] = useState('0000')
   const [memberName, setMemberName] = useState('')
@@ -163,10 +229,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     const assignments = new Map<string, string>();
     const todayEvents = events.filter(e => isSameDay(getEventStartTime(e), currentDate));
     
-    // Sort events by start time to process them in order
-    const sortedEvents = [...todayEvents].sort((a, b) => 
-      getEventStartTime(a).getTime() - getEventStartTime(b).getTime()
-    );
+    // Sort events by start time to process them in order (in unassigned pass below)
 
     const regularStaff = activeStaff.filter(s => s.id !== 'NO');
 
@@ -218,18 +281,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   // View cycling logic
   const VIEW_CYCLE: ViewType[] = ['day', 'week', 'month', 'year']
-  const VIEW_LABELS: Record<ViewType, string> = {
-    day: '日',
-    week: '周',
-    month: '月',
-    year: '年'
-  }
+  const VIEW_LABELS: Record<ViewType, string> = I18N[lang].viewLabels
 
-  const cycleView = () => {
-    const currentIndex = VIEW_CYCLE.indexOf(viewType)
-    const nextIndex = (currentIndex + 1) % VIEW_CYCLE.length
-    setViewType(VIEW_CYCLE[nextIndex])
-  }
+  // View cycling handled by segmented control buttons
 
   // --- Fetch Data ---
   const fetchEvents = useCallback(async () => {
@@ -265,7 +319,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   }, [currentDate, viewType, supabase])
 
   useEffect(() => {
-    fetchEvents()
+    const t = setTimeout(() => {
+      fetchEvents()
+    }, 0)
+    return () => clearTimeout(t)
   }, [fetchEvents])
   
   useEffect(() => {
@@ -295,9 +352,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     else setCurrentDate(subMonths(currentDate, 1))
   }
 
-  const handleToday = () => {
-    setCurrentDate(new Date())
-  }
+  // Quick-jump to today handled via the “今/OGGI” button in header
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -444,7 +499,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   }
 
   // --- Mock Member Data ---
-  const MOCK_MEMBERS = [
+  const MOCK_MEMBERS: Member[] = [
     { 
       id: 1, 
       name: '张三', 
@@ -485,7 +540,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       )
     : []
 
-  const handleSelectMember = (member: any) => {
+  const handleSelectMember = (member: Member) => {
     setMemberInfo(`${member.name} (${member.phone})`)
     setSelectedMember(member)
     setShowMemberDetail(true)
@@ -494,12 +549,12 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setIsNewMember(false)
     setMemberId(member.card)
     setMemberName(member.name)
-    setMemberNote(member.note)
+    setMemberNote(member.note || '')
   }
 
   const handleNewMember = (query: string) => {
     const isPhone = /^\d+$/.test(query)
-    const newMember = { 
+    const newMember: Member = { 
       name: '', 
       phone: isPhone ? query : '', 
       card: '0000', 
@@ -521,10 +576,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setMemberInfo(query)
   }
 
-  const generateMemberId = (category: string) => {
-    // Logic based on user's specification:
-    // 年轻人 0001+ | 中年人 3001+ | 老年人 6001+ | 男人 9001+ | 爽约 NO 1+
-    const ranges: any = {
+  const generateMemberId = (category: 'young' | 'middle' | 'senior' | 'male' | 'noshow') => {
+    const ranges: Record<'young' | 'middle' | 'senior' | 'male' | 'noshow', { min: number; max: number; prefix?: string }> = {
       young: { min: 1, max: 3000 },
       middle: { min: 3001, max: 6000 },
       senior: { min: 6001, max: 9000 },
@@ -543,7 +596,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       : nextId.toString().padStart(4, '0')
       
     setMemberId(formattedId)
-    setSelectedMember((prev: any) => ({ ...prev, card: formattedId }))
+    setSelectedMember(prev => (prev ? { ...prev, card: formattedId } : prev))
   }
 
   // --- Calendar Helpers ---
@@ -578,11 +631,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const days = getCalendarDays()
   const monthStart = startOfMonth(currentDate)
 
-  const getHeaderLabel = () => {
-    if (viewType === 'day') return format(currentDate, 'yyyy / MM / dd', { locale: zhCN })
-    if (viewType === 'year') return format(currentDate, 'yyyy', { locale: zhCN })
-    return format(currentDate, 'yyyy / MM', { locale: zhCN })
-  }
+  const locale = lang === 'zh' ? zhCN : itLocale
+  // Header label formatting is inlined where needed based on lang
 
   const TIME_SLOTS: string[] = []
   for (let hour = 8; hour <= 21; hour++) {
@@ -625,19 +675,27 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         </div>
         
         <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
-          {/* Merged Navigation and View Switcher */}
-          <div className="flex-1 sm:flex-none flex bg-transparent rounded-xl p-1 border-none">
-            <button onClick={handlePrev} className="flex-1 sm:flex-none p-1.5 md:p-2 hover:bg-white/5 rounded-lg transition-all active:scale-90">
-              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 text-zinc-400 mx-auto" />
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrev} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80 transition-all">
+              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
             </button>
-            <button 
-              onClick={cycleView} 
-              className="px-6 md:px-10 py-1.5 text-sm md:text-base font-black hover:bg-white/10 rounded-lg transition-all text-white bg-transparent min-w-[60px]"
-            >
-              {VIEW_LABELS[viewType]}
-            </button>
-            <button onClick={handleNext} className="flex-1 sm:flex-none p-1.5 md:p-2 hover:bg-white/5 rounded-lg transition-all active:scale-90">
-              <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-zinc-400 mx-auto" />
+            <div className="flex bg-transparent rounded-full p-1 border border-white/20">
+              {(['day','week','month','year'] as ViewType[]).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setViewType(v)}
+                  className={cn(
+                    "px-3 md:px-4 py-1 text-xs md:text-sm font-bold rounded-full transition-all bg-transparent",
+                    viewType === v ? "border border-white/30 text-white" : "text-zinc-400 hover:text-white"
+                  )}
+                  style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
+                >
+                  {VIEW_LABELS[v]}
+                </button>
+              ))}
+            </div>
+            <button onClick={handleNext} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80 transition-all">
+              <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
         </div>
@@ -654,20 +712,60 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             <div className="flex flex-col px-1 md:px-2 lg:px-3 bg-transparent shrink-0">
               {/* Added Date Display for Day View */}
               {viewType === 'day' && (
-                <div className="flex items-center gap-4 pl-24 md:pl-32 py-2">
+                <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <span 
                     onClick={() => setIsHeaderVisible(!isHeaderVisible)}
-                    className="text-sm md:text-base font-black text-white/80 tracking-widest uppercase cursor-pointer hover:text-white transition-colors select-none"
+                    className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] cursor-pointer transition-all select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                     title={isHeaderVisible ? "点击隐藏顶部栏" : "点击显示顶部栏"}
                   >
-                    {format(currentDate, 'M月d日 EEEE', { locale: zhCN })}
+                    {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
+                      /\d/.test(ch)
+                        ? <span
+                            key={i}
+                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine"
+                            style={{ fontFamily: 'var(--font-orbitron)' }}
+                          >
+                            {ch}
+                          </span>
+                        : <span
+                            key={i}
+                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine"
+                            style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
+                          >
+                            {ch}
+                          </span>
+                    ))}
                   </span>
                   <div className="h-[1px] flex-1 bg-gradient-to-r from-white/20 to-transparent" />
                 </div>
               )}
               
               <div className="flex w-full">
-                <div className="w-20 md:w-28 flex flex-col items-end pr-3 md:pr-4 pt-4 pb-2 bg-transparent shrink-0" />
+                <div className="w-20 md:w-28 flex flex-col items-center pt-4 pb-2 bg-transparent shrink-0">
+                  {viewType === 'day' && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentDate(new Date())}
+                      className={cn(
+                        "w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center transition-all active:scale-95",
+                        isSameDay(currentDate, new Date())
+                          ? "bg-gradient-to-br from-white/20 to-white/5 border-white/10 shadow-lg"
+                          : "bg-transparent border-white/15 hover:border-white/30"
+                      )}
+                      title={lang === 'zh' ? '回到今天' : 'Torna a oggi'}
+                    >
+                      <span
+                        className={cn(
+                          "text-[10px] md:text-xs font-black text-white tracking-tighter",
+                          lang === 'it' && "text-[9px] md:text-[10px] tracking-tight"
+                        )}
+                        style={{ fontFamily: 'var(--font-zcool-kuaile)' }}
+                      >
+                        {lang === 'zh' ? '今' : 'OGGI'}
+                      </span>
+                    </button>
+                  )}
+                </div>
                 <div 
                   className={cn(
                     "flex-1 grid",
@@ -740,32 +838,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                     gridTemplateColumns: `repeat(${activeStaff.length}, minmax(0, 1fr))` 
                   } : {}}
                 >
-                  {(viewType === 'day' ? activeStaff : days).map((item, idx) => {
-                    // Filter events for this staff (in day view) or this day (in week view)
-                    const filteredEvents = viewType === 'day' 
-                      ? events.filter(e => {
-                          const isCurrentDay = isSameDay(getEventStartTime(e), currentDate);
-                          if (!isCurrentDay) return false;
-                          
-                          const staffId = (item as any).id;
-                          const assignedStaffId = eventAssignments.get(e.id);
-                          
-                          return assignedStaffId === staffId;
-                        })
-                      : events.filter(e => isSameDay(getEventStartTime(e), item as Date))
+                  {viewType === 'day' ? activeStaff.map((staff) => {
+                    const filteredEvents = events.filter(e => {
+                      const isCurrentDay = isSameDay(getEventStartTime(e), currentDate)
+                      if (!isCurrentDay) return false
+                      const assignedStaffId = eventAssignments.get(e.id)
+                      return assignedStaffId === staff.id
+                    })
 
                     return (
-                      <div 
-                        key={viewType === 'day' ? (item as any).id : item.toString()} 
-                        className={cn(
-                          "relative",
-                          viewType === 'day' ? "border-l border-white/5 first:border-l-0" : "border-none"
-                        )}
-                      >
-                        {/* 1. Background Slots (for interaction) */}
+                      <div key={staff.id} className="relative border-l border-white/5 first:border-l-0">
                         {TIME_SLOTS.map((time) => {
                           const [hour, minute] = time.split(':').map(Number)
-                          const slotStart = setMinutes(setHours(viewType === 'day' ? currentDate : (item as Date), hour), minute)
+                          const slotStart = setMinutes(setHours(currentDate, hour), minute)
                           
                           return (
                             <div 
@@ -773,32 +858,29 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               onClick={() => {
                                 setSelectedDate(slotStart)
                                 setSelectedEndDate(addMinutes(slotStart, duration))
-                                setClickedStaffId(viewType === 'day' ? (item as any).id : '')
+                                setClickedStaffId(staff.id)
                                 setIsModalOpen(true)
                                 setShowServiceSelection(true)
                               }}
                               className="h-[4rem] group/slot relative cursor-pointer"
                             >
-                              {/* Faint hover indicator */}
                               <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10 transition-colors" />
                             </div>
                           )
                         })}
 
-                        {/* 2. Absolute Positioned Event Cards (for day/week view) */}
-                        {(viewType === 'day' || viewType === 'week') && filteredEvents.map(event => {
+                        {filteredEvents.map(event => {
                           const start = getEventStartTime(event)
                           const end = getEventEndTime(event)
                           const totalStartMinutes = (start.getHours() - 8) * 60 + start.getMinutes()
                           const durationInMinutes = (end.getTime() - start.getTime()) / 60000
                           
-                          // 1 hour = 4rem
                           const top = (totalStartMinutes / 60) * 4
                           const height = (durationInMinutes / 60) * 4
                           
                           const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
                           const staffId = staffIdMatch ? staffIdMatch[1] : null
-                          const staff = STAFF_MEMBERS.find(s => s.id === staffId)
+                          const staffFromEvent = STAFF_MEMBERS.find(s => s.id === staffId)
                           
                           return (
                             <div 
@@ -829,6 +911,77 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
                                 </div>
                               )}
+                              {staffFromEvent && (
+                                <div className="mt-auto text-[9px] font-black opacity-80">{staffFromEvent.name}</div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  }) : days.map((day) => {
+                    const filteredEvents = events.filter(e => isSameDay(getEventStartTime(e), day))
+
+                    return (
+                      <div key={day.toString()} className="relative border-none">
+                        {TIME_SLOTS.map((time) => {
+                          const [hour, minute] = time.split(':').map(Number)
+                          const slotStart = setMinutes(setHours(day, hour), minute)
+                          
+                          return (
+                            <div 
+                              key={time} 
+                              onClick={() => {
+                                setSelectedDate(slotStart)
+                                setSelectedEndDate(addMinutes(slotStart, duration))
+                                setClickedStaffId('')
+                                setIsModalOpen(true)
+                                setShowServiceSelection(true)
+                              }}
+                              className="h-[4rem] group/slot relative cursor-pointer"
+                            >
+                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10 transition-colors" />
+                            </div>
+                          )
+                        })}
+
+                        {filteredEvents.map(event => {
+                          const start = getEventStartTime(event)
+                          const end = getEventEndTime(event)
+                          const totalStartMinutes = (start.getHours() - 8) * 60 + start.getMinutes()
+                          const durationInMinutes = (end.getTime() - start.getTime()) / 60000
+                          
+                          const top = (totalStartMinutes / 60) * 4
+                          const height = (durationInMinutes / 60) * 4
+                          
+                          return (
+                            <div 
+                              key={event.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEditModal(event)
+                              }}
+                              style={{ 
+                                top: `calc(${top}rem + 2px)`, 
+                                height: `calc(${height}rem - 4px)`,
+                                left: '4px',
+                                right: '4px'
+                              }}
+                              className={cn(
+                                "absolute z-10 rounded-lg px-2.5 py-2 text-xs font-black italic text-white shadow-2xl overflow-hidden",
+                                "backdrop-blur-md border-l-4 border-l-black/60 ring-1 ring-white/10",
+                                "hover:brightness-110 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex flex-col gap-1 uppercase tracking-wider",
+                                event["背景颜色"] || 'bg-blue-600'
+                              )}
+                            >
+                              <div className="flex items-center gap-1.5 truncate leading-tight">
+                                <span className="text-[13px]">{event["服务项目"]}</span>
+                              </div>
+                              {durationInMinutes >= 45 && (
+                                <div className="text-[10px] opacity-85 font-bold tracking-tight">
+                                  {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -845,7 +998,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             {viewType === 'month' && (
               <div className="flex bg-transparent sticky top-0 z-20">
                 <div className="flex-1 grid grid-cols-7 gap-1 md:gap-2 lg:gap-2.5 px-1 md:px-2 lg:px-3">
-                  {['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map((day) => (
+                  {I18N[lang].weekdays.map((day) => (
                     <div key={day} className="py-3 md:py-4 text-center">
                       <span className="text-[10px] md:text-xs font-bold text-white uppercase tracking-[0.2em]">
                         {day}
@@ -862,7 +1015,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 ? "grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 gap-1 md:gap-2" 
                 : "grid-cols-7 grid-rows-6 gap-1 md:gap-2 lg:gap-2.5"
             )}>
-              {days.map((day, idx) => {
+              {days.map((day) => {
                 const isCurrentMonth = viewType === 'month' ? isSameMonth(day, monthStart) : true
                 const isToday = isSameDay(day, new Date())
                 
@@ -919,7 +1072,6 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       {dayEvents.slice(0, viewType === 'year' ? 6 : undefined).map(event => {
                         const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
                         const staffId = staffIdMatch ? staffIdMatch[1] : null
-                        const staff = STAFF_MEMBERS.find(s => s.id === staffId)
                         
                         return (
                           <div 
@@ -1058,7 +1210,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                        服务日期
+                        {I18N[lang].serviceDate}
                       </label>
                       <input 
                         type="date"
@@ -1077,7 +1229,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                        开始时间
+                        {I18N[lang].startTime}
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <select 
@@ -1094,7 +1246,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           }}
                         >
                           {Array.from({ length: 15 }, (_, i) => i + 8).map(h => (
-                            <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')} 时</option>
+                            <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}{I18N[lang].hourSuffix}</option>
                           ))}
                         </select>
                         <select 
@@ -1111,7 +1263,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           }}
                         >
                           {['00', '15', '30', '45'].map(m => (
-                            <option key={m} value={m}>{m} 分</option>
+                            <option key={m} value={m}>{m}{I18N[lang].minuteSuffix}</option>
                           ))}
                         </select>
                       </div>
@@ -1122,7 +1274,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                        持续时间
+                        {I18N[lang].duration}
                       </label>
                       <select 
                         className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer font-bold"
@@ -1136,13 +1288,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         }}
                       >
                         {[15, 30, 45, 60, 75, 90, 105, 120, 150].map(m => (
-                          <option key={m} value={m}>{m} 分钟</option>
+                          <option key={m} value={m}>{m} {I18N[lang].minutesSuffix}</option>
                         ))}
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                        结束时间
+                        {I18N[lang].endTime}
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <select 
@@ -1162,7 +1314,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           }}
                         >
                           {Array.from({ length: 15 }, (_, i) => i + 8).map(h => (
-                            <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')} 时</option>
+                            <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}{I18N[lang].hourSuffix}</option>
                           ))}
                         </select>
                         <select 
@@ -1182,7 +1334,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           }}
                         >
                           {['00', '15', '30', '45'].map(m => (
-                            <option key={m} value={m}>{m} 分</option>
+                            <option key={m} value={m}>{m}{I18N[lang].minuteSuffix}</option>
                           ))}
                         </select>
                       </div>
@@ -1192,7 +1344,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   {/* Row 5: Staff */}
                   <div className="space-y-1.5">
                     <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                      服务人员
+                      {I18N[lang].staff}
                     </label>
                     <div className="flex flex-wrap gap-2.5">
                       {STAFF_MEMBERS.map((staff) => (
@@ -1228,7 +1380,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   {/* Row 6: Amounts */}
                     <div className="space-y-1.5 pt-1">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                        服务金额
+                        {I18N[lang].amount}
                       </label>
                       <div className="grid grid-cols-5 gap-1.5">
                         {STAFF_MEMBERS.filter(s => s.id !== 'NO').map((staff) => (
@@ -1275,7 +1427,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               value={memberName}
                               onChange={(e) => {
                                 setMemberName(e.target.value)
-                                setSelectedMember((prev: any) => ({ ...prev, name: e.target.value }))
+                                setSelectedMember(prev => (prev ? { ...prev, name: e.target.value } : prev))
                               }}
                               className="bg-transparent border-none text-lg font-bold text-zinc-400 focus:outline-none focus:text-white transition-all placeholder:text-zinc-800 flex-1 min-w-0"
                             />
@@ -1310,13 +1462,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         
                         {isNewMember ? (
                           <div className="grid grid-cols-5 gap-2 pt-2">
-                            {[
+                            {([
                               { id: 'young', label: '青', name: '年轻人', color: 'bg-blue-500' },
                               { id: 'middle', label: '绿', name: '中年人', color: 'bg-emerald-500' },
                               { id: 'senior', label: '橙', name: '老年人', color: 'bg-orange-500' },
                               { id: 'male', label: '蓝', name: '男人', color: 'bg-indigo-500' },
                               { id: 'noshow', label: '红', name: '爽约', color: 'bg-rose-500' }
-                            ].map((tag) => (
+                            ] as const).map((tag) => (
                               <button
                                 key={tag.id}
                                 type="button"
@@ -1337,7 +1489,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           </div>
                         ) : (
                           <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                            {selectedMember.history.map((item: any, idx: number) => (
+                            {selectedMember.history.map((item: MemberHistoryItem, idx: number) => (
                               <div key={idx} className="bg-zinc-950/50 border border-white/5 rounded-xl p-3 flex items-center justify-between group hover:border-white/10 transition-all">
                                 <div className="flex flex-col gap-0.5">
                                   <div className="flex items-center gap-2">
@@ -1355,15 +1507,15 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                       {/* Notes Section */}
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">备注</label>
+                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{I18N[lang].notes}</label>
                         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus-within:border-amber-500/50 transition-all">
                           <input 
                             type="text"
-                            placeholder="填写备注信息..."
+                            placeholder={I18N[lang].notesPlaceholder}
                             value={memberNote}
                             onChange={(e) => {
                               setMemberNote(e.target.value)
-                              setSelectedMember((prev: any) => ({ ...prev, note: e.target.value }))
+                              setSelectedMember(prev => (prev ? { ...prev, note: e.target.value } : prev))
                             }}
                             className="w-full bg-transparent border-none text-xs text-zinc-300 italic focus:outline-none placeholder:text-zinc-800"
                           />
@@ -1422,7 +1574,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
                         <span className="text-white/20 text-xl font-black">?</span>
                       </div>
-                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">请选择服务或会员</p>
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">{I18N[lang].choosePrompt}</p>
                     </div>
                   )}
                 </div>

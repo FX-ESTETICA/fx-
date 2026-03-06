@@ -12,14 +12,23 @@ export default function Home() {
   const [sidebarWidth, setSidebarWidth] = useState(280)
   const [isResizing, setIsResizing] = useState(false)
   const [bgIndex, setBgIndex] = useState(0)
+  const [lang, setLang] = useState<'zh' | 'it'>('zh')
   
   const backgrounds = [
-    '/屏幕截图 2026-03-05 220415.png',
-    '/屏幕截图 2026-03-05 220507.png'
+    '/wallhaven-eo68l8.jpg',
+    '/wallhaven-47je19.jpg',
+    '/wallhaven-qr3o8q.png',
+    '/wallhaven-xe75wv.png',
+    '/屏幕截图 2026-03-07 003239.png',
+    '/屏幕截图 2026-03-05 220507.png',
+    '/屏幕截图 2026-03-05 220415.png'
   ].map(encodeURI)
 
   const cycleBackground = () => {
     setBgIndex(prev => (prev + 1) % backgrounds.length)
+  }
+  const toggleLanguage = () => {
+    setLang(prev => (prev === 'zh' ? 'it' : 'zh'))
   }
 
   const handleDateSelect = (date: Date) => {
@@ -79,11 +88,9 @@ export default function Home() {
           backgroundImage: `url(${backgrounds[bgIndex]})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          opacity: 0.8
+          opacity: 1
         }}
       />
-      {/* Background Overlay */}
-      <div className="absolute inset-0 bg-black/10 z-0 pointer-events-none" />
 
       {/* Left Sidebar Container */}
       <div 
@@ -93,8 +100,8 @@ export default function Home() {
           !isSidebarVisible && "pointer-events-none"
         )}
       >
-        <div className="h-full w-full bg-black/5 backdrop-blur-[2px] border border-white/5 rounded-xl md:rounded-2xl overflow-hidden shadow-2xl">
-          <Sidebar onDateSelect={handleDateSelect} onLogoClick={cycleBackground} />
+        <div className="h-full w-full bg-black/0 backdrop-blur-none border border-white/5 rounded-xl md:rounded-2xl overflow-hidden shadow-2xl">
+          <Sidebar onDateSelect={handleDateSelect} onLogoClick={cycleBackground} onBrandClick={toggleLanguage} lang={lang} />
         </div>
       </div>
 
@@ -111,12 +118,13 @@ export default function Home() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden z-10">
-        <div className="flex-1 min-h-0 bg-black/5 backdrop-blur-[2px] rounded-xl md:rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
+        <div className="flex-1 min-h-0 bg-black/0 backdrop-blur-none rounded-xl md:rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
           <Calendar 
             initialDate={calendarDate} 
             initialView={calendarView} 
             onToggleSidebar={toggleSidebar}
             bgIndex={bgIndex}
+            lang={lang}
           />
         </div>
       </div>

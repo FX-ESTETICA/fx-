@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, ZCOOL_KuaiLe, Noto_Sans_SC, Orbitron } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,6 +12,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const zcoolKuaiLe = ZCOOL_KuaiLe({
+  variable: "--font-zcool-kuaile",
+  subsets: ["latin"],
+  weight: "400",
+});
+const notoSansSC = Noto_Sans_SC({
+  variable: "--font-noto-sans-sc",
+  subsets: ["latin"],
+  weight: ["400","700"],
+});
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
+  subsets: ["latin"],
+  weight: ["400","700"],
+});
 export const viewport: Viewport = {
   themeColor: "#000000",
   width: "device-width",
@@ -46,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${zcoolKuaiLe.variable} ${notoSansSC.variable} ${orbitron.variable} antialiased`}
       >
         {children}
       </body>

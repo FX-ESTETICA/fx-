@@ -11,16 +11,18 @@ import {
   isSameMonth, 
   isSameDay 
 } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { zhCN, it as itLocale } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { Clock } from 'lucide-react'
+// removed unused Clock icon
 
 interface SidebarProps {
   onDateSelect?: (date: Date) => void;
   onLogoClick?: () => void;
+  onBrandClick?: () => void;
+  lang?: 'zh' | 'it';
 }
 
-export default function Sidebar({ onDateSelect, onLogoClick }: SidebarProps) {
+export default function Sidebar({ onDateSelect, onLogoClick, onBrandClick, lang = 'zh' }: SidebarProps) {
   const [now, setNow] = useState(new Date())
 
   // Update clock every second
@@ -36,6 +38,11 @@ export default function Sidebar({ onDateSelect, onLogoClick }: SidebarProps) {
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
 
+  const locale = lang === 'zh' ? zhCN : itLocale
+  const weekdayLabels = lang === 'zh' 
+    ? ['一','二','三','四','五','六','日']
+    : ['L','M','M','G','V','S','D']
+
   return (
     <div className="flex flex-col h-full bg-transparent p-4 md:p-6 overflow-hidden">
       {/* Logo Section - Reduced padding and size for better zoom fit */}
@@ -46,7 +53,7 @@ export default function Sidebar({ onDateSelect, onLogoClick }: SidebarProps) {
         >
           <span className="text-black font-black text-xl md:text-2xl tracking-tighter">FX</span>
         </div>
-        <h1 className="text-lg md:text-xl font-black tracking-[0.2em] text-white">
+        <h1 onClick={onBrandClick} className="text-lg md:text-xl font-black tracking-[0.2em] text-white cursor-pointer hover:scale-105 transition-transform">
           ESTETICA
         </h1>
         <div className="h-1 w-8 bg-indigo-600 rounded-full mt-2" />
@@ -56,12 +63,12 @@ export default function Sidebar({ onDateSelect, onLogoClick }: SidebarProps) {
       <div className="flex-1 space-y-3 md:space-y-4 min-h-fit">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
-            {format(now, 'yyyy年 MMMM', { locale: zhCN })}
+            {lang === 'zh' ? format(now, 'yyyy年 MMMM', { locale }) : format(now, 'MMMM yyyy', { locale })}
           </h3>
         </div>
         
         <div className="grid grid-cols-7 gap-1">
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+          {weekdayLabels.map((d, i) => (
             <div key={i} className="text-[10px] font-black text-zinc-600 text-center py-1">
               {d}
             </div>
