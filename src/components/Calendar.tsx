@@ -267,6 +267,18 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   useEffect(() => {
     fetchEvents()
   }, [fetchEvents])
+  
+  useEffect(() => {
+    const channel = supabase
+      .channel('fx_events_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fx_events' }, () => {
+        fetchEvents()
+      })
+    channel.subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, fetchEvents])
 
   // --- Actions ---
   const handleNext = () => {
