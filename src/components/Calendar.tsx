@@ -31,7 +31,7 @@ import {
   isSameMinute
 } from 'date-fns'
 import { zhCN, it as itLocale } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, FogCw, Wind } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Wind } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -83,7 +83,7 @@ function WeatherDisplay() {
   const getWeatherIcon = (code: number) => {
     if (code === 0) return <Sun className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
     if (code >= 1 && code <= 3) return <Cloud className="w-4 h-4 md:w-5 md:h-5 text-zinc-300" />
-    if (code === 45 || code === 48) return <FogCw className="w-4 h-4 md:w-5 md:h-5 text-zinc-400" />
+    if (code === 45 || code === 48) return <Cloud className="w-4 h-4 md:w-5 md:h-5 text-zinc-400" />
     if (code >= 51 && code <= 55) return <CloudDrizzle className="w-4 h-4 md:w-5 md:h-5 text-sky-400" />
     if (code >= 61 && code <= 65) return <CloudRain className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
     if (code >= 71 && code <= 75) return <CloudSnow className="w-4 h-4 md:w-5 md:h-5 text-white" />
