@@ -600,8 +600,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                 {[
                   { title: lang === 'zh' ? '消费排行' : 'Spesa', data: memberStats.spendRanking, unit: '€', isSpecial: true },
                   { title: lang === 'zh' ? '到店频次' : 'Visite', data: memberStats.visitRanking, unit: '次', isSpecial: true },
-                  { title: lang === 'zh' ? '项目偏好' : 'Progetti', data: memberStats.projectRanking, unit: '次', isSpecial: false },
-                  { title: lang === 'zh' ? '技师人气' : 'Staff', data: memberStats.staffRanking, unit: '次', isSpecial: false }
+                  { title: lang === 'zh' ? '项目偏好' : 'Progetti', data: memberStats.projectRanking, unit: '次', isSpecial: true },
+                  { title: lang === 'zh' ? '技师人气' : 'Staff', data: memberStats.staffRanking, unit: '次', isSpecial: true }
                 ].map((section, idx) => (
                   <div key={idx} className="bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex flex-col overflow-hidden group">
                     <h4 className="text-xs font-black text-white/40 mb-6 uppercase tracking-[0.2em] px-2 text-center">
@@ -613,18 +613,21 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                       /* Special Style matching User Image (Vertical separator, Rotated Labels) */
                       <div className="relative flex flex-col space-y-4 min-h-full">
                         {/* Vertical Separator Line */}
-                        <div className="absolute left-10 top-0 bottom-0 w-[1px] bg-white/10" />
+                        <div className="absolute left-7 top-0 bottom-0 w-[1px] bg-white/10" />
                         
                         {section.data.map((item, i) => {
                            const maxValue = Math.max(...section.data.map(d => d.value), 1)
                            const percentage = (item.value / maxValue) * 100
                            
+                           // Clean name to show only ID if pattern matches (ID) Phone
+                           const displayId = item.name.match(/\((.*?)\)/)?.[1] || item.name;
+                           
                            return (
                              <div key={i} className="flex items-center h-10 group/item">
                                {/* Rotated Label (Member ID/Name) */}
-                               <div className="w-10 flex justify-center items-center shrink-0">
+                               <div className="w-7 flex justify-center items-center shrink-0">
                                  <span className="text-[10px] font-black text-white/50 -rotate-45 group-hover/item:text-white truncate w-full text-center drop-shadow-sm">
-                                   {item.name}
+                                   {displayId}
                                  </span>
                                </div>
                                
