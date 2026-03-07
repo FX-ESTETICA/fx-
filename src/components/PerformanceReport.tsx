@@ -612,7 +612,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                       /* Special Style: Label outside, Value inside, with separator line */
                       <div className="relative flex flex-col space-y-4 min-h-full">
                         {/* Vertical Separator Line */}
-                        <div className="absolute left-12 top-0 bottom-0 w-[1px] bg-white/10" />
+                        <div className="absolute left-8 top-0 bottom-0 w-[1px] bg-white/10" />
                         
                         {section.data.map((item, i) => {
                            const maxValue = Math.max(...section.data.map(d => d.value), 1)
@@ -621,16 +621,16 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                            const displayId = item.name.match(/\((.*?)\)/)?.[1] || item.name;
                            
                            return (
-                             <div key={i} className="flex items-center space-x-6 group/item relative">
-                               <div className="w-12 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right pr-2">
+                             <div key={i} className="flex items-center space-x-4 group/item relative">
+                               <div className="w-8 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right pr-2">
                                  {displayId}
                                </div>
-                               <div className="flex-1 h-10 bg-white/5 rounded-xl overflow-hidden relative">
+                               <div className="flex-1 h-8 relative">
                                  <div 
-                                   className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-end px-4 shadow-lg shadow-blue-500/10 border border-white/10 rounded-xl"
+                                   className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-end px-3 shadow-lg shadow-blue-500/10 border border-white/10 rounded-lg"
                                    style={{ width: `${Math.max(percentage, 25)}%` }}
                                  >
-                                   <span className="text-[11px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                   <span className="text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                                      {section.unit === '€' ? '€' : ''}{item.value.toLocaleString()}{section.unit !== '€' ? section.unit : ''}
                                    </span>
                                  </div>
