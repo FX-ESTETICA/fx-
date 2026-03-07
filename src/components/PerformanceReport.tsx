@@ -618,17 +618,19 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                            const displayId = item.name.match(/\((.*?)\)/)?.[1] || item.name;
                            
                            return (
-                             <div key={i} className="flex flex-col group/item">
-                               <div 
-                                 className="h-10 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-between px-4 shadow-lg shadow-blue-500/10 border border-white/10"
-                                 style={{ width: `${Math.max(percentage, 35)}%` }}
-                               >
-                                 <span className="text-[11px] font-black text-white/90 drop-shadow-sm">
-                                   {displayId}
-                                 </span>
-                                 <span className="text-[11px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                                   {section.unit === '€' ? '€' : ''}{item.value.toLocaleString()}{section.unit !== '€' ? section.unit : ''}
-                                 </span>
+                             <div key={i} className="flex items-center space-x-4 group/item">
+                               <div className="w-12 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right">
+                                 {displayId}
+                               </div>
+                               <div className="flex-1 h-10 bg-white/5 rounded-xl overflow-hidden relative">
+                                 <div 
+                                   className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-end px-4 shadow-lg shadow-blue-500/10 border border-white/10 rounded-xl"
+                                   style={{ width: `${Math.max(percentage, 25)}%` }}
+                                 >
+                                   <span className="text-[11px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                     {section.unit === '€' ? '€' : ''}{item.value.toLocaleString()}{section.unit !== '€' ? section.unit : ''}
+                                   </span>
+                                 </div>
                                </div>
                              </div>
                            )
