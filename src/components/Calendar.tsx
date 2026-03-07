@@ -1650,25 +1650,25 @@ interface CalendarProps {
 
                       {/* Custom Date Picker Popup */}
                       {isDatePickerOpen && (
-                        <div className="absolute top-full left-0 mt-2 z-[100] bg-black/90 backdrop-blur-xl border border-white/5 rounded-2xl p-4 shadow-2xl w-[280px]">
+                        <div className="absolute top-full left-0 mt-2 z-[100] bg-black/50 backdrop-blur-xl border border-white/5 rounded-2xl p-3 shadow-2xl w-[240px]">
                           {/* Header: YYYY年 MM月 */}
-                          <div className="flex items-center justify-center mb-6">
-                            <h3 className="text-sm font-black tracking-widest text-white uppercase italic">
+                          <div className="flex items-center justify-center mb-4">
+                            <h3 className="text-[11px] font-black tracking-widest text-white uppercase italic">
                               {selectedDate ? format(selectedDate, 'yyyy年 MM月') : ''}
                             </h3>
                           </div>
 
                           {/* Weekdays */}
-                          <div className="grid grid-cols-7 mb-4">
+                          <div className="grid grid-cols-7 mb-2">
                             {['一', '二', '三', '四', '五', '六', '日'].map(d => (
-                              <div key={d} className="text-center text-[10px] font-bold text-zinc-600">
+                              <div key={d} className="text-center text-[9px] font-bold text-zinc-600">
                                 {d}
                               </div>
                             ))}
                           </div>
 
                           {/* Days Grid */}
-                          <div className="grid grid-cols-7 gap-y-1">
+                          <div className="grid grid-cols-7 gap-y-0.5">
                             {(() => {
                               if (!selectedDate) return null;
                               const monthStart = startOfMonth(selectedDate);
@@ -1697,7 +1697,7 @@ interface CalendarProps {
                                       setIsDatePickerOpen(false);
                                     }}
                                     className={cn(
-                                      "h-8 w-8 flex items-center justify-center text-xs transition-all rounded-lg",
+                                      "h-7 w-7 flex items-center justify-center text-[10px] transition-all rounded-lg",
                                       isSelected 
                                         ? "bg-white text-black font-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
                                         : isCurrentMonth 
