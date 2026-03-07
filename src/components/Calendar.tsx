@@ -94,8 +94,10 @@ function WeatherDisplay() {
 
   return (
     <div className="flex items-center gap-1.5 md:gap-2 px-1 group transition-all">
-      {getWeatherIcon(weather.code)}
-      <span className="text-[10px] md:text-xs font-bold text-zinc-300 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
+      <div className="scale-110 md:scale-125">
+        {getWeatherIcon(weather.code)}
+      </div>
+      <span className="text-xs md:text-sm font-bold text-zinc-300 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
         {weather.temp}°C
       </span>
     </div>
@@ -1095,9 +1097,9 @@ interface CalendarProps {
               {viewType === 'day' && (
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <div 
-                    onClick={onToggleSidebar}
-                    className="flex items-center text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group"
-                  >
+                      onClick={onToggleSidebar}
+                      className="flex items-center text-lg md:text-2xl lg:text-3xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group"
+                    >
                     {/* Display Year */}
                      {[...format(currentDate, 'yyyy')].map((ch, i) => (
                        <span
