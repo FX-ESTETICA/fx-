@@ -95,7 +95,7 @@ function WeatherDisplay() {
   return (
     <div className="flex items-center gap-1.5 md:gap-2 px-1 group transition-all">
       {getWeatherIcon(weather.code)}
-      <span className="text-sm md:text-base font-bold text-zinc-300 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
+      <span className="text-[10px] md:text-xs font-bold text-zinc-300 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
         {weather.temp}°C
       </span>
     </div>
@@ -1095,40 +1095,41 @@ interface CalendarProps {
               {viewType === 'day' && (
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <div 
-                    className="flex items-center text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
+                    onClick={onToggleSidebar}
+                    className="flex items-center text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group"
                   >
                     {/* Display Year */}
-                    {[...format(currentDate, 'yyyy')].map((ch, i) => (
-                      <span
-                        key={`year-${i}`}
-                        className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
-                        style={{ fontFamily: 'var(--font-orbitron)' }}
-                      >
-                        {ch}
-                      </span>
-                    ))}
-                    {/* Weather Display */}
-                    <div className="mx-4 flex items-center">
-                      <WeatherDisplay />
-                    </div>
-                    {/* Display Date */}
-                    {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
-                      /\d/.test(ch)
-                        ? <span
-                            key={`date-${i}`}
-                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
-                            style={{ fontFamily: 'var(--font-orbitron)' }}
-                          >
-                            {ch}
-                          </span>
-                        : <span
-                            key={`date-${i}`}
-                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
-                            style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
-                          >
-                            {ch}
-                          </span>
-                    ))}
+                     {[...format(currentDate, 'yyyy')].map((ch, i) => (
+                       <span
+                         key={`year-${i}`}
+                         className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent transition-opacity group-hover:opacity-80"
+                         style={{ fontFamily: 'var(--font-orbitron)' }}
+                       >
+                         {ch}
+                       </span>
+                     ))}
+                     {/* Weather Display */}
+                     <div className="mx-4 flex items-center transition-transform group-hover:scale-110">
+                       <WeatherDisplay />
+                     </div>
+                     {/* Display Date */}
+                     {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
+                       /\d/.test(ch)
+                         ? <span
+                             key={`date-${i}`}
+                             className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent transition-opacity group-hover:opacity-80"
+                             style={{ fontFamily: 'var(--font-orbitron)' }}
+                           >
+                             {ch}
+                           </span>
+                         : <span
+                             key={`date-${i}`}
+                             className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent transition-opacity group-hover:opacity-80"
+                             style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
+                           >
+                             {ch}
+                           </span>
+                     ))}
                   </div>
                   <div className="h-[1px] flex-1 bg-gradient-to-r from-white/20 to-transparent" />
                 </div>
