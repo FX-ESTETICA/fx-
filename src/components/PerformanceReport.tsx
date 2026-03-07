@@ -496,7 +496,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                     {lang === 'zh' ? '总计业绩' : 'Totale Lordo'}
                   </span>
                   <div className="flex items-baseline space-x-1">
-                    <span className="text-lg font-black text-indigo-400 font-mono">€</span>
+                    <span className="text-lg font-black text-white/90 font-mono">€</span>
                     <span className="text-5xl font-black text-white font-mono tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                       {stats.totalAmount.toLocaleString()}
                     </span>
