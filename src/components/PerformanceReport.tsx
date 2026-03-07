@@ -612,7 +612,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                       /* Special Style: Label outside, Value inside, with separator line */
                       <div className="relative flex flex-col space-y-4 min-h-full">
                         {/* Vertical Separator Line */}
-                        <div className="absolute left-6 top-0 bottom-0 w-[1px] bg-white/10" />
+                        <div className="absolute left-10 top-0 bottom-0 w-[1px] bg-white/10" />
                         
                         {section.data.map((item, i) => {
                            const maxValue = Math.max(...section.data.map(d => d.value), 1)
@@ -622,7 +622,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                            
                            return (
                              <div key={i} className="flex items-center space-x-3 group/item relative">
-                               <div className="w-6 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right pr-2">
+                               <div className="w-10 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right pr-4">
                                  {displayId}
                                </div>
                                <div className="flex-1 flex items-center space-x-2">
