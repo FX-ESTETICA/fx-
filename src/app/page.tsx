@@ -126,7 +126,7 @@ export default function Home() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden z-10">
+      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden z-30">
         <div className="flex-1 min-h-0 bg-black/0 backdrop-blur-none rounded-xl md:rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
           <Calendar 
             initialDate={calendarDate} 
