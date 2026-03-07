@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Calendar, { ViewType } from '@/components/Calendar'
 import Sidebar from '@/components/Sidebar'
+import PerformanceReport from '@/components/PerformanceReport'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
   const [isResizing, setIsResizing] = useState(false)
   const [bgIndex, setBgIndex] = useState(0)
   const [lang, setLang] = useState<'zh' | 'it'>('zh')
+  const [isReportOpen, setIsReportOpen] = useState(false)
   
   const backgrounds = [
     '/wallhaven-eo68l8.jpg',
@@ -101,7 +103,13 @@ export default function Home() {
         )}
       >
         <div className="h-full w-full bg-black/0 backdrop-blur-none border border-white/5 rounded-xl md:rounded-2xl overflow-hidden shadow-2xl">
-          <Sidebar onDateSelect={handleDateSelect} onLogoClick={cycleBackground} onBrandClick={toggleLanguage} lang={lang} />
+          <Sidebar 
+            onDateSelect={handleDateSelect} 
+            onLogoClick={cycleBackground} 
+            onBrandClick={toggleLanguage} 
+            onClockClick={() => setIsReportOpen(true)}
+            lang={lang} 
+          />
         </div>
       </div>
 
@@ -128,6 +136,13 @@ export default function Home() {
           />
         </div>
       </div>
+
+      {/* Performance Report Modal */}
+      <PerformanceReport 
+        isOpen={isReportOpen} 
+        onClose={() => setIsReportOpen(false)} 
+        lang={lang}
+      />
     </main>
   )
 }

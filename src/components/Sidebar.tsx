@@ -19,10 +19,17 @@ interface SidebarProps {
   onDateSelect?: (date: Date) => void;
   onLogoClick?: () => void;
   onBrandClick?: () => void;
+  onClockClick?: () => void;
   lang?: 'zh' | 'it';
 }
 
-export default function Sidebar({ onDateSelect, onLogoClick, onBrandClick, lang = 'zh' }: SidebarProps) {
+export default function Sidebar({ 
+  onDateSelect, 
+  onLogoClick, 
+  onBrandClick, 
+  onClockClick,
+  lang = 'zh' 
+}: SidebarProps) {
   const [now, setNow] = useState(new Date())
 
   // Update clock every second
@@ -94,7 +101,10 @@ export default function Sidebar({ onDateSelect, onLogoClick, onBrandClick, lang 
       </div>
 
       {/* Digital Clock Section - Transparent background */}
-      <div className="mt-auto py-4 md:py-6 shrink-0 flex flex-col items-center justify-center">
+      <div 
+        onClick={onClockClick}
+        className="mt-auto py-4 md:py-6 shrink-0 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+      >
         <div className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-white font-mono">
           {format(now, 'HH:mm')}
         </div>

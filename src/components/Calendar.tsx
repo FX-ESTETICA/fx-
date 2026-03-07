@@ -31,7 +31,7 @@ import {
   isSameMinute
 } from 'date-fns'
 import { zhCN, it as itLocale } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock, Settings2, GripVertical, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -61,6 +61,7 @@ interface StaffMember {
   avatar: string
   color: string
   bgColor: string
+  hidden?: boolean
 }
 
 interface MemberHistoryItem {
@@ -84,13 +85,26 @@ interface Member {
 }
 
 const COLOR_OPTIONS = [
-  { label: '蓝色', value: 'bg-blue-600' },
-  { label: '红色', value: 'bg-rose-600' },
-  { label: '绿色', value: 'bg-emerald-600' },
-  { label: '紫色', value: 'bg-purple-600' },
-  { label: '橙色', value: 'bg-orange-600' },
-  { label: '黄色', value: 'bg-amber-500' },
-  { label: '灰色', value: 'bg-zinc-500' },
+  { label: '玫瑰红', value: 'bg-rose-500' },
+  { label: '红色', value: 'bg-red-500' },
+  { label: '橙色', value: 'bg-orange-500' },
+  { label: '琥珀黄', value: 'bg-amber-500' },
+  { label: '黄色', value: 'bg-yellow-400' },
+  { label: '柠檬绿', value: 'bg-lime-400' },
+  { label: '绿色', value: 'bg-green-500' },
+  { label: '翡翠绿', value: 'bg-emerald-500' },
+  { label: '青色', value: 'bg-teal-400' },
+  { label: '水色', value: 'bg-cyan-400' },
+  { label: '天蓝色', value: 'bg-sky-400' },
+  { label: '蓝色', value: 'bg-blue-500' },
+  { label: '靛蓝色', value: 'bg-indigo-500' },
+  { label: '紫罗兰', value: 'bg-violet-500' },
+  { label: '紫色', value: 'bg-purple-500' },
+  { label: '洋红色', value: 'bg-fuchsia-500' },
+  { label: '粉红色', value: 'bg-pink-500' },
+  { label: '亮玫瑰', value: 'bg-rose-400' },
+  { label: '板岩灰', value: 'bg-slate-400' },
+  { label: '锌灰色', value: 'bg-zinc-500' },
 ]
 
 // Staff data for Nail Salon
@@ -170,14 +184,27 @@ const I18N = {
 export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
   const supabase = createClient()
   
-  // --- State ---
-  const [currentDate, setCurrentDate] = useState(initialDate || new Date())
+  // Use a stable initial date for SSR to avoid hydration mismatch
+  const [currentDate, setCurrentDate] = useState(initialDate || new Date(2024, 0, 1))
+  
+  // Update to real "today" only on client
+  useEffect(() => {
+    if (!initialDate) {
+      setCurrentDate(new Date())
+    }
+  }, [initialDate])
   const [viewType, setViewType] = useState<ViewType>(initialView)
   const [isResizing, setIsResizing] = useState(false)
   const [isHeaderVisible, setIsHeaderVisible] = useState(false)
   
   // Handle prop updates intentionally omitted to avoid cascading renders
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [allDatabaseEvents, setAllDatabaseEvents] = useState<CalendarEvent[]>([])
+  const [today, setToday] = useState<Date | null>(null)
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
+
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
@@ -189,6 +216,38 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [memberId, setMemberId] = useState('0000')
   const [memberName, setMemberName] = useState('')
   const [memberNote, setMemberNote] = useState('')
+  const [showCheckoutPreview, setShowCheckoutPreview] = useState(false)
+  const [showStaffSelector, setShowStaffSelector] = useState(false)
+  
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>(STAFF_MEMBERS)
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // Set isMounted to true after the component mounts
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Load staff from localStorage on mount
+  useEffect(() => {
+    if (!isMounted) return
+    const saved = localStorage.getItem('staff_members')
+    if (saved) {
+      try {
+        setStaffMembers(JSON.parse(saved))
+      } catch (e) {
+        console.error('Failed to parse staff_members from localStorage', e)
+      }
+    }
+  }, [isMounted])
+  const [isStaffManagerOpen, setIsStaffManagerOpen] = useState(false)
+  const [newStaffName, setNewStaffName] = useState('')
+  const [activeColorPickerStaffId, setActiveColorPickerStaffId] = useState<string | null>(null)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  
+  // Save staff to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('staff_members', JSON.stringify(staffMembers))
+  }, [staffMembers])
   
   // Form State
   const [newTitle, setNewTitle] = useState('')
@@ -196,23 +255,99 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null)
   const [duration, setDuration] = useState<number>(60)
-  const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0].value)
+  const [selectedColor, setSelectedColor] = useState('bg-sky-400')
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [staffAmounts, setStaffAmounts] = useState<Record<string, string>>({
-    'FANG': '',
-    'SARA': '',
-    'DAN': '',
-    'ALEXA': '',
-    'FEDE': ''
+
+  // Define service categories with prices outside render for easier access
+  const serviceCategories = [
+    { title: 'Mani', color: 'from-pink-500/20 to-rose-500/20', items: [
+      { name: 'Mn', price: 15, duration: 20 },
+      { name: 'Ms', price: 35, duration: 45 },
+      { name: 'Rc', price: 60, duration: 90 },
+      { name: 'Rt', price: 46, duration: 75 },
+      { name: 'Cop', price: 49, duration: 75 },
+      { name: 'T.s', price: 8, duration: 5 },
+      { name: 'T.g', price: 15, duration: 15 }
+    ] },
+    { title: 'Piedi', color: 'from-emerald-500/20 to-teal-500/20', items: [
+      { name: 'Pn', price: 23, duration: 30 },
+      { name: 'Ps', price: 38, duration: 60 }
+    ] },
+    { title: 'Ceretta', color: 'from-amber-500/20 to-orange-500/20', items: [
+      { name: 'Sop', price: 5, duration: 5 },
+      { name: 'Baf', price: 5, duration: 5 },
+      { name: 'Asc', price: 9, duration: 10 },
+      { name: 'Bra', price: 15, duration: 20 },
+      { name: 'Gam', price: 24, duration: 30 },
+      { name: 'In', price: 15, duration: 20 },
+      { name: 'Sch', price: 19, duration: 20 },
+      { name: 'Pet', price: 18, duration: 20 },
+      { name: 'Pan', price: 6, duration: 10 }
+    ] },
+    { title: 'Viso', color: 'from-blue-500/20 to-indigo-500/20', items: [
+      { name: 'EX.ciglia', price: 65, duration: 120 },
+      { name: 'Rt.ciglia', price: 40, duration: 75 },
+      { name: 'L.ciglia', price: 50, duration: 60 },
+      { name: 'C.ciglia', price: 30, duration: 60 },
+      { name: 'L.sop', price: 30, duration: 60 },
+      { name: 'C.sop', price: 30, duration: 60 },
+      { name: 'P.viso', price: 35, duration: 60 }
+    ] }
+  ];
+
+  // Calculate total price based on selected items in newTitle
+  const calculateTotalPrice = () => {
+    const selectedItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+    let total = 0;
+    selectedItems.forEach(itemName => {
+      // Find item in any category
+      for (const cat of serviceCategories) {
+        const item = cat.items.find(i => i.name === itemName);
+        if (item) {
+          total += item.price;
+          break;
+        }
+      }
+    });
+    return total;
+  };
+
+  const [staffAmounts, setStaffAmounts] = useState<Record<string, string>>(() => {
+    return {}
   })
+  const [itemStaffMap, setItemStaffMap] = useState<Record<string, string>>({})
+  const [serviceMode, setServiceMode] = useState<'normal' | 'sequential' | 'parallel'>('normal')
+
+  // Helper to get staff color class
+  const getStaffColorClass = (staffId: string | undefined, type: 'text' | 'bg' | 'border' = 'text') => {
+    // If no staff is selected (unassigned), use sky-400 (Blue)
+    if (!staffId || staffId === '') return type === 'text' ? 'text-sky-400' : (type === 'bg' ? 'bg-sky-400' : 'border-sky-400')
+    
+    const staff = staffMembers.find(s => s.id === staffId)
+    const fixedColorMap: Record<string, string> = {
+      '1': 'rose-500',
+      '2': 'emerald-500',
+      '3': 'purple-500',
+      '4': 'orange-500',
+      '5': 'amber-500',
+      'NO': 'zinc-500' // NO (No Show) should be Zinc/Grey
+    }
+    
+    const colorName = staff?.bgColor?.match(/bg-([a-z0-9-]+)/)?.[1] || fixedColorMap[staffId] || 'sky-400'
+    return `${type}-${colorName}`
+  }
 
   // Derived state for active staff columns
   const activeStaff = useMemo(() => {
-    if (viewType !== 'day') return STAFF_MEMBERS;
+    // Filter out hidden staff first
+    const visibleStaff = staffMembers.filter(s => !s.hidden);
     
-    return STAFF_MEMBERS.filter(s => {
+    if (viewType !== 'day') return visibleStaff;
+    
+    return visibleStaff.filter(s => {
       if (s.id !== 'NO') return true;
       // Only show NO column if there are NO show events today
       return events.some(e => 
@@ -220,7 +355,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         e["备注"]?.includes('技师:NO')
       );
     });
-  }, [viewType, events, currentDate]);
+  }, [viewType, events, currentDate, staffMembers]);
 
   // Pre-calculate which column each event should go to (for day view)
   const eventAssignments = useMemo(() => {
@@ -318,18 +453,32 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setIsLoading(false)
   }, [currentDate, viewType, supabase])
 
+  const fetchAllEventsForLibrary = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('fx_events')
+      .select('*')
+    
+    if (error) {
+      console.error('Error fetching all events for library:', error)
+    } else {
+      setAllDatabaseEvents(data || [])
+    }
+  }, [supabase])
+
   useEffect(() => {
     const t = setTimeout(() => {
       fetchEvents()
+      fetchAllEventsForLibrary()
     }, 0)
     return () => clearTimeout(t)
-  }, [fetchEvents])
+  }, [fetchEvents, fetchAllEventsForLibrary])
   
   useEffect(() => {
     const channel = supabase
       .channel('fx_events_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fx_events' }, () => {
         fetchEvents()
+        fetchAllEventsForLibrary()
       })
     channel.subscribe()
     return () => {
@@ -354,7 +503,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   // Quick-jump to today handled via the “今/OGGI” button in header
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, forcedMode?: 'normal' | 'sequential' | 'parallel') => {
     e.preventDefault()
     if (!newTitle || !selectedDate) return
 
@@ -363,10 +512,124 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     const startTimeStr = format(selectedDate, 'HH:mm:ss')
     const serviceDateStr = format(selectedDate, 'yyyy-MM-dd')
     
-    // Format member_info as (memberId)memberInfo (which is phone)
-    const formattedMemberInfo = memberId ? `(${memberId})${memberInfo}` : memberInfo
+    // Format member_info as (memberId)Name (Phone)
+    let finalInfo = memberInfo.trim()
+    const trimmedName = memberName.trim()
+    
+    if (trimmedName) {
+      // If we have a name, combine it with the info (which might be phone)
+      if (finalInfo && finalInfo !== trimmedName) {
+        // Check if finalInfo is just the phone number (to avoid saving Name (Name))
+        if (/^\d+$/.test(finalInfo)) {
+          finalInfo = `${trimmedName} (${finalInfo})`
+        } else {
+          // If finalInfo is not just digits, it might be the name already or some other info
+          // Just use the provided name as primary
+          finalInfo = trimmedName
+        }
+      } else {
+        finalInfo = trimmedName
+      }
+    }
+    
+    const formattedMemberInfo = memberId && memberId !== '0000' ? `(${memberId})${finalInfo}` : `(0000)${finalInfo}`
 
-    const eventData = {
+    const items = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+    const effectiveMode = forcedMode || serviceMode;
+    
+    // Determine if we should split: 
+    // 1. Not editing an existing event
+    // 2. Multiple items OR explicitly in split mode
+    const shouldSplit = !editingEvent && (items.length > 1 || effectiveMode === 'sequential' || effectiveMode === 'parallel');
+    const splitMode = effectiveMode !== 'normal' ? effectiveMode : 'parallel';
+
+    if (shouldSplit) {
+      const eventsToInsert = [];
+      let currentStartTime = new Date(selectedDate);
+
+      for (const itemName of items) {
+        const itemStaffId = itemStaffMap[itemName] || selectedStaffId;
+        const itemStaff = staffMembers.find(s => s.id === itemStaffId);
+        
+        // Find item price and duration
+        let itemPrice = 0;
+        let itemDuration = duration; // Default to current duration state if not found
+        for (const cat of serviceCategories) {
+          const found = cat.items.find(i => i.name === itemName);
+          if (found) {
+            itemPrice = found.price;
+            if (found.duration) {
+              itemDuration = found.duration;
+            }
+            break;
+          }
+        }
+
+        const startTimeStr = format(currentStartTime, 'HH:mm:ss');
+        const serviceDateStr = format(currentStartTime, 'yyyy-MM-dd');
+        
+        // Final background color determination:
+        // Map of specific IDs to the new 20 colors
+        const fixedColorMap: Record<string, string> = {
+          '1': 'bg-rose-500',
+          '2': 'bg-emerald-500',
+          '3': 'bg-purple-500',
+          '4': 'bg-orange-500',
+          '5': 'bg-amber-500',
+          'NO': 'bg-zinc-500'
+        }
+        const itemColor = !itemStaffId || itemStaffId === '' 
+          ? 'bg-sky-400' 
+          : (itemStaffId === 'NO' ? 'bg-zinc-500' : (itemStaff?.bgColor?.replace('/10', '') || fixedColorMap[itemStaffId] || 'bg-sky-400'));
+
+        const eventData: any = {
+          "服务项目": itemName,
+          "会员信息": formattedMemberInfo,
+          "服务日期": serviceDateStr,
+          "开始时间": startTimeStr,
+          "持续时间": itemDuration,
+          "背景颜色": itemColor,
+          "备注": `技师:${itemStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
+        };
+
+        // Add amount for the specific staff member assigned to this item
+        if (itemStaff && itemPrice > 0) {
+          const existingColumns = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE'];
+          if (existingColumns.includes(itemStaff.name)) {
+            eventData[`金额_${itemStaff.name}`] = itemPrice;
+          } else {
+            eventData["备注"] += `, [${itemStaff.name}_AMT:${itemPrice}]`;
+          }
+        }
+
+        eventsToInsert.push(eventData);
+
+        // If sequential, increment start time for next item
+        if (splitMode === 'sequential') {
+          currentStartTime = addMinutes(currentStartTime, itemDuration);
+        }
+      }
+
+      if (eventsToInsert.length > 0) {
+        const { error } = await supabase
+          .from('fx_events')
+          .insert(eventsToInsert);
+
+        if (error) {
+          alert('批量添加失败: ' + error.message);
+        } else {
+          closeModal();
+          fetchEvents();
+        }
+      }
+      
+      // Reset service mode after use
+      setServiceMode('normal');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const eventData: any = {
       "服务项目": newTitle,
       "会员信息": formattedMemberInfo,
       "服务日期": serviceDateStr,
@@ -374,22 +637,55 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       "持续时间": duration,
       "背景颜色": selectedColor,
       "备注": `技师:${selectedStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
-      "金额_FANG": Number(staffAmounts['FANG']) || 0,
-      "金额_SARA": Number(staffAmounts['SARA']) || 0,
-      "金额_DAN": Number(staffAmounts['DAN']) || 0,
-      "金额_ALEXA": Number(staffAmounts['ALEXA']) || 0,
-      "金额_FEDE": Number(staffAmounts['FEDE']) || 0,
     }
 
+    // List of columns that actually exist in the database
+    const existingColumns = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE']
+    let extraNotes = ''
+
+    // Final background color determination:
+    // If no staff is selected (unassigned), force Blue
+    // If NO (No Show) is selected, force Grey
+    let finalColor = selectedColor;
+    if (!selectedStaffId || selectedStaffId === '') {
+      finalColor = 'bg-sky-400';
+    } else if (selectedStaffId === 'NO') {
+      finalColor = 'bg-zinc-500';
+    }
+    eventData["背景颜色"] = finalColor;
+
+    // Add amounts for each staff member
+    staffMembers.forEach(staff => {
+      if (staff.id !== 'NO') {
+        const amount = Number(staffAmounts[staff.name]) || 0
+        if (amount > 0) {
+          if (existingColumns.includes(staff.name)) {
+            // Store in dedicated column if it exists
+            eventData[`金额_${staff.name}`] = amount
+          } else {
+            // Otherwise, append to a special format in notes for retrieval
+            extraNotes += `, [${staff.name}_AMT:${amount}]`
+          }
+        }
+      }
+    })
+
+    eventData["备注"] = `技师:${selectedStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}${extraNotes}`
+
     if (editingEvent) {
+      console.log('Updating event:', editingEvent.id, eventData);
       // Update existing event
-      const { error } = await supabase
+      const { error, count, data } = await supabase
         .from('fx_events')
         .update(eventData)
         .eq('id', editingEvent.id)
+        .select()
 
       if (error) {
         alert('更新失败: ' + error.message)
+      } else if (data && data.length === 0) {
+        console.warn('Update affected 0 rows. Possible ID mismatch:', editingEvent.id);
+        alert('更新未生效，请刷新页面重试。')
       } else {
         closeModal()
         fetchEvents()
@@ -412,17 +708,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   const handleDeleteEvent = async () => {
     if (!editingEvent) return
-    if (!confirm('确定要删除这个事件吗？')) return
 
     setIsSubmitting(true)
-    const { error } = await supabase
+    console.log('Attempting to delete event:', editingEvent.id);
+    const { error, count } = await supabase
       .from('fx_events')
       .delete()
       .eq('id', editingEvent.id)
+      .select()
 
     if (error) {
       alert('删除失败: ' + error.message)
     } else {
+      console.log('Delete result count:', count);
       closeModal()
       fetchEvents()
     }
@@ -431,7 +729,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   const openEditModal = (event: CalendarEvent) => {
     setEditingEvent(event)
-    setNewTitle(event["服务项目"])
+    const currentService = event["服务项目"]
+    setNewTitle(currentService)
     
     // Parse service_date and start_time back into selectedDate
     const start = getEventStartTime(event)
@@ -441,28 +740,83 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setSelectedEndDate(addMinutes(start, event["持续时间"]))
     setSelectedColor(event["背景颜色"])
     
-    // Parse member_info back
+    // ... (parsing member info logic)
     if (event["会员信息"]) {
       const match = event["会员信息"].match(/^\(([^)]+)\)(.*)$/)
       if (match) {
-        setMemberId(match[1])
-        setMemberInfo(match[2])
+        const id = match[1]
+        const info = match[2].trim()
+        setMemberId(id)
+        setMemberInfo(info)
+        
+        let extractedName = ''
+        const namePhoneMatch = info.match(/^(.*?)\s*\((.*?)\)$/)
+        if (namePhoneMatch) {
+          extractedName = namePhoneMatch[1]
+          setMemberInfo(namePhoneMatch[2])
+        } else if (!/^\d+$/.test(info)) {
+          extractedName = info
+        }
+        
+        if (extractedName) {
+          setMemberName(extractedName)
+        }
+
+        if (id !== '0000') {
+          setShowMemberDetail(true)
+          const existingMember = allMembers.find(m => m.card === id)
+          if (existingMember) {
+            setSelectedMember(existingMember)
+          } else {
+            setSelectedMember({
+              name: extractedName || '',
+              phone: info,
+              card: id,
+              level: id.startsWith('NO') ? '爽约名单' : '普通会员',
+              totalSpend: 0,
+              totalVisits: 0,
+              lastVisit: event["服务日期"],
+              note: '',
+              history: []
+            })
+          }
+        }
       } else {
         setMemberInfo(event["会员信息"])
       }
     }
 
-    // Set amounts
-    setStaffAmounts({
-      'FANG': event["金额_FANG"]?.toString() || '',
-      'SARA': event["金额_SARA"]?.toString() || '',
-      'DAN': event["金额_DAN"]?.toString() || '',
-      'ALEXA': event["金额_ALEXA"]?.toString() || '',
-      'FEDE': event["金额_FEDE"]?.toString() || ''
+    // Set amounts dynamically
+    const amounts: Record<string, string> = {}
+    staffMembers.forEach(staff => {
+      if (staff.id !== 'NO') {
+        const colAmount = event[`金额_${staff.name}` as keyof CalendarEvent]
+        if (colAmount !== undefined && colAmount !== null && colAmount !== 0) {
+          amounts[staff.name] = colAmount.toString()
+        } else {
+          const noteMatch = event["备注"]?.match(new RegExp(`\\[${staff.name}_AMT:(\\d+)\\]`))
+          if (noteMatch) {
+            amounts[staff.name] = noteMatch[1]
+          }
+        }
+      }
     })
+    setStaffAmounts(amounts)
 
     const staffMatch = event["备注"]?.match(/技师:([^,]+)/)
-    setSelectedStaffId(staffMatch ? staffMatch[1] : '')
+    const parsedStaffId = staffMatch ? staffMatch[1] : ''
+    setSelectedStaffId(parsedStaffId)
+    
+    // CRITICAL: Restore itemStaffMap for split events
+    if (currentService && parsedStaffId) {
+      setItemStaffMap({ [currentService]: parsedStaffId })
+    }
+
+    if (parsedStaffId && parsedStaffId !== 'NO') {
+      setSelectedStaffIds([parsedStaffId])
+    } else {
+      setSelectedStaffIds([])
+    }
     
     const suggestedMatch = event["备注"]?.match(/建议:([^,]+)/)
     setClickedStaffId(suggestedMatch ? suggestedMatch[1] : '')
@@ -480,14 +834,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setDuration(60)
     setSelectedColor(COLOR_OPTIONS[0].value)
     setSelectedStaffId('')
+    setSelectedStaffIds([])
     setClickedStaffId('')
-    setStaffAmounts({
-      'FANG': '',
-      'SARA': '',
-      'DAN': '',
-      'ALEXA': '',
-      'FEDE': ''
-    })
+    setStaffAmounts({})
+    setItemStaffMap({})
     setShowServiceSelection(false)
     setShowMemberDetail(false)
     setMemberSearchQuery('')
@@ -496,55 +846,123 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setMemberId('0000')
     setMemberName('')
     setMemberNote('')
+    setShowCheckoutPreview(false)
   }
 
-  // --- Mock Member Data ---
-  const MOCK_MEMBERS: Member[] = [
-    { 
-      id: 1, 
-      name: '张三', 
-      phone: '13800138000', 
-      card: 'VIP888',
-      level: '尊享VIP',
-      totalSpend: 5800,
-      totalVisits: 12,
-      lastVisit: '2026-02-28',
-      note: '喜欢安静，做指甲比较细心',
-      history: [
-        { date: '2026-02-28', service: 'Mani + Ms', staff: 'Elena', amount: 450 },
-        { date: '2026-02-15', service: 'Piedi', staff: 'Sofia', amount: 380 },
-        { date: '2026-01-20', service: 'Viso', staff: 'Elena', amount: 1200 },
-      ]
-    },
-    { 
-      id: 2, 
-      name: '李四', 
-      phone: '13911112222', 
-      card: 'REG001',
-      level: '普通会员',
-      totalSpend: 1200,
-      totalVisits: 3,
-      lastVisit: '2026-03-01',
-      note: '对酒精过敏',
-      history: [
-        { date: '2026-03-01', service: 'Ceretta', staff: 'Sofia', amount: 200 },
-      ]
-    }
-  ]
+  // --- Derived Member Data ---
+   const databaseMembers = useMemo(() => {
+     const memberMap = new Map<string, Member>()
+     
+     allDatabaseEvents.forEach(event => {
+       const info = event["会员信息"]
+       if (!info) return
+       
+       let id = '0000'
+       let name = ''
+       let phone = ''
+       
+       const match = info.match(/^\(([^)]+)\)(.*)$/)
+       if (match) {
+         id = match[1]
+         const remaining = match[2].trim()
+         // Try to parse "Name (Phone)"
+         const namePhoneMatch = remaining.match(/^(.*?)\s*\((.*?)\)$/)
+         if (namePhoneMatch) {
+           name = namePhoneMatch[1].trim()
+           phone = namePhoneMatch[2].trim()
+         } else {
+           // If no parentheses, treat remaining as phone or name
+           if (/^\d+$/.test(remaining)) phone = remaining
+           else name = remaining
+         }
+       } else {
+         // Fallback for non-bracketed info
+         if (/^\d+$/.test(info)) phone = info
+         else name = info
+       }
+       
+       const key = id !== '0000' ? id : (phone || name)
+       if (!key) return
+ 
+       const existing = memberMap.get(key)
+       const eventDate = event["服务日期"]
+       
+       // Calculate total amount from both fixed columns and dynamic amounts in notes
+       let amount = 0
+       const fixedStaffNames = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE']
+       fixedStaffNames.forEach(name => {
+         amount += (event[`金额_${name}` as keyof CalendarEvent] as number || 0)
+       })
 
-  const filteredMembers = memberSearchQuery 
-    ? MOCK_MEMBERS.filter(m => 
-        m.name.includes(memberSearchQuery) || 
-        m.phone.includes(memberSearchQuery) || 
-        m.card.toLowerCase().includes(memberSearchQuery.toLowerCase())
-      )
-    : []
+       // Parse dynamic amounts from notes [NAME_AMT:100]
+       const matches = event["备注"]?.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g)
+       if (matches) {
+         for (const match of matches) {
+           amount += Number(match[2]) || 0
+         }
+       }
+ 
+       if (existing) {
+         existing.totalSpend += amount
+         existing.totalVisits += 1
+         if (eventDate > existing.lastVisit) {
+           existing.lastVisit = eventDate
+         }
+         // Only update name if current is empty
+         if (!existing.name && name) existing.name = name
+         if (!existing.phone && phone) existing.phone = phone
+         
+         // Add to history
+         existing.history.push({
+           date: eventDate,
+           service: event["服务项目"],
+           staff: event["备注"]?.match(/技师:([^,]+)/)?.[1] || 'Unknown',
+           amount: amount
+         })
+       } else {
+         memberMap.set(key, {
+          name: name || '',
+          phone: phone || '',
+          card: id,
+          level: id.startsWith('NO') ? '爽约名单' : '普通会员',
+          totalSpend: amount,
+          totalVisits: 1,
+          lastVisit: eventDate,
+          note: '',
+          history: [{
+            date: eventDate,
+            service: event["服务项目"],
+            staff: event["备注"]?.match(/技师:([^,]+)/)?.[1] || 'Unknown',
+            amount: amount
+          }]
+        })
+       }
+     })
+     
+     return Array.from(memberMap.values())
+   }, [allDatabaseEvents])
+
+  const allMembers = useMemo(() => {
+    // Only use database members since MOCK_MEMBERS is empty
+    return databaseMembers
+  }, [databaseMembers])
+
+  const filteredMembers = useMemo(() => {
+    if (!memberSearchQuery) return []
+    const query = memberSearchQuery.toLowerCase()
+    return allMembers.filter(m => 
+      (m.name && m.name.toLowerCase().includes(query)) || 
+      (m.phone && m.phone.includes(query)) || 
+      (m.card && m.card.toLowerCase().includes(query))
+    )
+  }, [allMembers, memberSearchQuery])
 
   const handleSelectMember = (member: Member) => {
-    setMemberInfo(`${member.name} (${member.phone})`)
+    setMemberInfo(member.phone || member.name)
     setSelectedMember(member)
     setShowMemberDetail(true)
     setShowServiceSelection(false)
+    setShowCheckoutPreview(false)
     setMemberSearchQuery('')
     setIsNewMember(false)
     setMemberId(member.card)
@@ -572,11 +990,91 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setIsNewMember(true)
     setShowMemberDetail(true)
     setShowServiceSelection(false)
+    setShowCheckoutPreview(false)
     setMemberSearchQuery('')
     setMemberInfo(query)
   }
 
-  const generateMemberId = (category: 'young' | 'middle' | 'senior' | 'male' | 'noshow') => {
+  const toggleService = (service: string) => {
+    setNewTitle(prev => {
+      const items = prev.split(',').map(s => s.trim()).filter(Boolean)
+      const index = items.indexOf(service)
+      if (index > -1) {
+        items.splice(index, 1)
+        // Remove from itemStaffMap if exists
+        setItemStaffMap(prevMap => {
+          const newMap = { ...prevMap }
+          delete newMap[service]
+          return newMap
+        })
+      } else {
+        items.push(service)
+        // Scheme A: Immediate binding to the currently selected staff
+        if (selectedStaffId && selectedStaffId !== 'NO') {
+          setItemStaffMap(prevMap => ({
+            ...prevMap,
+            [service]: selectedStaffId
+          }))
+        }
+      }
+      
+      return items.join(', ')
+    })
+  }
+
+  useEffect(() => {
+    if (!newTitle) return;
+    
+    const items = newTitle.split(',').map(s => s.trim()).filter(Boolean)
+    let totalDuration = 0
+    
+    items.forEach(itemName => {
+      for (const cat of serviceCategories) {
+        // Find case-insensitive match
+        const item = cat.items.find(i => i.name.toLowerCase() === itemName.toLowerCase())
+        if (item && item.duration) {
+          totalDuration += item.duration
+          break
+        }
+      }
+    })
+    
+    if (totalDuration > 0) {
+      setDuration(totalDuration)
+      if (selectedDate) {
+        setSelectedEndDate(addMinutes(new Date(selectedDate), totalDuration))
+      }
+    }
+  }, [newTitle, selectedDate])
+
+  // Scheme B: Sequential mapping effect
+  useEffect(() => {
+    // If we have multiple staff selected, or if we want to re-map based on current order
+    if (selectedStaffIds.length > 0) {
+      const items = newTitle.split(',').map(s => s.trim()).filter(Boolean)
+      if (items.length > 0) {
+        const newMap: Record<string, string> = { ...itemStaffMap }
+        items.forEach((item, index) => {
+          // Use the staff at the corresponding index, or fallback to the last one if fewer staff than items
+          const targetStaffId = selectedStaffIds[index] || selectedStaffIds[selectedStaffIds.length - 1]
+          if (targetStaffId) {
+            newMap[item] = targetStaffId
+          }
+        })
+        
+        // Only update if it's different to avoid loops
+        const isChanged = Object.keys(newMap).length !== Object.keys(itemStaffMap).length || 
+                          items.some(it => newMap[it] !== itemStaffMap[it])
+        if (isChanged) {
+          setItemStaffMap(newMap)
+        }
+      }
+    }
+  }, [selectedStaffIds, newTitle])
+
+  const generateMemberId = async (category: 'young' | 'middle' | 'senior' | 'male' | 'noshow') => {
+    setMemberId('...') // Loading feedback
+    
     const ranges: Record<'young' | 'middle' | 'senior' | 'male' | 'noshow', { min: number; max: number; prefix?: string }> = {
       young: { min: 1, max: 3000 },
       middle: { min: 3001, max: 6000 },
@@ -586,17 +1084,72 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     }
     
     const config = ranges[category]
-    // For now, let's pick a random number in the range that isn't in MOCK_MEMBERS
-    // In a real app, this would be a database call.
-    let nextId = config.min
-    if (category === 'middle') nextId = 3046 // User's example
     
-    const formattedId = category === 'noshow' 
-      ? `NO ${nextId}` 
-      : nextId.toString().padStart(4, '0')
+    try {
+      // 1. Fetch all member info strings from the database to find existing IDs
+      const { data, error } = await supabase
+        .from('fx_events')
+        .select('会员信息')
+        .not('会员信息', 'is', null)
       
-    setMemberId(formattedId)
-    setSelectedMember(prev => (prev ? { ...prev, card: formattedId } : prev))
+      if (error) throw error
+
+      // 2. Extract unique numeric IDs
+      const existingIds = new Set<number>()
+      const existingNoShowIds = new Set<number>()
+      
+      data.forEach(item => {
+        const info = item['会员信息']
+        if (!info) return
+        
+        // Check for regular ID: (1234)
+        const match = info.match(/\((\d+)\)/)
+        if (match) {
+          existingIds.add(parseInt(match[1]))
+        }
+        
+        // Check for NoShow ID: (NO 123)
+        const noShowMatch = info.match(/\(NO (\d+)\)/)
+        if (noShowMatch) {
+          existingNoShowIds.add(parseInt(noShowMatch[1]))
+        }
+      })
+
+      // 3. Find the max ID in the target range and increment
+      const targetSet = category === 'noshow' ? existingNoShowIds : existingIds
+      const idsInRange = Array.from(targetSet).filter(id => id >= config.min && id <= config.max)
+      
+      let nextId = config.min
+      if (idsInRange.length > 0) {
+        nextId = Math.max(...idsInRange) + 1
+      }
+      
+      // Safety check to not exceed range max
+      if (nextId > config.max) {
+        // Find first gap if max reached
+        for (let i = config.min; i <= config.max; i++) {
+          if (!targetSet.has(i)) {
+            nextId = i
+            break
+          }
+        }
+      }
+      
+      const formattedId = category === 'noshow' 
+        ? `NO ${nextId}` 
+        : nextId.toString().padStart(4, '0')
+        
+      setMemberId(formattedId)
+      setSelectedMember(prev => (prev ? { ...prev, card: formattedId } : prev))
+    } catch (err) {
+      console.error('Error generating member ID:', err)
+      // Fallback
+      const randomId = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min
+      const formattedId = category === 'noshow' 
+        ? `NO ${randomId}` 
+        : randomId.toString().padStart(4, '0')
+      setMemberId(formattedId)
+    }
   }
 
   // --- Calendar Helpers ---
@@ -748,7 +1301,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       onClick={() => setCurrentDate(new Date())}
                       className={cn(
                         "w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center transition-all active:scale-95",
-                        isSameDay(currentDate, new Date())
+                        isSameDay(currentDate, today || new Date(2024, 0, 1))
                           ? "bg-gradient-to-br from-white/20 to-white/5 border-white/10 shadow-lg"
                           : "bg-transparent border-white/15 hover:border-white/30"
                       )}
@@ -786,17 +1339,17 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <div key={day.toString()} className="py-2 md:py-3 flex flex-col items-center">
                         <div className={cn(
                           "flex flex-col items-center justify-center transition-all duration-300 w-12 h-12 md:w-16 md:h-16 rounded-full",
-                          isSameDay(day, new Date()) ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/5"
+                          isSameDay(day, today || new Date(2024, 0, 1)) ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/5"
                         )}>
                           <div className={cn(
                             "text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5",
-                            isSameDay(day, new Date()) ? "text-zinc-900/70" : "text-white"
+                            isSameDay(day, today || new Date(2024, 0, 1)) ? "text-zinc-900/70" : "text-white"
                           )}>
                             {format(day, 'EEE', { locale: zhCN })}
                           </div>
                           <div className={cn(
                             "text-lg md:text-xl font-black",
-                            isSameDay(day, new Date()) ? "text-zinc-900" : "text-white"
+                            isSameDay(day, today || new Date(2024, 0, 1)) ? "text-zinc-900" : "text-white"
                           )}>
                             {format(day, 'd', { locale: zhCN })}
                           </div>
@@ -880,7 +1433,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           
                           const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
                           const staffId = staffIdMatch ? staffIdMatch[1] : null
-                          const staffFromEvent = STAFF_MEMBERS.find(s => s.id === staffId)
+                          const staffFromEvent = staffMembers.find(s => s.id === staffId)
                           
                           return (
                             <div 
@@ -1017,7 +1570,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             )}>
               {days.map((day) => {
                 const isCurrentMonth = viewType === 'month' ? isSameMonth(day, monthStart) : true
-                const isToday = isSameDay(day, new Date())
+                const isToday = isSameDay(day, today || new Date(2024, 0, 1))
                 
                 const dayEvents = events.filter(event => {
                   const eventDate = getEventStartTime(event)
@@ -1112,21 +1665,20 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       {/* --- Event Modal --- */}
       {isModalOpen && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
           onClick={closeModal}
         >
           <div 
-            className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+            className="w-full max-w-2xl bg-zinc-900/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <form onSubmit={handleSubmit} className="flex flex-col">
-              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-2">
                 {/* Left Column - Core Info */}
                 <div className="p-6 space-y-4">
                   {/* Title Section - Centered */}
                   <div className="flex flex-col items-center justify-center mb-6 space-y-1.5">
                     <h2 className="text-xl font-black italic tracking-[0.4em] text-white">FX ESTETICA</h2>
-                    <div className="w-16 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
                   </div>
 
                   {/* Row 2: Service & Member */}
@@ -1135,19 +1687,48 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                         服务内容
                       </label>
-                      <input 
-                        autoFocus
-                        type="text"
-                        placeholder="输入服务项目..."
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-all text-xs placeholder:text-zinc-700"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        onFocus={() => {
-                          setShowServiceSelection(true)
-                          setShowMemberDetail(false)
-                        }}
-                        required
-                      />
+                      <div className="relative group w-full bg-white/5 border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 transition-all shadow-inner overflow-hidden">
+                        <input 
+                          autoFocus
+                          type="text"
+                          placeholder="输入服务项目..."
+                          className="w-full bg-transparent border-none px-3 py-2.5 text-transparent caret-white focus:outline-none text-xs placeholder:text-zinc-700 relative z-10"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onFocus={() => {
+                            setShowServiceSelection(true)
+                            setShowMemberDetail(false)
+                            setShowCheckoutPreview(false)
+                          }}
+                          required
+                        />
+                        {/* Colored Content Display - Directly inside the box */}
+                        <div className="absolute inset-0 flex items-center px-3 pointer-events-none z-0 overflow-hidden">
+                          {newTitle ? (
+                            <div className="flex items-center text-xs font-bold whitespace-pre">
+                              {newTitle.split(/(\s*,\s*)/).map((part, idx) => {
+                                const trimmed = part.trim()
+                                const isSeparator = part.includes(',')
+                                
+                                if (isSeparator || !trimmed) {
+                                  return <span key={idx} className="text-zinc-500">{part}</span>
+                                }
+
+                                const staffId = itemStaffMap[trimmed]
+                                const colorClass = getStaffColorClass(staffId).replace('-500', '-400')
+                                
+                                return (
+                                  <span key={idx} className={cn("font-black italic uppercase tracking-wider", colorClass)}>
+                                    {part}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-zinc-700 text-xs">输入服务项目...</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1.5 relative">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
@@ -1156,7 +1737,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <input 
                         type="text"
                         placeholder="姓名/卡号/电话"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-all text-xs placeholder:text-zinc-700"
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs placeholder:text-zinc-700 shadow-inner"
                         value={memberInfo}
                         onChange={(e) => {
                           setMemberInfo(e.target.value)
@@ -1165,23 +1746,24 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         onFocus={() => {
                           setShowServiceSelection(false)
                           if (selectedMember) setShowMemberDetail(true)
+                          setShowCheckoutPreview(false)
                         }}
                       />
                       {/* Search Results Dropdown */}
                       {(filteredMembers.length > 0 || memberSearchQuery) && (
-                        <div className="absolute top-full left-0 w-full mt-1 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden backdrop-blur-xl">
+                        <div className="absolute top-full left-0 w-full mt-1 bg-black/60 backdrop-blur-3xl border border-white/10 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
                           {filteredMembers.map((member) => (
                             <button
-                              key={member.id}
+                              key={member.card}
                               type="button"
                               onClick={() => handleSelectMember(member)}
-                              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors"
                             >
                               <div className="flex flex-col items-start">
-                                <span className="text-xs font-bold text-white">{member.name}</span>
+                                {member.name && <span className="text-xs font-bold text-white">{member.name}</span>}
                                 <span className="text-[10px] text-zinc-500">{member.phone}</span>
                               </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400">
                                 {member.card}
                               </span>
                             </button>
@@ -1214,7 +1796,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </label>
                       <input 
                         type="date"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-all text-xs [color-scheme:dark]"
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] shadow-inner"
                         value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
                         onChange={(e) => {
                           const [y, m, d] = e.target.value.split('-').map(Number)
@@ -1233,7 +1815,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <select 
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold"
+                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedDate ? format(selectedDate, 'HH') : '08'}
                           onChange={(e) => {
                             const h = Number(e.target.value)
@@ -1250,7 +1832,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           ))}
                         </select>
                         <select 
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold"
+                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedDate ? format(selectedDate, 'mm') : '00'}
                           onChange={(e) => {
                             const m = Number(e.target.value)
@@ -1277,7 +1859,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         {I18N[lang].duration}
                       </label>
                       <select 
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer font-bold"
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer font-bold shadow-inner"
                         value={duration}
                         onChange={(e) => {
                           const newDuration = Number(e.target.value)
@@ -1287,9 +1869,16 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           }
                         }}
                       >
-                        {[15, 30, 45, 60, 75, 90, 105, 120, 150].map(m => (
-                          <option key={m} value={m}>{m} {I18N[lang].minutesSuffix}</option>
-                        ))}
+                        {(() => {
+                          const baseOptions = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300];
+                          const options = [...baseOptions];
+                          if (duration && !options.includes(duration)) {
+                            options.push(duration);
+                          }
+                          return options.sort((a, b) => a - b).map(m => (
+                            <option key={m} value={m}>{m} {I18N[lang].minutesSuffix}</option>
+                          ));
+                        })()}
                       </select>
                     </div>
                     <div className="space-y-1.5">
@@ -1298,7 +1887,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <select 
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold"
+                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedEndDate ? format(selectedEndDate, 'HH') : (selectedDate ? format(selectedDate, 'HH') : '08')}
                           onChange={(e) => {
                             const h = Number(e.target.value)
@@ -1318,7 +1907,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           ))}
                         </select>
                         <select 
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold"
+                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedEndDate ? format(selectedEndDate, 'mm') : (selectedDate ? format(selectedDate, 'mm') : '00')}
                           onChange={(e) => {
                             const m = Number(e.target.value)
@@ -1343,78 +1932,186 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                   {/* Row 5: Staff */}
                   <div className="space-y-1.5">
-                    <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                      {I18N[lang].staff}
-                    </label>
-                    <div className="flex flex-wrap gap-2.5">
-                      {STAFF_MEMBERS.map((staff) => (
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                        {I18N[lang].staff}
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {staffMembers.map((staff) => {
+                        const isInvolved = Object.values(itemStaffMap).includes(staff.id) || selectedStaffIds.includes(staff.id);
+                        const isActive = selectedStaffId === staff.id;
+                        const orderIndex = selectedStaffIds.indexOf(staff.id);
+                        
+                        return (
                         <button
                           key={staff.id}
                           type="button"
                           onClick={() => {
+                            if (staff.id === 'NO') {
+                              setSelectedStaffId('NO')
+                              setSelectedStaffIds([])
+                              setSelectedColor('bg-zinc-500')
+                              return
+                            }
+                            
                             setSelectedStaffId(staff.id)
-                            const colorMap: Record<string, string> = {
-                              '': 'bg-blue-600',
-                              '1': 'bg-rose-600',
-                              '2': 'bg-emerald-600',
-                              '3': 'bg-purple-600',
-                              '4': 'bg-orange-600',
-                              '5': 'bg-amber-600',
+                            
+                            // Sequential selection logic
+                            setSelectedStaffIds(prev => {
+                              if (prev.includes(staff.id)) {
+                                return prev.filter(id => id !== staff.id)
+                              } else {
+                                return [...prev, staff.id]
+                              }
+                            })
+
+                            // Map of specific IDs to the new 20 colors
+                            const fixedColorMap: Record<string, string> = {
+                              '1': 'bg-rose-500',
+                              '2': 'bg-emerald-500',
+                              '3': 'bg-purple-500',
+                              '4': 'bg-orange-500',
+                              '5': 'bg-amber-500',
                               'NO': 'bg-zinc-500'
                             }
-                            setSelectedColor(colorMap[staff.id])
+                            
+                            // Use the staff's custom bgColor if available, otherwise use fixed map or default
+                            const color = staff.bgColor?.replace('/10', '') || fixedColorMap[staff.id] || 'bg-sky-400'
+                            setSelectedColor(color)
                           }}
                           className={cn(
-                            "px-4 py-2 rounded-full text-[11px] font-black transition-all border-2 shrink-0 tracking-widest uppercase",
-                            selectedStaffId === staff.id 
-                              ? `bg-white text-black ${staff.color} shadow-lg scale-105` 
-                              : "bg-zinc-950 text-zinc-500 border-zinc-800/50 hover:border-zinc-700"
+                            "relative w-full py-2 rounded-xl text-[10px] font-black transition-all tracking-widest uppercase truncate px-1 border-2",
+                            isActive 
+                              ? `bg-white text-black border-transparent shadow-lg scale-105` 
+                              : isInvolved
+                                ? `bg-white/10 text-white ${staff.color || 'border-white/40'}`
+                                : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 border-transparent"
                           )}
                         >
                           {staff.name}
+                          
+                          {/* Order Indicator (Sequence Number) */}
+                          {orderIndex > -1 && (
+                            <div className={cn(
+                              "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shadow-lg border border-white/20",
+                              getStaffColorClass(staff.id, 'bg').replace('/5', '')
+                            )}>
+                              {orderIndex + 1}
+                            </div>
+                          )}
                         </button>
-                      ))}
+                      )})}
+                      {/* Management "Box" Button */}
+                      <button 
+                        type="button"
+                        onClick={() => setIsStaffManagerOpen(true)}
+                        className="w-full py-2 rounded-xl text-[10px] font-black transition-all bg-white/5 text-zinc-600 hover:text-white hover:bg-white/10 flex items-center justify-center border border-dashed border-white/10"
+                      >
+                        <Settings2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Row 6: Amounts */}
-                    <div className="space-y-1.5 pt-1">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                        {I18N[lang].amount}
-                      </label>
-                      <div className="grid grid-cols-5 gap-1.5">
-                        {STAFF_MEMBERS.filter(s => s.id !== 'NO').map((staff) => (
-                          <div key={staff.id} className="flex flex-col gap-1">
-                            <input 
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="€"
-                              value={staffAmounts[staff.name] || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/[^0-9]/g, '');
-                                setStaffAmounts(prev => ({ ...prev, [staff.name]: val }));
-                              }}
-                              className={cn(
-                                "w-full bg-zinc-950 border rounded-lg px-0 py-2.5 text-white text-center focus:outline-none focus:ring-1 focus:ring-white/10 transition-all text-[10px] placeholder:text-zinc-800 placeholder:text-center",
-                                staff.id === '1' && "border-rose-500",
-                                staff.id === '2' && "border-emerald-500",
-                                staff.id === '3' && "border-purple-500",
-                                staff.id === '4' && "border-orange-500",
-                                staff.id === '5' && "border-amber-500",
-                                !['1', '2', '3', '4', '5'].includes(staff.id) && "border-zinc-800"
-                              )}
-                            />
-                            <span className="text-[7px] text-center font-bold text-zinc-600 uppercase tracking-tighter truncate">{staff.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                 </div>
 
-                {/* Right Column - Member Detail or Service Selection */}
-                <div className="p-6 space-y-4 bg-white/[0.01]">
-                  {showMemberDetail && selectedMember ? (
+                {/* Right Column - Member Detail or Service Selection or Checkout Preview */}
+                <div className="p-6 space-y-4 bg-transparent min-h-[400px]">
+                  {showCheckoutPreview ? (
+                    <div className="h-full flex flex-col space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                      {/* Receipt Header */}
+                      <div className="flex flex-col items-center justify-center space-y-2 py-4 border-b border-white/5">
+                        <h2 className="text-xl font-black italic tracking-[0.4em] text-white">BILLING</h2>
+                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">结账清单</div>
+                      </div>
+
+                      {/* Items & Staff Amounts */}
+                      <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1">
+                        {/* Service Title */}
+                        <div className="space-y-2 group">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">项目</span>
+                          </div>
+                          
+                          {/* Item Price Breakdown with Staff Colors */}
+                          <div className="flex flex-col gap-1 pl-2 border-l border-white/5">
+                            {newTitle.split(',').map(s => s.trim()).filter(Boolean).map((itemName, idx) => {
+                              const itemData = serviceCategories.flatMap(c => c.items).find(i => i.name === itemName);
+                              if (!itemData) return null;
+                              
+                              const staffId = itemStaffMap[itemName];
+                              const colorClass = getStaffColorClass(staffId).replace('-500', '-400')
+
+                              return (
+                                <div key={idx} className="flex items-center justify-between">
+                                  <span className={cn("text-xs font-black italic uppercase", colorClass)}>{itemName}</span>
+                                  <span className="text-[10px] font-black text-zinc-500 italic">€{itemData.price}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="h-[1px] bg-white/5 w-full" />
+
+                        {/* Staff Breakdown */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">服务人员</div>
+                          </div>
+                          
+                          {staffMembers
+                            .filter(s => s.id !== 'NO' && (s.id === selectedStaffId || staffAmounts[s.name] !== undefined))
+                            .map((staff) => (
+                              <div key={staff.id} className="flex items-center justify-between bg-white/5 rounded-xl p-3 shadow-inner group hover:bg-white/10 transition-all">
+                                <div className="flex items-center gap-3">
+                                  <div className={cn("w-2 h-2 rounded-full", staff.color || 'bg-white')} />
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-zinc-300">{staff.name}</span>
+                                    {staff.id === selectedStaffId && (
+                                      <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">主服务人员</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input 
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={staffAmounts[staff.name] || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '');
+                                      setStaffAmounts(prev => ({ ...prev, [staff.name]: val }));
+                                    }}
+                                    placeholder="0"
+                                    className="w-16 bg-white/5 border-none rounded-lg py-1 text-center focus:outline-none focus:ring-1 focus:ring-white/10 transition-all text-sm font-black italic text-white placeholder:text-zinc-800"
+                                  />
+                                  <span className="text-xs font-black text-zinc-500 italic">€</span>
+                                </div>
+                              </div>
+                            ))}
+                          {Object.values(staffAmounts).filter(v => v && Number(v) > 0).length === 0 && !selectedStaffId && (
+                            <div className="text-center py-4 text-[10px] font-bold text-zinc-600 uppercase italic tracking-widest">
+                              未选择服务人员
+                            </div>
+                          )}
+
+                        </div>
+                      </div>
+  
+                    {/* Total Amount Section */}
+                    <div className="pt-6 border-t border-white/5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">总金额</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xs font-black text-zinc-400">€</span>
+                            <span className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-zinc-500 via-white to-zinc-500 animate-shine bg-[length:200%_auto]">
+                              {Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || calculateTotalPrice()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : showMemberDetail && selectedMember ? (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                       {/* Member Info Header */}
                       <div className="flex items-start justify-between gap-4">
@@ -1442,13 +2139,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                       {/* Stats Grid */}
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-1">
+                        <div className="bg-white/5 rounded-xl p-3 space-y-1 shadow-inner">
                           <div className="text-xs font-black text-white">{selectedMember.totalVisits} 次</div>
                           <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">总消费次数</div>
                         </div>
-                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-1">
+                        <div className="bg-white/5 rounded-xl p-3 space-y-1 shadow-inner">
                           <div className="text-xs font-black text-white">
-                            {isNewMember ? '0' : Math.floor((new Date().getTime() - new Date(selectedMember.lastVisit).getTime()) / (1000 * 60 * 60 * 24))} 天
+                            {isNewMember ? '0' : today ? Math.floor((today.getTime() - new Date(selectedMember.lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : '...'} 天
                           </div>
                           <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">距离上次</div>
                         </div>
@@ -1490,11 +2187,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         ) : (
                           <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                             {selectedMember.history.map((item: MemberHistoryItem, idx: number) => (
-                              <div key={idx} className="bg-zinc-950/50 border border-white/5 rounded-xl p-3 flex items-center justify-between group hover:border-white/10 transition-all">
+                              <div key={idx} className="bg-white/5 rounded-xl p-3 flex items-center justify-between group hover:bg-white/10 transition-all shadow-inner">
                                 <div className="flex flex-col gap-0.5">
                                   <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-bold text-zinc-300">{item.date}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500">{item.staff}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-zinc-500">{item.staff}</span>
                                   </div>
                                   <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">{item.service}</span>
                                 </div>
@@ -1508,7 +2205,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       {/* Notes Section */}
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{I18N[lang].notes}</label>
-                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus-within:border-amber-500/50 transition-all">
+                        <div className="bg-white/5 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white/10 transition-all shadow-inner">
                           <input 
                             type="text"
                             placeholder={I18N[lang].notesPlaceholder}
@@ -1527,46 +2224,61 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       {/* Title Section - Centered (Matching Left) */}
                       <div className="flex flex-col items-center justify-center mb-6 space-y-1.5">
                         <h2 className="text-xl font-black italic tracking-[0.4em] text-white">FX ESTETICA</h2>
-                        <div className="w-16 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
                       </div>
 
                       {/* Service Categories - 4 Columns */}
                       <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { title: 'Mani', color: 'from-pink-500/20 to-rose-500/20', items: ['Mn', 'Ms', 'Rc', 'Rt', 'Cop'] },
-                          { title: 'Piedi', color: 'from-emerald-500/20 to-teal-500/20', items: ['Pn', 'Ps'] },
-                          { title: 'Ceretta', color: 'from-amber-500/20 to-orange-500/20', items: [] },
-                          { title: 'Viso', color: 'from-blue-500/20 to-indigo-500/20', items: [] }
-                        ].map((category) => (
+                        {serviceCategories.map((category) => {
+                          const isSelected = newTitle.split(',').map(s => s.trim()).includes(category.title)
+                          return (
                           <div key={category.title} className="space-y-2">
                             <div 
-                              onClick={() => setNewTitle(category.title)}
+                              onClick={() => toggleService(category.title)}
                               className={cn(
-                                "aspect-[1/1.2] rounded-xl bg-gradient-to-br border border-white/10 flex flex-col items-center justify-center p-1.5 group cursor-pointer hover:border-white/30 transition-all",
-                                category.color
+                                "aspect-[1.8/1] rounded-xl bg-gradient-to-br border-none flex flex-col items-center justify-center p-1.5 group cursor-pointer transition-all shadow-inner relative overflow-hidden",
+                                category.color,
+                                isSelected ? "ring-2 ring-white/50 scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.1)]" : "hover:bg-white/10"
                               )}
                             >
-                              <h4 className="text-[9px] font-black italic tracking-widest text-white uppercase group-hover:scale-110 transition-transform">
+                              {isSelected && (
+                                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse" />
+                              )}
+                              <h4 className={cn(
+                                "text-[9px] font-black italic tracking-widest uppercase transition-all group-hover:scale-110",
+                                isSelected ? "text-white" : "text-white/60"
+                              )}>
                                 {category.title}
                               </h4>
-                              <div className="mt-1 w-4 h-[1px] bg-white/20 group-hover:w-8 transition-all" />
+                              <div className={cn(
+                                "mt-1 h-[1px] transition-all",
+                                isSelected ? "w-8 bg-white" : "w-4 bg-white/20 group-hover:w-8"
+                              )} />
                             </div>
                             
                             {/* Sub Items */}
                             <div className="flex flex-col gap-1">
-                              {category.items.map((item) => (
+                              {category.items.map((item) => {
+                                const isItemSeleted = newTitle.split(',').map(s => s.trim()).includes(item.name)
+                                const itemStaffId = itemStaffMap[item.name]
+                                
+                                return (
                                 <button
-                                  key={item}
+                                  key={item.name}
                                   type="button"
-                                  onClick={() => setNewTitle(item)}
-                                  className="w-full py-1.5 px-2 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-bold text-zinc-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all active:scale-95"
+                                  onClick={() => toggleService(item.name)}
+                                  className={cn(
+                                    "w-full py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all active:scale-95 shadow-inner",
+                                    isItemSeleted 
+                                      ? `${getStaffColorClass(itemStaffId).replace('-500', '-400')} bg-white/20 ring-1 ring-white/30`
+                                      : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                                  )}
                                 >
-                                  {item}
+                                  {item.name}
                                 </button>
-                              ))}
+                              )})}
                             </div>
                           </div>
-                        ))}
+                        )})}
                       </div>
                     </div>
                   ) : (
@@ -1581,31 +2293,312 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               </div>
 
               {/* Footer Actions */}
-              <div className="px-6 py-5 bg-zinc-950/50 border-t border-white/5 flex flex-col md:flex-row gap-3 items-center">
-                <div className="flex-1 flex gap-2 w-full md:w-auto">
+              <div className="px-4 py-6 bg-transparent flex flex-col items-center justify-center">
+                <div className="flex flex-row flex-nowrap gap-4 w-full justify-center items-center overflow-x-auto custom-scrollbar">
                   {editingEvent && (
                     <button 
                       type="button" 
                       onClick={handleDeleteEvent}
                       disabled={isSubmitting}
-                      className="flex-1 md:flex-none px-6 py-3 rounded-xl font-bold text-rose-500 hover:bg-rose-500/10 transition-all text-xs border border-rose-500/20 active:scale-95"
+                      className={cn(
+                        "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
+                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                        "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                      )}
                     >
-                      删除
+                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '删除'}
                     </button>
                   )}
-                  <button type="button" onClick={closeModal} className="flex-1 md:flex-none px-6 py-3 rounded-xl font-bold text-zinc-500 hover:bg-zinc-800 transition-all text-xs active:scale-95">
-                    取消
+
+                  {!showCheckoutPreview && !editingEvent && (
+                    <>
+                      <button 
+                        disabled={isSubmitting} 
+                        type="button" 
+                        onClick={(e) => handleSubmit(e as any, 'sequential')}
+                        className={cn(
+                          "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
+                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                          "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                        )}
+                      >
+                        分段服务
+                      </button>
+                      <button 
+                        disabled={isSubmitting} 
+                        type="button" 
+                        onClick={(e) => handleSubmit(e as any, 'parallel')}
+                        className={cn(
+                          "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
+                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                          "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                        )}
+                      >
+                        同时服务
+                      </button>
+                    </>
+                  )}
+
+                  <button 
+                    disabled={isSubmitting} 
+                    type="button" 
+                    onClick={() => {
+                      if (!showCheckoutPreview) {
+                        // Automatically allocate amounts based on item-staff binding
+                        const hasAllocated = Object.values(staffAmounts).some(v => v && Number(v) > 0);
+                        if (!hasAllocated) {
+                          const amounts: Record<string, string> = {};
+                          const selectedItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+                          
+                          selectedItems.forEach(itemName => {
+                            const staffId = itemStaffMap[itemName] || selectedStaffId;
+                            const staff = staffMembers.find(s => s.id === staffId);
+                            if (staff && staff.id !== 'NO') {
+                              const itemData = serviceCategories.flatMap(c => c.items).find(i => i.name === itemName);
+                              if (itemData) {
+                                const currentAmount = Number(amounts[staff.name] || 0);
+                                amounts[staff.name] = (currentAmount + itemData.price).toString();
+                              }
+                            }
+                          });
+                          
+                          if (Object.keys(amounts).length > 0) {
+                            setStaffAmounts(amounts);
+                          } else if (selectedStaffId && selectedStaffId !== 'NO') {
+                            // Fallback if no item mapping but staff selected
+                            const staff = staffMembers.find(s => s.id === selectedStaffId);
+                            if (staff) {
+                              const total = calculateTotalPrice();
+                              if (total > 0) {
+                                setStaffAmounts({ [staff.name]: total.toString() });
+                              }
+                            }
+                          }
+                        }
+                        setShowCheckoutPreview(true)
+                      } else {
+                        handleSubmit(new Event('submit') as any, 'parallel')
+                      }
+                    }}
+                    className={cn(
+                      "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
+                      "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                      "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                    )}
+                  >
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (showCheckoutPreview ? '确认收款' : '收银结账')}
                   </button>
+
+                  {!showCheckoutPreview && (
+                    <button 
+                      disabled={isSubmitting} 
+                      type="submit" 
+                      className={cn(
+                        "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
+                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                        "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                      )}
+                    >
+                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '预约确定'}
+                    </button>
+                  )}
                 </div>
-                <button 
-                  disabled={isSubmitting} 
-                  type="submit" 
-                  className="w-full md:w-auto md:px-10 py-3 bg-white text-black rounded-xl font-black hover:bg-zinc-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-xs shadow-[0_8px_30px_rgb(255,255,255,0.1)] active:scale-95"
-                >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingEvent ? '保存修改' : '确认创建')}
-                </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* --- Staff Management Modal --- */}
+      {isStaffManagerOpen && (
+        <div 
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setIsStaffManagerOpen(false)}
+        >
+          <div 
+            className="w-full max-w-sm bg-zinc-900/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black italic tracking-widest text-white uppercase">管理服务人员</h3>
+              <button onClick={() => setIsStaffManagerOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Add Staff */}
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  placeholder="新员工姓名..."
+                  className="flex-1 bg-white/5 border-none rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all text-xs"
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const name = newStaffName.trim()
+                      if (name) {
+                        const newId = Date.now().toString()
+                        // Default to sky-400 for new staff
+                        setStaffMembers([...staffMembers, { 
+                          id: newId, 
+                          name: name, 
+                          role: '技师', 
+                          avatar: name.substring(0, 2).toUpperCase(), 
+                          color: 'border-sky-400', 
+                          bgColor: 'bg-sky-400/10' 
+                        }])
+                        setNewStaffName('')
+                      }
+                    }
+                  }}
+                />
+                <button 
+                  onClick={() => {
+                    const name = newStaffName.trim()
+                    if (name) {
+                      const newId = Date.now().toString()
+                      setStaffMembers([...staffMembers, { 
+                        id: newId, 
+                        name: name, 
+                        role: '技师', 
+                        avatar: name.substring(0, 2).toUpperCase(), 
+                        color: 'border-sky-400', 
+                        bgColor: 'bg-sky-400/10' 
+                      }])
+                      setNewStaffName('')
+                    }
+                  }}
+                  className="px-4 py-2 bg-white text-black rounded-xl text-xs font-black hover:bg-zinc-200 transition-colors"
+                >
+                  添加
+                </button>
+              </div>
+
+              {/* Staff List */}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                {staffMembers.map((staff, index) => (
+                  <div 
+                    key={staff.id} 
+                    draggable={staff.id !== 'NO'}
+                    onDragStart={(e) => {
+                      if (staff.id === 'NO') return;
+                      setDraggedIndex(index);
+                      e.dataTransfer.effectAllowed = 'move';
+                      // Use a transparent image as drag image to customize
+                      const img = new Image();
+                      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+                      e.dataTransfer.setDragImage(img, 0, 0);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggedIndex === null || draggedIndex === index || staff.id === 'NO') return;
+                      
+                      const newStaff = [...staffMembers];
+                      const draggedStaff = newStaff[draggedIndex];
+                      newStaff.splice(draggedIndex, 1);
+                      newStaff.splice(index, 0, draggedStaff);
+                      setStaffMembers(newStaff);
+                      setDraggedIndex(index);
+                    }}
+                    onDragEnd={() => setDraggedIndex(null)}
+                    className={cn(
+                      "relative flex items-center justify-between p-3 bg-white/5 rounded-2xl group hover:bg-white/10 transition-all",
+                      staff.id !== 'NO' ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+                      draggedIndex === index && "opacity-50 scale-95 border-2 border-white/20",
+                      staff.hidden && "opacity-40"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Color Picker Ball */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveColorPickerStaffId(activeColorPickerStaffId === staff.id ? null : staff.id);
+                        }}
+                        className={cn(
+                          "w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black text-white transition-all hover:scale-110 shadow-lg shrink-0",
+                          staff.bgColor?.replace('/10', '') || 'bg-sky-400'
+                        )}
+                      >
+                        {staff.avatar}
+                      </button>
+                      
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-white truncate">{staff.name}</span>
+                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">{staff.role}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {/* Visibility Toggle */}
+                      {staff.id !== 'NO' && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStaffMembers(staffMembers.map(s => 
+                              s.id === staff.id ? { ...s, hidden: !s.hidden } : s
+                            ))
+                          }}
+                          className={cn(
+                            "p-2 transition-colors",
+                            staff.hidden ? "text-zinc-600 hover:text-zinc-400" : "text-white/40 hover:text-white"
+                          )}
+                          title={staff.hidden ? "显示该员工" : "隐藏该员工"}
+                        >
+                          {staff.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      )}
+
+                      {/* Delete Button */}
+                      {staff.id !== 'NO' && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStaffMembers(staffMembers.filter(s => s.id !== staff.id))
+                          }}
+                          className="p-2 text-rose-500/30 hover:text-rose-500 transition-colors"
+                          title="删除员工"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Color Picker Popup */}
+                    {activeColorPickerStaffId === staff.id && (
+                      <div className="absolute left-14 top-0 z-[120] w-48 p-3 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="grid grid-cols-5 gap-2">
+                          {COLOR_OPTIONS.map((color) => (
+                            <button
+                              key={color.value}
+                              onClick={() => {
+                                setStaffMembers(staffMembers.map(s => 
+                                  s.id === staff.id 
+                                    ? { ...s, bgColor: `${color.value}/10`, color: `border-${color.value.split('-')[1]}-500` } 
+                                    : s
+                                ))
+                                setActiveColorPickerStaffId(null)
+                              }}
+                              className={cn(
+                                "w-6 h-6 rounded-full transition-all hover:scale-125",
+                                color.value,
+                                staff.bgColor?.includes(color.value) ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""
+                              )}
+                              title={color.label}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-[9px] text-zinc-500 text-center uppercase tracking-[0.2em]">
+              员工信息将自动保存
+            </p>
           </div>
         </div>
       )}
