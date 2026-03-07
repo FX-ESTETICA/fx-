@@ -157,6 +157,9 @@ interface CalendarProps {
   
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(STAFF_MEMBERS)
   const [isMounted, setIsMounted] = useState(false)
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false)
+  const [timePickerMode, setTimePickerMode] = useState<'hour' | 'minute'>('hour')
   
   useEffect(() => {
       setIsMounted(true)
@@ -210,9 +213,6 @@ interface CalendarProps {
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
-  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false)
-  const [timePickerMode, setTimePickerMode] = useState<'hour' | 'minute'>('hour')
 
   // Calculate total price based on selected items in newTitle
   const totalPrice = useMemo(() => calculateTotalPrice(newTitle, SERVICE_CATEGORIES), [newTitle]);
