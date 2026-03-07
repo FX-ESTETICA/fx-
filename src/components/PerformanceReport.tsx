@@ -518,7 +518,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 flex flex-col overflow-hidden pl-6 -mt-4">
+                  <div className="flex-1 flex flex-col overflow-hidden pl-6 -mt-8">
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 pt-0 pb-2">
                       {projectStats.map((item, i) => {
                         const maxCount = Math.max(...projectStats.map(p => p.count), 1)
