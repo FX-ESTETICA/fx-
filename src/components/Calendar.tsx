@@ -1098,7 +1098,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       const existingIds = new Set<number>()
       const existingNoShowIds = new Set<number>()
       
-      data.forEach(item => {
+      data.forEach((item: any) => {
         const info = item['会员信息']
         if (!info) return
         
