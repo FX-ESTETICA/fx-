@@ -509,7 +509,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                 {/* Left: Project Ranking (More transparent) */}
                 <div className="w-1/3 bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex items-stretch overflow-hidden group">
                   {/* Vertical Title Sidebar */}
-                  <div className="w-8 flex flex-col items-center justify-center border-r border-white/10 pr-4 shrink-0 space-y-1">
+                  <div className="w-8 flex flex-col items-center justify-start border-r border-white/10 pr-4 shrink-0 space-y-1 pt-1">
                     {(lang === 'zh' ? '热门项目排行' : 'PROJECTS').split('').map((char, i) => (
                       <span key={i} className="text-[10px] font-black text-white/50 leading-tight uppercase drop-shadow-sm">
                         {char}
@@ -518,8 +518,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 flex flex-col overflow-hidden pl-6">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 py-2">
+                  <div className="flex-1 flex flex-col overflow-hidden pl-6 -mt-4">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 pt-0 pb-2">
                       {projectStats.map((item, i) => {
                         const maxCount = Math.max(...projectStats.map(p => p.count), 1)
                         const width = (item.count / maxCount) * 100
