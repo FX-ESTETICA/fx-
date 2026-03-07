@@ -40,7 +40,6 @@ import {
   CalendarEvent, 
   StaffMember, 
   Member, 
-  MemberHistoryItem,
   COLOR_OPTIONS, 
   STAFF_MEMBERS, 
   SERVICE_CATEGORIES, 

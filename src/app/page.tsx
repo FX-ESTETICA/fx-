@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import Calendar from '@/components/Calendar'
-import { ViewType } from '@/utils/calendar-constants'
+import Calendar, { ViewType } from '@/components/Calendar'
 import Sidebar from '@/components/Sidebar'
 import PerformanceReport from '@/components/PerformanceReport'
 import { cn } from '@/lib/utils'
