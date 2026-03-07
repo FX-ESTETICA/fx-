@@ -35,87 +35,26 @@ import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, 
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
+import { 
+  ViewType, 
+  CalendarEvent, 
+  StaffMember, 
+  Member, 
+  COLOR_OPTIONS, 
+  STAFF_MEMBERS, 
+  SERVICE_CATEGORIES, 
+  I18N 
+} from '@/utils/calendar-constants'
+import { 
+  getEventStartTime, 
+  getEventEndTime, 
+  getCalendarDays, 
+  generateTimeSlots,
+  calculateTotalPrice 
+} from '@/utils/calendar-helpers'
+
 // --- Types ---
-export type ViewType = 'day' | 'week' | 'month' | 'year'
-
-interface CalendarEvent {
-  id: string
-  "服务项目": string
-  "会员信息"?: string
-  "服务日期": string
-  "开始时间": string
-  "持续时间": number
-  "背景颜色": string
-  "备注"?: string
-  "金额_FANG"?: number
-  "金额_SARA"?: number
-  "金额_DAN"?: number
-  "金额_ALEXA"?: number
-  "金额_FEDE"?: number
-}
-
-interface StaffMember {
-  id: string
-  name: string
-  role: string
-  avatar: string
-  color: string
-  bgColor: string
-  hidden?: boolean
-}
-
-interface MemberHistoryItem {
-  date: string
-  service: string
-  staff: string
-  amount: number
-}
-
-interface Member {
-  id?: number
-  name: string
-  phone: string
-  card: string
-  level: string
-  totalSpend: number
-  totalVisits: number
-  lastVisit: string
-  note: string
-  history: MemberHistoryItem[]
-}
-
-const COLOR_OPTIONS = [
-  { label: '玫瑰红', value: 'bg-rose-500' },
-  { label: '红色', value: 'bg-red-500' },
-  { label: '橙色', value: 'bg-orange-500' },
-  { label: '琥珀黄', value: 'bg-amber-500' },
-  { label: '黄色', value: 'bg-yellow-400' },
-  { label: '柠檬绿', value: 'bg-lime-400' },
-  { label: '绿色', value: 'bg-green-500' },
-  { label: '翡翠绿', value: 'bg-emerald-500' },
-  { label: '青色', value: 'bg-teal-400' },
-  { label: '水色', value: 'bg-cyan-400' },
-  { label: '天蓝色', value: 'bg-sky-400' },
-  { label: '蓝色', value: 'bg-blue-500' },
-  { label: '靛蓝色', value: 'bg-indigo-500' },
-  { label: '紫罗兰', value: 'bg-violet-500' },
-  { label: '紫色', value: 'bg-purple-500' },
-  { label: '洋红色', value: 'bg-fuchsia-500' },
-  { label: '粉红色', value: 'bg-pink-500' },
-  { label: '亮玫瑰', value: 'bg-rose-400' },
-  { label: '板岩灰', value: 'bg-slate-400' },
-  { label: '锌灰色', value: 'bg-zinc-500' },
-]
-
-// Staff data for Nail Salon
-const STAFF_MEMBERS: StaffMember[] = [
-  { id: '1', name: 'FANG', role: '资深美甲师', avatar: 'FA', color: 'border-rose-500', bgColor: 'bg-rose-500/10' },
-  { id: '2', name: 'ALEXA', role: '创意设计', avatar: 'AL', color: 'border-emerald-500', bgColor: 'bg-emerald-500/10' },
-  { id: '3', name: 'SARA', role: '美睫主管', avatar: 'SA', color: 'border-purple-500', bgColor: 'bg-purple-500/10' },
-  { id: '4', name: 'DAN', role: '高级技师', avatar: 'DA', color: 'border-orange-500', bgColor: 'bg-orange-500/10' },
-  { id: '5', name: 'FEDE', role: '高级技师', avatar: 'FE', color: 'border-amber-500', bgColor: 'bg-amber-500/10' },
-  { id: 'NO', name: 'NO', role: '爽约', avatar: 'NO', color: 'border-zinc-500', bgColor: 'bg-zinc-500/10' },
-]
+// Moved to @/utils/calendar-constants
 
 interface CalendarProps {
   initialDate?: Date;
@@ -125,63 +64,10 @@ interface CalendarProps {
   lang?: 'zh' | 'it';
 }
 
-// --- Helpers ---
-// Helper to parse start time from fx_events row
-const getEventStartTime = (event: CalendarEvent) => {
-  if (!event["开始时间"] || !event["服务日期"]) return new Date()
-  const [h, m, s] = event["开始时间"].split(':').map(Number)
-  const [y, month, d] = event["服务日期"].split('-').map(Number)
-  return new Date(y, month - 1, d, h, m, s)
-}
+  // --- Helpers ---
+  // Moved to @/utils/calendar-helpers
 
-const getEventEndTime = (event: CalendarEvent) => {
-  return addMinutes(getEventStartTime(event), event["持续时间"])
-}
-
-const I18N = {
-  zh: {
-    viewLabels: { day: '日', week: '周', month: '月', year: '年' } as Record<ViewType, string>,
-    startTime: '开始时间',
-    duration: '持续时间',
-    endTime: '结束时间',
-    staff: '服务人员',
-    notes: '备注',
-    notesPlaceholder: '填写备注信息...',
-    choosePrompt: '请选择服务或会员',
-    serviceDate: '服务日期',
-    amount: '服务金额',
-    hourSuffix: ' 时',
-    minuteSuffix: ' 分',
-    minutesSuffix: ' 分钟',
-    dayHeaderFormat: 'M月d日 EEEE',
-    headerDayFmt: 'yyyy / MM / dd',
-    headerMonthFmt: 'yyyy / MM',
-    headerYearFmt: 'yyyy',
-    weekdays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  },
-  it: {
-    viewLabels: { day: 'Giorno', week: 'Settimana', month: 'Mese', year: 'Anno' } as Record<ViewType, string>,
-    startTime: 'Ora di inizio',
-    duration: 'Durata',
-    endTime: 'Ora di fine',
-    staff: 'Staff',
-    notes: 'Note',
-    notesPlaceholder: 'Inserisci note...',
-    choosePrompt: 'Seleziona servizio o membro',
-    serviceDate: 'Data',
-    amount: 'Importo',
-    hourSuffix: ' h',
-    minuteSuffix: ' min',
-    minutesSuffix: ' minuti',
-    dayHeaderFormat: 'd MMMM EEEE',
-    headerDayFmt: 'dd / MM / yyyy',
-    headerMonthFmt: 'MM / yyyy',
-    headerYearFmt: 'yyyy',
-    weekdays: ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
-  }
-}
-
-export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
+  export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
   const supabase = createClient()
   
   // Use a stable initial date for SSR to avoid hydration mismatch
@@ -261,59 +147,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Define service categories with prices outside render for easier access
-  const serviceCategories = [
-    { title: 'Mani', color: 'from-pink-500/20 to-rose-500/20', items: [
-      { name: 'Mn', price: 15, duration: 20 },
-      { name: 'Ms', price: 35, duration: 45 },
-      { name: 'Rc', price: 60, duration: 90 },
-      { name: 'Rt', price: 46, duration: 75 },
-      { name: 'Cop', price: 49, duration: 75 },
-      { name: 'T.s', price: 8, duration: 5 },
-      { name: 'T.g', price: 15, duration: 15 }
-    ] },
-    { title: 'Piedi', color: 'from-emerald-500/20 to-teal-500/20', items: [
-      { name: 'Pn', price: 23, duration: 30 },
-      { name: 'Ps', price: 38, duration: 60 }
-    ] },
-    { title: 'Ceretta', color: 'from-amber-500/20 to-orange-500/20', items: [
-      { name: 'Sop', price: 5, duration: 5 },
-      { name: 'Baf', price: 5, duration: 5 },
-      { name: 'Asc', price: 9, duration: 10 },
-      { name: 'Bra', price: 15, duration: 20 },
-      { name: 'Gam', price: 24, duration: 30 },
-      { name: 'In', price: 15, duration: 20 },
-      { name: 'Sch', price: 19, duration: 20 },
-      { name: 'Pet', price: 18, duration: 20 },
-      { name: 'Pan', price: 6, duration: 10 }
-    ] },
-    { title: 'Viso', color: 'from-blue-500/20 to-indigo-500/20', items: [
-      { name: 'EX.ciglia', price: 65, duration: 120 },
-      { name: 'Rt.ciglia', price: 40, duration: 75 },
-      { name: 'L.ciglia', price: 50, duration: 60 },
-      { name: 'C.ciglia', price: 30, duration: 60 },
-      { name: 'L.sop', price: 30, duration: 60 },
-      { name: 'C.sop', price: 30, duration: 60 },
-      { name: 'P.viso', price: 35, duration: 60 }
-    ] }
-  ];
-
   // Calculate total price based on selected items in newTitle
-  const calculateTotalPrice = () => {
-    const selectedItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
-    let total = 0;
-    selectedItems.forEach(itemName => {
-      // Find item in any category
-      for (const cat of serviceCategories) {
-        const item = cat.items.find(i => i.name === itemName);
-        if (item) {
-          total += item.price;
-          break;
-        }
-      }
-    });
-    return total;
-  };
+  const totalPrice = useMemo(() => calculateTotalPrice(newTitle, SERVICE_CATEGORIES), [newTitle]);
 
   const [staffAmounts, setStaffAmounts] = useState<Record<string, string>>(() => {
     return {}
@@ -554,7 +389,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         // Find item price and duration
         let itemPrice = 0;
         let itemDuration = duration; // Default to current duration state if not found
-        for (const cat of serviceCategories) {
+        for (const cat of SERVICE_CATEGORIES) {
           const found = cat.items.find(i => i.name === itemName);
           if (found) {
             itemPrice = found.price;
@@ -1029,7 +864,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     let totalDuration = 0
     
     items.forEach(itemName => {
-      for (const cat of serviceCategories) {
+      for (const cat of SERVICE_CATEGORIES) {
         // Find case-insensitive match
         const item = cat.items.find(i => i.name.toLowerCase() === itemName.toLowerCase())
         if (item && item.duration) {
@@ -1152,52 +987,18 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     }
   }
 
-  // --- Calendar Helpers ---
-  const getCalendarDays = () => {
-    if (viewType === 'day') {
-      return [currentDate]
-    }
-    if (viewType === 'week') {
-      return eachDayOfInterval({
-        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-        end: endOfWeek(currentDate, { weekStartsOn: 1 })
-      })
-    }
-    if (viewType === 'year') {
-      // In year view, we'll return the first day of each month
-      return eachMonthOfInterval({
-        start: startOfYear(currentDate),
-        end: endOfYear(currentDate)
-      })
-    }
-    // Month view (default)
-    const monthStart = startOfMonth(currentDate)
-    const monthEnd = endOfMonth(monthStart)
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-    return eachDayOfInterval({
-      start: calendarStart,
-      end: calendarEnd,
-    })
-  }
-
-  const days = getCalendarDays()
+  // --- Calendar Data ---
+  const days = getCalendarDays(viewType, currentDate)
   const monthStart = startOfMonth(currentDate)
-
   const locale = lang === 'zh' ? zhCN : itLocale
-  // Header label formatting is inlined where needed based on lang
 
-  const TIME_SLOTS: string[] = []
-  for (let hour = 8; hour <= 21; hour++) {
-    TIME_SLOTS.push(`${hour.toString().padStart(2, '0')}:00`)
-  }
-  // We don't push 22:00 to TIME_SLOTS for cells, we handle it as the bottom label
+  const TIME_SLOTS = generateTimeSlots()
 
   return (
     <div className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative">
       {/* Header */}
       <div className={cn(
-        "flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden transition-all duration-500 ease-in-out",
+        "flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden",
         isHeaderVisible ? "max-h-[100px] py-1 md:py-1.5 opacity-100" : "max-h-0 py-0 opacity-0"
       )}>
         <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
@@ -1205,7 +1006,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             <div 
               onClick={onToggleSidebar}
               className={cn(
-                "w-2.5 h-2.5 md:w-3 md:h-3 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.5)] shrink-0 transition-all duration-500 cursor-pointer hover:scale-125 active:scale-90", 
+                "w-2.5 h-2.5 md:w-3 md:h-3 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.5)] shrink-0 cursor-pointer", 
                 isLoading ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
               )} 
             />
@@ -1214,22 +1015,22 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               <h2 
                 onClick={onToggleSidebar}
                 className={cn(
-                  "text-xl md:text-2xl lg:text-3xl font-sans font-black italic tracking-[0.4em] select-none cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300",
-                  "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                  "text-xl md:text-2xl lg:text-3xl font-sans font-black italic tracking-[0.4em] select-none cursor-pointer",
+                  "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
                   "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                 )}
               >
                 {format(currentDate, 'yyyy')}
               </h2>
               {/* Subtle underline for elegance */}
-              <div className="absolute -bottom-1 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent scale-x-0 group-hover/year:scale-x-100 transition-transform duration-700" />
+              <div className="absolute -bottom-1 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-2">
-            <button onClick={handlePrev} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80 transition-all">
+            <button onClick={handlePrev} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80">
               <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
             </button>
             <div className="flex bg-transparent rounded-full p-1 border border-white/20">
@@ -1238,7 +1039,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   key={v}
                   onClick={() => setViewType(v)}
                   className={cn(
-                    "px-3 md:px-4 py-1 text-xs md:text-sm font-bold rounded-full transition-all bg-transparent",
+                    "px-3 md:px-4 py-1 text-xs md:text-sm font-bold rounded-full bg-transparent",
                     viewType === v ? "border border-white/30 text-white" : "text-zinc-400 hover:text-white"
                   )}
                   style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
@@ -1247,7 +1048,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 </button>
               ))}
             </div>
-            <button onClick={handleNext} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80 transition-all">
+            <button onClick={handleNext} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80">
               <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
@@ -1268,21 +1069,21 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <span 
                     onClick={() => setIsHeaderVisible(!isHeaderVisible)}
-                    className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] cursor-pointer transition-all select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
+                    className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] cursor-pointer select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                     title={isHeaderVisible ? "点击隐藏顶部栏" : "点击显示顶部栏"}
                   >
                     {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
                       /\d/.test(ch)
                         ? <span
                             key={i}
-                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine"
+                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
                             style={{ fontFamily: 'var(--font-orbitron)' }}
                           >
                             {ch}
                           </span>
                         : <span
                             key={i}
-                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine"
+                            className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
                             style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
                           >
                             {ch}
@@ -1300,7 +1101,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       type="button"
                       onClick={() => setCurrentDate(new Date())}
                       className={cn(
-                        "w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center transition-all active:scale-95",
+                        "w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center",
                         isSameDay(currentDate, today || new Date(2024, 0, 1))
                           ? "bg-gradient-to-br from-white/20 to-white/5 border-white/10 shadow-lg"
                           : "bg-transparent border-white/15 hover:border-white/30"
@@ -1329,7 +1130,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   {viewType === 'day' ? (
                     activeStaff.map(staff => (
                       <div key={staff.id} className="py-3 md:py-4 text-center flex flex-col items-center">
-                        <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-white/20 to-white/5 border border-white/10 flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-300">
+                        <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-white/20 to-white/5 border border-white/10 flex items-center justify-center shadow-lg">
                           <span className="text-[10px] md:text-xs font-black text-white tracking-tighter">{staff.avatar}</span>
                         </div>
                       </div>
@@ -1338,7 +1139,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                     days.map((day) => (
                       <div key={day.toString()} className="py-2 md:py-3 flex flex-col items-center">
                         <div className={cn(
-                          "flex flex-col items-center justify-center transition-all duration-300 w-12 h-12 md:w-16 md:h-16 rounded-full",
+                          "flex flex-col items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full",
                           isSameDay(day, today || new Date(2024, 0, 1)) ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/5"
                         )}>
                           <div className={cn(
@@ -1417,7 +1218,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               }}
                               className="h-[4rem] group/slot relative cursor-pointer"
                             >
-                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10 transition-colors" />
+                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10" />
                             </div>
                           )
                         })}
@@ -1450,8 +1251,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               }}
                               className={cn(
                                 "absolute z-10 rounded-lg px-2.5 py-2 text-xs font-black italic text-white shadow-2xl overflow-hidden",
-                                "backdrop-blur-md border-l-4 border-l-black/60 ring-1 ring-white/10",
-                                "hover:brightness-110 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex flex-col gap-1 uppercase tracking-wider",
+                                "border-l-4 border-l-black/60 ring-1 ring-white/10",
+                                "hover:brightness-110 flex flex-col gap-1 uppercase tracking-wider",
                                 event["背景颜色"] || 'bg-blue-600'
                               )}
                             >
@@ -1493,7 +1294,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               }}
                               className="h-[4rem] group/slot relative cursor-pointer"
                             >
-                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10 transition-colors" />
+                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10" />
                             </div>
                           )
                         })}
@@ -1522,8 +1323,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               }}
                               className={cn(
                                 "absolute z-10 rounded-lg px-2.5 py-2 text-xs font-black italic text-white shadow-2xl overflow-hidden",
-                                "backdrop-blur-md border-l-4 border-l-black/60 ring-1 ring-white/10",
-                                "hover:brightness-110 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex flex-col gap-1 uppercase tracking-wider",
+                                "border-l-4 border-l-black/60 ring-1 ring-white/10",
+                                "hover:brightness-110 flex flex-col gap-1 uppercase tracking-wider",
                                 event["背景颜色"] || 'bg-blue-600'
                               )}
                             >
@@ -1594,7 +1395,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       setIsModalOpen(true)
                     }}
                     className={cn(
-                      "relative flex flex-col p-1.5 md:p-3 lg:p-4 rounded-xl md:rounded-2xl lg:rounded-3xl transition-all cursor-pointer group/cell overflow-hidden",
+                      "relative flex flex-col p-1.5 md:p-3 lg:p-4 rounded-xl md:rounded-2xl lg:rounded-3xl cursor-pointer group/cell overflow-hidden",
                       !isCurrentMonth ? "opacity-20" : "hover:bg-white/5",
                       isToday && "bg-white/10 ring-1 ring-white/20",
                       viewType === 'year' && "items-center justify-center text-center"
@@ -1605,7 +1406,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       viewType === 'year' && "flex-col"
                     )}>
                       <span className={cn(
-                        "font-bold transition-all duration-300 group-hover/cell:scale-110 flex items-center justify-center rounded-xl",
+                        "font-bold flex items-center justify-center rounded-xl",
                         viewType === 'year' ? "text-lg md:text-xl p-2" : "text-[10px] md:text-sm w-6 h-6 md:w-8 md:h-8",
                         isToday 
                           ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
@@ -1614,7 +1415,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         {viewType === 'year' ? format(day, 'MMM', { locale: zhCN }) : format(day, 'd', { locale: zhCN })}
                       </span>
                       {isCurrentMonth && viewType !== 'year' && (
-                        <Plus className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-opacity w-3 h-3 md:w-4 md:h-4 text-zinc-700 mr-1" />
+                        <Plus className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 w-3 h-3 md:w-4 md:h-4 text-zinc-700 mr-1" />
                       )}
                     </div>
                     
@@ -1635,7 +1436,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               openEditModal(event)
                             }}
                             className={cn(
-                              "rounded-lg border border-white/10 transition-all shadow-md cursor-pointer hover:brightness-110",
+                              "rounded-lg border border-white/10 shadow-md cursor-pointer hover:brightness-110",
                               viewType === 'year' ? "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full" : "text-[8px] md:text-[10px] px-1.5 md:px-2 py-0.5 md:py-1 truncate text-white font-black flex items-center gap-1",
                               event["背景颜色"] || 'bg-blue-600',
                               "border-l-2 border-l-black/60 backdrop-blur-sm"
@@ -1662,14 +1463,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         )}
       </div>
 
-      {/* --- Event Modal --- */}
       {isModalOpen && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60"
           onClick={closeModal}
         >
           <div 
-            className="w-full max-w-2xl bg-zinc-900/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+            className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <form onSubmit={handleSubmit} className="flex flex-col">
@@ -1687,7 +1487,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                         服务内容
                       </label>
-                      <div className="relative group w-full bg-white/5 border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 transition-all shadow-inner overflow-hidden">
+                      <div className="relative group w-full bg-white/5 border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
                         <input 
                           autoFocus
                           type="text"
@@ -1715,7 +1515,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                 }
 
                                 const staffId = itemStaffMap[trimmed]
-                                const colorClass = getStaffColorClass(staffId).replace('-500', '-400')
+                                const colorClass = (!staffId || staffId === '') 
+                                  ? 'text-sky-400' 
+                                  : getStaffColorClass(staffId).replace('-500', '-400')
                                 
                                 return (
                                   <span key={idx} className={cn("font-black italic uppercase tracking-wider", colorClass)}>
@@ -1737,7 +1539,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <input 
                         type="text"
                         placeholder="姓名/卡号/电话"
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs placeholder:text-zinc-700 shadow-inner"
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-700 shadow-inner"
                         value={memberInfo}
                         onChange={(e) => {
                           setMemberInfo(e.target.value)
@@ -1751,13 +1553,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       />
                       {/* Search Results Dropdown */}
                       {(filteredMembers.length > 0 || memberSearchQuery) && (
-                        <div className="absolute top-full left-0 w-full mt-1 bg-black/60 backdrop-blur-3xl border border-white/10 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
+                        <div className="absolute top-full left-0 w-full mt-1 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
                           {filteredMembers.map((member) => (
                             <button
                               key={member.card}
                               type="button"
                               onClick={() => handleSelectMember(member)}
-                              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors"
+                              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5"
                             >
                               <div className="flex flex-col items-start">
                                 {member.name && <span className="text-xs font-bold text-white">{member.name}</span>}
@@ -1772,7 +1574,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             <button
                               type="button"
                               onClick={() => handleNewMember(memberSearchQuery)}
-                              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 transition-colors text-emerald-500"
+                              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 text-emerald-500"
                             >
                               <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
                                 <span className="text-lg">+</span>
@@ -1796,7 +1598,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </label>
                       <input 
                         type="date"
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] shadow-inner"
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] shadow-inner"
                         value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
                         onChange={(e) => {
                           const [y, m, d] = e.target.value.split('-').map(Number)
@@ -1815,7 +1617,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <select 
-                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
+                            className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedDate ? format(selectedDate, 'HH') : '08'}
                           onChange={(e) => {
                             const h = Number(e.target.value)
@@ -1832,7 +1634,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           ))}
                         </select>
                         <select 
-                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
+                            className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedDate ? format(selectedDate, 'mm') : '00'}
                           onChange={(e) => {
                             const m = Number(e.target.value)
@@ -1859,7 +1661,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         {I18N[lang].duration}
                       </label>
                       <select 
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer font-bold shadow-inner"
+                          className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer font-bold shadow-inner"
                         value={duration}
                         onChange={(e) => {
                           const newDuration = Number(e.target.value)
@@ -1887,7 +1689,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <select 
-                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
+                            className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedEndDate ? format(selectedEndDate, 'HH') : (selectedDate ? format(selectedDate, 'HH') : '08')}
                           onChange={(e) => {
                             const h = Number(e.target.value)
@@ -1907,7 +1709,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           ))}
                         </select>
                         <select 
-                          className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 transition-all text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
+                            className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
                           value={selectedEndDate ? format(selectedEndDate, 'mm') : (selectedDate ? format(selectedDate, 'mm') : '00')}
                           onChange={(e) => {
                             const m = Number(e.target.value)
@@ -1981,9 +1783,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             setSelectedColor(color)
                           }}
                           className={cn(
-                            "relative w-full py-2 rounded-xl text-[10px] font-black transition-all tracking-widest uppercase truncate px-1 border-2",
+                            "relative w-full py-2 rounded-xl text-[10px] font-black tracking-widest uppercase truncate px-1 border-2",
                             isActive 
-                              ? `bg-white text-black border-transparent shadow-lg scale-105` 
+                              ? `bg-white text-black border-transparent shadow-lg` 
                               : isInvolved
                                 ? `bg-white/10 text-white ${staff.color || 'border-white/40'}`
                                 : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 border-transparent"
@@ -2006,7 +1808,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       <button 
                         type="button"
                         onClick={() => setIsStaffManagerOpen(true)}
-                        className="w-full py-2 rounded-xl text-[10px] font-black transition-all bg-white/5 text-zinc-600 hover:text-white hover:bg-white/10 flex items-center justify-center border border-dashed border-white/10"
+                        className="w-full py-2 rounded-xl text-[10px] font-black bg-white/5 text-zinc-600 hover:text-white hover:bg-white/10 flex items-center justify-center border border-dashed border-white/10"
                       >
                         <Settings2 className="w-3.5 h-3.5" />
                       </button>
@@ -2017,7 +1819,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 {/* Right Column - Member Detail or Service Selection or Checkout Preview */}
                 <div className="p-6 space-y-4 bg-transparent min-h-[400px]">
                   {showCheckoutPreview ? (
-                    <div className="h-full flex flex-col space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="h-full flex flex-col space-y-6">
                       {/* Receipt Header */}
                       <div className="flex flex-col items-center justify-center space-y-2 py-4 border-b border-white/5">
                         <h2 className="text-xl font-black italic tracking-[0.4em] text-white">BILLING</h2>
@@ -2035,7 +1837,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           {/* Item Price Breakdown with Staff Colors */}
                           <div className="flex flex-col gap-1 pl-2 border-l border-white/5">
                             {newTitle.split(',').map(s => s.trim()).filter(Boolean).map((itemName, idx) => {
-                              const itemData = serviceCategories.flatMap(c => c.items).find(i => i.name === itemName);
+                              const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
                               if (!itemData) return null;
                               
                               const staffId = itemStaffMap[itemName];
@@ -2062,7 +1864,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           {staffMembers
                             .filter(s => s.id !== 'NO' && (s.id === selectedStaffId || staffAmounts[s.name] !== undefined))
                             .map((staff) => (
-                              <div key={staff.id} className="flex items-center justify-between bg-white/5 rounded-xl p-3 shadow-inner group hover:bg-white/10 transition-all">
+                              <div key={staff.id} className="flex items-center justify-between bg-white/5 rounded-xl p-3 shadow-inner group hover:bg-white/10">
                                 <div className="flex items-center gap-3">
                                   <div className={cn("w-2 h-2 rounded-full", staff.color || 'bg-white')} />
                                   <div className="flex flex-col">
@@ -2083,7 +1885,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                       setStaffAmounts(prev => ({ ...prev, [staff.name]: val }));
                                     }}
                                     placeholder="0"
-                                    className="w-16 bg-white/5 border-none rounded-lg py-1 text-center focus:outline-none focus:ring-1 focus:ring-white/10 transition-all text-sm font-black italic text-white placeholder:text-zinc-800"
+                                    className="w-16 bg-white/5 border-none rounded-lg py-1 text-center focus:outline-none focus:ring-1 focus:ring-white/10 text-sm font-black italic text-white placeholder:text-zinc-800"
                                   />
                                   <span className="text-xs font-black text-zinc-500 italic">€</span>
                                 </div>
@@ -2104,15 +1906,15 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">总金额</span>
                           <div className="flex items-baseline gap-1">
                             <span className="text-xs font-black text-zinc-400">€</span>
-                            <span className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-zinc-500 via-white to-zinc-500 animate-shine bg-[length:200%_auto]">
-                              {Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || calculateTotalPrice()}
+                            <span className="text-3xl font-black italic text-white">
+                              {Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || totalPrice}
                             </span>
                           </div>
                         </div>
                       </div>
                     </div>
                   ) : showMemberDetail && selectedMember ? (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="space-y-6">
                       {/* Member Info Header */}
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex flex-col flex-1 min-w-0">
@@ -2126,7 +1928,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                 setMemberName(e.target.value)
                                 setSelectedMember(prev => (prev ? { ...prev, name: e.target.value } : prev))
                               }}
-                              className="bg-transparent border-none text-lg font-bold text-zinc-400 focus:outline-none focus:text-white transition-all placeholder:text-zinc-800 flex-1 min-w-0"
+                              className="bg-transparent border-none text-lg font-bold text-zinc-400 focus:outline-none focus:text-white placeholder:text-zinc-800 flex-1 min-w-0"
                             />
                           </div>
                           <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider truncate">{selectedMember.level}</span>
@@ -2173,7 +1975,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                 className="flex flex-col items-center gap-1.5 group"
                               >
                                 <div className={cn(
-                                  "w-10 h-10 rounded-full flex items-center justify-center text-white text-[10px] font-black transition-all group-hover:scale-110 shadow-lg",
+                                  "w-10 h-10 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-lg",
                                   tag.color
                                 )}>
                                   {tag.label}
@@ -2187,13 +1989,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         ) : (
                           <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                             {selectedMember.history.map((item: MemberHistoryItem, idx: number) => (
-                              <div key={idx} className="bg-white/5 rounded-xl p-3 flex items-center justify-between group hover:bg-white/10 transition-all shadow-inner">
+                              <div key={idx} className="bg-white/5 rounded-xl p-3 flex items-center justify-between group hover:bg-white/10 shadow-inner">
                                 <div className="flex flex-col gap-0.5">
                                   <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-bold text-zinc-300">{item.date}</span>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-zinc-500">{item.staff}</span>
                                   </div>
-                                  <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">{item.service}</span>
+                                  <span className="text-xs font-bold text-white group-hover:text-emerald-400">{item.service}</span>
                                 </div>
                                 <span className="text-sm font-black text-white">€{item.amount}</span>
                               </div>
@@ -2205,7 +2007,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       {/* Notes Section */}
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{I18N[lang].notes}</label>
-                        <div className="bg-white/5 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white/10 transition-all shadow-inner">
+                        <div className="bg-white/5 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white/10 shadow-inner">
                           <input 
                             type="text"
                             placeholder={I18N[lang].notesPlaceholder}
@@ -2220,7 +2022,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </div>
                     </div>
                   ) : showServiceSelection ? (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="space-y-6">
                       {/* Title Section - Centered (Matching Left) */}
                       <div className="flex flex-col items-center justify-center mb-6 space-y-1.5">
                         <h2 className="text-xl font-black italic tracking-[0.4em] text-white">FX ESTETICA</h2>
@@ -2228,29 +2030,29 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                       {/* Service Categories - 4 Columns */}
                       <div className="grid grid-cols-4 gap-2">
-                        {serviceCategories.map((category) => {
+                        {SERVICE_CATEGORIES.map((category) => {
                           const isSelected = newTitle.split(',').map(s => s.trim()).includes(category.title)
                           return (
                           <div key={category.title} className="space-y-2">
                             <div 
                               onClick={() => toggleService(category.title)}
                               className={cn(
-                                "aspect-[1.8/1] rounded-xl bg-gradient-to-br border-none flex flex-col items-center justify-center p-1.5 group cursor-pointer transition-all shadow-inner relative overflow-hidden",
+                                "aspect-[1.8/1] rounded-xl bg-gradient-to-br border-none flex flex-col items-center justify-center p-1.5 group cursor-pointer shadow-inner relative overflow-hidden",
                                 category.color,
-                                isSelected ? "ring-2 ring-white/50 scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.1)]" : "hover:bg-white/10"
+                                isSelected ? "ring-2 ring-white/50 shadow-[0_0_20px_rgba(255,255,255,0.1)]" : "hover:bg-white/10"
                               )}
                             >
                               {isSelected && (
-                                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse" />
+                                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
                               )}
                               <h4 className={cn(
-                                "text-[9px] font-black italic tracking-widest uppercase transition-all group-hover:scale-110",
+                                "text-[9px] font-black italic tracking-widest uppercase",
                                 isSelected ? "text-white" : "text-white/60"
                               )}>
                                 {category.title}
                               </h4>
                               <div className={cn(
-                                "mt-1 h-[1px] transition-all",
+                                "mt-1 h-[1px]",
                                 isSelected ? "w-8 bg-white" : "w-4 bg-white/20 group-hover:w-8"
                               )} />
                             </div>
@@ -2267,7 +2069,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   type="button"
                                   onClick={() => toggleService(item.name)}
                                   className={cn(
-                                    "w-full py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all active:scale-95 shadow-inner",
+                                    "w-full py-1.5 px-2 rounded-lg text-[10px] font-bold shadow-inner",
                                     isItemSeleted 
                                       ? `${getStaffColorClass(itemStaffId).replace('-500', '-400')} bg-white/20 ring-1 ring-white/30`
                                       : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
@@ -2301,8 +2103,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       onClick={handleDeleteEvent}
                       disabled={isSubmitting}
                       className={cn(
-                        "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
-                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                        "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
+                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
                         "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                       )}
                     >
@@ -2317,8 +2119,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         type="button" 
                         onClick={(e) => handleSubmit(e as any, 'sequential')}
                         className={cn(
-                          "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
-                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                          "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
+                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
                           "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                         )}
                       >
@@ -2329,8 +2131,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         type="button" 
                         onClick={(e) => handleSubmit(e as any, 'parallel')}
                         className={cn(
-                          "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
-                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                          "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
+                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
                           "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                         )}
                       >
@@ -2354,7 +2156,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             const staffId = itemStaffMap[itemName] || selectedStaffId;
                             const staff = staffMembers.find(s => s.id === staffId);
                             if (staff && staff.id !== 'NO') {
-                              const itemData = serviceCategories.flatMap(c => c.items).find(i => i.name === itemName);
+                              const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
                               if (itemData) {
                                 const currentAmount = Number(amounts[staff.name] || 0);
                                 amounts[staff.name] = (currentAmount + itemData.price).toString();
@@ -2368,7 +2170,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             // Fallback if no item mapping but staff selected
                             const staff = staffMembers.find(s => s.id === selectedStaffId);
                             if (staff) {
-                              const total = calculateTotalPrice();
+                              const total = totalPrice;
                               if (total > 0) {
                                 setStaffAmounts({ [staff.name]: total.toString() });
                               }
@@ -2381,8 +2183,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       }
                     }}
                     className={cn(
-                      "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
-                      "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                      "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
+                      "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
                       "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                     )}
                   >
@@ -2394,8 +2196,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       disabled={isSubmitting} 
                       type="submit" 
                       className={cn(
-                        "px-6 py-3 bg-transparent rounded-xl font-black italic transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm active:scale-95 hover:bg-white/5 whitespace-nowrap",
-                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent animate-shine",
+                        "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
+                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
                         "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                       )}
                     >
@@ -2411,16 +2213,16 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       {/* --- Staff Management Modal --- */}
       {isStaffManagerOpen && (
         <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60"
           onClick={() => setIsStaffManagerOpen(false)}
         >
           <div 
-            className="w-full max-w-sm bg-zinc-900/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6"
+            className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black italic tracking-widest text-white uppercase">管理服务人员</h3>
-              <button onClick={() => setIsStaffManagerOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
+              <button onClick={() => setIsStaffManagerOpen(false)} className="text-zinc-500 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2431,7 +2233,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 <input 
                   type="text"
                   placeholder="新员工姓名..."
-                  className="flex-1 bg-white/5 border-none rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all text-xs"
+                  className="flex-1 bg-white/5 border-none rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white/20 text-xs"
                   value={newStaffName}
                   onChange={(e) => setNewStaffName(e.target.value)}
                   onKeyDown={(e) => {
@@ -2469,7 +2271,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       setNewStaffName('')
                     }
                   }}
-                  className="px-4 py-2 bg-white text-black rounded-xl text-xs font-black hover:bg-zinc-200 transition-colors"
+                  className="px-4 py-2 bg-white text-black rounded-xl text-xs font-black hover:bg-zinc-200"
                 >
                   添加
                 </button>
@@ -2503,9 +2305,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                     }}
                     onDragEnd={() => setDraggedIndex(null)}
                     className={cn(
-                      "relative flex items-center justify-between p-3 bg-white/5 rounded-2xl group hover:bg-white/10 transition-all",
+                      "relative flex items-center justify-between p-3 bg-white/5 rounded-2xl group hover:bg-white/10",
                       staff.id !== 'NO' ? "cursor-grab active:cursor-grabbing" : "cursor-default",
-                      draggedIndex === index && "opacity-50 scale-95 border-2 border-white/20",
+                      draggedIndex === index && "opacity-50 border-2 border-white/20",
                       staff.hidden && "opacity-40"
                     )}
                   >
@@ -2517,7 +2319,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           setActiveColorPickerStaffId(activeColorPickerStaffId === staff.id ? null : staff.id);
                         }}
                         className={cn(
-                          "w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black text-white transition-all hover:scale-110 shadow-lg shrink-0",
+                          "w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg shrink-0",
                           staff.bgColor?.replace('/10', '') || 'bg-sky-400'
                         )}
                       >
@@ -2541,7 +2343,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             ))
                           }}
                           className={cn(
-                            "p-2 transition-colors",
+                            "p-2",
                             staff.hidden ? "text-zinc-600 hover:text-zinc-400" : "text-white/40 hover:text-white"
                           )}
                           title={staff.hidden ? "显示该员工" : "隐藏该员工"}
@@ -2557,7 +2359,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             e.stopPropagation();
                             setStaffMembers(staffMembers.filter(s => s.id !== staff.id))
                           }}
-                          className="p-2 text-rose-500/30 hover:text-rose-500 transition-colors"
+                          className="p-2 text-rose-500/30 hover:text-rose-500"
                           title="删除员工"
                         >
                           <X className="w-4 h-4" />
@@ -2567,7 +2369,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                     {/* Color Picker Popup */}
                     {activeColorPickerStaffId === staff.id && (
-                      <div className="absolute left-14 top-0 z-[120] w-48 p-3 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+                      <div className="absolute left-14 top-0 z-[120] w-48 p-3 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl">
                         <div className="grid grid-cols-5 gap-2">
                           {COLOR_OPTIONS.map((color) => (
                             <button
@@ -2581,7 +2383,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                 setActiveColorPickerStaffId(null)
                               }}
                               className={cn(
-                                "w-6 h-6 rounded-full transition-all hover:scale-125",
+                                "w-6 h-6 rounded-full",
                                 color.value,
                                 staff.bgColor?.includes(color.value) ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""
                               )}
