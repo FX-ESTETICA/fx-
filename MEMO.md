@@ -1,7 +1,14 @@
 # Rapallo 收银台项目进度备忘录 (Checkpoint)
-*更新日期: 2026-03-07 (最新同步)*
+*更新日期: 2026-03-07 (最新同步 - 已优化交互与颜色逻辑)*
 
 本文档作为项目逻辑与进度的“记忆库”，旨在减少长对话中的上下文重复，并作为核心逻辑的快速参考。新对话开始时，请让 AI 助手阅读此文件。
+
+## 0. 项目部署与环境信息 (Deployment & Environment)
+- **GitHub 仓库**: `https://github.com/FX-ESTETICA/fx-.git`
+- **生产环境 (Vercel)**: `https://fx-rapallo.vercel.app`
+- **环境变量 (Supabase)**:
+  - `NEXT_PUBLIC_SUPABASE_URL`: `https://otkzntibwinszparrkru.supabase.co`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: `sb_publishable_zvSB8MZJ4T_Oq51aNlzMEg_gDl1HeBM`
 
 ## 1. 已实现的核心逻辑 (Stable Features)
 
@@ -32,13 +39,20 @@
 - **底部按钮**: 预约弹窗 footer 采用单行居中布局：`[分段服务]`, `[同时服务]`, `[收银结账]`, `[预约确定]` 并排显示。
 - **滚动支持**: 按钮栏支持横向滚动，防止小屏幕溢出。
 
+### E. 交互优化 (Performance & Interaction)
+- **零延迟响应**: 移除了所有 `transition-*`, `duration-*`, `active:scale-*` 等动画类名，实现“点击即结束”的瞬时响应。
+- **默认显示颜色**: 服务项目在未指定技师时，默认显示为蓝色 (`text-sky-400`)，与数据库保存逻辑保持一致。
+
 ## 2. 最近修复的问题 (Bug Fixes)
+- **编译错误**: 修复了 `ViewType` 和 `MemberHistoryItem` 类型导入路径错误导致的 Vercel 部署失败。
 - **newItems 引用错误**: 修复了 `toggleService` 中 `newItems is not defined` 的报错，统一使用 `items` 变量。
 - **持续时间显示错误**: 解决了累计时长超过 150 分钟后 select 框显示为 15 分钟的 UI 渲染问题。
 
 ## 3. 待办事项与后续方向 (Next Steps)
 - [x] 完善服务项目的具体持续时间配置。
 - [x] 实现分段服务的自动时间衔接逻辑。
+- [x] 移除所有 UI 过渡动画，提升操作流畅度。
+- [x] 统一未分配人员时的默认蓝色显示。
 - [ ] 验证在高并发操作下的数据库同步稳定性。
 - [ ] 考虑增加“拖拽调整”分段服务顺序的功能。
 
