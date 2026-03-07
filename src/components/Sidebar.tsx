@@ -56,11 +56,11 @@ export default function Sidebar({
       <div className="flex flex-col items-center justify-center py-2 md:py-4 shrink-0">
         <div 
           onClick={onLogoClick}
-          className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-2xl flex items-center justify-center mb-2 md:mb-3 shadow-[0_0_20px_rgba(255,255,255,0.15)] cursor-pointer hover:scale-105 active:scale-95 transition-all"
+          className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-2xl flex items-center justify-center mb-2 md:mb-3 shadow-[0_0_20px_rgba(255,255,255,0.15)] cursor-pointer"
         >
           <span className="text-black font-black text-xl md:text-2xl tracking-tighter">FX</span>
         </div>
-        <h1 onClick={onBrandClick} className="text-lg md:text-xl font-black tracking-[0.2em] text-white cursor-pointer hover:scale-105 transition-transform">
+        <h1 onClick={onBrandClick} className="text-lg md:text-xl font-black tracking-[0.2em] text-white cursor-pointer">
           ESTETICA
         </h1>
         <div className="h-1 w-8 bg-indigo-600 rounded-full mt-2" />
@@ -88,7 +88,7 @@ export default function Sidebar({
                 key={i} 
                 onClick={() => onDateSelect?.(day)}
                 className={cn(
-                  "text-[11px] font-medium h-8 w-8 flex items-center justify-center rounded-lg transition-all",
+                  "text-[11px] font-medium h-8 w-8 flex items-center justify-center rounded-lg",
                   isToday ? "bg-white text-black font-bold shadow-lg shadow-white/10" : 
                   (isCurrentMonth ? "text-zinc-300 hover:bg-zinc-900" : "text-zinc-700")
                 )}
@@ -103,7 +103,7 @@ export default function Sidebar({
       {/* Digital Clock Section - Transparent background */}
       <div 
         onClick={onClockClick}
-        className="mt-auto py-4 md:py-6 shrink-0 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+        className="mt-auto py-4 md:py-6 shrink-0 flex flex-col items-center justify-center cursor-pointer"
       >
         <div className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-white font-mono">
           {format(now, 'HH:mm')}

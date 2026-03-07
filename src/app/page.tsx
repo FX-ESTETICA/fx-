@@ -86,7 +86,7 @@ export default function Home() {
     <main className="h-screen w-screen bg-zinc-950 flex flex-row overflow-hidden p-0.5 relative">
       {/* Global Background Image */}
       <div 
-        className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000"
+        className="absolute inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage: `url(${backgrounds[bgIndex]})`,
           backgroundSize: 'cover',
@@ -99,7 +99,7 @@ export default function Home() {
       <div 
         style={{ width: isSidebarVisible ? `${sidebarWidth}px` : '0px' }}
         className={cn(
-          "h-full overflow-hidden transition-[width] duration-300 ease-in-out shrink-0 relative z-10",
+          "h-full overflow-hidden shrink-0 relative z-10",
           !isSidebarVisible && "pointer-events-none"
         )}
       >
@@ -119,7 +119,7 @@ export default function Home() {
         <div
           onMouseDown={startResizing}
           className={cn(
-            "w-1 h-full cursor-col-resize hover:bg-white/10 transition-colors shrink-0 z-20",
+            "w-1 h-full cursor-col-resize hover:bg-white/10 shrink-0 z-20",
             isResizing && "bg-white/10"
           )}
         />

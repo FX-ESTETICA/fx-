@@ -337,7 +337,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
       onClick={onClose}
     >
       {/* Background Overlay - Slight darkening for depth */}
@@ -348,7 +348,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         className={cn(
           "relative w-full h-full max-w-[95%] max-h-[90%] overflow-hidden",
           "bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] shadow-2xl",
-          "flex flex-col animate-in zoom-in-95 duration-300"
+          "flex flex-col"
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -361,9 +361,9 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
-                  "text-lg font-black tracking-widest transition-all relative pb-2",
+                  "text-lg font-black tracking-widest relative pb-2",
                   activeTab === tab.id 
-                    ? "text-white scale-110" 
+                    ? "text-white" 
                     : "text-white/40 hover:text-white/60"
                 )}
               >
@@ -389,9 +389,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                     className={cn(
                       "block text-3xl font-black italic tracking-[0.2em] uppercase",
                       "bg-gradient-to-r from-white/10 via-white/80 to-white/10 bg-[length:200%_auto] bg-clip-text text-transparent",
-                      "drop-shadow-[0_4px_12px_rgba(255,255,255,0.15)]",
-                      "animate-shimmer",
-                      "animate-in fade-in slide-in-from-bottom-2 duration-1000 ease-out"
+                      "drop-shadow-[0_4px_12px_rgba(255,255,255,0.15)]"
                     )}
                   >
                     {dateStr}
@@ -406,7 +404,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
             <div className="flex items-center space-x-3">
               <button 
                 onClick={() => handleNavigate('prev')}
-                className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
+                className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -422,7 +420,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                       setBaseDate(new Date())
                     }}
                     className={cn(
-                      "px-4 py-1.5 rounded-full text-xs font-bold transition-all",
+                      "px-4 py-1.5 rounded-full text-xs font-bold",
                       timeRange === option.id 
                         ? "bg-white text-black shadow-lg shadow-white/10" 
                         : "text-white/40 hover:text-white/60"
@@ -435,7 +433,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
               <button 
                 onClick={() => handleNavigate('next')}
-                className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
+                className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -468,13 +466,13 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                     
                     return (
                       <div key={staff.name} className="flex items-center space-x-4 group/item">
-                        <div className="w-12 text-[10px] font-black text-white/60 group-hover/item:text-white transition-colors shrink-0 drop-shadow-sm">
+                        <div className="w-12 text-[10px] font-black text-white/60 group-hover/item:text-white shrink-0 drop-shadow-sm">
                           {staff.name}
                         </div>
                         <div className="flex-1 h-3.5 bg-white/10 rounded-full relative overflow-hidden border border-white/5">
                           {/* Progress Bar with Gradient */}
                           <div 
-                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(34,211,238,0.3)]"
+                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-500 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.3)]"
                             style={{ width: `${percentage}%` }}
                           >
                             <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
@@ -529,7 +527,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                         return (
                           <div key={i} className="flex flex-col space-y-1.5 group/item">
                             <div className="flex justify-between text-[11px] font-bold">
-                              <span className="text-white/80 group-hover/item:text-white transition-colors truncate pr-2 drop-shadow-sm">
+                              <span className="text-white/80 group-hover/item:text-white truncate pr-2 drop-shadow-sm">
                                 {item.name}
                               </span>
                               <span className="text-indigo-400 font-black">
@@ -538,7 +536,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                             </div>
                             <div className="h-1 bg-white/10 rounded-full overflow-hidden border border-white/5">
                               <div 
-                                className="h-full bg-gradient-to-r from-indigo-600 to-purple-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_5px_rgba(129,140,248,0.2)]"
+                                className="h-full bg-gradient-to-r from-indigo-600 to-purple-400 rounded-full shadow-[0_0_5px_rgba(129,140,248,0.2)]"
                                 style={{ width: `${width}%` }}
                               />
                             </div>
@@ -577,7 +575,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                             </div>
                             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
                               {staffFlow[name]?.map((item, i) => (
-                                <div key={i} className="bg-white/10 rounded-lg p-2 border border-white/10 hover:bg-white/20 transition-colors shadow-sm">
+                                <div key={i} className="bg-white/10 rounded-lg p-2 border border-white/10 hover:bg-white/20 shadow-sm">
                                   <div className="flex justify-between text-[8px] font-bold text-white/50 mb-1">
                                     <span>{item.time}</span>
                                     <span className="text-indigo-400 font-black">€{item.amount}</span>
@@ -625,7 +623,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                              <div key={i} className="flex items-center h-10 group/item">
                                {/* Rotated Label (Member ID/Name) */}
                                <div className="w-10 flex justify-center items-center shrink-0">
-                                 <span className="text-[10px] font-black text-white/50 -rotate-45 group-hover/item:text-white transition-colors truncate w-full text-center drop-shadow-sm">
+                                 <span className="text-[10px] font-black text-white/50 -rotate-45 group-hover/item:text-white truncate w-full text-center drop-shadow-sm">
                                    {item.name}
                                  </span>
                                </div>
@@ -633,7 +631,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                {/* Bar Area */}
                                <div className="flex-1 pl-4">
                                  <div 
-                                   className="h-8 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-end px-3 shadow-lg shadow-blue-500/20 border border-white/10 transition-all duration-1000 ease-out"
+                                   className="h-8 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-end px-3 shadow-lg shadow-blue-500/20 border border-white/10"
                                    style={{ width: `${Math.max(percentage, 20)}%` }}
                                  >
                                    <span className="text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
@@ -654,7 +652,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                           
                           return (
                             <div key={i} className="flex flex-col space-y-1.5 group/item">
-                              <div className="flex justify-between text-[10px] font-bold transition-all">
+                              <div className="flex justify-between text-[10px] font-bold">
                                 <span className="text-white/60 group-hover/item:text-white truncate pr-2">
                                   {item.name}
                                 </span>
@@ -664,7 +662,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                               </div>
                               <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                                 <div 
-                                  className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-full transition-all duration-1000 ease-out"
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 rounded-full"
                                   style={{ width: `${width}%` }}
                                 />
                               </div>
