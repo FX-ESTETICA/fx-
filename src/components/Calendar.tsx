@@ -196,6 +196,7 @@ interface CalendarProps {
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
 
   // Calculate total price based on selected items in newTitle
   const totalPrice = useMemo(() => calculateTotalPrice(newTitle, SERVICE_CATEGORIES), [newTitle]);
@@ -1635,24 +1636,83 @@ interface CalendarProps {
 
                   {/* Row 3: Date & Start Time */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 relative">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                         {I18N[lang].serviceDate}
                       </label>
-                      <input 
-                        type="date"
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] shadow-inner"
-                        value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                          const [y, m, d] = e.target.value.split('-').map(Number)
-                          if (selectedDate) {
-                            const newDate = new Date(selectedDate)
-                            newDate.setFullYear(y, m - 1, d)
-                            setSelectedDate(newDate)
-                            setSelectedEndDate(addMinutes(newDate, duration))
-                          }
-                        }}
-                      />
+                      <div 
+                        onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
+                      >
+                        <span className="font-bold">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
+                        <CalendarIcon className="w-4 h-4 text-zinc-500" />
+                      </div>
+
+                      {/* Custom Date Picker Popup */}
+                      {isDatePickerOpen && (
+                        <div className="absolute top-full left-0 mt-2 z-[100] bg-black/90 backdrop-blur-xl border border-white/5 rounded-2xl p-4 shadow-2xl w-[280px]">
+                          {/* Header: YYYY年 MM月 */}
+                          <div className="flex items-center justify-center mb-6">
+                            <h3 className="text-sm font-black tracking-widest text-white uppercase italic">
+                              {selectedDate ? format(selectedDate, 'yyyy年 MM月') : ''}
+                            </h3>
+                          </div>
+
+                          {/* Weekdays */}
+                          <div className="grid grid-cols-7 mb-4">
+                            {['一', '二', '三', '四', '五', '六', '日'].map(d => (
+                              <div key={d} className="text-center text-[10px] font-bold text-zinc-600">
+                                {d}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Days Grid */}
+                          <div className="grid grid-cols-7 gap-y-1">
+                            {(() => {
+                              if (!selectedDate) return null;
+                              const monthStart = startOfMonth(selectedDate);
+                              const monthEnd = endOfMonth(selectedDate);
+                              const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+                              const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+                              
+                              const calendarDays = eachDayOfInterval({
+                                start: startDate,
+                                end: endDate
+                              });
+
+                              return calendarDays.map((day, i) => {
+                                const isSelected = isSameDay(day, selectedDate);
+                                const isCurrentMonth = isSameMonth(day, monthStart);
+                                
+                                return (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => {
+                                      const newDate = new Date(selectedDate);
+                                      newDate.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
+                                      setSelectedDate(newDate);
+                                      setSelectedEndDate(addMinutes(newDate, duration));
+                                      setIsDatePickerOpen(false);
+                                    }}
+                                    className={cn(
+                                      "h-8 w-8 flex items-center justify-center text-xs transition-all rounded-lg",
+                                      isSelected 
+                                        ? "bg-white text-black font-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
+                                        : isCurrentMonth 
+                                          ? "text-zinc-300 hover:bg-white/10" 
+                                          : "text-zinc-800"
+                                    )}
+                                  >
+                                    {format(day, 'd')}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
