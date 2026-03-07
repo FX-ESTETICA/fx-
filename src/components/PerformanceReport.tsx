@@ -609,37 +609,26 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   
                   <div className="flex-1 overflow-y-auto custom-scrollbar px-2 relative">
                     {section.isSpecial ? (
-                      /* Special Style matching User Image (Vertical separator, Rotated Labels) */
-                      <div className="relative flex flex-col space-y-4 min-h-full">
-                        {/* Vertical Separator Line */}
-                        <div className="absolute left-7 top-0 bottom-0 w-[1px] bg-white/10" />
-                        
+                      /* Special Style: Label and Value inside the bar */
+                      <div className="flex flex-col space-y-4 min-h-full">
                         {section.data.map((item, i) => {
                            const maxValue = Math.max(...section.data.map(d => d.value), 1)
                            const percentage = (item.value / maxValue) * 100
                            
-                           // Clean name to show only ID if pattern matches (ID) Phone
                            const displayId = item.name.match(/\((.*?)\)/)?.[1] || item.name;
                            
                            return (
-                             <div key={i} className="flex items-center h-10 group/item">
-                               {/* Rotated Label (Member ID/Name) */}
-                               <div className="w-7 flex justify-center items-center shrink-0">
-                                 <span className="text-[10px] font-black text-white/50 -rotate-45 group-hover/item:text-white truncate w-full text-center drop-shadow-sm">
+                             <div key={i} className="flex flex-col group/item">
+                               <div 
+                                 className="h-10 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-between px-4 shadow-lg shadow-blue-500/10 border border-white/10"
+                                 style={{ width: `${Math.max(percentage, 35)}%` }}
+                               >
+                                 <span className="text-[11px] font-black text-white/90 drop-shadow-sm">
                                    {displayId}
                                  </span>
-                               </div>
-                               
-                               {/* Bar Area */}
-                               <div className="flex-1 pl-4">
-                                 <div 
-                                   className="h-8 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-end px-3 shadow-lg shadow-blue-500/20 border border-white/10"
-                                   style={{ width: `${Math.max(percentage, 20)}%` }}
-                                 >
-                                   <span className="text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                                     {section.unit === '€' ? '€' : ''}{item.value.toLocaleString()}{section.unit !== '€' ? section.unit : ''}
-                                   </span>
-                                 </div>
+                                 <span className="text-[11px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                   {section.unit === '€' ? '€' : ''}{item.value.toLocaleString()}{section.unit !== '€' ? section.unit : ''}
+                                 </span>
                                </div>
                              </div>
                            )
