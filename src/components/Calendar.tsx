@@ -93,7 +93,7 @@ function WeatherDisplay() {
   }
 
   return (
-    <div className="flex items-center gap-1.5 md:gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 shadow-inner group transition-all hover:bg-white/10">
+    <div className="flex items-center gap-1.5 md:gap-2 px-1 group transition-all">
       {getWeatherIcon(weather.code)}
       <span className="text-sm md:text-base font-bold text-zinc-300 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
         {weather.temp}°C
