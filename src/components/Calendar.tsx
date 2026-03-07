@@ -1034,18 +1034,20 @@ interface CalendarProps {
             <button onClick={handlePrev} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80">
               <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
             </button>
-            <div className="flex bg-transparent rounded-full p-1 border border-white/20">
+            <div className="flex bg-black/40 backdrop-blur-md rounded-full p-1 border border-white/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]">
               {(['day','week','month','year'] as ViewType[]).map(v => (
                 <button
                   key={v}
                   onClick={() => setViewType(v)}
                   className={cn(
-                    "px-3 md:px-4 py-1 text-xs md:text-sm font-bold rounded-full bg-transparent",
-                    viewType === v ? "border border-white/30 text-white" : "text-zinc-400 hover:text-white"
+                    "px-4 md:px-6 py-1.5 text-xs md:text-sm font-black rounded-full transition-all duration-200 uppercase tracking-widest",
+                    viewType === v 
+                      ? "bg-gradient-to-br from-white/20 to-white/5 border border-white/20 text-white shadow-lg scale-105" 
+                      : "text-white/40 hover:text-white/70 hover:bg-white/5"
                   )}
                   style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
                 >
-                  {VIEW_LABELS[v]}
+                  {VIEW_LABELS[v].replace('视图', '')}
                 </button>
               ))}
             </div>
@@ -1069,9 +1071,7 @@ interface CalendarProps {
               {viewType === 'day' && (
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <span 
-                    onClick={() => setIsHeaderVisible(!isHeaderVisible)}
-                    className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] cursor-pointer select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
-                    title={isHeaderVisible ? "点击隐藏顶部栏" : "点击显示顶部栏"}
+                    className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                   >
                     {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
                       /\d/.test(ch)
