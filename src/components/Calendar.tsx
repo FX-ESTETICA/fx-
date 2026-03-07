@@ -158,10 +158,24 @@ interface CalendarProps {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(STAFF_MEMBERS)
   const [isMounted, setIsMounted] = useState(false)
   
-  // Set isMounted to true after the component mounts
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+      setIsMounted(true)
+      const handleClickOutside = (e: MouseEvent) => {
+      if (isDatePickerOpen || isTimePickerOpen) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.date-picker-container') && !target.closest('.time-picker-container')) {
+          // Only close if we didn't click the triggers
+          if (!target.closest('.date-trigger') && !target.closest('.time-trigger')) {
+            setIsDatePickerOpen(false);
+            setIsTimePickerOpen(false);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDatePickerOpen, isTimePickerOpen]);
 
   // Load staff from localStorage on mount
   useEffect(() => {
@@ -197,6 +211,8 @@ interface CalendarProps {
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false)
+  const [timePickerMode, setTimePickerMode] = useState<'hour' | 'minute'>('hour')
 
   // Calculate total price based on selected items in newTitle
   const totalPrice = useMemo(() => calculateTotalPrice(newTitle, SERVICE_CATEGORIES), [newTitle]);
@@ -1648,15 +1664,15 @@ interface CalendarProps {
                       </label>
                       <div 
                         onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between date-trigger"
                       >
-                        <span className="font-bold">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
+                        <span className="font-bold tracking-widest">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
                         <CalendarIcon className="w-4 h-4 text-zinc-500" />
                       </div>
 
                       {/* Custom Date Picker Popup */}
                       {isDatePickerOpen && (
-                        <div className="absolute top-full left-0 mt-2 z-[100] bg-black/50 backdrop-blur-xl border border-white/5 rounded-2xl p-3 shadow-2xl w-[240px]">
+                        <div className="absolute top-full left-0 mt-2 z-[100] bg-black/50 backdrop-blur-xl border border-white/5 rounded-2xl p-3 shadow-2xl w-[240px] date-picker-container">
                           {/* Header: YYYY年 MM月 */}
                           <div className="flex items-center justify-center mb-4">
                             <h3 className="text-[11px] font-black tracking-widest text-white uppercase italic">
@@ -1720,46 +1736,204 @@ interface CalendarProps {
                         </div>
                       )}
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 relative">
                       <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                         {I18N[lang].startTime}
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select 
-                            className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
-                          value={selectedDate ? format(selectedDate, 'HH') : '08'}
-                          onChange={(e) => {
-                            const h = Number(e.target.value)
-                            if (selectedDate) {
-                              const newDate = new Date(selectedDate)
-                              newDate.setHours(h)
-                              setSelectedDate(newDate)
-                              setSelectedEndDate(addMinutes(newDate, duration))
-                            }
-                          }}
-                        >
-                          {Array.from({ length: 15 }, (_, i) => i + 8).map(h => (
-                            <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}{I18N[lang].hourSuffix}</option>
-                          ))}
-                        </select>
-                        <select 
-                            className="w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs [color-scheme:dark] appearance-none cursor-pointer text-center font-bold shadow-inner"
-                          value={selectedDate ? format(selectedDate, 'mm') : '00'}
-                          onChange={(e) => {
-                            const m = Number(e.target.value)
-                            if (selectedDate) {
-                              const newDate = new Date(selectedDate)
-                              newDate.setMinutes(m)
-                              setSelectedDate(newDate)
-                              setSelectedEndDate(addMinutes(newDate, duration))
-                            }
-                          }}
-                        >
-                          {['00', '15', '30', '45'].map(m => (
-                            <option key={m} value={m}>{m}{I18N[lang].minuteSuffix}</option>
-                          ))}
-                        </select>
+                      <div 
+                        onClick={() => {
+                          setIsTimePickerOpen(!isTimePickerOpen);
+                          setTimePickerMode('hour');
+                        }}
+                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs cursor-pointer text-center font-bold shadow-inner flex items-center justify-center gap-2 hover:bg-white/10 transition-colors time-trigger"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                        <span className="tracking-widest">
+                          {selectedDate ? format(selectedDate, 'HH:mm') : '08:00'}
+                        </span>
                       </div>
+
+                      {/* Modern Clock Time Picker */}
+                      {isTimePickerOpen && (
+                        <div className="absolute top-full left-0 mt-2 z-[110] bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl w-[260px] animate-in fade-in zoom-in duration-200 time-picker-container">
+                          {/* Mode Switcher */}
+                          <div className="flex items-center justify-center gap-4 mb-6">
+                            <button 
+                              onClick={() => setTimePickerMode('hour')}
+                              className={cn(
+                                "text-2xl font-black italic tracking-tighter transition-all",
+                                timePickerMode === 'hour' ? "text-white scale-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "text-zinc-600 hover:text-zinc-400"
+                              )}
+                            >
+                              {selectedDate ? format(selectedDate, 'HH') : '08'}
+                            </button>
+                            <span className="text-2xl font-black text-zinc-700">:</span>
+                            <button 
+                              onClick={() => setTimePickerMode('minute')}
+                              className={cn(
+                                "text-2xl font-black italic tracking-tighter transition-all",
+                                timePickerMode === 'minute' ? "text-white scale-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" : "text-zinc-600 hover:text-zinc-400"
+                              )}
+                            >
+                              {selectedDate ? format(selectedDate, 'mm') : '00'}
+                            </button>
+                          </div>
+
+                          {/* Clock Face Container */}
+                          <div className="relative aspect-square w-full rounded-full bg-white/5 border border-white/5 flex items-center justify-center p-4">
+                            {/* Center Dot */}
+                            <div className="absolute w-1.5 h-1.5 bg-white rounded-full z-10" />
+                            
+                            {/* Hand */}
+                             {(() => {
+                               const h = selectedDate ? selectedDate.getHours() : 8;
+                               const m = selectedDate ? selectedDate.getMinutes() : 0;
+                               const isHour = timePickerMode === 'hour';
+                               
+                               // For hours: outer circle (13-00) is at 82px, inner (1-12) is at 52px
+                               const isOuter = isHour && (h > 12 || h === 0);
+                               const length = isHour ? (isOuter ? '42%' : '28%') : '38%';
+                               const angle = isHour 
+                                 ? ((h % 12) * 30) 
+                                 : (m * 6);
+                               
+                               return (
+                                 <div 
+                                   className="absolute bottom-1/2 left-1/2 w-0.5 bg-white origin-bottom transition-all duration-300 z-10"
+                                   style={{ 
+                                     height: length, 
+                                     transform: `translateX(-50%) rotate(${angle}deg)`,
+                                     boxShadow: '0 0 10px rgba(255,255,255,0.3)'
+                                   }}
+                                 >
+                                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-white bg-black/50 backdrop-blur-sm" />
+                                 </div>
+                               );
+                             })()}
+
+                            {/* Numbers */}
+                             {timePickerMode === 'hour' ? (
+                               <>
+                                 {/* Outer Circle (13-00/12) */}
+                                 {[12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23].map((h, i) => {
+                                   const angle = i * 30;
+                                   const isSelected = selectedDate ? (selectedDate.getHours() === (h === 24 ? 0 : h)) : (8 === h);
+                                   return (
+                                     <button
+                                       key={h}
+                                       onClick={() => {
+                                         if (selectedDate) {
+                                           const newDate = new Date(selectedDate);
+                                           newDate.setHours(h === 24 ? 0 : h);
+                                           setSelectedDate(newDate);
+                                           setSelectedEndDate(addMinutes(newDate, duration));
+                                           setTimePickerMode('minute');
+                                         }
+                                       }}
+                                       className={cn(
+                                         "absolute text-[10px] font-black italic transition-all w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 z-20",
+                                         isSelected ? "text-white scale-125 bg-white/20" : "text-zinc-500"
+                                       )}
+                                       style={{
+                                         transform: `rotate(${angle}deg) translateY(-82px) rotate(-${angle}deg)`
+                                       }}
+                                     >
+                                       {h === 12 ? '00' : h}
+                                     </button>
+                                   );
+                                 })}
+                                 {/* Inner Circle (1-12) */}
+                                 {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((h, i) => {
+                                   const angle = i * 30;
+                                   const isSelected = selectedDate ? (selectedDate.getHours() === h) : (8 === h);
+                                   return (
+                                     <button
+                                       key={h}
+                                       onClick={() => {
+                                         if (selectedDate) {
+                                           const newDate = new Date(selectedDate);
+                                           newDate.setHours(h);
+                                           setSelectedDate(newDate);
+                                           setSelectedEndDate(addMinutes(newDate, duration));
+                                           setTimePickerMode('minute');
+                                         }
+                                       }}
+                                       className={cn(
+                                         "absolute text-[10px] font-black italic transition-all w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 z-20",
+                                         isSelected ? "text-white scale-125 bg-white/20" : "text-zinc-600"
+                                       )}
+                                       style={{
+                                         transform: `rotate(${angle}deg) translateY(-52px) rotate(-${angle}deg)`
+                                       }}
+                                     >
+                                       {h}
+                                     </button>
+                                   );
+                                 })}
+                               </>
+                             ) : (
+                              // Minutes 0, 5, 10...
+                              [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m, i) => {
+                                const angle = i * 30;
+                                const isSelected = selectedDate ? (Math.round(selectedDate.getMinutes() / 5) * 5 === m) : (0 === m);
+                                return (
+                                  <button
+                                    key={m}
+                                    onClick={() => {
+                                      if (selectedDate) {
+                                        const newDate = new Date(selectedDate);
+                                        newDate.setMinutes(m);
+                                        setSelectedDate(newDate);
+                                        setSelectedEndDate(addMinutes(newDate, duration));
+                                        setIsTimePickerOpen(false);
+                                      }
+                                    }}
+                                    className={cn(
+                                      "absolute text-[11px] font-black italic transition-all w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10",
+                                      isSelected ? "text-white scale-125" : "text-zinc-500"
+                                    )}
+                                    style={{
+                                      transform: `rotate(${angle}deg) translateY(-70px) rotate(-${angle}deg)`
+                                    }}
+                                  >
+                                    {m.toString().padStart(2, '0')}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Quick Select Buttons */}
+                          {timePickerMode === 'hour' && (
+                            <div className="grid grid-cols-4 gap-2 mt-6">
+                              {[8, 10, 12, 14, 16, 18, 20, 22].map(h => (
+                                <button
+                                  key={h}
+                                  onClick={() => {
+                                    if (selectedDate) {
+                                      const newDate = new Date(selectedDate);
+                                      newDate.setHours(h);
+                                      setSelectedDate(newDate);
+                                      setSelectedEndDate(addMinutes(newDate, duration));
+                                      setTimePickerMode('minute');
+                                    }
+                                  }}
+                                  className="py-1.5 px-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black italic text-zinc-400 hover:text-white transition-all"
+                                >
+                                  {h}:00
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <button 
+                            onClick={() => setIsTimePickerOpen(false)}
+                            className="w-full mt-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black italic tracking-[0.2em] rounded-xl transition-all uppercase"
+                          >
+                            {lang === 'zh' ? '确定' : 'CONFERMA'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
