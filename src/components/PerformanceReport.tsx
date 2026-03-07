@@ -518,14 +518,14 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 flex flex-col overflow-hidden pl-6 -mt-8">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 pt-0 pb-2">
+                  <div className="flex-1 flex flex-col overflow-hidden pl-6">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 pt-2 pb-2">
                       {projectStats.map((item, i) => {
                         const maxCount = Math.max(...projectStats.map(p => p.count), 1)
                         const width = (item.count / maxCount) * 100
                         
                         return (
-                          <div key={i} className={`flex flex-col space-y-1.5 group/item ${i === 0 ? 'h-8 justify-end pb-1' : ''}`}>
+                          <div key={i} className="flex flex-col space-y-1.5 group/item">
                             <div className="flex justify-between text-[11px] font-bold">
                               <span className="text-white/80 group-hover/item:text-white truncate pr-2 drop-shadow-sm">
                                 {item.name}
