@@ -561,7 +561,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   {/* Content (Dynamic columns) */}
                   <div className="flex-1 flex flex-col overflow-hidden pl-6">
                     <div 
-                      className="flex-1 grid gap-4 overflow-hidden py-2"
+                      className="flex-1 grid gap-4 overflow-hidden pt-1 pb-2"
                       style={{ 
                         gridTemplateColumns: `repeat(${stats.staffStats.length}, minmax(0, 1fr))` 
                       }}
@@ -569,8 +569,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                       {stats.staffStats.map(s => {
                         const name = s.name
                         return (
-                          <div key={name} className="flex flex-col space-y-3 min-w-0">
-                            <div className="text-[10px] font-black text-white/40 text-center uppercase tracking-tighter drop-shadow-sm">
+                          <div key={name} className="flex flex-col min-w-0">
+                            <div className="text-[10px] font-black text-white/40 text-center uppercase tracking-tighter drop-shadow-sm mb-1">
                               {name}
                             </div>
                             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
