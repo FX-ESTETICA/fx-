@@ -1048,7 +1048,7 @@ interface CalendarProps {
   return (
     <div className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5 opacity-100">
+      <div className={cn("flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5 opacity-100", isModalOpen && "pointer-events-none")}>
         <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
           <div className="flex items-center gap-4 md:gap-5 group ml-2 md:ml-4">
             <div className="relative group/year">
@@ -1099,7 +1099,10 @@ interface CalendarProps {
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <div 
                       onClick={onToggleSidebar}
-                      className="flex items-center text-lg md:text-2xl lg:text-3xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group"
+                      className={cn(
+                        "flex items-center text-lg md:text-2xl lg:text-3xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group",
+                        isModalOpen && "pointer-events-none"
+                      )}
                     >
                     {/* Display Year */}
                      {[...format(currentDate, 'yyyy')].map((ch, i) => (
@@ -1148,7 +1151,8 @@ interface CalendarProps {
                         "w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center",
                         isSameDay(currentDate, today || new Date(2024, 0, 1))
                           ? "bg-gradient-to-br from-white/20 to-white/5 border-white/10 shadow-lg"
-                          : "bg-transparent border-white/15 hover:border-white/30"
+                          : "bg-transparent border-white/15 hover:border-white/30",
+                        isModalOpen && "pointer-events-none"
                       )}
                       title={lang === 'zh' ? '回到今天' : 'Torna a oggi'}
                     >
@@ -1167,7 +1171,8 @@ interface CalendarProps {
                 <div 
                   className={cn(
                     "flex-1 grid",
-                    viewType === 'day' ? "" : "grid-cols-7 gap-1.5 md:gap-3 lg:gap-4"
+                    viewType === 'day' ? "" : "grid-cols-7 gap-1.5 md:gap-3 lg:gap-4",
+                    isModalOpen && "pointer-events-none"
                   )}
                   style={viewType === 'day' ? { gridTemplateColumns: `repeat(${activeStaff.length}, minmax(0, 1fr))` } : {}}
                 >
@@ -1207,7 +1212,7 @@ interface CalendarProps {
             </div>
 
             {/* 2. Scrollable Body (Time Axis + Grid) */}
-            <div className="flex-1 overflow-y-auto scrollbar-none">
+            <div className={cn("flex-1 overflow-y-auto scrollbar-none", isModalOpen && "pointer-events-none")}>
               <div className="flex px-1 md:px-2 lg:px-3 min-h-fit pb-20 pt-4">
                 {/* Time Axis Column */}
                 <div className="w-20 md:w-28 shrink-0">
@@ -1411,7 +1416,8 @@ interface CalendarProps {
               "flex-1 grid min-h-0 relative p-1 md:p-2 lg:p-3",
               viewType === 'year' 
                 ? "grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 gap-1 md:gap-2" 
-                : "grid-cols-7 grid-rows-6 gap-1 md:gap-2 lg:gap-2.5"
+                : "grid-cols-7 grid-rows-6 gap-1 md:gap-2 lg:gap-2.5",
+              isModalOpen && "pointer-events-none"
             )}>
               {days.map((day) => {
                 const isCurrentMonth = viewType === 'month' ? isSameMonth(day, monthStart) : true
