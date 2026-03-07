@@ -116,7 +116,7 @@ export const SERVICE_CATEGORIES = [
 
 export const I18N = {
   zh: {
-    viewLabels: { day: '日', week: '周', month: '月', year: '年' } as Record<ViewType, string>,
+    viewLabels: { day: '日视图', week: '周视图', month: '月视图', year: '年视图' } as Record<ViewType, string>,
     startTime: '开始时间',
     duration: '持续时间',
     endTime: '结束时间',

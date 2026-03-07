@@ -82,7 +82,6 @@ interface CalendarProps {
   }, [initialDate])
   const [viewType, setViewType] = useState<ViewType>(initialView)
   const [isResizing, setIsResizing] = useState(false)
-  const [isHeaderVisible, setIsHeaderVisible] = useState(false)
   
   // Handle prop updates intentionally omitted to avoid cascading renders
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -998,31 +997,10 @@ interface CalendarProps {
   return (
     <div className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative">
       {/* Header */}
-      <div className={cn(
-        "flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden",
-        isHeaderVisible ? "max-h-[100px] py-1 md:py-1.5 opacity-100" : "max-h-0 py-0 opacity-0"
-      )}>
+      <div className="flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5 opacity-100">
         <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
           <div className="flex items-center gap-4 md:gap-5 group ml-2 md:ml-4">
-            <div 
-              onClick={onToggleSidebar}
-              className={cn(
-                "w-2.5 h-2.5 md:w-3 md:h-3 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.5)] shrink-0 cursor-pointer", 
-                isLoading ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
-              )} 
-            />
             <div className="relative group/year">
-              {/* Year Label with High-End Artistic Style */}
-              <h2 
-                onClick={onToggleSidebar}
-                className={cn(
-                  "text-xl md:text-2xl lg:text-3xl font-sans font-black italic tracking-[0.4em] select-none cursor-pointer",
-                  "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
-                  "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                )}
-              >
-                {format(currentDate, 'yyyy')}
-              </h2>
               {/* Subtle underline for elegance */}
               <div className="absolute -bottom-1 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
             </div>
@@ -1034,20 +1012,18 @@ interface CalendarProps {
             <button onClick={handlePrev} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80">
               <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
             </button>
-            <div className="flex bg-black/40 backdrop-blur-md rounded-full p-1 border border-white/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]">
+            <div className="flex bg-transparent rounded-full p-1 border border-white/20">
               {(['day','week','month','year'] as ViewType[]).map(v => (
                 <button
                   key={v}
                   onClick={() => setViewType(v)}
                   className={cn(
-                    "px-4 md:px-6 py-1.5 text-xs md:text-sm font-black rounded-full transition-all duration-200 uppercase tracking-widest",
-                    viewType === v 
-                      ? "bg-gradient-to-br from-white/20 to-white/5 border border-white/20 text-white shadow-lg scale-105" 
-                      : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                    "px-3 md:px-4 py-1 text-xs md:text-sm font-bold rounded-full bg-transparent",
+                    viewType === v ? "border border-white/30 text-white" : "text-zinc-400 hover:text-white"
                   )}
                   style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
                 >
-                  {VIEW_LABELS[v].replace('视图', '')}
+                  {VIEW_LABELS[v]}
                 </button>
               ))}
             </div>
@@ -1073,17 +1049,30 @@ interface CalendarProps {
                   <span 
                     className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                   >
+                    {/* Display Year */}
+                    {[...format(currentDate, 'yyyy')].map((ch, i) => (
+                      <span
+                        key={`year-${i}`}
+                        className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
+                        style={{ fontFamily: 'var(--font-orbitron)' }}
+                      >
+                        {ch}
+                      </span>
+                    ))}
+                    {/* Space between year and date */}
+                    <span className="mx-2 bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent">/</span>
+                    {/* Display Date */}
                     {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
                       /\d/.test(ch)
                         ? <span
-                            key={i}
+                            key={`date-${i}`}
                             className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
                             style={{ fontFamily: 'var(--font-orbitron)' }}
                           >
                             {ch}
                           </span>
                         : <span
-                            key={i}
+                            key={`date-${i}`}
                             className="bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent"
                             style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
                           >
