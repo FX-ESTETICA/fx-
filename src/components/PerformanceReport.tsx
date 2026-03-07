@@ -609,8 +609,11 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   
                   <div className="flex-1 overflow-y-auto custom-scrollbar px-2 relative">
                     {section.isSpecial ? (
-                      /* Special Style: Label and Value inside the bar */
-                      <div className="flex flex-col space-y-4 min-h-full">
+                      /* Special Style: Label outside, Value inside, with separator line */
+                      <div className="relative flex flex-col space-y-4 min-h-full">
+                        {/* Vertical Separator Line */}
+                        <div className="absolute left-12 top-0 bottom-0 w-[1px] bg-white/10" />
+                        
                         {section.data.map((item, i) => {
                            const maxValue = Math.max(...section.data.map(d => d.value), 1)
                            const percentage = (item.value / maxValue) * 100
@@ -618,8 +621,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                            const displayId = item.name.match(/\((.*?)\)/)?.[1] || item.name;
                            
                            return (
-                             <div key={i} className="flex items-center space-x-4 group/item">
-                               <div className="w-12 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right">
+                             <div key={i} className="flex items-center space-x-6 group/item relative">
+                               <div className="w-12 text-[10px] font-black text-white/50 group-hover/item:text-white shrink-0 drop-shadow-sm text-right pr-2">
                                  {displayId}
                                </div>
                                <div className="flex-1 h-10 bg-white/5 rounded-xl overflow-hidden relative">
