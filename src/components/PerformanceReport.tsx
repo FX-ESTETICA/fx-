@@ -561,7 +561,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   {/* Content (Dynamic columns) */}
                   <div className="flex-1 flex flex-col overflow-hidden pl-6">
                     <div 
-                      className="flex-1 grid gap-4 overflow-hidden pt-1 pb-2"
+                      className="flex-1 grid gap-4 overflow-hidden"
                       style={{ 
                         gridTemplateColumns: `repeat(${stats.staffStats.length}, minmax(0, 1fr))` 
                       }}
@@ -570,10 +570,12 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                         const name = s.name
                         return (
                           <div key={name} className="flex flex-col min-w-0">
-                            <div className="text-[10px] font-black text-white/40 text-center uppercase tracking-tighter drop-shadow-sm mb-1">
-                              {name}
+                            <div className="h-8 flex flex-col justify-end pb-1">
+                              <div className="text-[10px] font-black text-white/40 text-center uppercase tracking-tighter drop-shadow-sm">
+                                {name}
+                              </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 pt-2">
                               {staffFlow[name]?.map((item, i) => (
                                 <div key={i} className="bg-white/10 rounded-lg p-2 border border-white/10 hover:bg-white/20 shadow-sm">
                                   <div className="flex justify-between text-[8px] font-bold text-white/50 mb-1">
