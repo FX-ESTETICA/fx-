@@ -31,7 +31,7 @@ import {
   isSameMinute
 } from 'date-fns'
 import { zhCN, it as itLocale } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock, Settings2, GripVertical, Eye, EyeOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar as CalendarIcon, Clock, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, FogCw, Wind } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -53,6 +53,54 @@ import {
   generateTimeSlots,
   calculateTotalPrice 
 } from '@/utils/calendar-helpers'
+
+// --- Weather Component ---
+function WeatherDisplay() {
+  const [weather, setWeather] = useState<{ temp: number; code: number } | null>(null)
+
+  useEffect(() => {
+    async function fetchWeather() {
+      try {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.35&longitude=9.23&current=temperature_2m,weather_code&timezone=Europe%2FRome')
+        const data = await res.json()
+        if (data.current) {
+          setWeather({
+            temp: Math.round(data.current.temperature_2m),
+            code: data.current.weather_code
+          })
+        }
+      } catch (e) {
+        console.error('Failed to fetch weather', e)
+      }
+    }
+    fetchWeather()
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000) // update every 30 mins
+    return () => clearInterval(interval)
+  }, [])
+
+  if (!weather) return null
+
+  const getWeatherIcon = (code: number) => {
+    if (code === 0) return <Sun className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
+    if (code >= 1 && code <= 3) return <Cloud className="w-4 h-4 md:w-5 md:h-5 text-zinc-300" />
+    if (code === 45 || code === 48) return <FogCw className="w-4 h-4 md:w-5 md:h-5 text-zinc-400" />
+    if (code >= 51 && code <= 55) return <CloudDrizzle className="w-4 h-4 md:w-5 md:h-5 text-sky-400" />
+    if (code >= 61 && code <= 65) return <CloudRain className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+    if (code >= 71 && code <= 75) return <CloudSnow className="w-4 h-4 md:w-5 md:h-5 text-white" />
+    if (code >= 80 && code <= 82) return <CloudRain className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+    if (code >= 95) return <CloudLightning className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
+    return <Cloud className="w-4 h-4 md:w-5 md:h-5 text-zinc-300" />
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 md:gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 shadow-inner group transition-all hover:bg-white/10">
+      {getWeatherIcon(weather.code)}
+      <span className="text-sm md:text-base font-bold text-zinc-300 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
+        {weather.temp}°C
+      </span>
+    </div>
+  )
+}
 
 // --- Types ---
 // Moved to @/utils/calendar-constants
@@ -1046,8 +1094,8 @@ interface CalendarProps {
               {/* Added Date Display for Day View */}
               {viewType === 'day' && (
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
-                  <span 
-                    className="text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
+                  <div 
+                    className="flex items-center text-base md:text-xl lg:text-2xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)]"
                   >
                     {/* Display Year */}
                     {[...format(currentDate, 'yyyy')].map((ch, i) => (
@@ -1059,8 +1107,10 @@ interface CalendarProps {
                         {ch}
                       </span>
                     ))}
-                    {/* Space between year and date */}
-                    <span className="mx-2 bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent">/</span>
+                    {/* Weather Display */}
+                    <div className="mx-4 flex items-center">
+                      <WeatherDisplay />
+                    </div>
                     {/* Display Date */}
                     {[...format(currentDate, I18N[lang].dayHeaderFormat, { locale })].map((ch, i) => (
                       /\d/.test(ch)
@@ -1079,7 +1129,7 @@ interface CalendarProps {
                             {ch}
                           </span>
                     ))}
-                  </span>
+                  </div>
                   <div className="h-[1px] flex-1 bg-gradient-to-r from-white/20 to-transparent" />
                 </div>
               )}
