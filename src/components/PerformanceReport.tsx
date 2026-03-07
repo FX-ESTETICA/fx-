@@ -595,12 +595,11 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
               </div>
             </div>
           ) : (
-            <div className="h-full grid grid-cols-4 gap-8">
+            <div className="h-full grid grid-cols-3 gap-8">
               {/* Member Rankings (Img 4 style) */}
                 {[
                   { title: lang === 'zh' ? '消费排行' : 'Spesa', data: memberStats.spendRanking, unit: '€', isSpecial: true },
                   { title: lang === 'zh' ? '到店频次' : 'Visite', data: memberStats.visitRanking, unit: '次', isSpecial: true },
-                  { title: lang === 'zh' ? '项目偏好' : 'Progetti', data: memberStats.projectRanking, unit: '次', isSpecial: true },
                   { title: lang === 'zh' ? '技师人气' : 'Staff', data: memberStats.staffRanking, unit: '次', isSpecial: true }
                 ].map((section, idx) => (
                   <div key={idx} className="bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex flex-col overflow-hidden group">
