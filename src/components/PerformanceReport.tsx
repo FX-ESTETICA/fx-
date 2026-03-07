@@ -518,8 +518,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 flex flex-col overflow-hidden pl-6">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 pt-2 pb-2">
+                  <div className="flex-1 flex flex-col overflow-hidden pl-6 -mt-1.5">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 pt-0 pb-2">
                       {projectStats.map((item, i) => {
                         const maxCount = Math.max(...projectStats.map(p => p.count), 1)
                         const width = (item.count / maxCount) * 100
