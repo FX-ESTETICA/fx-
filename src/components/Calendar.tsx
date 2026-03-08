@@ -1551,7 +1551,7 @@ interface CalendarProps {
                           const height = (durationInMinutes / 60) * 4
                           
                           const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
-                          const staffId = staffIdMatch ? staffIdMatch[1] : null
+                          const staffId = staffIdMatch ? staffIdMatch[1] : undefined
                           
                           const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
                           const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
