@@ -25,6 +25,13 @@ import {
 } from 'date-fns'
 import { createClient } from '@/utils/supabase/client'
 
+import { 
+  ViewType, 
+  FIXED_STAFF_NAMES,
+  SERVICE_CATEGORIES,
+  I18N 
+} from '@/utils/calendar-constants'
+
 interface PerformanceReportProps {
   isOpen: boolean
   onClose: () => void
@@ -45,6 +52,21 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
   const [baseDate, setBaseDate] = useState(new Date())
   const [events, setEvents] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [staffMembers, setStaffMembers] = useState<any[]>([])
+
+  // Load staff from localStorage
+  useEffect(() => {
+    if (isOpen) {
+      const saved = localStorage.getItem('staff_members')
+      if (saved) {
+        try {
+          setStaffMembers(JSON.parse(saved))
+        } catch (e) {
+          console.error('Failed to parse staff_members from localStorage', e)
+        }
+      }
+    }
+  }, [isOpen])
 
   // Navigation Logic
   const handleNavigate = (direction: 'prev' | 'next') => {
@@ -110,28 +132,42 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
   // Filter and aggregate data based on fetched events
   const stats = useMemo(() => {
-    const fixedStaffNames = ['FANG', 'ALEXA', 'SARA', 'DAN', 'FEDE']
+    const currentStaffNames = staffMembers.map(s => s.name)
+    // Always include original staff for backward compatibility with fixed columns
+    const allStaffNames = Array.from(new Set([...FIXED_STAFF_NAMES, ...currentStaffNames]))
+    
     const staffData: Record<string, { amount: number, count: number }> = {}
 
-    // Initialize with fixed staff to ensure they are at least considered (or mock data works)
-    fixedStaffNames.forEach(name => {
+    // Initialize with all staff to ensure they are at least considered
+    allStaffNames.forEach(name => {
       staffData[name] = { amount: 0, count: 0 }
     })
 
+    // Build project prices for estimation
+    const projectPrices: Record<string, number> = {}
+    SERVICE_CATEGORIES.forEach(cat => {
+      cat.items.forEach(item => {
+        projectPrices[item.name] = item.price
+      })
+    })
+
     events.forEach(e => {
-      // 1. Check fixed columns
-      fixedStaffNames.forEach(name => {
+      let eventHasAnyAmount = false
+
+      // 1. Check fixed columns or dynamic columns matching staff names (Realized)
+      allStaffNames.forEach(name => {
         const amount = Number(e[`金额_${name}`]) || 0
         if (amount > 0) {
           staffData[name].amount += amount
           staffData[name].count += 1
+          eventHasAnyAmount = true
         }
       })
 
-      // 2. Check notes for dynamic staff amounts [NAME_AMT:100]
+      // 2. Check notes for dynamic staff amounts [NAME_AMT:100] (Realized)
       const noteContent = e["备注"] || ""
-      const matches = noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g)
-      for (const match of matches) {
+      const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g))
+      amtMatches.forEach((match: any) => {
         const name = match[1]
         const amount = Number(match[2]) || 0
         if (amount > 0) {
@@ -140,6 +176,28 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
           }
           staffData[name].amount += amount
           staffData[name].count += 1
+          eventHasAnyAmount = true
+        }
+      })
+
+      // 3. If no realized amount yet, count as "Booked" for the main staff or assigned staff
+      if (!eventHasAnyAmount) {
+        // Find main staff from 备注: 技师:STAFF_ID
+        const mainStaffIdMatch = noteContent.match(/技师:([^,\]\s]+)/)
+        const mainStaffId = mainStaffIdMatch ? mainStaffIdMatch[1] : null
+        const mainStaff = staffMembers.find(s => s.id === mainStaffId)
+
+        if (mainStaff) {
+          const projects = (e.服务项目 || "").split(',').map((s: string) => s.trim()).filter(Boolean)
+          let estimatedTotal = 0
+          projects.forEach((p: string) => {
+            estimatedTotal += projectPrices[p] || 0
+          })
+
+          if (estimatedTotal > 0) {
+            staffData[mainStaff.name].amount += estimatedTotal
+            staffData[mainStaff.name].count += 1
+          }
         }
       }
     })
@@ -155,11 +213,11 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
     const totalRealAmount = staffStats.reduce((sum, s) => sum + s.amount, 0)
     if (totalRealAmount === 0 && events.length === 0) {
       const mockData = [
-        { name: 'SARA', amount: 1560, count: 12 },
-        { name: 'FANG', amount: 1250, count: 8 },
-        { name: 'FEDE', amount: 1120, count: 9 },
-        { name: 'ALEXA', amount: 980, count: 6 },
-        { name: 'DAN', amount: 740, count: 5 }
+        { name: FIXED_STAFF_NAMES[1] || 'SARA', amount: 1560, count: 12 },
+        { name: FIXED_STAFF_NAMES[0] || 'FANG', amount: 1250, count: 8 },
+        { name: FIXED_STAFF_NAMES[4] || 'FEDE', amount: 1120, count: 9 },
+        { name: FIXED_STAFF_NAMES[3] || 'ALEXA', amount: 980, count: 6 },
+        { name: FIXED_STAFF_NAMES[2] || 'DAN', amount: 740, count: 5 }
       ]
       staffStats = mockData
     } else {
@@ -202,19 +260,43 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
   const staffFlow = useMemo(() => {
     const flow: Record<string, any[]> = {}
-    stats.staffStats.forEach(s => {
-      const name = s.name
+    
+    // Use both current staff and historical fixed staff names
+    const currentStaffNames = staffMembers.map(s => s.name)
+    const allStaffNames = Array.from(new Set([...FIXED_STAFF_NAMES, ...currentStaffNames]))
+
+    // Build a map of project prices for quick lookup
+    const projectPrices: Record<string, number> = {}
+    SERVICE_CATEGORIES.forEach(cat => {
+      cat.items.forEach(item => {
+        projectPrices[item.name] = item.price
+      })
+    })
+
+    allStaffNames.forEach(name => {
       const amountKey = `金额_${name}`
+      const staff = staffMembers.find(s => s.name === name)
+      const staffId = staff?.id
       
       flow[name] = events
         .filter(e => {
-          // 1. Check fixed column
-          const fixedAmount = Number(e[amountKey]) || 0
-          if (fixedAmount > 0) return true
+          // 1. Check staff-specific column (already checked out)
+          const amount = Number(e[amountKey]) || 0
+          if (amount > 0) return true
           
-          // 2. Check notes for dynamic amount [NAME_AMT:100]
-          const noteMatch = e["备注"]?.match(new RegExp(`\\[${name}_AMT:(\\d+)\\]`))
-          if (noteMatch) return true
+          // 2. Check notes for dynamic amount [NAME_AMT:100] (already checked out)
+          if (e["备注"]?.includes(`[${name}_AMT:`)) return true
+          
+          // 3. Check for explicit staff binding (even if not checked out)
+          if (staffId) {
+            // Check [ITEM_STAFF:staffId] pattern
+            if (e["备注"]?.includes(`_STAFF:${staffId}]`)) return true
+            // Check [STAFF_SEQ:...,staffId,...] pattern
+            const seqMatch = e["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/)
+            if (seqMatch && seqMatch[1].split(',').includes(staffId)) return true
+            // 4. Check for Main Staff binding in 备注: 技师:staffId
+            if (e["备注"]?.includes(`技师:${staffId}`)) return true
+          }
           
           return false
         })
@@ -223,55 +305,125 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
           if (dateCompare !== 0) return dateCompare
           return b.开始时间.localeCompare(a.开始时间)
         })
-        .slice(0, 10)
+        .slice(0, 15) // Show a bit more for flow
         .map(e => {
           let amount = Number(e[amountKey]) || 0
+          
+          // If no direct amount, try to find in notes [NAME_AMT:XX]
           if (amount === 0) {
             const noteMatch = e["备注"]?.match(new RegExp(`\\[${name}_AMT:(\\d+)\\]`))
-            if (noteMatch) amount = Number(noteMatch[1])
+            if (noteMatch) {
+              amount = Number(noteMatch[1])
+            }
+          }
+
+          // If still no amount, it means it's not checked out yet.
+          // Try to find projects specifically assigned to this staff.
+          let projectDisplay = e.服务项目
+          if (amount === 0 && staffId) {
+            const projects = e.服务项目.split(',').map((s: string) => s.trim()).filter(Boolean)
+            const assignedProjects: string[] = []
+            let totalEstimatedAmount = 0
+
+            // Check individual item bindings
+            projects.forEach((proj: string, idx: number) => {
+              const isAssigned = e["备注"]?.includes(`[${proj}_STAFF:${staffId}]`) || 
+                                 (() => {
+                                   const seqMatch = e["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/)
+                                   if (!seqMatch) return false
+                                   const seq = seqMatch[1].split(',')
+                                   return seq[idx] === staffId
+                                 })() ||
+                                 // Check if it's the main staff and NO specific item bindings exist for other staff
+                                 (e["备注"]?.includes(`技师:${staffId}`) && !e["备注"]?.includes(`_STAFF:`))
+              
+              if (isAssigned) {
+                assignedProjects.push(proj)
+                totalEstimatedAmount += projectPrices[proj] || 0
+              }
+            })
+
+            if (assignedProjects.length > 0) {
+              projectDisplay = assignedProjects.join(', ')
+              amount = totalEstimatedAmount
+            }
           }
           
           return {
             time: e.开始时间,
-            project: e.服务项目,
+            project: projectDisplay,
             amount: amount
           }
         })
     })
     return flow
-  }, [events, stats.staffStats])
+  }, [events, staffMembers])
 
   const memberStats = useMemo(() => {
     const members: Record<string, { spend: number, visits: number }> = {}
     const staffPrefs: Record<string, number> = {}
     const projectPrefs: Record<string, number> = {}
 
-    const fixedStaffNames = ['FANG', 'ALEXA', 'SARA', 'DAN', 'FEDE']
+    const currentStaffNames = staffMembers.map(s => s.name)
+    const allStaffNames = Array.from(new Set([...FIXED_STAFF_NAMES, ...currentStaffNames]))
     
+    // Build project prices for estimation
+    const projectPrices: Record<string, number> = {}
+    SERVICE_CATEGORIES.forEach(cat => {
+      cat.items.forEach(item => {
+        projectPrices[item.name] = item.price
+      })
+    })
+
     events.forEach(e => {
       const memberInfo = e.会员信息 || (lang === 'zh' ? '散客' : 'Anonimo')
       const project = e.服务项目 || (lang === 'zh' ? '未知' : 'Sconosciuto')
       
       let eventTotal = 0
+      let eventHasAnyAmount = false
       
-      // 1. Check fixed columns
-      fixedStaffNames.forEach(name => {
+      // 1. Check columns for all staff names (Realized)
+      allStaffNames.forEach(name => {
         const amt = Number(e[`金额_${name}`]) || 0
         if (amt > 0) {
           eventTotal += amt
           staffPrefs[name] = (staffPrefs[name] || 0) + 1
+          eventHasAnyAmount = true
         }
       })
 
-      // 2. Check notes for dynamic staff amounts [NAME_AMT:100]
+      // 2. Check notes for dynamic staff amounts [NAME_AMT:100] (Realized)
       const noteContent = e["备注"] || ""
-      const matches = noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g)
-      for (const match of matches) {
+      const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g))
+      amtMatches.forEach((match: any) => {
         const name = match[1]
         const amount = Number(match[2]) || 0
         if (amount > 0) {
-          eventTotal += amount
+          if (!members[memberInfo]) {
+            members[memberInfo] = { spend: 0, visits: 0 }
+          }
+          members[memberInfo].spend += amount
           staffPrefs[name] = (staffPrefs[name] || 0) + 1
+          eventHasAnyAmount = true
+        }
+      })
+
+      // 3. If no realized amount yet, estimate for "Booked" status
+      if (!eventHasAnyAmount) {
+        // Use project prices to estimate
+        const projects = (e.服务项目 || "").split(',').map((s: string) => s.trim()).filter(Boolean)
+        let estimatedTotal = 0
+        projects.forEach((p: string) => {
+          estimatedTotal += projectPrices[p] || 0
+        })
+        eventTotal = estimatedTotal
+
+        // Attribute to main staff for prefs
+        const mainStaffIdMatch = noteContent.match(/技师:([^,\]\s]+)/)
+        const mainStaffId = mainStaffIdMatch ? mainStaffIdMatch[1] : null
+        const mainStaff = staffMembers.find(s => s.id === mainStaffId)
+        if (mainStaff) {
+          staffPrefs[mainStaff.name] = (staffPrefs[mainStaff.name] || 0) + 1
         }
       }
 
@@ -283,28 +435,51 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       projectPrefs[project] = (projectPrefs[project] || 0) + 1
     })
 
-    let spendRanking = Object.entries(members)
-      .map(([name, data]) => ({ name, value: data.spend }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10)
+    const walkInLabel = lang === 'zh' ? '散客' : 'Anonimo'
+    
+    const getRanking = (type: 'spend' | 'visits') => {
+      const allEntries = Object.entries(members).map(([name, data]) => ({
+        name,
+        value: type === 'spend' ? data.spend : data.visits
+      }))
 
-    let visitRanking = Object.entries(members)
-      .map(([name, data]) => ({ name, value: data.visits }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10)
+      // 1. Separate members and walk-ins
+      // Members: anything that doesn't include the walk-in label
+      const memberEntries = allEntries.filter(e => !e.name.includes(walkInLabel))
+      // Walk-ins: anything that includes the walk-in label
+      const walkInEntries = allEntries.filter(e => e.name.includes(walkInLabel))
+
+      // 2. Sort members descending and take top 9
+      const sortedMembers = memberEntries.sort((a, b) => b.value - a.value).slice(0, 9)
+
+      // 3. Sum all walk-ins into one "散客" entry
+      const totalWalkInValue = walkInEntries.reduce((sum, e) => sum + e.value, 0)
+      
+      const finalRanking = [...sortedMembers]
+      
+      // 4. Always add walk-in entry at the end if it has data or exists
+      if (totalWalkInValue > 0 || walkInEntries.length > 0) {
+        finalRanking.push({ name: walkInLabel, value: totalWalkInValue })
+      }
+      
+      return finalRanking.slice(0, 10)
+    }
+
+    let spendRanking = getRanking('spend')
+    let visitRanking = getRanking('visits')
 
     // Mock data for preview if empty
     if (spendRanking.length === 0 && events.length === 0) {
       spendRanking = [
-        { name: '(0001) 123456789', value: 580 },
-        { name: '(0002) 987654321', value: 420 },
-        { name: '(0003) 112233445', value: 350 },
-        { name: '散客', value: 2100 }
+        { name: '(0001) 会员A', value: 580 },
+        { name: '(0002) 会员B', value: 420 },
+        { name: '(0003) 会员C', value: 350 },
+        { name: walkInLabel, value: 2100 }
       ]
       visitRanking = [
-        { name: '(0001) 123456789', value: 5 },
-        { name: '(0002) 987654321', value: 3 },
-        { name: '散客', value: 42 }
+        { name: '(0001) 会员A', value: 5 },
+        { name: '(0002) 会员B', value: 3 },
+        { name: walkInLabel, value: 42 }
       ]
     }
 
@@ -347,7 +522,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       <div 
         className={cn(
           "relative w-full h-full max-w-[95%] max-h-[90%] overflow-hidden",
-          "bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] rounded-[2.5rem] shadow-2xl",
+          "bg-white/[0.03] backdrop-blur-sm border border-white/30 rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] ring-1 ring-white/10",
           "flex flex-col"
         )}
         onClick={(e) => e.stopPropagation()}
@@ -446,9 +621,9 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           {activeTab === 'overview' ? (
-            <div className="h-full flex flex-col space-y-8">
+            <div className="flex flex-col space-y-8">
               {/* Top Section: Staff Performance (More transparent) */}
-              <div className="h-[45%] bg-white/[0.01] rounded-3xl border border-white/[0.05] p-8 relative overflow-hidden group flex items-stretch">
+              <div className="bg-white/[0.01] rounded-3xl border border-white/[0.05] p-8 relative group flex items-stretch">
                 {/* 1. Left: Vertical Title (Single column, upright text) */}
                 <div className="w-10 flex flex-col items-center justify-center border-r border-white/10 pr-4 shrink-0 space-y-1">
                   {(lang === 'zh' ? '员工业绩排行' : 'STAFF').split('').map((char, i) => (
@@ -459,7 +634,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                 </div>
 
                 {/* 2. Middle: Horizontal Bars Cluster (Compact and centered) */}
-                <div className="flex-1 px-10 flex flex-col justify-center space-y-3 py-1">
+                <div className="flex-1 px-10 flex flex-col justify-center space-y-3 py-1 overflow-y-auto custom-scrollbar max-h-[300px]">
                   {stats.sortedStats.map((staff, idx) => {
                     const maxAmount = Math.max(...stats.sortedStats.map(s => s.amount), 1)
                     const percentage = (staff.amount / maxAmount) * 100
@@ -507,7 +682,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
               {/* Bottom Section (Three-column layout consistent with top) */}
               <div className="flex-1 flex space-x-8 min-h-0">
                 {/* Left: Project Ranking (More transparent) */}
-                <div className="w-1/3 bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex items-stretch overflow-hidden group">
+                <div className="w-1/3 bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex items-stretch group">
                   {/* Vertical Title Sidebar */}
                   <div className="w-8 flex flex-col items-center justify-start border-r border-white/10 pr-4 shrink-0 space-y-1 pt-1">
                     {(lang === 'zh' ? '热门项目排行' : 'PROJECTS').split('').map((char, i) => (
@@ -518,8 +693,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   </div>
                   
                   {/* Content */}
-                  <div className="flex-1 flex flex-col pl-6 -mt-1.5">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 pt-0 pb-6">
+                  <div className="flex-1 flex flex-col pl-6 -mt-1.5 min-h-0">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 pt-0 pb-6 max-h-[400px]">
                       {projectStats.map((item, i) => {
                         const maxCount = Math.max(...projectStats.map(p => p.count), 1)
                         const width = (item.count / maxCount) * 100
@@ -530,7 +705,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                               <span className="text-white/80 group-hover/item:text-white truncate pr-2 drop-shadow-sm">
                                 {item.name}
                               </span>
-                              <span className="text-indigo-400 font-black">
+                              <span className="text-white font-black">
                                 {item.count}{lang === 'zh' ? '次' : 'v'}
                               </span>
                             </div>
@@ -548,7 +723,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                 </div>
 
                 {/* Right: Real-time Flow (More transparent) */}
-                <div className="flex-1 bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex items-stretch overflow-hidden group">
+                <div className="flex-1 bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex items-stretch group">
                   {/* Vertical Title Sidebar */}
                   <div className="w-8 flex flex-col items-center justify-center border-r border-white/10 pr-4 shrink-0 space-y-1">
                     {(lang === 'zh' ? '实时服务流水' : 'FLOW').split('').map((char, i) => (
@@ -559,9 +734,9 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   </div>
 
                   {/* Content (Dynamic columns) */}
-                  <div className="flex-1 flex flex-col overflow-hidden pl-6">
+                  <div className="flex-1 flex flex-col min-h-0 pl-6">
                     <div 
-                      className="flex-1 grid gap-4 overflow-hidden"
+                      className="flex-1 grid gap-4 min-h-0"
                       style={{ 
                         gridTemplateColumns: `repeat(${stats.staffStats.length}, minmax(0, 1fr))` 
                       }}
@@ -575,15 +750,15 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                 {name}
                               </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 pt-1">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 pt-1 max-h-[400px]">
                               {staffFlow[name]?.map((item, i) => (
                                 <div key={i} className="bg-white/10 rounded-lg p-2 border border-white/10 hover:bg-white/20 shadow-sm">
-                                  <div className="flex justify-between text-[8px] font-bold text-white/50 mb-1">
-                                    <span>{item.time}</span>
-                                    <span className="text-indigo-400 font-black">€{item.amount}</span>
+                                  <div className="text-[8px] font-bold text-white/40 mb-1">
+                                    {item.time}
                                   </div>
-                                  <div className="text-[9px] font-black text-white/90 truncate drop-shadow-sm">
-                                    {item.project}
+                                  <div className="text-[9px] font-black text-white/90 truncate drop-shadow-sm flex items-center justify-between gap-2">
+                                    <span className="truncate">{item.project}</span>
+                                    <span className="text-white font-black shrink-0">€{item.amount}</span>
                                   </div>
                                 </div>
                               ))}
@@ -597,20 +772,21 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
               </div>
             </div>
           ) : (
-            <div className="h-full grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 gap-8">
               {/* Member Rankings (Img 4 style) */}
                 {[
                   { title: lang === 'zh' ? '消费排行' : 'Spesa', data: memberStats.spendRanking, unit: '€', isSpecial: true },
                   { title: lang === 'zh' ? '到店频次' : 'Visite', data: memberStats.visitRanking, unit: '次', isSpecial: true },
                   { title: lang === 'zh' ? '技师人气' : 'Staff', data: memberStats.staffRanking, unit: '次', isSpecial: true }
                 ].map((section, idx) => (
-                  <div key={idx} className="bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex flex-col overflow-hidden group">
+                  <div key={idx} className="bg-white/[0.01] rounded-3xl border border-white/[0.05] p-6 flex flex-col group">
                     <h4 className="text-xs font-black text-white/40 mb-6 uppercase tracking-[0.2em] px-2 text-center">
                       {section.title}
                     </h4>
                   
-                  <div className="flex-1 overflow-y-auto custom-scrollbar px-2 relative">
-                    {section.isSpecial ? (
+                  <div className="px-2 relative flex-1 min-h-0">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[400px] pr-2">
+                      {section.isSpecial ? (
                       /* Special Style: Label outside, Value inside, with separator line */
                       <div className="relative flex flex-col space-y-4 min-h-full">
                         {/* Vertical Separator Line */}
@@ -655,7 +831,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                 <span className="text-white/60 group-hover/item:text-white truncate pr-2">
                                   {item.name}
                                 </span>
-                                <span className="text-indigo-400">
+                                <span className="text-white font-black">
                                   {section.unit === '€' ? `€${item.value.toLocaleString()}` : `${item.value}${section.unit}`}
                                 </span>
                               </div>
@@ -672,11 +848,12 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
 
       <style jsx global>{`
         @keyframes shimmer {

@@ -43,6 +43,9 @@ import {
   MemberHistoryItem,
   COLOR_OPTIONS, 
   STAFF_MEMBERS, 
+  FIXED_STAFF_NAMES,
+  COLOR_TO_STAFF_ID,
+  getCleanColorName,
   SERVICE_CATEGORIES, 
   I18N 
 } from '@/utils/calendar-constants'
@@ -97,7 +100,7 @@ function WeatherDisplay() {
       <div className="scale-90 md:scale-100 opacity-80">
         {getWeatherIcon(weather.code)}
       </div>
-      <span className="text-[10px] md:text-xs font-bold text-zinc-400 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
+      <span className="text-[10px] md:text-xs font-black italic text-white group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-orbitron)' }}>
         {weather.temp}°C
       </span>
     </div>
@@ -124,12 +127,19 @@ interface CalendarProps {
   // Use a stable initial date for SSR to avoid hydration mismatch
   const [currentDate, setCurrentDate] = useState(initialDate || new Date(2024, 0, 1))
   
-  // Update to real "today" only on client
   useEffect(() => {
-    if (!initialDate) {
-      setCurrentDate(new Date())
+    if (initialDate) {
+      setCurrentDate(initialDate)
+      // When initialDate changes (e.g. from Sidebar), force Day view
+      setViewType('day')
     }
   }, [initialDate])
+
+  useEffect(() => {
+    if (initialView) {
+      setViewType(initialView)
+    }
+  }, [initialView])
   const [viewType, setViewType] = useState<ViewType>(initialView)
   const [isResizing, setIsResizing] = useState(false)
   
@@ -209,6 +219,7 @@ interface CalendarProps {
   })
   const [itemStaffMap, setItemStaffMap] = useState<Record<string, string>>({})
   const [serviceMode, setServiceMode] = useState<'normal' | 'sequential' | 'parallel'>('normal')
+  const [customItemPrices, setCustomItemPrices] = useState<Record<string, string>>({}) // Track custom prices for checkout preview
 
   // Merged events for checkout (same member, same day)
   const mergedEvents = useMemo(() => {
@@ -223,10 +234,24 @@ interface CalendarProps {
       // Check if same day and same member ID
       const eventMemberInfo = e["会员信息"] || '';
       // Extract ID from (ID)Name format
-      const idMatch = eventMemberInfo.match(/^\((\d+)\)/);
+      const idMatch = eventMemberInfo.match(/^\(([^)]+)\)(.*)$/);
       const eventMemberId = idMatch ? idMatch[1] : undefined;
+      const eventMemberName = idMatch ? idMatch[2].trim() : eventMemberInfo.trim();
       
-      const isSameMember = eventMemberId === memberId;
+      let isSameMember = eventMemberId === memberId;
+      
+      // If it's a walk-in (0000), also ensure the names match exactly
+      // This prevents different walk-ins (e.g., "散客 1" and "散客 2") from being merged
+      if (isSameMember && memberId === '0000') {
+        const currentName = memberInfo.trim();
+        // If the current name is empty, it's a generic walk-in and shouldn't merge with others
+        if (currentName === '') {
+          isSameMember = false;
+        } else {
+          isSameMember = eventMemberName === currentName;
+        }
+      }
+      
       return isSameMember && isSameDay(eDate, selectedDate);
     });
 
@@ -257,24 +282,20 @@ interface CalendarProps {
   useEffect(() => {
     if (showCheckoutPreview && mergedEvents.length > 0) {
       const amounts: Record<string, string> = {};
+      const prices: Record<string, string> = {}; // Initialize custom prices
       
-      const colorToStaffId: Record<string, string> = {
-        'rose': '1',
-        'emerald': '2',
-        'purple': '3',
-        'orange': '4',
-        'amber': '5',
-        'zinc': 'NO',
-        'sky': ''
-      };
-
-      mergedEvents.forEach(event => {
+      mergedEvents.forEach((event, eventIdx) => {
         const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
-        const colorMatch = event["背景颜色"]?.match(/(?:bg|border)-([a-z0-9-]+)/);
-        const colorName = colorMatch?.[1]?.replace(/-(400|500|600)/, '').replace(/\/10$/, '');
-        const eventStaffIdFromColor = colorName ? colorToStaffId[colorName] : undefined;
+        const colorName = getCleanColorName(event["背景颜色"]);
+        const eventStaffIdFromColor = colorName ? COLOR_TO_STAFF_ID[colorName] : undefined;
 
         eventItems.forEach((itemName, itemIdx) => {
+          const itemKey = `${eventIdx}-${itemName}`;
+          const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
+          if (itemData) {
+            prices[itemKey] = itemData.price.toString();
+          }
+
           const escapedItem = escapeRegExp(itemName);
           const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
           const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
@@ -292,7 +313,6 @@ interface CalendarProps {
           
           const staff = staffMembers.find(s => s.id === itemStaffId);
           if (staff && staff.id !== 'NO') {
-            const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
             if (itemData) {
               const currentAmount = Number(amounts[staff.name] || 0);
               amounts[staff.name] = (currentAmount + itemData.price).toString();
@@ -302,6 +322,7 @@ interface CalendarProps {
       });
 
       setStaffAmounts(amounts);
+      setCustomItemPrices(prices);
     }
   }, [showCheckoutPreview, mergedEvents]);
 
@@ -329,20 +350,9 @@ interface CalendarProps {
       }
 
       // 3. Also try to find a direct staff assignment from bgColor
-      const colorMatch = event["背景颜色"]?.match(/(?:bg|border)-([a-z0-9-]+)/);
-      if (colorMatch) {
-        const colorName = colorMatch[1].replace(/-(400|500|600)/, '').replace(/\/10$/, '');
-        // Reverse map to find staff ID from color name
-        const colorToStaffId: Record<string, string> = {
-          'rose': '1',
-          'emerald': '2',
-          'purple': '3',
-          'orange': '4',
-          'amber': '5',
-          'zinc': 'NO',
-          'sky': ''
-        };
-        const eventStaffId = colorToStaffId[colorName];
+      const colorName = getCleanColorName(event["背景颜色"]);
+      if (colorName) {
+        const eventStaffId = COLOR_TO_STAFF_ID[colorName];
         if (eventStaffId && eventStaffId !== 'NO') ids.add(eventStaffId);
       }
       
@@ -369,18 +379,8 @@ interface CalendarProps {
     }
     
     const staff = staffMembers.find(s => s.id === staffId)
-    const fixedColorMap: Record<string, string> = {
-      '1': 'rose',
-      '2': 'emerald',
-      '3': 'purple',
-      '4': 'orange',
-      '5': 'amber',
-      'NO': 'zinc'
-    }
     
-    let colorName = staff?.bgColor?.match(/bg-([a-z0-9-]+)/)?.[1] || fixedColorMap[staffId] || 'sky'
-    // Remove any existing shade if present
-    colorName = colorName.replace(/-(400|500|600)/, '')
+    let colorName = getCleanColorName(staff?.bgColor) || 'sky'
     
     // Explicitly return full strings for Tailwind JIT detection in a safe way
     // This map ensures that Tailwind 4 sees the full class names
@@ -461,6 +461,7 @@ interface CalendarProps {
     unassignedEvents.forEach(e => {
       const eStart = getEventStartTime(e);
       const eEnd = getEventEndTime(e);
+      const memberId = e["会员信息"]?.match(/\(ID: (C\.P \d+)\)/)?.[1] || e["会员信息"]?.match(/\(ID: (\d+)\)/)?.[1] || '';
 
       // Find the first available column (index 0, 1, 2...)
       const availableStaff = regularStaff.find(staff => {
@@ -471,8 +472,18 @@ interface CalendarProps {
           if (!otherE) return false;
           const oStart = getEventStartTime(otherE);
           const oEnd = getEventEndTime(otherE);
+          
           // Standard overlap check
-          return (eStart < oEnd && eEnd > oStart);
+          const overlaps = (eStart < oEnd && eEnd > oStart);
+          
+          // SPECIAL CASE: If this is a parallel segmented appointment (same member, overlapping time), 
+          // we MUST NOT put it in the same column as the other segment.
+          if (overlaps && memberId !== '') {
+            const otherMemberId = otherE["会员信息"]?.match(/\(ID: (C\.P \d+)\)/)?.[1] || otherE["会员信息"]?.match(/\(ID: (\d+)\)/)?.[1] || '';
+            if (memberId === otherMemberId) return true; // Force conflict to move to next column
+          }
+          
+          return overlaps;
         });
         return !hasConflict;
       });
@@ -575,6 +586,13 @@ interface CalendarProps {
     else setCurrentDate(subMonths(currentDate, 1))
   }
 
+  const cycleViewType = () => {
+    const views: ViewType[] = ['day', 'week', 'month', 'year']
+    const currentIndex = views.indexOf(viewType)
+    const nextIndex = (currentIndex + 1) % views.length
+    setViewType(views[nextIndex])
+  }
+
   // Quick-jump to today handled via the “今/OGGI” button in header
 
   const handleSubmit = async (e: React.FormEvent, forcedMode?: 'normal' | 'sequential' | 'parallel') => {
@@ -590,40 +608,72 @@ interface CalendarProps {
     let finalInfo = memberInfo.trim()
     const trimmedName = memberName.trim()
     
-    // Auto-numbering for "散客" (Walk-ins)
+    // Auto-numbering for "C.P" (Walk-ins) or "NO" (No-shows)
     let processedName = trimmedName;
-    if (processedName === '散客' && !editingEvent) {
-      const todayWalkins = events.filter(e => {
-        const eDate = getEventStartTime(e);
-        const info = e["会员信息"] || '';
-        return isSameDay(eDate, selectedDate) && info.includes('散客');
-      });
-      
-      const numbers = todayWalkins.map(e => {
-        const match = e["会员信息"]?.match(/散客\s*(\d+)/);
-        return match ? parseInt(match[1]) : 0;
-      }).filter(n => n > 0);
-      
-      const nextNumber = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-      processedName = `散客 ${nextNumber}`;
-    } else if (processedName === '散客' && editingEvent) {
-      const originalInfo = editingEvent["会员信息"] || '';
-      const nameMatch = originalInfo.match(/\((?:\d+)\)(.*)/);
-      const originalName = nameMatch ? nameMatch[1].trim() : '';
-      if (originalName.startsWith('散客')) {
-        processedName = originalName;
+    let finalMemberId = memberId;
+    const isNoShow = selectedStaffId === 'NO';
+    
+    // If no member selected (memberId is '0000') OR it's a walk-in name, treat as C.P/NO
+    if ((memberId === '0000' || memberId.startsWith('C.P') || memberId.startsWith('NO')) && !processedName && !finalInfo) {
+      processedName = '散客';
+    }
+
+    if ((memberId === '0000' || memberId.startsWith('C.P') || memberId.startsWith('NO')) && (processedName === '散客' || processedName === '')) {
+      if (isNoShow) {
+        if (memberId.startsWith('NO ')) {
+          finalMemberId = memberId;
+        } else {
+          // Find the next NO number
+          const allNoNumbers = allDatabaseEvents.map(e => {
+            const m = e["会员信息"]?.match(/\((NO\s*(\d+))\)/);
+            return m ? parseInt(m[2]) : null;
+          }).filter((n): n is number => n !== null);
+
+          let nextNo = 1;
+          const sortedNo = [...new Set(allNoNumbers)].sort((a, b) => a - b);
+          for (const n of sortedNo) {
+            if (n === nextNo) nextNo++;
+            else if (n > nextNo) break;
+          }
+          finalMemberId = `NO ${nextNo}`;
+        }
+        processedName = '散客';
+      } else if (!editingEvent || memberId === '0000' || memberId.startsWith('NO')) {
+        // Find all numbers currently in use (excluding those marked as NO-show)
+        const allUsedNumbers = allDatabaseEvents.map(e => {
+          const m = e["会员信息"]?.match(/\((?:[A-Z.\s]+)?(\d+)\)/);
+          const staffMatch = e["备注"]?.match(/技师:([^,]+)/);
+          const isNoShowEvent = staffMatch ? staffMatch[1] === 'NO' : false;
+          
+          if (m && !isNoShowEvent) {
+            return parseInt(m[1]);
+          }
+          return null;
+        }).filter((n): n is number => n !== null);
+
+        // Find the smallest available number
+        let nextNumber = 1;
+        const sortedNumbers = [...new Set(allUsedNumbers)].sort((a, b) => a - b);
+        for (const n of sortedNumbers) {
+          if (n === nextNumber) nextNumber++;
+          else if (n > nextNumber) break;
+        }
+        
+        finalMemberId = `C.P ${nextNumber.toString().padStart(4, '0')}`;
+        processedName = '散客';
+      } else {
+        // Keeping existing C.P ID if editing and NOT changing to NO
+        finalMemberId = memberId;
+        processedName = '散客';
       }
     }
 
     if (processedName) {
       // If we have a name, combine it with the info (which might be phone)
       if (finalInfo && finalInfo !== processedName) {
-        // Check if finalInfo is just the phone number (to avoid saving Name (Name))
         if (/^\d+$/.test(finalInfo)) {
           finalInfo = `${processedName} (${finalInfo})`
         } else {
-          // If finalInfo is not just digits, it might be the name already or some other info
-          // Just use the provided name as primary
           finalInfo = processedName
         }
       } else {
@@ -631,7 +681,7 @@ interface CalendarProps {
       }
     }
     
-    const formattedMemberInfo = memberId && memberId !== '0000' ? `(${memberId})${finalInfo}` : `(0000)${finalInfo}`
+    const formattedMemberInfo = `(${finalMemberId})${finalInfo}`
 
     const items = newTitle.split(',').map(s => s.trim()).filter(Boolean);
     const effectiveMode = forcedMode || serviceMode;
@@ -713,8 +763,7 @@ interface CalendarProps {
 
         // Add amount for the specific staff member assigned to this item
         if (itemStaff && itemPrice > 0) {
-          const existingColumns = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE'];
-          if (existingColumns.includes(itemStaff.name)) {
+          if ((FIXED_STAFF_NAMES as readonly string[]).includes(itemStaff.name)) {
             eventData[`金额_${itemStaff.name}`] = itemPrice;
           } else {
             eventData["备注"] += `, [${itemStaff.name}_AMT:${itemPrice}]`;
@@ -784,8 +833,6 @@ interface CalendarProps {
       }
     })
 
-    // List of columns that actually exist in the database
-    const existingColumns = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE']
     let extraNotes = ''
 
     // Final background color determination:
@@ -804,7 +851,7 @@ interface CalendarProps {
       if (staff.id !== 'NO') {
         const amount = Number(staffAmounts[staff.name]) || 0
         if (amount > 0) {
-          if (existingColumns.includes(staff.name)) {
+          if ((FIXED_STAFF_NAMES as readonly string[]).includes(staff.name)) {
             // Store in dedicated column if it exists
             eventData[`金额_${staff.name}`] = amount
           } else {
@@ -1056,11 +1103,13 @@ interface CalendarProps {
        const eventDate = event["服务日期"]
        
        // Calculate total amount from both fixed columns and dynamic amounts in notes
-       let amount = 0
-       const fixedStaffNames = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE']
-       fixedStaffNames.forEach(name => {
-         amount += (event[`金额_${name}` as keyof CalendarEvent] as number || 0)
-       })
+      let amount = 0
+      staffMembers.forEach(staff => {
+        if (staff.id !== 'NO') {
+          // Check fixed column: 金额_NAME
+          amount += (event[`金额_${staff.name}` as keyof CalendarEvent] as number || 0)
+        }
+      })
 
        // Parse dynamic amounts from notes [NAME_AMT:100]
        const matches = event["备注"]?.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g)
@@ -1081,13 +1130,19 @@ interface CalendarProps {
          if (!existing.phone && phone) existing.phone = phone
          
          // Add to history
+         const staffId = event["备注"]?.match(/技师:([^,\]]+)/)?.[1]
+         const staffName = staffMembers.find(s => s.id === staffId)?.name || 'Unknown'
+         
          existing.history.push({
            date: eventDate,
            service: event["服务项目"],
-           staff: event["备注"]?.match(/技师:([^,]+)/)?.[1] || 'Unknown',
+           staff: staffName,
            amount: amount
          })
        } else {
+         const staffId = event["备注"]?.match(/技师:([^,\]]+)/)?.[1]
+         const staffName = staffMembers.find(s => s.id === staffId)?.name || 'Unknown'
+
          memberMap.set(key, {
           name: name || '',
           phone: phone || '',
@@ -1100,7 +1155,7 @@ interface CalendarProps {
           history: [{
             date: eventDate,
             service: event["服务项目"],
-            staff: event["备注"]?.match(/技师:([^,]+)/)?.[1] || 'Unknown',
+            staff: staffName,
             amount: amount
           }]
         })
@@ -1230,11 +1285,11 @@ interface CalendarProps {
   const generateMemberId = async (category: 'young' | 'middle' | 'senior' | 'male' | 'noshow') => {
     setMemberId('...') // Loading feedback
     
-    const ranges: Record<'young' | 'middle' | 'senior' | 'male' | 'noshow', { min: number; max: number; prefix?: string }> = {
-      young: { min: 1, max: 3000 },
-      middle: { min: 3001, max: 6000 },
-      senior: { min: 6001, max: 9000 },
-      male: { min: 9001, max: 9999 },
+    const ranges: Record<'young' | 'middle' | 'senior' | 'male' | 'noshow', { min: number; max: number; prefix: string }> = {
+      young: { prefix: 'GIO ', min: 1, max: 3000 },
+      middle: { prefix: 'ADU ', min: 3001, max: 6000 },
+      senior: { prefix: 'ANZ ', min: 6001, max: 9000 },
+      male: { prefix: 'U ', min: 9001, max: 9999 },
       noshow: { prefix: 'NO ', min: 1, max: 999 }
     }
     
@@ -1257,16 +1312,16 @@ interface CalendarProps {
         const info = item['会员信息']
         if (!info) return
         
-        // Check for regular ID: (1234)
-        const match = info.match(/\((\d+)\)/)
+        // Extract number from any format like (GIO 0001), (ADU 3001), (0001), (NO 1)
+        const match = info.match(/\((?:[A-Z.\s]+)?(\d+)\)/)
         if (match) {
-          existingIds.add(parseInt(match[1]))
-        }
-        
-        // Check for NoShow ID: (NO 123)
-        const noShowMatch = info.match(/\(NO (\d+)\)/)
-        if (noShowMatch) {
-          existingNoShowIds.add(parseInt(noShowMatch[1]))
+          const num = parseInt(match[1])
+          // If it's a NO show ID, track it separately
+          if (info.includes('(NO ')) {
+            existingNoShowIds.add(num)
+          } else {
+            existingIds.add(num)
+          }
         }
       })
 
@@ -1292,7 +1347,7 @@ interface CalendarProps {
       
       const formattedId = category === 'noshow' 
         ? `NO ${nextId}` 
-        : nextId.toString().padStart(4, '0')
+        : `${config.prefix}${nextId.toString().padStart(4, '0')}`
         
       setMemberId(formattedId)
       setSelectedMember(prev => (prev ? { ...prev, card: formattedId } : prev))
@@ -1302,7 +1357,7 @@ interface CalendarProps {
       const randomId = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min
       const formattedId = category === 'noshow' 
         ? `NO ${randomId}` 
-        : randomId.toString().padStart(4, '0')
+        : `${config.prefix}${randomId.toString().padStart(4, '0')}`
       setMemberId(formattedId)
     }
   }
@@ -1317,40 +1372,69 @@ interface CalendarProps {
   return (
     <div className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative">
       {/* Header */}
-      <div className={cn("flex flex-col sm:flex-row items-center justify-between px-2 md:px-4 lg:px-6 gap-4 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5 opacity-100", isModalOpen && "pointer-events-none")}>
-        <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-          <div className="flex items-center gap-4 md:gap-5 group ml-2 md:ml-4">
-            <div className="relative group/year">
-              {/* Subtle underline for elegance */}
-              <div className="absolute -bottom-1 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-2">
-            <button onClick={handlePrev} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80">
-              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-            <div className="flex bg-transparent rounded-full p-1 border border-white/20">
-              {(['day','week','month','year'] as ViewType[]).map(v => (
-                <button
-                  key={v}
-                  onClick={() => setViewType(v)}
-                  className={cn(
-                    "px-3 md:px-4 py-1 text-xs md:text-sm font-bold rounded-full bg-transparent",
-                    viewType === v ? "border border-white/30 text-white" : "text-zinc-400 hover:text-white"
-                  )}
-                  style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
-                >
-                  {VIEW_LABELS[v]}
-                </button>
-              ))}
-            </div>
-            <button onClick={handleNext} className="p-2 rounded-full border border-white/20 bg-transparent hover:border-white/30 text-zinc-400/80">
-              <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-          </div>
+      <div className={cn("relative flex items-center justify-center px-2 md:px-4 lg:px-6 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5 opacity-100", isModalOpen && "pointer-events-none")}>
+        {/* Year/Month Display Positioned Left */}
+         {(viewType === 'year' || viewType === 'month') && (
+           <div className="absolute left-12 md:left-24 lg:left-32 flex items-center gap-1 animate-in fade-in slide-in-from-left-4 duration-700">
+             {[...format(currentDate, viewType === 'year' ? 'yyyy' : 'MM')].map((ch, i) => (
+               <span
+                 key={`date-display-${i}`}
+                 className="text-xl md:text-3xl lg:text-4xl font-black bg-gradient-to-r from-zinc-400 via-white to-zinc-400 bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] leading-none"
+                 style={{ fontFamily: 'var(--font-orbitron)' }}
+               >
+                 {ch}
+               </span>
+             ))}
+             {viewType === 'month' && (
+               <span 
+                 className="text-lg md:text-2xl lg:text-3xl font-black bg-gradient-to-r from-zinc-400 via-white to-zinc-400 bg-clip-text text-transparent ml-1"
+                 style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
+               >
+                 月
+               </span>
+             )}
+           </div>
+         )}
+
+        <div className="flex items-center gap-4 md:gap-6">
+          <button 
+            onClick={handlePrev} 
+            className="p-1.5 md:p-2 rounded-full bg-transparent border border-white/20 text-zinc-400/80 hover:text-white hover:bg-white/10 hover:border-white/40 transition-all"
+          >
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+
+          {(['day', 'week', 'month', 'year'] as ViewType[]).map((type) => {
+            const labels: Record<ViewType, string> = {
+              day: '今',
+              week: '周',
+              month: '月',
+              year: '年'
+            }
+            const isActive = viewType === type
+            return (
+              <button
+                key={type}
+                onClick={() => setViewType(type)}
+                className={cn(
+                  "w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center text-xs md:text-sm font-black transition-all duration-300",
+                  isActive 
+                    ? "bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.4)] scale-110 z-10 border-white/40" 
+                    : "bg-transparent border border-white/20 text-zinc-400 hover:text-white hover:bg-white/10 hover:border-white/40"
+                )}
+                style={{ fontFamily: 'var(--font-noto-sans-sc)' }}
+              >
+                {labels[type]}
+              </button>
+            )
+          })}
+
+          <button 
+            onClick={handleNext} 
+            className="p-1.5 md:p-2 rounded-full bg-transparent border border-white/20 text-zinc-400/80 hover:text-white hover:bg-white/10 hover:border-white/40 transition-all"
+          >
+            <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
         </div>
       </div>
 
@@ -1455,14 +1539,23 @@ interface CalendarProps {
                     ))
                   ) : (
                     days.map((day) => (
-                      <div key={day.toString()} className="py-2 md:py-3 flex flex-col items-center">
+                      <div 
+                        key={day.toString()} 
+                        className="py-2 md:py-3 flex flex-col items-center cursor-pointer group/day-header"
+                        onClick={() => {
+                          setCurrentDate(day)
+                          setViewType('day')
+                        }}
+                      >
                         <div className={cn(
-                          "flex flex-col items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full",
-                          isSameDay(day, today || new Date(2024, 0, 1)) ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" : "hover:bg-white/5"
+                          "flex flex-col items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full transition-all duration-300",
+                          isSameDay(day, today || new Date(2024, 0, 1)) 
+                            ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" 
+                            : "hover:bg-white/10 group-hover/day-header:scale-110"
                         )}>
                           <div className={cn(
-                            "text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5",
-                            isSameDay(day, today || new Date(2024, 0, 1)) ? "text-zinc-900/70" : "text-white"
+                            "text-[10px] md:text-xs font-black italic uppercase tracking-widest mb-0.5",
+                            isSameDay(day, today || new Date(2024, 0, 1)) ? "text-zinc-950/80" : "text-white"
                           )}>
                             {format(day, 'EEE', { locale: zhCN })}
                           </div>
@@ -1566,26 +1659,28 @@ interface CalendarProps {
                                 openEditModal(event)
                               }}
                               style={{ 
-                                top: `calc(${top}rem + 2px)`, 
-                                height: `calc(${height}rem - 4px)`,
+                                top: `calc(${top}rem + 1px)`, 
+                                height: `calc(${height}rem - 2px)`,
                                 left: '4px',
                                 right: '4px'
                               }}
                               className={cn(
                                 "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden",
-                                isShort ? "px-1.5 py-0.5" : "px-2.5 py-2",
-                                "border-l-4 border-l-black/60 ring-1 ring-white/10",
+                                isShort ? "px-1.5 py-0" : "px-2.5 py-1",
+                                "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
                                 "hover:brightness-110 flex flex-col gap-0.5 uppercase tracking-wider",
                                 event["背景颜色"] || 'bg-blue-600'
                               )}
                             >
                               <div className={cn(
-                                "flex flex-col leading-tight font-black italic w-full",
-                                isShort ? "text-[11px] gap-0" : "text-[13px] gap-0.5"
+                                "flex flex-col leading-none font-black italic w-full h-full justify-center",
+                                height < 1.5 ? "text-[8px] scale-[0.9] origin-left" : 
+                                height < 2 ? "text-[9px]" :
+                                isShort ? "text-[10px]" : "text-[13px]"
                               )}>
-                                <div className="flex items-center gap-1 w-full">
-                                  {staffId === 'NO' && <span className="text-[9px] bg-zinc-800 px-1 rounded border border-zinc-700 not-italic shrink-0">NO</span>}
-                                <div className="truncate flex-1 flex items-center gap-1 overflow-hidden">
+                                <div className="flex items-center gap-1 w-full overflow-hidden">
+                                  {staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
+                                <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
                                   {(() => {
                                     const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
                                     
@@ -1606,24 +1701,24 @@ interface CalendarProps {
                                             ? (staffSeq[idx] || staffSeq[staffSeq.length - 1]) 
                                             : staffId);
                                       
-                                      const colorClass = getStaffColorClass(itemStaffId, 'text');
-                                      
                                       return (
                                         <React.Fragment key={idx}>
-                                          <span className={cn("truncate", colorClass)}>{item}</span>
-                                          {idx < items.length - 1 && <span className="text-white/40">,</span>}
+                                          <span className="truncate text-white">{item}</span>
+                                          {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
                                         </React.Fragment>
                                       )
                                     });
                                   })()}
                                 </div>
                                   {isShort && memberDisplayId && (
-                                    <span className="opacity-60 text-[10px] ml-auto shrink-0">#{memberDisplayId}</span>
+                                    <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-tight text-white">{memberDisplayId}</span>
                                   )}
                                 </div>
                                 {!isShort && memberDisplayId && (
-                                  <div className="opacity-60 text-[10px] font-bold not-italic truncate">
-                                    #{memberDisplayId}
+                                  <div className="mt-1">
+                                    <span className="text-[10px] font-black not-italic truncate leading-none inline-block text-white">
+                                      {memberDisplayId}
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -1658,95 +1753,95 @@ interface CalendarProps {
                           )
                         })}
 
-                        {filteredEvents.map(event => {
-                          const start = getEventStartTime(event)
-                          const end = getEventEndTime(event)
-                          const totalStartMinutes = (start.getHours() - 8) * 60 + start.getMinutes()
-                          const durationInMinutes = (end.getTime() - start.getTime()) / 60000
-                          
-                          const top = (totalStartMinutes / 60) * 4
-                          const height = (durationInMinutes / 60) * 4
+                        {(() => {
+                          const sortedEvents = [...filteredEvents].sort((a, b) => {
+                            const startA = getEventStartTime(a).getTime()
+                            const startB = getEventStartTime(b).getTime()
+                            if (startA !== startB) return startA - startB
+                            return getEventEndTime(b).getTime() - getEventEndTime(a).getTime()
+                          })
 
-                          const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
-                          const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
-                          
-                          const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
-                          const staffId = staffIdMatch ? staffIdMatch[1] : undefined
-                          
-                          const isShort = durationInMinutes < 30
-                          
-                          return (
-                            <div 
-                              key={event.id}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openEditModal(event)
-                              }}
-                              style={{ 
-                                top: `calc(${top}rem + 2px)`, 
-                                height: `calc(${height}rem - 4px)`,
-                                left: '4px',
-                                right: '4px'
-                              }}
-                              className={cn(
-                                "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden",
-                                isShort ? "px-1.5 py-0.5" : "px-2.5 py-2",
-                                "border-l-4 border-l-black/60 ring-1 ring-white/10",
-                                "hover:brightness-110 flex flex-col gap-0.5 uppercase tracking-wider",
-                                event["背景颜色"] || 'bg-blue-600'
-                              )}
-                            >
-                              <div className={cn(
-                                "flex flex-col leading-tight font-black italic w-full",
-                                isShort ? "text-[11px] gap-0" : "text-[13px] gap-0.5"
-                              )}>
-                                <div className="flex items-center gap-1 w-full">
-                                  {staffId === 'NO' && <span className="text-[9px] bg-zinc-800 px-1 rounded border border-zinc-700 not-italic shrink-0">NO</span>}
-                                <div className="truncate flex-1 flex items-center gap-1 overflow-hidden">
-                                  {(() => {
-                                    const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
-                                    
-                                    // Extract staff sequence if present for Scheme A fallback
-                                    const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-                                    const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
-                                    
-                                    return items.map((item, idx) => {
-                                      // 1. Try to get individual staff mapping if available in notes
-                                      const escapedItem = escapeRegExp(item);
-                                      const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
-                                      
-                                      // 2. Fallback to sequence logic (Scheme A) if available
-                                      // 3. Fallback to main staffId
-                                      let itemStaffId = itemStaffMatch 
-                                        ? itemStaffMatch[1] 
-                                        : (staffSeq.length > 0 
-                                            ? (staffSeq[idx] || staffSeq[staffSeq.length - 1]) 
-                                            : staffId);
-                                      
-                                      const colorClass = getStaffColorClass(itemStaffId, 'text');
-                                      
-                                      return (
-                                        <React.Fragment key={idx}>
-                                          <span className={cn("truncate", colorClass)}>{item}</span>
-                                          {idx < items.length - 1 && <span className="text-white/40">,</span>}
-                                        </React.Fragment>
-                                      )
-                                    });
-                                  })()}
-                                </div>
-                                  {isShort && memberDisplayId && (
-                                    <span className="opacity-60 text-[10px] ml-auto shrink-0">#{memberDisplayId}</span>
-                                  )}
-                                </div>
-                                {!isShort && memberDisplayId && (
-                                  <div className="opacity-60 text-[10px] font-bold not-italic truncate">
-                                    #{memberDisplayId}
-                                  </div>
+                          const groups: { event: CalendarEvent; start: number; end: number; column: number; totalColumns: number }[] = []
+                          const activeGroups: typeof groups = []
+
+                          sortedEvents.forEach(event => {
+                            const start = getEventStartTime(event).getTime()
+                            const end = getEventEndTime(event).getTime()
+
+                            // Remove groups that don't overlap with current event
+                            for (let i = activeGroups.length - 1; i >= 0; i--) {
+                              if (activeGroups[i].end <= start) {
+                                activeGroups.splice(i, 1)
+                              }
+                            }
+
+                            // Find first available column
+                            let column = 0
+                            const usedColumns = new Set(activeGroups.map(g => g.column))
+                            while (usedColumns.has(column)) {
+                              column++
+                            }
+
+                            const newGroup = { event, start, end, column, totalColumns: 0 }
+                            groups.push(newGroup)
+                            activeGroups.push(newGroup)
+
+                            // Update totalColumns for all currently overlapping events
+                            const currentOverlaps = groups.filter(g => 
+                              activeGroups.some(ag => ag.event.id === g.event.id)
+                            )
+                            const maxCol = Math.max(...activeGroups.map(g => g.column)) + 1
+                            activeGroups.forEach(ag => {
+                              ag.totalColumns = Math.max(ag.totalColumns, maxCol)
+                            })
+                          })
+
+                          return groups.map(group => {
+                            const event = group.event
+                            const start = getEventStartTime(event)
+                            const end = getEventEndTime(event)
+                            const totalStartMinutes = (start.getHours() - 8) * 60 + start.getMinutes()
+                            const durationInMinutes = (end.getTime() - start.getTime()) / 60000
+                            
+                            const top = (totalStartMinutes / 60) * 4
+                            const height = (durationInMinutes / 60) * 4
+
+                            const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
+                            const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
+                            
+                            const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
+                            const staffId = staffIdMatch ? staffIdMatch[1] : undefined
+                            
+                            const isShort = durationInMinutes < 30
+                            
+                            const width = 100 / group.totalColumns
+                            const left = group.column * width
+
+                            return (
+                              <div 
+                                key={event.id}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openEditModal(event)
+                                }}
+                                style={{ 
+                                  top: `calc(${top}rem + 1px)`, 
+                                  height: `calc(${height}rem - 2px)`,
+                                  left: `${left}%`,
+                                  width: `${width}%`,
+                                  paddingLeft: '2px',
+                                  paddingRight: '2px'
+                                }}
+                                className={cn(
+                                  "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden transition-all duration-300",
+                                  "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
+                                  "hover:brightness-110",
+                                  event["背景颜色"] || 'bg-blue-600'
                                 )}
-                              </div>
-                            </div>
-                          )
-                        })}
+                              />
+                            )
+                          })
+                        })()}
                       </div>
                     )
                   })}
@@ -1799,107 +1894,69 @@ interface CalendarProps {
                         setViewType('month')
                         return
                       }
-                      setSelectedDate(day)
-                      setSelectedEndDate(addMinutes(day, duration))
-                      setIsModalOpen(true)
+                      // Switch to day view when clicking a day in month view
+                      setCurrentDate(day)
+                      setViewType('day')
                     }}
                     className={cn(
-                      "relative flex flex-col p-1.5 md:p-3 lg:p-4 rounded-xl md:rounded-2xl lg:rounded-3xl cursor-pointer group/cell overflow-hidden",
-                      !isCurrentMonth ? "opacity-20" : "hover:bg-white/5",
-                      isToday && "bg-white/10 ring-1 ring-white/20",
+                      "relative flex flex-col p-1.5 md:p-3 lg:p-4 rounded-xl md:rounded-2xl lg:rounded-3xl cursor-pointer group/cell overflow-hidden transition-all duration-300",
+                      !isCurrentMonth ? "opacity-20" : "hover:bg-white/10 hover:shadow-2xl hover:shadow-white/5 hover:-translate-y-0.5",
+                      isToday && "bg-white/10 ring-1 ring-white/20 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]",
                       viewType === 'year' && "items-center justify-center text-center"
                     )}
                   >
                     <div className={cn(
-                      "flex justify-center items-center mb-1 relative",
-                      viewType === 'year' && "flex-col"
+                      "transition-transform duration-300 group-hover/cell:scale-110 z-10",
+                      viewType === 'year' ? "absolute top-2 left-2 md:top-3 md:left-3" : "absolute top-1 left-1 md:top-1.5 md:left-1.5"
                     )}>
                       <span className={cn(
-                        "font-bold flex items-center justify-center rounded-xl",
-                        viewType === 'year' ? "text-lg md:text-xl p-2" : "text-[10px] md:text-sm w-6 h-6 md:w-8 md:h-8",
-                        isToday 
-                          ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
-                          : (isCurrentMonth ? "text-zinc-300" : "text-zinc-600")
+                        "font-bold flex items-center justify-center transition-all duration-300",
+                        viewType === 'year' 
+                          ? "text-2xl md:text-3xl text-white drop-shadow-lg" 
+                          : "text-[9px] md:text-xs w-5 h-5 md:w-6 md:h-6 rounded-full",
+                        viewType !== 'year' && (isToday 
+                          ? "bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.2)]" 
+                          : (isCurrentMonth 
+                              ? (viewType === 'month' ? "bg-transparent text-white/90 border border-white/20 group-hover/cell:border-white/40" : "text-zinc-300 group-hover/cell:text-white") 
+                              : "text-zinc-600"))
                       )}>
-                        {viewType === 'year' ? format(day, 'MMM', { locale: zhCN }) : format(day, 'd', { locale: zhCN })}
+                        {viewType === 'year' ? format(day, 'M月', { locale: zhCN }) : format(day, 'd', { locale: zhCN })}
                       </span>
-                      {isCurrentMonth && viewType !== 'year' && (
-                        <Plus className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 w-3 h-3 md:w-4 md:h-4 text-zinc-700 mr-1" />
-                      )}
                     </div>
+
+                    {/* Show appointment count for month view - Centered */}
+                    {(viewType === 'month' || viewType === 'year') && isCurrentMonth && (
+                      <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
+                        {dayEvents.length > 0 ? (
+                          <span className={cn(
+                            "font-black italic text-white/90 drop-shadow-[0_4px_12px_rgba(255,255,255,0.3)] tracking-tighter group-hover/cell:scale-110 transition-transform duration-500",
+                            viewType === 'year' ? "text-2xl md:text-4xl lg:text-5xl" : "text-xl md:text-3xl lg:text-4xl"
+                          )}>
+                            {dayEvents.length}
+                          </span>
+                        ) : (
+                          null
+                        )}
+                      </div>
+                    )}
                     
-                    <div className={cn(
-                      "flex-1 overflow-y-auto scrollbar-none",
-                      viewType === 'year' ? "flex flex-wrap justify-center gap-1 mt-2" : "space-y-0.5 md:space-y-1"
-                    )}>
-                      {dayEvents.slice(0, viewType === 'year' ? 6 : undefined).map(event => {
-                        const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
-                        const staffId = staffIdMatch ? staffIdMatch[1] : undefined
-                        const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
-                        const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
-                        
-                        // Parse itemStaffMap from note if available, or fallback to simple staffId
-                        // For month view, we might not have the full map, so we'll try to reconstruct it
-                        const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean)
-                        
-                        return (
+                    {/* Show dots for year view - Disabled as per request to only show count */}
+                    {false && viewType === 'year' && dayEvents.length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-1 mt-2">
+                        {dayEvents.slice(0, 6).map(event => (
                           <div 
                             key={event.id}
-                            onClick={(e) => {
-                              if (viewType === 'year') return
-                              e.stopPropagation()
-                              openEditModal(event)
-                            }}
                             className={cn(
-                              "rounded-lg border border-white/10 shadow-md cursor-pointer hover:brightness-110",
-                              viewType === 'year' ? "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full" : "text-[8px] md:text-[10px] px-1.5 md:px-2 py-0.5 md:py-1 truncate text-white font-black flex items-center gap-1",
-                              event["背景颜色"] || 'bg-blue-600',
-                              "border-l-2 border-l-black/60 backdrop-blur-sm"
+                              "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full",
+                              event["背景颜色"] || 'bg-blue-600'
                             )}
-                          >
-                            {viewType !== 'year' && (
-                              <div className="flex items-center gap-1 w-full overflow-hidden">
-                                {staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700">NO</span>}
-                                {(() => {
-                                  // Extract staff sequence if present for Scheme A fallback
-                                  const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-                                  const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
-                                  
-                                  return items.map((item, idx) => {
-                                    // Try to get individual staff mapping if available in notes
-                                    const escapedItem = escapeRegExp(item);
-                                    const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
-                                    
-                                    // 2. Fallback to sequence logic (Scheme A) if available
-                                    // 3. Fallback to main staffId
-                                    let itemStaffId = itemStaffMatch 
-                                      ? itemStaffMatch[1] 
-                                      : (staffSeq.length > 0 
-                                          ? (staffSeq[idx] || staffSeq[staffSeq.length - 1]) 
-                                          : staffId);
-                                          
-                                    const colorClass = getStaffColorClass(itemStaffId, 'text', '400')
-                                    
-                                    return (
-                                      <React.Fragment key={idx}>
-                                        <span className={cn("truncate", colorClass)}>{item}</span>
-                                        {idx < items.length - 1 && <span className="text-white/40">,</span>}
-                                      </React.Fragment>
-                                    )
-                                  });
-                                })()}
-                                {memberDisplayId && (
-                                  <span className="opacity-60 text-[7px] md:text-[9px] ml-auto shrink-0">#{memberDisplayId}</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                      {viewType === 'year' && dayEvents.length > 6 && (
-                        <div className="text-[8px] text-zinc-500 font-bold">+{dayEvents.length - 6}</div>
-                      )}
-                    </div>
+                          />
+                        ))}
+                        {dayEvents.length > 6 && (
+                          <div className="text-[8px] text-zinc-500 font-bold">+{dayEvents.length - 6}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -1910,11 +1967,11 @@ interface CalendarProps {
 
       {isModalOpen && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-transparent"
           onClick={closeModal}
         >
           <div 
-            className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden"
+            className="w-full max-w-2xl bg-white/[0.03] border border-white/30 rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden backdrop-blur-sm ring-1 ring-white/10"
             onClick={(e) => e.stopPropagation()}
           >
             <form onSubmit={handleSubmit} className="flex flex-col">
@@ -1929,15 +1986,15 @@ interface CalendarProps {
                   {/* Row 2: Service & Member */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         服务内容
                       </label>
-                      <div className="relative group w-full bg-white/5 border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
+                      <div className="relative group w-full bg-white/[0.03] border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
                         <input 
                           autoFocus
                           type="text"
                           placeholder="输入服务项目..."
-                          className="w-full bg-transparent border-none px-3 py-2.5 text-transparent caret-transparent focus:outline-none text-xs placeholder:text-zinc-700 relative z-10"
+                          className="w-full bg-transparent border-none px-3 py-2.5 text-transparent caret-transparent focus:outline-none text-xs placeholder:text-zinc-500 relative z-10"
                           value={newTitle}
                           onChange={(e) => setNewTitle(e.target.value)}
                           onFocus={() => {
@@ -1962,8 +2019,8 @@ interface CalendarProps {
                                   const isSeparator = part.includes(',')
                                   
                                   if (isSeparator || !trimmed) {
-                                    return <span key={idx} className="text-zinc-500">{part}</span>
-                                  }
+                            return <span key={idx} className="text-white/40">{part}</span>
+                          }
 
                                   // Priority for color display:
                                   // 1. If multiple staff members are selected (selectedStaffIds.length > 1),
@@ -1987,19 +2044,19 @@ interface CalendarProps {
                               })()}
                             </div>
                           ) : (
-                            <span className="text-zinc-700 text-xs">输入服务项目...</span>
+                            <span className="text-zinc-500 text-xs">输入服务项目...</span>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="space-y-1.5 relative">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         会员信息
                       </label>
                       <input 
                         type="text"
                         placeholder="姓名/卡号/电话"
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-700 shadow-inner"
+                        className="w-full bg-white/[0.03] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-500 shadow-inner"
                         value={memberInfo}
                         onChange={(e) => {
                           setMemberInfo(e.target.value)
@@ -2024,9 +2081,9 @@ interface CalendarProps {
                             >
                               <div className="flex flex-col items-start">
                                 {member.name && <span className="text-xs font-bold text-white">{member.name}</span>}
-                                <span className="text-[10px] text-zinc-500">{member.phone}</span>
+                                <span className="text-[10px] text-zinc-400">{member.phone}</span>
                               </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-white/60">
                                 {member.card}
                               </span>
                             </button>
@@ -2054,7 +2111,7 @@ interface CalendarProps {
                   {/* Row 3: Date & Start Time */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5 relative">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         {I18N[lang].serviceDate}
                       </label>
                       <div 
@@ -2062,7 +2119,7 @@ interface CalendarProps {
                         className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
                       >
                         <span className="font-bold">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
-                        <CalendarIcon className="w-4 h-4 text-zinc-500" />
+                        <CalendarIcon className="w-4 h-4 text-white/60" />
                       </div>
 
                       {/* Custom Date Picker Popup */}
@@ -2078,7 +2135,7 @@ interface CalendarProps {
                           {/* Weekdays */}
                           <div className="grid grid-cols-7 mb-2">
                             {['一', '二', '三', '四', '五', '六', '日'].map(d => (
-                              <div key={d} className="text-center text-[9px] font-bold text-zinc-600">
+                              <div key={d} className="text-center text-[9px] font-black italic text-zinc-400">
                                 {d}
                               </div>
                             ))}
@@ -2132,7 +2189,7 @@ interface CalendarProps {
                       )}
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         {I18N[lang].startTime}
                       </label>
                       <div 
@@ -2164,7 +2221,7 @@ interface CalendarProps {
                   {/* Row 4: Duration & End Time */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5 relative">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         {I18N[lang].duration}
                       </label>
                       <div 
@@ -2172,7 +2229,7 @@ interface CalendarProps {
                         className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white text-xs font-bold shadow-inner cursor-pointer hover:bg-white/10 transition-all flex items-center justify-between"
                       >
                         <span>{duration} {I18N[lang].minutesSuffix}</span>
-                        <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-500 transition-transform", isDurationPickerOpen && "rotate-180")} />
+                        <ChevronDown className={cn("w-3.5 h-3.5 text-white/60 transition-transform", isDurationPickerOpen && "rotate-180")} />
                       </div>
 
                       {/* Custom Duration Picker Popover */}
@@ -2218,7 +2275,7 @@ interface CalendarProps {
                       )}
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         {I18N[lang].endTime}
                       </label>
                       <div 
@@ -2250,7 +2307,7 @@ interface CalendarProps {
                   {/* Row 5: Staff */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
                         {I18N[lang].staff}
                       </label>
                     </div>
@@ -2351,12 +2408,12 @@ interface CalendarProps {
                             }
                           }}
                           className={cn(
-                            "relative w-full py-2 rounded-xl text-[10px] font-black tracking-widest uppercase truncate px-1 border-2",
+                            "relative w-full py-2 rounded-xl text-[10px] font-black italic tracking-widest uppercase truncate px-1 border-2",
                             isActive 
                               ? `${getStaffColorClass(staff.id, 'bg')} text-white border-transparent shadow-lg` 
                               : isInvolved
                                 ? `bg-white/10 text-white ${staff.color || 'border-white/40'}`
-                                : "bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 border-transparent"
+                                : "bg-white/5 text-white hover:text-white hover:bg-white/10 border-transparent"
                           )}
                         >
                           {staff.name}
@@ -2391,7 +2448,7 @@ interface CalendarProps {
                       {/* Receipt Header */}
                       <div className="flex flex-col items-center justify-center space-y-2 py-4 border-b border-white/5">
                         <h2 className="text-xl font-black italic tracking-[0.4em] text-white">BILLING</h2>
-                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">结账清单</div>
+                        <div className="text-[10px] font-black italic text-white/90 uppercase tracking-widest">结账清单</div>
                       </div>
 
                       {/* Items & Staff Amounts */}
@@ -2399,7 +2456,7 @@ interface CalendarProps {
                         {/* Service Title */}
                         <div className="space-y-2 group">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">项目</span>
+                            <span className="text-[10px] font-black italic text-white uppercase tracking-widest">项目</span>
                           </div>
                           
                           {/* Item Price Breakdown with Staff Colors */}
@@ -2428,26 +2485,43 @@ interface CalendarProps {
                                           ? (staffSeq[idx] || staffSeq[staffSeq.length - 1])
                                           : (() => {
                                               // Fallback: try to extract staff ID from the event's background/border color
-                                              const colorMatch = event["背景颜色"]?.match(/(?:bg|border)-([a-z0-9-]+)/);
-                                              const colorName = colorMatch?.[1]?.replace(/-(400|500|600)/, '').replace(/\/10$/, '');
-                                              const colorToStaffId: Record<string, string> = {
-                                                'rose': '1',
-                                                'emerald': '2',
-                                                'purple': '3',
-                                                'orange': '4',
-                                                'amber': '5',
-                                                'zinc': 'NO',
-                                                'sky': ''
-                                              };
-                                              return (colorName && colorToStaffId[colorName]) || (eventIdx === mergedEvents.length - 1 ? selectedStaffId : undefined);
+                                              const colorName = getCleanColorName(event["背景颜色"]);
+                                              return (colorName && COLOR_TO_STAFF_ID[colorName]) || (eventIdx === mergedEvents.length - 1 ? selectedStaffId : undefined);
                                             })());
                                     
                                     const colorClass = getStaffColorClass(itemStaffId, 'text', '400')
+                                    const itemKey = `${eventIdx}-${itemName}`;
 
                                     return (
                                       <div key={idx} className="flex items-center justify-between group/item">
                                         <span className={cn("text-xs font-black italic", colorClass)}>{itemName}</span>
-                                        <span className="text-[10px] font-black text-zinc-500 italic">€{itemData.price}</span>
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-[10px] font-black text-white italic">€</span>
+                                          <input 
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={customItemPrices[itemKey] || itemData.price}
+                                            onChange={(e) => {
+                                              const newVal = e.target.value.replace(/[^0-9]/g, '');
+                                              const oldVal = customItemPrices[itemKey] || itemData.price.toString();
+                                              const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                              
+                                              // Update item price
+                                              setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
+                                              
+                                              // Update assigned staff's amount if exists
+                                              const staff = staffMembers.find(s => s.id === itemStaffId);
+                                              if (staff && staff.id !== 'NO') {
+                                                setStaffAmounts(prev => ({
+                                                  ...prev,
+                                                  [staff.name]: (Number(prev[staff.name] || 0) + diff).toString()
+                                                }));
+                                              }
+                                            }}
+                                             className="w-10 bg-transparent border-none rounded p-0 text-center focus:outline-none focus:ring-1 focus:ring-white/10 text-[10px] font-black italic text-white placeholder:text-zinc-800"
+                                           />
+                                        </div>
                                       </div>
                                     );
                                   })}
@@ -2462,7 +2536,7 @@ interface CalendarProps {
                         {/* Staff Breakdown */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between mb-1">
-                            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">服务人员</div>
+                            <div className="text-[10px] font-black italic text-white uppercase tracking-widest">服务人员</div>
                           </div>
                           
                           {staffMembers
@@ -2472,9 +2546,9 @@ interface CalendarProps {
                                 <div className="flex items-center gap-3">
                                   <div className={cn("w-2 h-2 rounded-full", staff.color || 'bg-white')} />
                                   <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-zinc-300">{staff.name}</span>
+                                    <span className="text-xs font-bold text-white">{staff.name}</span>
                                     {staff.id === selectedStaffId && (
-                                      <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-tighter">主服务人员</span>
+                                      <span className="text-[8px] font-black italic text-zinc-400 uppercase tracking-tighter">主服务人员</span>
                                     )}
                                   </div>
                                 </div>
@@ -2489,9 +2563,9 @@ interface CalendarProps {
                                       setStaffAmounts(prev => ({ ...prev, [staff.name]: val }));
                                     }}
                                     placeholder="0"
-                                    className="w-16 bg-white/5 border-none rounded-lg py-1 text-center focus:outline-none focus:ring-1 focus:ring-white/10 text-sm font-black italic text-white placeholder:text-zinc-800"
+                                    className="w-16 bg-transparent border-none rounded-lg py-1 text-center focus:outline-none focus:ring-1 focus:ring-white/10 text-sm font-black italic text-white placeholder:text-zinc-800"
                                   />
-                                  <span className="text-xs font-black text-zinc-500 italic">€</span>
+                                  <span className="text-xs font-black text-white italic">€</span>
                                 </div>
                               </div>
                             ))}
@@ -2507,11 +2581,13 @@ interface CalendarProps {
                     {/* Total Amount Section */}
                     <div className="pt-6 border-t border-white/5 space-y-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">总金额</span>
+                          <span className="text-[10px] font-black italic text-white uppercase tracking-widest">总金额</span>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-xs font-black text-zinc-400">€</span>
+                            <span className="text-xs font-black text-white">€</span>
                             <span className="text-3xl font-black italic text-white">
-                              {Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || mergedTotalPrice}
+                              {Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
+                               Object.values(customItemPrices).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
+                               mergedTotalPrice}
                             </span>
                           </div>
                         </div>
@@ -2532,14 +2608,14 @@ interface CalendarProps {
                                 setMemberName(e.target.value)
                                 setSelectedMember(prev => (prev ? { ...prev, name: e.target.value } : prev))
                               }}
-                              className="bg-transparent border-none text-lg font-bold text-zinc-400 focus:outline-none focus:text-white placeholder:text-zinc-800 flex-1 min-w-0"
+                              className="bg-transparent border-none text-lg font-black italic text-white focus:outline-none placeholder:text-zinc-800 flex-1 min-w-0"
                             />
                           </div>
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider truncate">{selectedMember.level}</span>
+                          <span className="text-[10px] text-white/60 font-black italic uppercase tracking-wider truncate">{selectedMember.level}</span>
                         </div>
                         <div className="text-right shrink-0 pt-1">
                           <div className="text-xl font-black text-white leading-none">€{selectedMember.totalSpend}</div>
-                          <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">总消费</div>
+                          <div className="text-[9px] text-white font-black italic uppercase tracking-widest mt-1">总消费</div>
                         </div>
                       </div>
 
@@ -2547,19 +2623,19 @@ interface CalendarProps {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-white/5 rounded-xl p-3 space-y-1 shadow-inner">
                           <div className="text-xs font-black text-white">{selectedMember.totalVisits} 次</div>
-                          <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">总消费次数</div>
+                          <div className="text-[9px] text-white font-black italic uppercase tracking-widest">总消费次数</div>
                         </div>
                         <div className="bg-white/5 rounded-xl p-3 space-y-1 shadow-inner">
                           <div className="text-xs font-black text-white">
                             {isNewMember ? '0' : today ? Math.floor((today.getTime() - new Date(selectedMember.lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : '...'} 天
                           </div>
-                          <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">距离上次</div>
+                          <div className="text-[9px] text-white font-black italic uppercase tracking-widest">距离上次</div>
                         </div>
                       </div>
 
                       {/* Middle Section: Classification Tags or History */}
                       <div className="space-y-2">
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                        <label className="text-[9px] font-black italic text-white uppercase tracking-widest">
                           {isNewMember ? '分类建议' : '消费记录'}
                         </label>
                         
@@ -2584,7 +2660,7 @@ interface CalendarProps {
                                 )}>
                                   {tag.label}
                                 </div>
-                                <span className="text-[8px] font-bold text-zinc-500 group-hover:text-zinc-300 uppercase tracking-tighter">
+                                <span className="text-[8px] font-black italic text-zinc-400 group-hover:text-white uppercase tracking-tighter">
                                   {tag.name}
                                 </span>
                               </button>
@@ -2596,10 +2672,10 @@ interface CalendarProps {
                               <div key={idx} className="bg-white/5 rounded-xl p-3 flex items-center justify-between group hover:bg-white/10 shadow-inner">
                                 <div className="flex flex-col gap-0.5">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-zinc-300">{item.date}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-zinc-500">{item.staff}</span>
+                                    <span className="text-[10px] font-black italic text-white/60">{item.date}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-zinc-400 font-black italic">{item.staff}</span>
                                   </div>
-                                  <span className="text-xs font-bold text-white group-hover:text-emerald-400">{item.service}</span>
+                                  <span className="text-xs font-black italic text-white group-hover:text-emerald-400">{item.service}</span>
                                 </div>
                                 <span className="text-sm font-black text-white">€{item.amount}</span>
                               </div>
@@ -2610,7 +2686,7 @@ interface CalendarProps {
 
                       {/* Notes Section */}
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{I18N[lang].notes}</label>
+                        <label className="text-[9px] font-black italic text-white uppercase tracking-widest">{I18N[lang].notes}</label>
                         <div className="bg-white/5 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white/10 shadow-inner">
                           <input 
                             type="text"
@@ -2620,7 +2696,7 @@ interface CalendarProps {
                               setMemberNote(e.target.value)
                               setSelectedMember(prev => (prev ? { ...prev, note: e.target.value } : prev))
                             }}
-                            className="w-full bg-transparent border-none text-xs text-zinc-300 italic focus:outline-none placeholder:text-zinc-800"
+                            className="w-full bg-transparent border-none text-xs text-white font-black italic focus:outline-none placeholder:text-zinc-600"
                           />
                         </div>
                       </div>
@@ -2636,7 +2712,7 @@ interface CalendarProps {
                       <div className="space-y-4">
                         <div className="flex items-center gap-2">
                           <div className="h-[1px] flex-1 bg-white/10" />
-                          <span className="text-[10px] font-black italic tracking-widest text-zinc-500 uppercase">Select Hour</span>
+                          <span className="text-[10px] font-black italic tracking-widest text-white uppercase">Select Hour</span>
                           <div className="h-[1px] flex-1 bg-white/10" />
                         </div>
                         <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
@@ -2667,7 +2743,7 @@ interface CalendarProps {
                                   "py-2.5 rounded-xl text-xs font-black italic transition-all shadow-inner",
                                   isSelected 
                                     ? "bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                                    : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                                    : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
                                 )}
                               >
                                 {hour.toString().padStart(2, '0')}:00
@@ -2681,7 +2757,7 @@ interface CalendarProps {
                       <div className="space-y-4">
                         <div className="flex items-center gap-2">
                           <div className="h-[1px] flex-1 bg-white/10" />
-                          <span className="text-[10px] font-black italic tracking-widest text-zinc-500 uppercase">Select Minute</span>
+                          <span className="text-[10px] font-black italic tracking-widest text-white uppercase">Select Minute</span>
                           <div className="h-[1px] flex-1 bg-white/10" />
                         </div>
                         <div className="grid grid-cols-4 gap-2">
@@ -2712,7 +2788,7 @@ interface CalendarProps {
                                   "py-2.5 rounded-xl text-xs font-black italic transition-all shadow-inner",
                                   isSelected 
                                     ? "bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                                    : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                                    : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
                                 )}
                               >
                                 {minute.toString().padStart(2, '0')}
@@ -2770,10 +2846,10 @@ interface CalendarProps {
                                   type="button"
                                   onClick={() => toggleService(item.name)}
                                   className={cn(
-                                    "w-full py-1.5 px-2 rounded-lg text-[10px] font-bold shadow-inner",
+                                    "w-full py-1.5 px-2 rounded-lg text-[10px] font-black italic shadow-inner",
                                     isItemSeleted 
                                       ? `${getStaffColorClass(itemStaffId).replace('-500', '-400')} bg-white/20 ring-1 ring-white/30`
-                                      : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                                      : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
                                   )}
                                 >
                                   {item.name}

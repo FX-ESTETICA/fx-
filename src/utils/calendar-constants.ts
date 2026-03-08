@@ -1,5 +1,7 @@
 export type ViewType = 'day' | 'week' | 'month' | 'year'
 
+export const FIXED_STAFF_NAMES = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE'] as const;
+
 export interface CalendarEvent {
   id: string
   "服务项目": string
@@ -77,6 +79,30 @@ export const STAFF_MEMBERS: StaffMember[] = [
   { id: '5', name: 'FEDE', role: '高级技师', avatar: 'FE', color: 'border-amber-500', bgColor: 'bg-amber-500/10' },
   { id: 'NO', name: 'NO', role: '爽约', avatar: 'NO', color: 'border-zinc-500', bgColor: 'bg-zinc-500/10' },
 ]
+
+/**
+ * Maps a color name (e.g., 'rose', 'emerald') to its corresponding staff ID.
+ * Derived from STAFF_MEMBERS.
+ */
+export const COLOR_TO_STAFF_ID: Record<string, string> = STAFF_MEMBERS.reduce((acc, staff) => {
+  const colorMatch = staff.color.match(/(?:bg|border)-([a-z0-9-]+)/);
+  if (colorMatch) {
+    const colorName = colorMatch[1].replace(/-(400|500|600)/, '');
+    acc[colorName] = staff.id;
+  }
+  return acc;
+}, { 'sky': '' } as Record<string, string>);
+
+/**
+ * Extracts a clean color name from a Tailwind class.
+ * E.g., 'bg-rose-500/10' -> 'rose'
+ */
+export const getCleanColorName = (colorClass: string | undefined): string | undefined => {
+  if (!colorClass) return undefined;
+  const match = colorClass.match(/(?:bg|border)-([a-z0-9-]+)/);
+  if (!match) return undefined;
+  return match[1].replace(/-(400|500|600)/, '').replace(/\/10$/, '');
+};
 
 export const SERVICE_CATEGORIES = [
   { title: 'Mani', color: 'from-pink-500/20 to-rose-500/20', items: [

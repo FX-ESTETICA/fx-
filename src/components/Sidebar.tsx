@@ -69,14 +69,14 @@ export default function Sidebar({
       {/* Mini Calendar Section - More compact gaps */}
       <div className="flex-1 space-y-3 md:space-y-4 min-h-fit">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">
+          <h3 className="text-sm font-black italic text-white uppercase tracking-widest">
             {lang === 'zh' ? format(now, 'yyyy年 MMMM', { locale }) : format(now, 'MMMM yyyy', { locale })}
           </h3>
         </div>
         
         <div className="grid grid-cols-7 gap-1">
           {weekdayLabels.map((d, i) => (
-            <div key={i} className="text-[10px] font-black text-zinc-600 text-center py-1">
+            <div key={i} className="text-[10px] font-black italic text-zinc-400 text-center py-1">
               {d}
             </div>
           ))}
@@ -88,9 +88,9 @@ export default function Sidebar({
                 key={i} 
                 onClick={() => onDateSelect?.(day)}
                 className={cn(
-                  "text-[11px] font-medium h-8 w-8 flex items-center justify-center rounded-lg",
-                  isToday ? "bg-white text-black font-bold shadow-lg shadow-white/10" : 
-                  (isCurrentMonth ? "text-zinc-300 hover:bg-zinc-900" : "text-zinc-700")
+                  "text-[11px] font-black italic h-8 w-8 flex items-center justify-center rounded-full transition-all duration-200",
+                  isToday ? "bg-white text-black shadow-lg shadow-white/10 scale-110" : 
+                  (isCurrentMonth ? "text-white hover:bg-white/10 hover:rounded-full" : "text-zinc-600")
                 )}
               >
                 {format(day, 'd')}
@@ -100,13 +100,20 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Digital Clock Section - Transparent background */}
+      {/* Time Display - Reduced scale for better zoom fit */}
       <div 
         onClick={onClockClick}
-        className="mt-auto py-4 md:py-6 shrink-0 flex flex-col items-center justify-center cursor-pointer"
+        className="mt-auto py-3 md:py-6 flex flex-col items-center group cursor-pointer shrink-0"
       >
-        <div className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter text-white font-mono">
-          {format(now, 'HH:mm')}
+        <div className="flex flex-col items-center gap-0.5 md:gap-1">
+          <span className="text-3xl md:text-5xl font-black text-white tracking-tighter" style={{ fontFamily: 'var(--font-orbitron)' }}>
+            {format(now, 'HH:mm')}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] md:text-xs font-black italic text-zinc-400 tracking-[0.3em] uppercase group-hover:text-white transition-colors">
+              {format(now, 'ss')} SEC
+            </span>
+          </div>
         </div>
       </div>
     </div>
