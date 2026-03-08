@@ -1671,7 +1671,7 @@ interface CalendarProps {
                           const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
                           
                           const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
-                          const staffId = staffIdMatch ? staffIdMatch[1] : null
+                          const staffId = staffIdMatch ? staffIdMatch[1] : undefined
                           
                           const isShort = durationInMinutes < 30
                           
@@ -1834,7 +1834,7 @@ interface CalendarProps {
                     )}>
                       {dayEvents.slice(0, viewType === 'year' ? 6 : undefined).map(event => {
                         const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
-                        const staffId = staffIdMatch ? staffIdMatch[1] : null
+                        const staffId = staffIdMatch ? staffIdMatch[1] : undefined
                         const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
                         const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
                         
