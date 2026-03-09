@@ -643,7 +643,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           
           // First, load any existing amounts from the event object (database)
           staffMembers.forEach(s => {
-            const val = event[`金额_${s.name}` as keyof any];
+            const val = (ev as any)[`金额_${s.name}`];
             if (val !== undefined && val !== null && val !== 0) {
               newStaffAmounts[s.name] = val.toString();
             }
