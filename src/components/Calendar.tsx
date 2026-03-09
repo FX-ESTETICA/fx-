@@ -22,16 +22,12 @@ import {
   endOfDay,
   startOfYear, 
   endOfYear, 
-  eachMonthOfInterval, 
   setHours,
   setMinutes,
-  isWithinInterval,
-  addMinutes,
-  isSameHour,
-  isSameMinute
+  addMinutes
 } from 'date-fns'
 import { zhCN, it as itLocale } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, Loader2, Calendar as CalendarIcon, Clock, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, Wind } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, X, Loader2, Calendar as CalendarIcon, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -43,9 +39,11 @@ import {
   MemberHistoryItem,
   COLOR_OPTIONS, 
   STAFF_MEMBERS, 
+  FIXED_COLOR_MAP,
   FIXED_STAFF_NAMES,
   COLOR_TO_STAFF_ID,
   getCleanColorName,
+  getStaffColorClass,
   SERVICE_CATEGORIES, 
   I18N 
 } from '@/utils/calendar-constants'
@@ -107,6 +105,276 @@ function WeatherDisplay() {
   )
 }
 
+// --- Staff Timer Component ---
+/**
+ * Component to render idle time labels in the background gaps between appointments.
+ */
+function IdleGapLabels({ staffId, events, eventAssignments, currentDate }: { 
+  staffId: string, 
+  events: CalendarEvent[], 
+  eventAssignments: Map<string, string>,
+  currentDate: Date
+}) {
+  const gaps = useMemo(() => {
+    // 1. Get and sort today's events for this staff
+    const staffEvents = events
+      .filter(e => isSameDay(getEventStartTime(e), currentDate) && eventAssignments.get(e.id) === staffId)
+      .sort((a, b) => getEventStartTime(a).getTime() - getEventStartTime(b).getTime());
+
+    const result: { top: number, height: number, minutes: number }[] = [];
+    const workStart = new Date(currentDate);
+    workStart.setHours(8, 0, 0, 0);
+    const workEnd = new Date(currentDate);
+    workEnd.setHours(20, 0, 0, 0);
+
+    let lastEnd = workStart;
+
+    // Helper to add gap to result
+    const addGap = (start: Date, end: Date) => {
+      const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+      if (duration >= 15) { // Only show for gaps >= 15 mins
+        const topMinutes = (start.getHours() - 8) * 60 + start.getMinutes();
+        result.push({
+          top: (topMinutes / 60) * 4,
+          height: (duration / 60) * 4,
+          minutes: duration
+        });
+      }
+    };
+
+    // 2. Gap before first event
+    if (staffEvents.length > 0) {
+      const firstStart = getEventStartTime(staffEvents[0]);
+      if (firstStart > workStart) {
+        addGap(workStart, firstStart);
+      }
+
+      // 3. Gaps between events
+      for (let i = 0; i < staffEvents.length - 1; i++) {
+        const currentEnd = getEventEndTime(staffEvents[i]);
+        const nextStart = getEventStartTime(staffEvents[i+1]);
+        if (nextStart > currentEnd) {
+          addGap(currentEnd, nextStart);
+        }
+      }
+
+      // 4. Gap after last event
+      const lastEventEnd = getEventEndTime(staffEvents[staffEvents.length - 1]);
+      if (lastEventEnd < workEnd) {
+        addGap(lastEventEnd, workEnd);
+      }
+    } else {
+      // 5. No events at all - full day is a gap
+      addGap(workStart, workEnd);
+    }
+
+    return result;
+  }, [staffId, events, eventAssignments, currentDate]);
+
+  return (
+    <>
+      {gaps.map((gap, i) => (
+        <div 
+          key={`gap-${i}`}
+          className="absolute left-0 right-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-30 select-none"
+          style={{ 
+            top: `${gap.top}rem`, 
+            height: `${gap.height}rem`,
+            zIndex: 0
+          }}
+        >
+          <div className="flex flex-col items-center justify-center scale-75 md:scale-90 opacity-40">
+            <span className="text-[8px] font-black tracking-tighter text-emerald-400/60 uppercase">IDLE</span>
+            <span className="text-[10px] md:text-xs font-black italic text-emerald-400/80 tabular-nums" style={{ fontFamily: 'var(--font-orbitron)' }}>
+              {Math.floor(gap.minutes)} MIN
+            </span>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// --- Gap Badge Component ---
+function GapBadge({ staffId, events, eventAssignments, currentDate, now }: { 
+  staffId: string; 
+  events: CalendarEvent[]; 
+  eventAssignments: Map<string, string>;
+  currentDate: Date;
+  now: Date;
+}) {
+  const gaps = useMemo(() => {
+    const staffEvents = events
+      .filter(e => eventAssignments.get(e.id) === staffId && isSameDay(getEventStartTime(e), currentDate))
+      .sort((a, b) => getEventStartTime(a).getTime() - getEventStartTime(b).getTime());
+
+    const result: { top: number; height: number; minutes: number; startTime: Date }[] = [];
+    
+    for (let i = 0; i < staffEvents.length - 1; i++) {
+      const currentEnd = getEventEndTime(staffEvents[i]);
+      const nextStart = getEventStartTime(staffEvents[i+1]);
+      
+      const diffMs = nextStart.getTime() - currentEnd.getTime();
+      if (diffMs >= 5 * 60 * 1000) { // Only show if gap is at least 5 mins
+        const minutes = Math.floor(diffMs / (1000 * 60));
+        const top = ((currentEnd.getHours() - 8) * 60 + currentEnd.getMinutes()) * (4 / 60);
+        const height = minutes * (4 / 60);
+        result.push({ top, height, minutes, startTime: currentEnd });
+      }
+    }
+    return result;
+  }, [events, eventAssignments, staffId, currentDate]);
+
+  return (
+    <>
+      {gaps.map((gap, i) => {
+        // Hide badge if Now Line has reached or passed the start of the gap
+        const hasReached = isSameDay(currentDate, now) && now.getTime() >= gap.startTime.getTime();
+        if (hasReached) return null;
+
+        return (
+          <div 
+            key={`gap-${i}`}
+            className="absolute left-0 right-0 flex items-center justify-center pointer-events-none z-0"
+            style={{ 
+              top: `${gap.top}rem`, 
+              height: `${gap.height}rem`,
+              paddingTop: gap.minutes <= 15 ? '2px' : '4px',
+              paddingBottom: gap.minutes <= 15 ? '2px' : '4px'
+            }}
+          >
+            <div className={cn(
+              "flex items-center justify-center bg-black/40 border border-emerald-500/30 rounded-lg backdrop-blur-sm shadow-lg w-[85%] h-full",
+              gap.minutes <= 15 ? "px-1" : "px-3"
+            )}>
+              <span className={cn(
+                "font-black italic text-emerald-400 tabular-nums leading-none",
+                gap.minutes <= 15 ? "text-[11px]" : "text-[13px]"
+              )} style={{ fontFamily: 'var(--font-orbitron)' }}>
+                {gap.minutes} MIN
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function StaffTimer({ staffId, events, eventAssignments, now, currentDate }: { 
+  staffId: string; 
+  events: CalendarEvent[]; 
+  eventAssignments: Map<string, string>; 
+  now: Date; 
+  currentDate: Date;
+}) {
+  const timerData = useMemo(() => {
+    // Only show timer if looking at today
+    if (!isSameDay(currentDate, now)) return null;
+
+    // 1. Define Work Hours (8:00 - 20:00)
+    const workStart = new Date(now);
+    workStart.setHours(8, 0, 0, 0);
+    const workEnd = new Date(now);
+    workEnd.setHours(20, 0, 0, 0);
+
+    // 2. Filter and sort events for this staff today
+    const staffEvents = events
+      .filter(e => eventAssignments.get(e.id) === staffId && isSameDay(getEventStartTime(e), now))
+      .sort((a, b) => getEventStartTime(a).getTime() - getEventStartTime(b).getTime());
+
+    // 3. Find current state
+    const activeEvent = staffEvents.find(e => {
+      const start = getEventStartTime(e);
+      const end = getEventEndTime(e);
+      return now >= start && now < end;
+    });
+
+    if (activeEvent) {
+      return {
+        label: 'BUSY',
+        endTime: getEventEndTime(activeEvent),
+        color: 'text-rose-400',
+        borderColor: 'border-rose-500/30',
+        shadowColor: 'rgba(244,63,94,0.2)',
+        isCountdown: true
+      };
+    }
+
+    // 4. Find next event or end of work
+    const nextEvent = staffEvents.find(e => getEventStartTime(e) > now);
+    
+    if (nextEvent) {
+      const gapEnd = getEventStartTime(nextEvent);
+      
+      return {
+        label: 'IDLE',
+        endTime: gapEnd, 
+        color: 'text-emerald-400',
+        borderColor: 'border-emerald-500/30',
+        shadowColor: 'rgba(52,211,153,0.2)',
+        isCountdown: true 
+      };
+    }
+
+    // 5. If no more events, count down to work end if before 20:00
+    if (now < workEnd) {
+      return {
+        label: 'FREE',
+        endTime: workEnd,
+        color: 'text-sky-400',
+        borderColor: 'border-sky-500/30',
+        shadowColor: 'rgba(56,189,248,0.2)',
+        isCountdown: true
+      };
+    }
+
+    return null;
+  }, [events, eventAssignments, staffId, now, currentDate]);
+
+  const timeStr = useMemo(() => {
+    if (!timerData) return '--:--';
+    if (!timerData.endTime) return '--:--';
+
+    const diff = timerData.endTime.getTime() - now.getTime();
+    if (diff <= 0) return '0 MIN';
+
+    const totalMinutes = Math.floor(diff / (1000 * 60));
+    return `${totalMinutes} MIN`;
+  }, [timerData, now]);
+
+  if (!timerData) return (
+    <div className="h-5 flex items-center justify-center">
+      <div className="w-10 h-[2px] bg-white/10 rounded-full" />
+    </div>
+  );
+
+  return (
+    <div className={cn(
+      "absolute left-0 right-0 z-[999] flex flex-col items-center justify-center pointer-events-none transition-all duration-500",
+      timerData.label === 'BUSY' ? "animate-pulse" : ""
+    )} style={{ 
+      top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * (4 / 60)}rem`,
+      transform: 'translateY(-50%)'
+    }}>
+      <div className={cn(
+        "flex flex-col items-center justify-center px-2 py-0.5 rounded-md bg-black border backdrop-blur-md shadow-2xl scale-90 md:scale-100",
+        timerData.borderColor,
+        `shadow-[0_0_25px_${timerData.shadowColor}]`
+      )}>
+        <div className="flex items-center gap-1">
+          <span className={cn("text-[8px] font-black tracking-tighter uppercase opacity-70", timerData.color)}>
+            {timerData.label}
+          </span>
+          <span className={cn("text-[11px] md:text-xs font-black italic tabular-nums leading-none", timerData.color)} style={{ fontFamily: 'var(--font-orbitron)' }}>
+            {timeStr}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Types ---
 // Moved to @/utils/calendar-constants
 
@@ -121,37 +389,57 @@ interface CalendarProps {
   // --- Helpers ---
   // Moved to @/utils/calendar-helpers
 
-  export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
+  // --- Helpers ---
+// Helper to get time in Italy (Europe/Rome)
+const getItalyTime = () => {
+  const now = new Date();
+  // Use Intl.DateTimeFormat to get the date/time in specific timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(now);
+  const dateMap: Record<string, number> = {};
+  parts.forEach(part => {
+    if (part.type !== 'literal') {
+      dateMap[part.type] = parseInt(part.value, 10);
+    }
+  });
+  return new Date(dateMap.year, dateMap.month - 1, dateMap.day, dateMap.hour, dateMap.minute, dateMap.second);
+};
+
+export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
   const supabase = createClient()
   
   // Use a stable initial date for SSR to avoid hydration mismatch
-  const [currentDate, setCurrentDate] = useState(initialDate || new Date(2024, 0, 1))
-  
-  useEffect(() => {
-    if (initialDate) {
-      setCurrentDate(initialDate)
-      // When initialDate changes (e.g. from Sidebar), force Day view
-      setViewType('day')
-    }
-  }, [initialDate])
-
-  useEffect(() => {
-    if (initialView) {
-      setViewType(initialView)
-    }
-  }, [initialView])
+  const [currentDate, setCurrentDate] = useState<Date>(initialDate || getItalyTime())
+  const [isMounted, setIsMounted] = useState(false)
   const [viewType, setViewType] = useState<ViewType>(initialView)
-  const [isResizing, setIsResizing] = useState(false)
-  
-  // Handle prop updates intentionally omitted to avoid cascading renders
+
+  // Combined effect for initialization and prop updates
+  useEffect(() => {
+    setIsMounted(true)
+    if (initialDate) setCurrentDate(initialDate)
+    if (initialView) setViewType(initialView)
+  }, [initialDate, initialView])
+
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [allDatabaseEvents, setAllDatabaseEvents] = useState<CalendarEvent[]>([])
-  const [today, setToday] = useState<Date | null>(null)
-  useEffect(() => {
-    setToday(new Date())
-  }, [])
+  const today = useMemo(() => getItalyTime(), [])
+  const [now, setNow] = useState<Date>(getItalyTime())
 
-  const [isLoading, setIsLoading] = useState(true)
+  useEffect(() => {
+    if (!isMounted) return
+    const timer = setInterval(() => setNow(getItalyTime()), 1000)
+    return () => clearInterval(timer)
+  }, [isMounted])
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [showServiceSelection, setShowServiceSelection] = useState(false)
@@ -163,16 +451,18 @@ interface CalendarProps {
   const [memberName, setMemberName] = useState('')
   const [memberNote, setMemberNote] = useState('')
   const [showCheckoutPreview, setShowCheckoutPreview] = useState(false)
-  const [showStaffSelector, setShowStaffSelector] = useState(false)
+  const [showTimeSelection, setShowTimeSelection] = useState(false)
+  const [timeSelectionType, setTimeSelectionType] = useState<'start' | 'end'>('start')
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(STAFF_MEMBERS)
-  const [isMounted, setIsMounted] = useState(false)
+  const [isStaffManagerOpen, setIsStaffManagerOpen] = useState(false)
+  const [newStaffName, setNewStaffName] = useState('')
+  const [activeColorPickerStaffId, setActiveColorPickerStaffId] = useState<string | null>(null)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   
-  // Set isMounted to true after the component mounts
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
   // Load staff from localStorage on mount
   useEffect(() => {
     if (!isMounted) return
@@ -185,10 +475,6 @@ interface CalendarProps {
       }
     }
   }, [isMounted])
-  const [isStaffManagerOpen, setIsStaffManagerOpen] = useState(false)
-  const [newStaffName, setNewStaffName] = useState('')
-  const [activeColorPickerStaffId, setActiveColorPickerStaffId] = useState<string | null>(null)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   
   // Save staff to localStorage when changed
   useEffect(() => {
@@ -205,20 +491,12 @@ interface CalendarProps {
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
-  const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false)
-  const [showTimeSelection, setShowTimeSelection] = useState(false)
-  const [timeSelectionType, setTimeSelectionType] = useState<'start' | 'end'>('start')
-
+  
   // Calculate total price based on selected items in newTitle
   const totalPrice = useMemo(() => calculateTotalPrice(newTitle, SERVICE_CATEGORIES), [newTitle]);
 
-  const [staffAmounts, setStaffAmounts] = useState<Record<string, string>>(() => {
-    return {}
-  })
+  const [staffAmounts, setStaffAmounts] = useState<Record<string, string>>(() => ({}))
   const [itemStaffMap, setItemStaffMap] = useState<Record<string, string>>({})
-  const [serviceMode, setServiceMode] = useState<'normal' | 'sequential' | 'parallel'>('normal')
   const [customItemPrices, setCustomItemPrices] = useState<Record<string, string>>({}) // Track custom prices for checkout preview
 
   // Merged events for checkout (same member, same day)
@@ -369,51 +647,6 @@ interface CalendarProps {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  // Helper to get staff color class
-  const getStaffColorClass = (staffId: string | undefined, type: 'text' | 'bg' | 'border' = 'text', shade: '400' | '500' = '500') => {
-    // If no staff is selected (unassigned), use sky-400 (Blue)
-    if (!staffId || staffId === '') {
-      if (type === 'text') return 'text-sky-400'
-      if (type === 'bg') return 'bg-sky-400'
-      return 'border-sky-400'
-    }
-    
-    const staff = staffMembers.find(s => s.id === staffId)
-    
-    let colorName = getCleanColorName(staff?.bgColor) || 'sky'
-    
-    // Explicitly return full strings for Tailwind JIT detection in a safe way
-    // This map ensures that Tailwind 4 sees the full class names
-    const colorClasses: Record<string, Record<string, string>> = {
-      rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500' },
-      emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500' },
-      purple: { text: 'text-purple-400', bg: 'bg-purple-500', border: 'border-purple-500' },
-      orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500' },
-      amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500' },
-      zinc: { text: 'text-zinc-400', bg: 'bg-zinc-500', border: 'border-zinc-500' },
-      sky: { text: 'text-sky-400', bg: 'bg-sky-500', border: 'border-sky-500' },
-      blue: { text: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500' },
-      red: { text: 'text-red-400', bg: 'bg-red-500', border: 'border-red-500' },
-      green: { text: 'text-green-400', bg: 'bg-green-500', border: 'border-green-500' },
-      yellow: { text: 'text-yellow-400', bg: 'bg-yellow-500', border: 'border-yellow-500' },
-      pink: { text: 'text-pink-400', bg: 'bg-pink-500', border: 'border-pink-500' },
-      violet: { text: 'text-violet-400', bg: 'bg-violet-500', border: 'border-violet-500' },
-      indigo: { text: 'text-indigo-400', bg: 'bg-indigo-500', border: 'border-indigo-500' },
-      cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500', border: 'border-cyan-500' },
-      teal: { text: 'text-teal-400', bg: 'bg-teal-500', border: 'border-teal-500' },
-      lime: { text: 'text-lime-400', bg: 'bg-lime-500', border: 'border-lime-500' },
-      fuchsia: { text: 'text-fuchsia-400', bg: 'bg-fuchsia-500', border: 'border-fuchsia-500' },
-      slate: { text: 'text-slate-400', bg: 'bg-slate-500', border: 'border-slate-500' },
-    }
-
-    const colorSet = colorClasses[colorName] || colorClasses.sky
-    
-    // If it's text, we usually want 400 for better visibility on dark backgrounds
-    if (type === 'text') return colorSet.text
-    if (type === 'bg') return colorSet.bg
-    return colorSet.border
-  }
-
   // Derived state for active staff columns
   const activeStaff = useMemo(() => {
     // Filter out hidden staff first
@@ -507,7 +740,6 @@ interface CalendarProps {
 
   // --- Fetch Data ---
   const fetchEvents = useCallback(async () => {
-    setIsLoading(true)
     let start, end
     
     if (viewType === 'day') {
@@ -535,7 +767,6 @@ interface CalendarProps {
     } else {
       setEvents(data || [])
     }
-    setIsLoading(false)
   }, [currentDate, viewType, supabase])
 
   const fetchAllEventsForLibrary = useCallback(async () => {
@@ -684,7 +915,7 @@ interface CalendarProps {
     const formattedMemberInfo = `(${finalMemberId})${finalInfo}`
 
     const items = newTitle.split(',').map(s => s.trim()).filter(Boolean);
-    const effectiveMode = forcedMode || serviceMode;
+    const effectiveMode = forcedMode || 'normal';
     
     // Determine if we should split: 
     // 1. Multiple items
@@ -709,72 +940,122 @@ interface CalendarProps {
     if (shouldSplit) {
       const eventsToInsert = [];
       let currentStartTime = new Date(selectedDate);
-      let currentItemIdx = 0;
-
-      for (const itemName of items) {
-        // Scheme A: Automatic sequential matching for split events
-        const itemStaffId = itemStaffMap[itemName] || 
-                           (selectedStaffIds.length > 0 
-                             ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1]) 
-                             : selectedStaffId);
-        
-        const itemStaff = staffMembers.find(s => s.id === itemStaffId);
-        currentItemIdx++;
-        
-        // Find item price and duration
-        let itemPrice = 0;
-        let itemDuration = duration; // Default to current duration state if not found
-        for (const cat of SERVICE_CATEGORIES) {
-          const found = cat.items.find(i => i.name === itemName);
-          if (found) {
-            itemPrice = found.price;
-            if (found.duration) {
-              itemDuration = found.duration;
+      
+      if (splitMode === 'sequential') {
+        let currentItemIdx = 0;
+        for (const itemName of items) {
+          // Scheme A: Automatic sequential matching for split events
+          const itemStaffId = itemStaffMap[itemName] || 
+                             (selectedStaffIds.length > 0 
+                               ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1]) 
+                               : selectedStaffId);
+          
+          const itemStaff = staffMembers.find(s => s.id === itemStaffId);
+          currentItemIdx++;
+          
+          // Find item price and duration
+          let itemPrice = 0;
+          let itemDuration = duration; // Default to current duration state if not found
+          for (const cat of SERVICE_CATEGORIES) {
+            const found = cat.items.find(i => i.name === itemName);
+            if (found) {
+              itemPrice = found.price;
+              if (found.duration) {
+                itemDuration = found.duration;
+              }
+              break;
             }
-            break;
           }
-        }
 
-        const startTimeStr = format(currentStartTime, 'HH:mm:ss');
-        const serviceDateStr = format(currentStartTime, 'yyyy-MM-dd');
-        
-        // Final background color determination:
-        const fixedColorMap: Record<string, string> = {
-          '1': 'bg-rose-500',
-          '2': 'bg-emerald-500',
-          '3': 'bg-purple-500',
-          '4': 'bg-orange-500',
-          '5': 'bg-amber-500',
-          'NO': 'bg-zinc-500'
-        }
-        const itemColor = !itemStaffId || itemStaffId === '' 
-          ? 'bg-sky-400' 
-          : (itemStaffId === 'NO' ? 'bg-zinc-500' : (itemStaff?.bgColor?.replace('/10', '') || fixedColorMap[itemStaffId] || 'bg-sky-400'));
+          const startTimeStr = format(currentStartTime, 'HH:mm:ss');
+          const serviceDateStr = format(currentStartTime, 'yyyy-MM-dd');
+          
+          // Final background color determination:
+          const itemColor = getStaffColorClass(itemStaffId, staffMembers, 'bg');
 
-        const eventData: any = {
-          "服务项目": itemName,
-          "会员信息": formattedMemberInfo,
-          "服务日期": serviceDateStr,
-          "开始时间": startTimeStr,
-          "持续时间": itemDuration,
-          "背景颜色": itemColor,
-          "备注": `技师:${itemStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
-        };
+          const eventData: any = {
+            "服务项目": itemName,
+            "会员信息": formattedMemberInfo,
+            "服务日期": serviceDateStr,
+            "开始时间": startTimeStr,
+            "持续时间": itemDuration,
+            "背景颜色": itemColor,
+            "备注": `技师:${itemStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
+          };
 
-        // Add amount for the specific staff member assigned to this item
-        if (itemStaff && itemPrice > 0) {
-          if ((FIXED_STAFF_NAMES as readonly string[]).includes(itemStaff.name)) {
-            eventData[`金额_${itemStaff.name}`] = itemPrice;
-          } else {
-            eventData["备注"] += `, [${itemStaff.name}_AMT:${itemPrice}]`;
+          // Add amount for the specific staff member assigned to this item
+          if (itemStaff && itemPrice > 0) {
+            if ((FIXED_STAFF_NAMES as readonly string[]).includes(itemStaff.name)) {
+              eventData[`金额_${itemStaff.name}`] = itemPrice;
+            } else {
+              eventData["备注"] += `, [${itemStaff.name}_AMT:${itemPrice}]`;
+            }
           }
-        }
 
-        eventsToInsert.push(eventData);
+          eventsToInsert.push(eventData);
 
-        // If sequential, increment start time for next item
-        if (splitMode === 'sequential') {
+          // Increment start time for next item in sequential mode
           currentStartTime = addMinutes(currentStartTime, itemDuration);
+        }
+      } else {
+        // Parallel mode: Group items by staff to prevent same-staff overlap
+        const staffGroups: Record<string, { items: string[], duration: number, totalPrice: number }> = {};
+        
+        items.forEach((itemName, idx) => {
+          const itemStaffId = itemStaffMap[itemName] || 
+                             (selectedStaffIds.length > 0 
+                               ? (selectedStaffIds[idx] || selectedStaffIds[selectedStaffIds.length - 1]) 
+                               : selectedStaffId);
+          
+          let itemPrice = 0;
+          let itemDuration = duration;
+          for (const cat of SERVICE_CATEGORIES) {
+            const found = cat.items.find(i => i.name === itemName);
+            if (found) {
+              itemPrice = found.price;
+              if (found.duration) itemDuration = found.duration;
+              break;
+            }
+          }
+          
+          if (!staffGroups[itemStaffId]) {
+            staffGroups[itemStaffId] = { items: [], duration: 0, totalPrice: 0 };
+          }
+          staffGroups[itemStaffId].items.push(itemName);
+          staffGroups[itemStaffId].duration += itemDuration;
+          staffGroups[itemStaffId].totalPrice += itemPrice;
+        });
+
+        for (const [staffId, group] of Object.entries(staffGroups)) {
+          const itemStaff = staffMembers.find(s => s.id === staffId);
+          const startTimeStr = format(selectedDate, 'HH:mm:ss');
+          const serviceDateStr = format(selectedDate, 'yyyy-MM-dd');
+          
+          const itemColor = getStaffColorClass(staffId, staffMembers, 'bg');
+
+          const eventData: any = {
+            "服务项目": group.items.join(', '),
+            "会员信息": formattedMemberInfo,
+            "服务日期": serviceDateStr,
+            "开始时间": startTimeStr,
+            "持续时间": group.duration,
+            "背景颜色": itemColor,
+            "备注": `技师:${staffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
+          };
+
+          // Add individual item-staff mappings to notes for color rendering/editing
+          group.items.forEach(it => {
+            eventData["备注"] += `, [${it}_STAFF:${staffId}]`;
+          });
+
+          if (itemStaff && group.totalPrice > 0) {
+            if ((FIXED_STAFF_NAMES as readonly string[]).includes(itemStaff.name)) {
+              eventData[`金额_${itemStaff.name}`] = group.totalPrice;
+            } else {
+              eventData["备注"] += `, [${itemStaff.name}_AMT:${group.totalPrice}]`;
+            }
+          }
+          eventsToInsert.push(eventData);
         }
       }
 
@@ -806,7 +1087,6 @@ interface CalendarProps {
       }
       
       // Reset service mode after use
-      setServiceMode('normal');
       setIsSubmitting(false);
       return;
     }
@@ -1223,27 +1503,45 @@ interface CalendarProps {
     setNewTitle(prev => {
       const items = prev.split(',').map(s => s.trim()).filter(Boolean)
       const index = items.indexOf(service)
+      const newItems = [...items]
+      
       if (index > -1) {
-        items.splice(index, 1)
-        // Remove from itemStaffMap if exists
+        newItems.splice(index, 1)
+      } else {
+        newItems.push(service)
+      }
+
+      // Re-calculate the entire mapping to ensure "Auto Average"
+      // This applies to both Full-auto (staff first) and Semi-auto (projects first)
+      if (selectedStaffIds.length > 1) {
+        setItemStaffMap(prevMap => {
+          const newMap = { ...prevMap }
+          // Clear all current items to re-distribute
+          newItems.forEach((it, idx) => {
+            newMap[it] = selectedStaffIds[idx % selectedStaffIds.length]
+          })
+          // Clean up any items that were removed
+          if (index > -1) {
+            delete newMap[service]
+          }
+          return newMap
+        })
+      } else if (index > -1) {
+        // Just remove if only one/no staff
         setItemStaffMap(prevMap => {
           const newMap = { ...prevMap }
           delete newMap[service]
           return newMap
         })
-      } else {
-        items.push(service)
-        // Scheme C: Step Alternating Mode
-        // If a staff is currently selected (active), bind this new item to them immediately
-        if (selectedStaffId && selectedStaffId !== 'NO') {
-          setItemStaffMap(prevMap => ({
-            ...prevMap,
-            [service]: selectedStaffId
-          }))
-        }
+      } else if (selectedStaffId && selectedStaffId !== 'NO') {
+        // Assign to active staff if only one
+        setItemStaffMap(prevMap => ({
+          ...prevMap,
+          [service]: selectedStaffId
+        }))
       }
       
-      return items.join(', ')
+      return newItems.join(', ')
     })
   }
 
@@ -1271,16 +1569,6 @@ interface CalendarProps {
       }
     }
   }, [newTitle, selectedDate])
-
-  // Scheme B & C: Mapping logic moved to click handlers to allow manual binding
-  // Removing the automatic sequential effect that was overwriting manual bindings
-  /* 
-  useEffect(() => {
-    if (selectedStaffIds.length > 0) {
-      ...
-    }
-  }, [selectedStaffIds, newTitle])
-  */
 
   const generateMemberId = async (category: 'young' | 'middle' | 'senior' | 'male' | 'noshow') => {
     setMemberId('...') // Loading feedback
@@ -1531,7 +1819,7 @@ interface CalendarProps {
                 >
                   {viewType === 'day' ? (
                     activeStaff.map(staff => (
-                      <div key={staff.id} className="py-3 md:py-4 text-center flex flex-col items-center">
+                      <div key={staff.id} className="py-3 md:py-4 text-center flex flex-col items-center gap-1.5">
                         <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-white/20 to-white/5 border border-white/10 flex items-center justify-center shadow-lg">
                           <span className="text-[10px] md:text-xs font-black text-white tracking-tighter">{staff.avatar}</span>
                         </div>
@@ -1603,17 +1891,48 @@ interface CalendarProps {
                     gridTemplateColumns: `repeat(${activeStaff.length}, minmax(0, 1fr))` 
                   } : {}}
                 >
-                  {viewType === 'day' ? activeStaff.map((staff) => {
-                    const filteredEvents = events.filter(e => {
-                      const isCurrentDay = isSameDay(getEventStartTime(e), currentDate)
-                      if (!isCurrentDay) return false
-                      const assignedStaffId = eventAssignments.get(e.id)
-                      return assignedStaffId === staff.id
-                    })
+                  {/* Now Line Indicator */}
+                  {isSameDay(currentDate, now) && (viewType === 'day' || viewType === 'week') && now.getHours() >= 8 && now.getHours() < 20 && (
+                    <div 
+                      className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
+                      style={{ 
+                        top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * (4 / 60)}rem`,
+                      }}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] -ml-1" />
+                      <div className="flex-1 h-[0.5px] bg-gradient-to-r from-rose-500/50 via-rose-500 to-rose-500/50" />
+                    </div>
+                  )}
 
-                    return (
-                      <div key={staff.id} className="relative border-l border-white/5 first:border-l-0">
-                        {TIME_SLOTS.map((time) => {
+                  {viewType === 'day' ? activeStaff.map((staff) => {
+                      const filteredEvents = events.filter(e => {
+                        const isCurrentDay = isSameDay(getEventStartTime(e), currentDate)
+                        if (!isCurrentDay) return false
+                        const assignedStaffId = eventAssignments.get(e.id)
+                        return assignedStaffId === staff.id
+                      })
+
+                      return (
+                          <div key={staff.id} className="relative border-l border-white/5 first:border-l-0 z-10">
+                            {/* Static Gap Badges between appointments */}
+                            <GapBadge 
+                              staffId={staff.id} 
+                              events={events} 
+                              eventAssignments={eventAssignments} 
+                              currentDate={currentDate} 
+                              now={now}
+                            />
+                            
+                            {/* Floating Timer attached to Now Line in this column */}
+                          <StaffTimer 
+                            staffId={staff.id} 
+                            events={events} 
+                            eventAssignments={eventAssignments} 
+                            now={now} 
+                            currentDate={currentDate}
+                          />
+                          
+                          {TIME_SLOTS.map((time) => {
                           const [hour, minute] = time.split(':').map(Number)
                           const slotStart = setMinutes(setHours(currentDate, hour), minute)
                           
@@ -2022,18 +2341,17 @@ interface CalendarProps {
                             return <span key={idx} className="text-white/40">{part}</span>
                           }
 
-                                  // Priority for color display:
-                                  // 1. If multiple staff members are selected (selectedStaffIds.length > 1),
-                                  //    force Scheme A (Automatic sequential matching) for clarity.
-                                  // 2. If only one staff is selected, use explicit manual binding (itemStaffMap)
-                                  //    or fallback to that single staff.
-                                  const staffId = (selectedStaffIds.length > 1)
-                                                 ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1])
-                                                 : (itemStaffMap[trimmed] || selectedStaffId);
+                                  // Priority for color display (L1/L2/L3 unified):
+                                  // 1. Explicit manual/auto binding (itemStaffMap)
+                                  // 2. If no binding, fallback to sequential assignment (L1) based on selectedStaffIds
+                                  const staffId = itemStaffMap[trimmed] || 
+                                                 (selectedStaffIds.length > 1 
+                                                   ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1]) 
+                                                   : selectedStaffId);
                                   
                                   currentItemIdx++;
                                   
-                                  const colorClass = getStaffColorClass(staffId, 'text');
+                                  const colorClass = getStaffColorClass(staffId, staffMembers, 'text');
                                   
                                   return (
                                     <span key={idx} className={cn("font-black italic tracking-wider", colorClass)}>
@@ -2337,18 +2655,20 @@ interface CalendarProps {
                               const newIds = selectedStaffIds.filter(id => id !== staff.id);
                               setSelectedStaffIds(newIds);
                               
-                              // If we are left with 0 or 1 staff, it's safer to clear the map to allow Scheme B/C again
-                              if (newIds.length <= 1) {
-                                setItemStaffMap({});
-                              } else {
-                                // Also remove this staff from all item mappings
-                                setItemStaffMap(prevMap => {
-                                  const newMap = { ...prevMap };
-                                  Object.keys(newMap).forEach(item => {
-                                    if (newMap[item] === staff.id) {
-                                      delete newMap[item];
-                                    }
-                                  });
+                              // Scheme B: Re-distribute ALL items among remaining staff
+                              const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+                              if (currentItems.length > 0) {
+                                setItemStaffMap(prev => {
+                                  const newMap = { ...prev };
+                                  // Clear all mappings first to ensure a clean re-distribution
+                                  Object.keys(newMap).forEach(it => delete newMap[it]);
+                                  
+                                  if (newIds.length > 0) {
+                                    // If still have staff, re-distribute all items among them
+                                    currentItems.forEach((it, idx) => {
+                                      newMap[it] = newIds[idx % newIds.length];
+                                    });
+                                  }
                                   return newMap;
                                 });
                               }
@@ -2366,51 +2686,36 @@ interface CalendarProps {
                                 }
                               }
                             } else {
-                              // Scheme B: Click Binding
-                              // When a staff is clicked, bind all currently "unbound" items to this staff
+                              // If not selected, add it
+                              const newSelectedIds = [...selectedStaffIds, staff.id];
+                              setSelectedStaffId(staff.id);
+                              setSelectedStaffIds(newSelectedIds);
+
+                              // Scheme B: Click Binding (Priority L2/L1)
+                              // When staff are clicked, RE-DISTRIBUTE ALL items among current staff selection
                               const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
-                              const unassignedItems = currentItems.filter(it => !itemStaffMap[it]);
                               
-                              // ONLY perform Scheme B auto-binding if we are selecting the FIRST staff.
-                              // If we are adding more staff, we want Scheme A (sequential) to take over display.
-                              if (unassignedItems.length > 0 && selectedStaffIds.length === 0) {
+                              if (currentItems.length > 0) {
                                 setItemStaffMap(prev => {
                                   const newMap = { ...prev };
-                                  unassignedItems.forEach(it => {
-                                    newMap[it] = staff.id;
+                                  // Clear previous auto-mappings and re-distribute
+                                  // This ensures "Semi-auto flow": click projects first -> select multiple staff = auto re-average
+                                  currentItems.forEach((it, idx) => {
+                                    newMap[it] = newSelectedIds[idx % newSelectedIds.length];
                                   });
                                   return newMap;
                                 });
                               }
 
-                              // If we are moving from 1 to 2 staff, clear the manual map to let Scheme A (sequential) shine
-                              if (selectedStaffIds.length === 1) {
-                                setItemStaffMap({});
-                              }
-
-                              // If not selected, add it
-                              setSelectedStaffId(staff.id);
-                              setSelectedStaffIds(prev => [...prev, staff.id]);
-                              
-                              // Map of specific IDs to the new 20 colors
-                              const fixedColorMap: Record<string, string> = {
-                                '1': 'bg-rose-500',
-                                '2': 'bg-emerald-500',
-                                '3': 'bg-purple-500',
-                                '4': 'bg-orange-500',
-                                '5': 'bg-amber-500',
-                                'NO': 'bg-zinc-500'
-                              }
-                              
-                              // Use the staff's custom bgColor if available, otherwise use fixed map or default
-                              const color = staff.bgColor?.replace('/10', '') || fixedColorMap[staff.id] || 'bg-sky-400'
+                              // Use the staff's color via helper
+                              const color = getStaffColorClass(staff.id, staffMembers, 'bg')
                               setSelectedColor(color)
                             }
                           }}
                           className={cn(
                             "relative w-full py-2 rounded-xl text-[10px] font-black italic tracking-widest uppercase truncate px-1 border-2",
                             isActive 
-                              ? `${getStaffColorClass(staff.id, 'bg')} text-white border-transparent shadow-lg` 
+                              ? `${getStaffColorClass(staff.id, staffMembers, 'bg')} text-white border-transparent shadow-lg` 
                               : isInvolved
                                 ? `bg-white/10 text-white ${staff.color || 'border-white/40'}`
                                 : "bg-white/5 text-white hover:text-white hover:bg-white/10 border-transparent"
@@ -2422,7 +2727,7 @@ interface CalendarProps {
                           {orderIndex > -1 && (
                             <div className={cn(
                               "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shadow-lg border border-white/20",
-                              getStaffColorClass(staff.id, 'bg', '500')
+                              getStaffColorClass(staff.id, staffMembers, 'bg')
                             )}>
                               {orderIndex + 1}
                             </div>
@@ -2489,7 +2794,7 @@ interface CalendarProps {
                                               return (colorName && COLOR_TO_STAFF_ID[colorName]) || (eventIdx === mergedEvents.length - 1 ? selectedStaffId : undefined);
                                             })());
                                     
-                                    const colorClass = getStaffColorClass(itemStaffId, 'text', '400')
+                                    const colorClass = getStaffColorClass(itemStaffId, staffMembers, 'text')
                                     const itemKey = `${eventIdx}-${itemName}`;
 
                                     return (
@@ -2848,7 +3153,7 @@ interface CalendarProps {
                                   className={cn(
                                     "w-full py-1.5 px-2 rounded-lg text-[10px] font-black italic shadow-inner",
                                     isItemSeleted 
-                                      ? `${getStaffColorClass(itemStaffId).replace('-500', '-400')} bg-white/20 ring-1 ring-white/30`
+                                      ? `${getStaffColorClass(itemStaffId, staffMembers).replace('-500', '-400')} bg-white/20 ring-1 ring-white/30`
                                       : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
                                   )}
                                 >

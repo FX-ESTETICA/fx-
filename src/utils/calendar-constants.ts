@@ -81,6 +81,18 @@ export const STAFF_MEMBERS: StaffMember[] = [
 ]
 
 /**
+ * Map of specific IDs to the new 20 colors for internal logic consistency.
+ */
+export const FIXED_COLOR_MAP: Record<string, string> = {
+  '1': 'bg-rose-500',
+  '2': 'bg-emerald-500',
+  '3': 'bg-purple-500',
+  '4': 'bg-orange-500',
+  '5': 'bg-amber-500',
+  'NO': 'bg-zinc-500'
+};
+
+/**
  * Maps a color name (e.g., 'rose', 'emerald') to its corresponding staff ID.
  * Derived from STAFF_MEMBERS.
  */
@@ -103,6 +115,54 @@ export const getCleanColorName = (colorClass: string | undefined): string | unde
   if (!match) return undefined;
   return match[1].replace(/-(400|500|600)/, '').replace(/\/10$/, '');
 };
+
+/**
+ * Helper to get staff color class. 
+ * Moved here to centralize Tailwind JIT class detection.
+ */
+export const getStaffColorClass = (
+  staffId: string | undefined, 
+  staffMembers: StaffMember[], 
+  type: 'text' | 'bg' | 'border' = 'text'
+) => {
+  // If no staff is selected (unassigned), use sky-400 (Blue)
+  if (!staffId || staffId === '') {
+    if (type === 'text') return 'text-sky-400'
+    if (type === 'bg') return 'bg-sky-400'
+    return 'border-sky-400'
+  }
+  
+  const staff = staffMembers.find(s => s.id === staffId)
+  let colorName = getCleanColorName(staff?.bgColor) || 'sky'
+  
+  // Explicitly return full strings for Tailwind JIT detection in a safe way
+  const colorClasses: Record<string, Record<string, string>> = {
+    rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500' },
+    emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500' },
+    purple: { text: 'text-purple-400', bg: 'bg-purple-500', border: 'border-purple-500' },
+    orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500' },
+    amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500' },
+    zinc: { text: 'text-zinc-400', bg: 'bg-zinc-500', border: 'border-zinc-500' },
+    sky: { text: 'text-sky-400', bg: 'bg-sky-500', border: 'border-sky-500' },
+    blue: { text: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500' },
+    red: { text: 'text-red-400', bg: 'bg-red-500', border: 'border-red-500' },
+    green: { text: 'text-green-400', bg: 'bg-green-500', border: 'border-green-500' },
+    yellow: { text: 'text-yellow-400', bg: 'bg-yellow-500', border: 'border-yellow-500' },
+    pink: { text: 'text-pink-400', bg: 'bg-pink-500', border: 'border-pink-500' },
+    violet: { text: 'text-violet-400', bg: 'bg-violet-500', border: 'border-violet-500' },
+    indigo: { text: 'text-indigo-400', bg: 'bg-indigo-500', border: 'border-indigo-500' },
+    cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500', border: 'border-cyan-500' },
+    teal: { text: 'text-teal-400', bg: 'bg-teal-500', border: 'border-teal-500' },
+    lime: { text: 'text-lime-400', bg: 'bg-lime-500', border: 'border-lime-500' },
+    fuchsia: { text: 'text-fuchsia-400', bg: 'bg-fuchsia-500', border: 'border-fuchsia-500' },
+    slate: { text: 'text-slate-400', bg: 'bg-slate-500', border: 'border-slate-500' },
+  }
+
+  const colorSet = colorClasses[colorName] || colorClasses.sky
+  if (type === 'text') return colorSet.text
+  if (type === 'bg') return colorSet.bg
+  return colorSet.border
+}
 
 export const SERVICE_CATEGORIES = [
   { title: 'Mani', color: 'from-pink-500/20 to-rose-500/20', items: [

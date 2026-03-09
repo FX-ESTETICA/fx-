@@ -109,11 +109,6 @@ export default function Sidebar({
           <span className="text-3xl md:text-5xl font-black text-white tracking-tighter" style={{ fontFamily: 'var(--font-orbitron)' }}>
             {format(now, 'HH:mm')}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] md:text-xs font-black italic text-zinc-400 tracking-[0.3em] uppercase group-hover:text-white transition-colors">
-              {format(now, 'ss')} SEC
-            </span>
-          </div>
         </div>
       </div>
     </div>

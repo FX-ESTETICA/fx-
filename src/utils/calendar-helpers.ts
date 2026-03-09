@@ -64,7 +64,7 @@ export const getCalendarDays = (viewType: ViewType, currentDate: Date): Date[] =
 /**
  * Helper to generate time slots for the day/week view.
  */
-export const generateTimeSlots = (startHour = 8, endHour = 21): string[] => {
+export const generateTimeSlots = (startHour = 8, endHour = 20): string[] => {
   const slots: string[] = []
   for (let hour = startHour; hour <= endHour; hour++) {
     slots.push(`${hour.toString().padStart(2, '0')}:00`)
