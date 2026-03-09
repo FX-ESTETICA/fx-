@@ -16,6 +16,13 @@ export interface CalendarEvent {
   "金额_DAN"?: number
   "金额_ALEXA"?: number
   "金额_FEDE"?: number
+  "total_amount"?: number
+  "billing_details"?: {
+    items?: Array<{ name: string; price: number; staffId: string }>;
+    staff?: Record<string, number>;
+    manualTotal?: number;
+  }
+  status?: 'pending' | 'completed';
 }
 
 export interface StaffMember {
@@ -165,7 +172,7 @@ export const getStaffColorClass = (
 }
 
 export const SERVICE_CATEGORIES = [
-  { title: 'Mani', color: 'from-pink-500/20 to-rose-500/20', items: [
+  { title: 'Mani', color: 'from-pink-500/15 to-rose-500/15', items: [
     { name: 'Mn', price: 15, duration: 20 },
     { name: 'Ms', price: 35, duration: 45 },
     { name: 'Rc', price: 60, duration: 90 },
@@ -174,11 +181,11 @@ export const SERVICE_CATEGORIES = [
     { name: 'T.s', price: 8, duration: 5 },
     { name: 'T.g', price: 15, duration: 15 }
   ] },
-  { title: 'Piedi', color: 'from-emerald-500/20 to-teal-500/20', items: [
+  { title: 'Piedi', color: 'from-emerald-500/15 to-teal-500/15', items: [
     { name: 'Pn', price: 23, duration: 30 },
     { name: 'Ps', price: 38, duration: 60 }
   ] },
-  { title: 'Ceretta', color: 'from-amber-500/20 to-orange-500/20', items: [
+  { title: 'Ceretta', color: 'from-amber-500/15 to-orange-500/15', items: [
     { name: 'Sop', price: 5, duration: 5 },
     { name: 'Baf', price: 5, duration: 5 },
     { name: 'Asc', price: 9, duration: 10 },
@@ -189,7 +196,7 @@ export const SERVICE_CATEGORIES = [
     { name: 'Pet', price: 18, duration: 20 },
     { name: 'Pan', price: 6, duration: 10 }
   ] },
-  { title: 'Viso', color: 'from-blue-500/20 to-indigo-500/20', items: [
+  { title: 'Viso', color: 'from-blue-500/15 to-indigo-500/15', items: [
     { name: 'EX.ciglia', price: 65, duration: 120 },
     { name: 'Rt.ciglia', price: 40, duration: 75 },
     { name: 'L.ciglia', price: 50, duration: 60 },

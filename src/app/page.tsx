@@ -10,12 +10,13 @@ import { cn } from '@/lib/utils'
 export default function Home() {
   const [calendarDate, setCalendarDate] = useState(new Date())
   const [calendarView, setCalendarView] = useState<ViewType>('day')
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false)
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(280)
   const [isResizing, setIsResizing] = useState(false)
   const [bgIndex, setBgIndex] = useState(0)
   const [lang, setLang] = useState<'zh' | 'it'>('zh')
   const [isReportOpen, setIsReportOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   
   const backgrounds = [
     '/wallhaven-eo68l8.jpg',
@@ -91,7 +92,7 @@ export default function Home() {
           backgroundImage: `url(${backgrounds[bgIndex]})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          opacity: 1
+          opacity: (isModalOpen || isReportOpen) ? 0.5 : 1
         }}
       />
 
@@ -100,10 +101,11 @@ export default function Home() {
         style={{ width: isSidebarVisible ? `${sidebarWidth}px` : '0px' }}
         className={cn(
           "h-full overflow-hidden shrink-0 relative z-10",
-          !isSidebarVisible && "pointer-events-none"
+          !isSidebarVisible && "pointer-events-none",
+          (isModalOpen || isReportOpen) && "opacity-0 pointer-events-none"
         )}
       >
-        <div className="h-full w-full bg-black/0 backdrop-blur-none border border-white/5 rounded-xl md:rounded-2xl overflow-hidden shadow-2xl">
+        <div className="h-full w-full bg-black/0 backdrop-blur-none overflow-hidden">
           <Sidebar 
             onDateSelect={handleDateSelect} 
             onLogoClick={cycleBackground} 
@@ -120,18 +122,23 @@ export default function Home() {
           onMouseDown={startResizing}
           className={cn(
             "w-1 h-full cursor-col-resize hover:bg-white/10 shrink-0 z-20",
-            isResizing && "bg-white/10"
+            isResizing && "bg-white/10",
+            (isModalOpen || isReportOpen) && "opacity-0 pointer-events-none"
           )}
         />
       )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden z-30">
-        <div className="flex-1 min-h-0 bg-black/0 backdrop-blur-none rounded-xl md:rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
+        <div className={cn(
+          "flex-1 min-h-0 bg-black/0 backdrop-blur-none overflow-hidden",
+          isReportOpen && "opacity-0 pointer-events-none border-none shadow-none"
+        )}>
           <Calendar 
             initialDate={calendarDate} 
             initialView={calendarView} 
             onToggleSidebar={toggleSidebar}
+            onModalToggle={setIsModalOpen}
             bgIndex={bgIndex}
             lang={lang}
           />

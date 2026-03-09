@@ -30,16 +30,18 @@ export default function Sidebar({
   onClockClick,
   lang = 'zh' 
 }: SidebarProps) {
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
 
   // Update clock every second
   useEffect(() => {
+    setNow(new Date())
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
   // Mini Calendar logic
-  const monthStart = startOfMonth(now)
+  const displayDate = now || new Date()
+  const monthStart = startOfMonth(displayDate)
   const monthEnd = endOfMonth(monthStart)
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
@@ -70,7 +72,7 @@ export default function Sidebar({
       <div className="flex-1 space-y-3 md:space-y-4 min-h-fit">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-sm font-black italic text-white uppercase tracking-widest">
-            {lang === 'zh' ? format(now, 'yyyy年 MMMM', { locale }) : format(now, 'MMMM yyyy', { locale })}
+            {now ? (lang === 'zh' ? format(now, 'yyyy年 MMMM', { locale }) : format(now, 'MMMM yyyy', { locale })) : ''}
           </h3>
         </div>
         
@@ -107,7 +109,7 @@ export default function Sidebar({
       >
         <div className="flex flex-col items-center gap-0.5 md:gap-1">
           <span className="text-3xl md:text-5xl font-black text-white tracking-tighter" style={{ fontFamily: 'var(--font-orbitron)' }}>
-            {format(now, 'HH:mm')}
+            {now ? format(now, 'HH:mm') : ''}
           </span>
         </div>
       </div>

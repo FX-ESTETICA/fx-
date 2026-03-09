@@ -154,6 +154,23 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
     events.forEach(e => {
       let eventHasAnyAmount = false
 
+      // 0. NEW PERFECT BILLING LOGIC: Priority 1 - billing_details.staff
+      if (e.billing_details?.staff) {
+        Object.entries(e.billing_details.staff).forEach(([name, amount]) => {
+          const numAmount = Number(amount) || 0
+          if (numAmount > 0) {
+            if (!staffData[name]) {
+              staffData[name] = { amount: 0, count: 0 }
+            }
+            staffData[name].amount += numAmount
+            staffData[name].count += 1
+            eventHasAnyAmount = true
+          }
+        })
+      }
+
+      if (eventHasAnyAmount) return; // Skip legacy if new fields found
+
       // 1. Check fixed columns or dynamic columns matching staff names (Realized)
       allStaffNames.forEach(name => {
         const amount = Number(e[`金额_${name}`]) || 0
@@ -164,9 +181,9 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         }
       })
 
-      // 2. Check notes for dynamic staff amounts [NAME_AMT:100] (Realized)
+      // 2. Check notes for dynamic staff amounts [NAME_AMT:100] or [NAME_AMT:100_IDX:0] (Realized)
       const noteContent = e["备注"] || ""
-      const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g))
+      const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)(?:_IDX:\d+)?\]/g))
       amtMatches.forEach((match: any) => {
         const name = match[1]
         const amount = Number(match[2]) || 0
@@ -392,9 +409,9 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         }
       })
 
-      // 2. Check notes for dynamic staff amounts [NAME_AMT:100] (Realized)
+      // 2. Check notes for dynamic staff amounts [NAME_AMT:100] or [NAME_AMT:100_IDX:0] (Realized)
       const noteContent = e["备注"] || ""
-      const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g))
+      const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)(?:_IDX:\d+)?\]/g))
       amtMatches.forEach((match: any) => {
         const name = match[1]
         const amount = Number(match[2]) || 0
@@ -510,13 +527,14 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
     { id: 'year', label: lang === 'zh' ? '年' : 'A' }
   ]
 
+  if (!isOpen) return null
+
   return (
     <div 
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
       onClick={onClose}
     >
-      {/* Background Overlay - Slight darkening for depth */}
-      <div className="absolute inset-0 bg-black/20" />
+      {/* Background Overlay - Slight darkening for depth (Removed to match Calendar modal) */}
 
       {/* Main Container - Floating Glassmorphism (More transparent) */}
       <div 

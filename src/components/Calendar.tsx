@@ -351,7 +351,7 @@ function StaffTimer({ staffId, events, eventAssignments, now, currentDate }: {
 
   return (
     <div className={cn(
-      "absolute left-0 right-0 z-[999] flex flex-col items-center justify-center pointer-events-none transition-all duration-500",
+      "absolute left-0 right-0 z-[999] flex flex-col items-center justify-center pointer-events-none",
       timerData.label === 'BUSY' ? "animate-pulse" : ""
     )} style={{ 
       top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * (4 / 60)}rem`,
@@ -382,6 +382,7 @@ interface CalendarProps {
   initialDate?: Date;
   initialView?: ViewType;
   onToggleSidebar?: () => void;
+  onModalToggle?: (isOpen: boolean) => void;
   bgIndex?: number;
   lang?: 'zh' | 'it';
 }
@@ -414,7 +415,7 @@ const getItalyTime = () => {
   return new Date(dateMap.year, dateMap.month - 1, dateMap.day, dateMap.hour, dateMap.minute, dateMap.second);
 };
 
-export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, bgIndex = 0, lang = 'zh' }: CalendarProps) {
+export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, onModalToggle, bgIndex = 0, lang = 'zh' }: CalendarProps) {
   const supabase = createClient()
   
   // Use a stable initial date for SSR to avoid hydration mismatch
@@ -431,16 +432,23 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [allDatabaseEvents, setAllDatabaseEvents] = useState<CalendarEvent[]>([])
-  const today = useMemo(() => getItalyTime(), [])
-  const [now, setNow] = useState<Date>(getItalyTime())
+  const [now, setNow] = useState<Date | null>(null)
+  const [today, setToday] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!isMounted) return
+    const it = getItalyTime()
+    setNow(it)
+    setToday(it)
     const timer = setInterval(() => setNow(getItalyTime()), 1000)
     return () => clearInterval(timer)
   }, [isMounted])
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  
+  useEffect(() => {
+    onModalToggle?.(isModalOpen)
+  }, [isModalOpen, onModalToggle])
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [showServiceSelection, setShowServiceSelection] = useState(false)
   const [showMemberDetail, setShowMemberDetail] = useState(false)
@@ -451,12 +459,32 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [memberName, setMemberName] = useState('')
   const [memberNote, setMemberNote] = useState('')
   const [showCheckoutPreview, setShowCheckoutPreview] = useState(false)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const [touchCurrentX, setTouchCurrentX] = useState<number | null>(null)
   const [showTimeSelection, setShowTimeSelection] = useState(false)
   const [timeSelectionType, setTimeSelectionType] = useState<'start' | 'end'>('start')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   
+  // Calendar Lock State
+  const [isCalendarLocked, setIsCalendarLocked] = useState(true)
+  const [lockPassword, setLockPassword] = useState("")
+  const [unlockError, setUnlockError] = useState(false)
+  
+  const handleUnlock = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (lockPassword === "0428") {
+      setIsCalendarLocked(false)
+      setUnlockError(false)
+      setLockPassword("")
+    } else {
+      setUnlockError(true)
+      // Reset error after a delay
+      setTimeout(() => setUnlockError(false), 2000)
+    }
+  }
+
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(STAFF_MEMBERS)
   const [isStaffManagerOpen, setIsStaffManagerOpen] = useState(false)
   const [newStaffName, setNewStaffName] = useState('')
@@ -498,6 +526,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [staffAmounts, setStaffAmounts] = useState<Record<string, string>>(() => ({}))
   const [itemStaffMap, setItemStaffMap] = useState<Record<string, string>>({})
   const [customItemPrices, setCustomItemPrices] = useState<Record<string, string>>({}) // Track custom prices for checkout preview
+  const [manualTotalAmount, setManualTotalAmount] = useState<string | null>(null) // Manual override for total price
 
   // Merged events for checkout (same member, same day)
   const mergedEvents = useMemo(() => {
@@ -551,56 +580,143 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   // Total price for all merged events
   const mergedTotalPrice = useMemo(() => {
+    if (manualTotalAmount !== null) return Number(manualTotalAmount);
     return mergedEvents.reduce((total, event) => {
-      return total + calculateTotalPrice(event["服务项目"] || '', SERVICE_CATEGORIES);
+      const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
+      let eventSum = 0;
+      eventItems.forEach((itemName, idx) => {
+        const itemKey = `${event.id}-${itemName}-${idx}`;
+        const customPrice = customItemPrices[itemKey];
+        if (customPrice !== undefined && customPrice !== null && customPrice !== '') {
+          eventSum += Number(customPrice);
+        } else {
+          eventSum += calculateTotalPrice(itemName, SERVICE_CATEGORIES);
+        }
+      });
+      return total + eventSum;
     }, 0);
-  }, [mergedEvents]);
+  }, [mergedEvents, manualTotalAmount, customItemPrices]);
 
   // Track if we need to auto-calculate amounts when opening preview
   useEffect(() => {
     if (showCheckoutPreview && mergedEvents.length > 0) {
-      const amounts: Record<string, string> = {};
-      const prices: Record<string, string> = {}; // Initialize custom prices
-      
-      mergedEvents.forEach((event, eventIdx) => {
-        const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
-        const colorName = getCleanColorName(event["背景颜色"]);
-        const eventStaffIdFromColor = colorName ? COLOR_TO_STAFF_ID[colorName] : undefined;
+      setCustomItemPrices(prevPrices => {
+        const newPrices = { ...prevPrices };
+        const newStaffAmounts: Record<string, string> = {};
+        let changed = false;
 
-        eventItems.forEach((itemName, itemIdx) => {
-          const itemKey = `${eventIdx}-${itemName}`;
-          const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
-          if (itemData) {
-            prices[itemKey] = itemData.price.toString();
+        mergedEvents.forEach((event, eventIdx) => {
+          // --- Priority 1: billing_details (New Schema) ---
+          if (event.total_amount !== undefined && event.total_amount !== null && event.billing_details) {
+            const details = event.billing_details;
+            
+            // Items
+            if (details.items) {
+              details.items.forEach((item: any, itemIdx: number) => {
+                const itemKey = `${event.id}-${item.name}-${itemIdx}`;
+                if (newPrices[itemKey] === undefined) {
+                  newPrices[itemKey] = item.price.toString();
+                  changed = true;
+                }
+              });
+            }
+            
+            // Staff
+            if (details.staff) {
+              Object.entries(details.staff).forEach(([name, amount]) => {
+                newStaffAmounts[name] = amount.toString();
+              });
+            }
+
+            // Manual Total
+            if (details.manualTotal !== undefined && details.manualTotal !== null) {
+               setManualTotalAmount(details.manualTotal.toString());
+            }
+            
+            return; // Skip legacy parsing for this event
           }
 
-          const escapedItem = escapeRegExp(itemName);
-          const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
-          const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-          const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
+          // --- Priority 2: Legacy Parsing (Old Schema) ---
+          const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
+          const isCompleted = event["备注"]?.includes('[STATUS:COMPLETED]');
           
-          let itemStaffId = itemStaffMatch ? itemStaffMatch[1] : undefined;
-          
-          if (!itemStaffId) {
-            if (staffSeq.length > 0) {
-              itemStaffId = staffSeq[itemIdx] || staffSeq[staffSeq.length - 1];
-            } else if (eventStaffIdFromColor) {
-              itemStaffId = eventStaffIdFromColor;
+          // First, load any existing amounts from the event object (database)
+          staffMembers.forEach(s => {
+            const val = event[`金额_${s.name}` as keyof any];
+            if (val !== undefined && val !== null && val !== 0) {
+              newStaffAmounts[s.name] = val.toString();
             }
-          }
-          
-          const staff = staffMembers.find(s => s.id === itemStaffId);
-          if (staff && staff.id !== 'NO') {
-            if (itemData) {
-              const currentAmount = Number(amounts[staff.name] || 0);
-              amounts[staff.name] = (currentAmount + itemData.price).toString();
+          });
+
+          const hasSavedAmounts = Object.keys(newStaffAmounts).length > 0 || event["备注"]?.includes('_AMT:');
+
+          eventItems.forEach((itemName, itemIdx) => {
+            const itemKey = `${event.id}-${itemName}-${itemIdx}`;
+            const escapedItem = escapeRegExp(itemName);
+            
+            // Try to load custom price from '备注' or use default
+            let currentItemPrice: string | undefined = newPrices[itemKey];
+            
+            if (currentItemPrice === undefined) {
+              const priceMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_AMT:(\\d+)_IDX:${itemIdx}\\]`));
+              
+              if (priceMatch) {
+                currentItemPrice = priceMatch[1];
+                newPrices[itemKey] = currentItemPrice;
+                changed = true;
+              } else {
+                const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
+                if (itemData) {
+                  currentItemPrice = itemData.price.toString();
+                  newPrices[itemKey] = currentItemPrice;
+                  changed = true;
+                }
+              }
             }
-          }
+
+            // If we have a price for this item, and no saved amounts in database, 
+            // and not completed, add it to the fresh staff amounts object
+            if (currentItemPrice && !hasSavedAmounts && !isCompleted) {
+              const staffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+              const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
+              const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
+              
+              let itemStaffId = staffMatch ? staffMatch[1] : undefined;
+              if (!itemStaffId) {
+                if (staffSeq.length > 0) {
+                  itemStaffId = staffSeq[itemIdx] || staffSeq[staffSeq.length - 1];
+                } else {
+                  const colorName = getCleanColorName(event["背景颜色"]);
+                  const eventStaffIdFromColor = colorName ? COLOR_TO_STAFF_ID[colorName] : undefined;
+                  itemStaffId = eventStaffIdFromColor;
+                }
+              }
+              
+              const staff = staffMembers.find(s => s.id === itemStaffId);
+              if (staff && staff.id !== 'NO') {
+                const currentAmount = Number(newStaffAmounts[staff.name] || 0);
+                newStaffAmounts[staff.name] = (currentAmount + Number(currentItemPrice)).toString();
+              }
+            }
+          });
         });
-      });
 
-      setStaffAmounts(amounts);
-      setCustomItemPrices(prices);
+        // Only update staff amounts if we are initializing (staffAmounts is empty) 
+        // OR if we found new prices in the notes that weren't in the state
+        const isStaffAmountsEmpty = Object.keys(staffAmounts).length === 0;
+        if (changed || isStaffAmountsEmpty) {
+          // Merge with current staffAmounts to preserve manual edits that might already exist
+          const mergedStaffAmounts = { ...staffAmounts, ...newStaffAmounts };
+          
+          // Check if it actually changed to avoid unnecessary re-renders
+          const hasRealChange = Object.entries(mergedStaffAmounts).some(([k, v]) => staffAmounts[k] !== v);
+          if (hasRealChange) {
+            setStaffAmounts(mergedStaffAmounts);
+          }
+          return newPrices;
+        }
+        return prevPrices;
+      });
     }
   }, [showCheckoutPreview, mergedEvents]);
 
@@ -613,6 +729,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     });
     
     mergedEvents.forEach(event => {
+      // 0. Check billing_details
+      if (event.billing_details?.items) {
+        event.billing_details.items.forEach((item: any) => {
+          if (item.staffId && item.staffId !== 'NO') ids.add(item.staffId);
+        });
+      }
+      if (event.billing_details?.staff) {
+        Object.keys(event.billing_details.staff).forEach(name => {
+          const staff = staffMembers.find(s => s.name === name);
+          if (staff && staff.id !== 'NO') ids.add(staff.id);
+        });
+      }
+
       // 1. Check item-specific staff in notes
       const matches = event["备注"]?.matchAll(/\[[^\]]+_STAFF:([^\]]+)\]/g);
       if (matches) {
@@ -826,12 +955,59 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   // Quick-jump to today handled via the “今/OGGI” button in header
 
-  const handleSubmit = async (e: React.FormEvent, forcedMode?: 'normal' | 'sequential' | 'parallel') => {
-    e.preventDefault()
-    if (!newTitle || !selectedDate) return
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX)
+    setTouchCurrentX(e.touches[0].clientX)
+  }
 
-    setIsSubmitting(true)
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchCurrentX(e.touches[0].clientX)
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent | React.FormEvent) => {
+    if (touchStartX === null || touchCurrentX === null) return
+
+    const diffX = touchCurrentX - touchStartX
+    const threshold = 50 // Minimum distance for a swipe
+
+    if (diffX > threshold) {
+      // Right swipe detected
+      if (!showCheckoutPreview) {
+        // Step 1: Switch to checkout interface
+        setShowCheckoutPreview(true)
+        setShowServiceSelection(false)
+        setShowMemberDetail(false)
+        setShowTimeSelection(false)
+      } else {
+        // Step 2: Final swipe to checkout and close
+        // If it's a touch event, we need to create a dummy FormEvent for handleSubmit
+        const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
+        handleSubmit(submitEvent, undefined, true)
+      }
+    }
+
+    setTouchStartX(null)
+    setTouchCurrentX(null)
+  }
+
+  const handleSubmit = async (e?: React.FormEvent, forcedMode?: 'normal' | 'sequential' | 'parallel', isCheckout?: boolean) => {
+    e?.preventDefault()
     
+    // UI optimization: ALWAYS close modal immediately for "instant feel" 
+    // and let database update in the background
+    setIsModalOpen(false)
+
+    if (isSubmitting) return
+    setIsSubmitting(true)
+
+    // If essential data is missing, just close (likely a click-outside on an empty new event)
+    if (!newTitle || !selectedDate) {
+      closeModal()
+      setIsSubmitting(false)
+      return
+    }
+    
+    const isAlreadyCompleted = editingEvent?.status === 'completed' || editingEvent?.["备注"]?.includes('[STATUS:COMPLETED]');
     const startTimeStr = format(selectedDate, 'HH:mm:ss')
     const serviceDateStr = format(selectedDate, 'yyyy-MM-dd')
     
@@ -954,16 +1130,33 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           currentItemIdx++;
           
           // Find item price and duration
-          let itemPrice = 0;
+          const eventId = editingEvent?.id || 'new';
+          const itemKey = `${eventId}-${itemName}-${currentItemIdx}`;
+          const customPriceVal = customItemPrices[itemKey];
+          
+          let itemPrice = customPriceVal ? Number(customPriceVal) : 0;
           let itemDuration = duration; // Default to current duration state if not found
-          for (const cat of SERVICE_CATEGORIES) {
-            const found = cat.items.find(i => i.name === itemName);
-            if (found) {
-              itemPrice = found.price;
-              if (found.duration) {
-                itemDuration = found.duration;
+          
+          // Fallback to default price if not in custom prices
+          if (!customPriceVal) {
+            for (const cat of SERVICE_CATEGORIES) {
+              const found = cat.items.find(i => i.name === itemName);
+              if (found) {
+                itemPrice = found.price;
+                if (found.duration) {
+                  itemDuration = found.duration;
+                }
+                break;
               }
-              break;
+            }
+          } else {
+            // Find duration even if we have custom price
+            for (const cat of SERVICE_CATEGORIES) {
+              const found = cat.items.find(i => i.name === itemName);
+              if (found && found.duration) {
+                itemDuration = found.duration;
+                break;
+              }
             }
           }
 
@@ -980,10 +1173,17 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             "开始时间": startTimeStr,
             "持续时间": itemDuration,
             "背景颜色": itemColor,
-            "备注": `技师:${itemStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
+            "备注": `技师:${itemStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}${(isCheckout || isAlreadyCompleted) ? ', [STATUS:COMPLETED]' : ''}`,
+            "total_amount": itemPrice,
+            "status": (isCheckout || isAlreadyCompleted) ? 'completed' : 'pending',
+            "billing_details": {
+              items: [{ name: itemName, price: itemPrice, staffId: itemStaffId }],
+              staff: itemStaff ? { [itemStaff.name]: itemPrice } : {},
+              manualTotal: null
+            }
           };
 
-          // Add amount for the specific staff member assigned to this item
+          // Legacy amounts
           if (itemStaff && itemPrice > 0) {
             if ((FIXED_STAFF_NAMES as readonly string[]).includes(itemStaff.name)) {
               eventData[`金额_${itemStaff.name}`] = itemPrice;
@@ -999,7 +1199,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         }
       } else {
         // Parallel mode: Group items by staff to prevent same-staff overlap
-        const staffGroups: Record<string, { items: string[], duration: number, totalPrice: number }> = {};
+        const staffGroups: Record<string, { items: Array<{ name: string, price: number, duration: number }>, duration: number, totalPrice: number }> = {};
         
         items.forEach((itemName, idx) => {
           const itemStaffId = itemStaffMap[itemName] || 
@@ -1007,12 +1207,18 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                ? (selectedStaffIds[idx] || selectedStaffIds[selectedStaffIds.length - 1]) 
                                : selectedStaffId);
           
-          let itemPrice = 0;
+          const eventId = editingEvent?.id || 'new';
+          const itemKey = `${eventId}-${itemName}-${idx}`;
+          const customPriceVal = customItemPrices[itemKey];
+          
+          let itemPrice = customPriceVal ? Number(customPriceVal) : 0;
           let itemDuration = duration;
+          
+          // Fallback to default price/duration
           for (const cat of SERVICE_CATEGORIES) {
             const found = cat.items.find(i => i.name === itemName);
             if (found) {
-              itemPrice = found.price;
+              if (!customPriceVal) itemPrice = found.price;
               if (found.duration) itemDuration = found.duration;
               break;
             }
@@ -1021,7 +1227,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           if (!staffGroups[itemStaffId]) {
             staffGroups[itemStaffId] = { items: [], duration: 0, totalPrice: 0 };
           }
-          staffGroups[itemStaffId].items.push(itemName);
+          staffGroups[itemStaffId].items.push({ name: itemName, price: itemPrice, duration: itemDuration });
           staffGroups[itemStaffId].duration += itemDuration;
           staffGroups[itemStaffId].totalPrice += itemPrice;
         });
@@ -1034,18 +1240,29 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           const itemColor = getStaffColorClass(staffId, staffMembers, 'bg');
 
           const eventData: any = {
-            "服务项目": group.items.join(', '),
+            "服务项目": group.items.map(i => i.name).join(', '),
             "会员信息": formattedMemberInfo,
             "服务日期": serviceDateStr,
             "开始时间": startTimeStr,
             "持续时间": group.duration,
             "背景颜色": itemColor,
-            "备注": `技师:${staffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
+            "备注": `技师:${staffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}${(isCheckout || isAlreadyCompleted) ? ', [STATUS:COMPLETED]' : ''}`,
+            "total_amount": group.totalPrice,
+            "status": (isCheckout || isAlreadyCompleted) ? 'completed' : 'pending',
+            "billing_details": {
+              items: group.items.map(i => ({ name: i.name, price: i.price, staffId: staffId })),
+              staff: itemStaff ? { [itemStaff.name]: group.totalPrice } : {},
+              manualTotal: null
+            }
           };
+
+          if (memberNote) {
+            eventData["备注"] += `, [MEMBER_NOTE:${memberNote}]`;
+          }
 
           // Add individual item-staff mappings to notes for color rendering/editing
           group.items.forEach(it => {
-            eventData["备注"] += `, [${it}_STAFF:${staffId}]`;
+            eventData["备注"] += `, [${it.name}_STAFF:${staffId}]`;
           });
 
           if (itemStaff && group.totalPrice > 0) {
@@ -1098,7 +1315,12 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       "开始时间": startTimeStr,
       "持续时间": duration,
       "背景颜色": selectedColor,
-      "备注": `技师:${selectedStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}`,
+      "备注": `技师:${selectedStaffId}${clickedStaffId ? `,建议:${clickedStaffId}` : ''}${(isCheckout || isAlreadyCompleted) ? ', [STATUS:COMPLETED]' : ''}`,
+      "status": (isCheckout || isAlreadyCompleted) ? 'completed' : 'pending',
+    }
+
+    if (memberNote) {
+      eventData["备注"] += `, [MEMBER_NOTE:${memberNote}]`
     }
 
     // Add staff sequence for Scheme A if multiple staff are selected
@@ -1106,12 +1328,24 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       eventData["备注"] += `, [STAFF_SEQ:${selectedStaffIds.join(',')}]`
     }
 
-    // Add individual item-staff mappings to notes for color rendering
+    // Add individual item-staff mappings and item-amounts to notes
     Object.entries(itemStaffMap).forEach(([item, staffId]) => {
       if (staffId) {
         eventData["备注"] += `, [${item}_STAFF:${staffId}]`
       }
     })
+
+    // Capture item prices from customItemPrices if they exist
+    // Note: customItemPrices keys are event.id-itemName-itemIdx
+    // For a single submit, we're submitting the current event
+    const eventIdForNotes = editingEvent?.id || 'new';
+    newTitle.split(',').map(s => s.trim()).filter(Boolean).forEach((itemName, itemIdx) => {
+      const itemKey = `${eventIdForNotes}-${itemName}-${itemIdx}`;
+      const customPrice = customItemPrices[itemKey];
+      if (customPrice) {
+        eventData["备注"] += `, [${itemName}_AMT:${customPrice}_IDX:${itemIdx}]`;
+      }
+    });
 
     let extraNotes = ''
 
@@ -1143,6 +1377,101 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     })
 
     eventData["备注"] += extraNotes
+
+    // --- NEW PERFECT BILLING LOGIC: Update all merged events if we have billing data ---
+    // We update all events in the merge group even if it's NOT a final checkout, 
+    // to ensure "perfect" persistence as requested.
+    if (mergedEvents.length > 0) {
+      const otherEvents = mergedEvents.filter(e => e.id !== (editingEvent?.id || 'new'));
+      
+      for (const event of otherEvents) {
+        if (!event) continue;
+        // Calculate billing details for this specific event
+        const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
+        const eventBilling: any = { items: [], staff: {}, manualTotal: null };
+        let eventTotal = 0;
+
+        eventItems.forEach((itemName, itemIdx) => {
+          const itemKey = `${event.id}-${itemName}-${itemIdx}`;
+          const customPrice = customItemPrices[itemKey];
+          const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
+          const price = customPrice ? Number(customPrice) : (itemData?.price || 0);
+          
+          // Get assigned staff from notes if not in billing_details
+          let staffId = event.billing_details?.items?.[itemIdx]?.staffId;
+          if (!staffId) {
+            const escapedItem = escapeRegExp(itemName);
+            const staffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`));
+            staffId = staffMatch ? staffMatch[1] : (event["背景颜色"] ? COLOR_TO_STAFF_ID[getCleanColorName(event["背景颜色"])] : 'sky');
+          }
+
+          eventBilling.items.push({ name: itemName, price, staffId });
+          eventTotal += price;
+
+          const staff = staffMembers.find(s => s.id === staffId);
+          if (staff && staff.id !== 'NO') {
+             eventBilling.staff[staff.name] = (eventBilling.staff[staff.name] || 0) + price;
+          }
+        });
+
+        // Update status to completed if it's a checkout
+         let eventStatus = event.status || 'pending';
+         let eventNotes = event["备注"] || "";
+         if ((isCheckout || isAlreadyCompleted)) {
+           eventStatus = 'completed';
+           if (!eventNotes.includes('[STATUS:COMPLETED]')) {
+             eventNotes += (eventNotes ? ', ' : '') + '[STATUS:COMPLETED]';
+           }
+         }
+
+         // Update the event in database
+         await supabase
+           .from('fx_events')
+           .update({
+             "total_amount": eventTotal,
+             "billing_details": eventBilling,
+             "status": eventStatus,
+             "备注": eventNotes
+           })
+           .eq('id', event.id);
+      }
+    }
+
+    const billingDetails: any = { 
+      items: [], 
+      staff: {}, 
+      manualTotal: manualTotalAmount ? Number(manualTotalAmount) : null 
+    };
+    
+    const eventIdForKeys = editingEvent?.id || 'new';
+    newTitle.split(',').map(s => s.trim()).filter(Boolean).forEach((itemName, itemIdx) => {
+      const itemKey = `${eventIdForKeys}-${itemName}-${itemIdx}`;
+      const customPrice = customItemPrices[itemKey];
+      const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
+      const price = customPrice ? Number(customPrice) : (itemData?.price || 0);
+      
+      // Get assigned staff for this item
+      const staffId = itemStaffMap[itemKey] || selectedStaffId;
+      billingDetails.items.push({ name: itemName, price, staffId });
+    });
+
+    staffMembers.forEach(staff => {
+      const amount = Number(staffAmounts[staff.name]) || 0;
+      if (amount > 0) {
+        billingDetails.staff[staff.name] = amount;
+      }
+    });
+
+    const finalTotal = manualTotalAmount !== null ? Number(manualTotalAmount) : (
+      Object.values(billingDetails.staff).reduce((a: any, b: any) => a + (Number(b) || 0), 0) || 
+      billingDetails.items.reduce((a: any, b: any) => a + (Number(b.price) || 0), 0) ||
+      mergedTotalPrice
+    );
+
+    eventData["total_amount"] = finalTotal;
+    eventData["billing_details"] = billingDetails;
+    eventData["status"] = (isCheckout || isAlreadyCompleted) ? 'completed' : (editingEvent?.status || 'pending');
+    // ---------------------------------
 
     if (editingEvent) {
       console.log('Updating event:', editingEvent.id, eventData);
@@ -1200,6 +1529,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   }
 
   const openEditModal = (event: CalendarEvent) => {
+    // Reset submission state for the new modal session
+    setIsSubmitting(false)
+    
     setEditingEvent(event)
     const currentService = event["服务项目"]
     setNewTitle(currentService)
@@ -1239,7 +1571,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           const existingMember = allMembers.find(m => m.card === id)
           if (existingMember) {
             setSelectedMember(existingMember)
+            setMemberNote(existingMember.note || '')
           } else {
+            // Also try to extract from current event's notes as fallback
+            const memberNoteMatch = event["备注"]?.match(/\[MEMBER_NOTE:(.*?)\]/)
+            const noteFromEvent = memberNoteMatch ? memberNoteMatch[1] : ''
+            setMemberNote(noteFromEvent)
+            
             setSelectedMember({
               name: extractedName || '',
               phone: info,
@@ -1248,7 +1586,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               totalSpend: 0,
               totalVisits: 0,
               lastVisit: event["服务日期"],
-              note: '',
+              note: noteFromEvent,
               history: []
             })
           }
@@ -1274,6 +1612,31 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       }
     })
     setStaffAmounts(amounts)
+    setManualTotalAmount(null) // Reset manual total by default
+
+    // Load from new fields if they exist (Priority)
+    if (event.total_amount !== undefined && event.total_amount !== null) {
+      if (event.billing_details?.manualTotal !== undefined && event.billing_details?.manualTotal !== null) {
+        setManualTotalAmount(event.billing_details.manualTotal.toString());
+      }
+      
+      if (event.billing_details?.staff) {
+        const staffAmts: Record<string, string> = {};
+        Object.entries(event.billing_details.staff).forEach(([name, amount]) => {
+          staffAmts[name] = amount.toString();
+        });
+        setStaffAmounts(staffAmts);
+      }
+
+      if (event.billing_details?.items) {
+        const newPrices: Record<string, string> = {};
+        event.billing_details.items.forEach((item, idx) => {
+          const itemKey = `${event.id}-${item.name}-${idx}`;
+          newPrices[itemKey] = item.price.toString();
+        });
+        setCustomItemPrices(prev => ({ ...prev, ...newPrices }));
+      }
+    }
 
     const staffMatch = event["备注"]?.match(/技师:([^,]+)/)
     const parsedStaffId = staffMatch ? staffMatch[1] : ''
@@ -1282,23 +1645,48 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     // CRITICAL: Restore itemStaffMap for split events or events with encoded staff mappings
     const newItemStaffMap: Record<string, string> = {}
     
-    // 1. Try to parse specific [ITEM_STAFF:ID] mappings from notes
-    if (event["备注"]) {
+    // NEW: Restore from billing_details if available
+    if (event.billing_details?.items) {
+      event.billing_details.items.forEach((item, idx) => {
+        newItemStaffMap[`${event.id}-${item.name}-${idx}`] = item.staffId;
+      });
+    }
+
+    // Fallback: Try to parse specific [ITEM_STAFF:ID] mappings from notes
+    if (Object.keys(newItemStaffMap).length === 0 && event["备注"]) {
       const staffMapMatches = event["备注"].matchAll(/\[(.*?)\s*_STAFF:([^\]]+)\]/g)
       for (const match of staffMapMatches) {
         newItemStaffMap[match[1]] = match[2]
       }
     }
     
-    // 2. If no specific mappings found but we have items and a main staff, 
+    // Fallback: If no specific mappings found but we have items and a main staff, 
     // fall back to mapping all items to the main staff
     if (Object.keys(newItemStaffMap).length === 0 && currentService && parsedStaffId) {
-      currentService.split(',').forEach(item => {
-        newItemStaffMap[item.trim()] = parsedStaffId
+      currentService.split(',').forEach((item, idx) => {
+        newItemStaffMap[`${event.id}-${item.trim()}-${idx}`] = parsedStaffId
       })
     }
     
     setItemStaffMap(newItemStaffMap)
+
+    // NEW: Restore custom item prices (Priority: billing_details, Fallback: notes)
+    const newCustomPrices: Record<string, string> = {};
+    if (event.billing_details?.items) {
+      event.billing_details.items.forEach((item, idx) => {
+        newCustomPrices[`${event.id}-${item.name}-${idx}`] = item.price.toString();
+      });
+    } else if (event["备注"]) {
+      // Find all matches for [ITEM_NAME_AMT:PRICE_IDX:INDEX]
+      const priceMatches = event["备注"].matchAll(/\[(.*?)\s*_AMT:(\d+)_IDX:(\d+)\]/g);
+      for (const match of priceMatches) {
+        const itemName = match[1];
+        const price = match[2];
+        const itemIdx = match[3];
+        newCustomPrices[`${event.id}-${itemName}-${itemIdx}`] = price;
+      }
+    }
+    setCustomItemPrices(newCustomPrices);
 
     // Restore staff sequence if present, otherwise fallback to single staff selection
     const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/)
@@ -1315,6 +1703,28 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setClickedStaffId(suggestedMatch ? suggestedMatch[1] : '')
     
     setIsModalOpen(true)
+    
+    // Automatically show checkout preview for completed events OR events that have passed midpoint
+    const isCompleted = event.status === 'completed' || event["备注"]?.includes('[STATUS:COMPLETED]');
+    
+    let shouldShowBilling = isCompleted;
+    if (!isCompleted && event["开始时间"] && event["持续时间"]) {
+      const it = getItalyTime();
+      const [hours, minutes] = event["开始时间"].split(':').map(Number);
+      const startTime = new Date(it);
+      startTime.setHours(hours, minutes, 0, 0);
+      
+      const midpoint = addMinutes(startTime, event["持续时间"] / 2);
+      if (it >= midpoint) {
+        shouldShowBilling = true;
+      }
+    }
+
+    if (shouldShowBilling) {
+      setShowCheckoutPreview(true)
+    } else {
+      setShowCheckoutPreview(false)
+    }
   }
 
   const closeModal = () => {
@@ -1331,6 +1741,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setClickedStaffId('')
     setStaffAmounts({})
     setItemStaffMap({})
+    setCustomItemPrices({})
     setShowServiceSelection(false)
     setShowMemberDetail(false)
     setMemberSearchQuery('')
@@ -1340,8 +1751,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     setMemberName('')
     setMemberNote('')
     setShowCheckoutPreview(false)
+    
     setShowTimeSelection(false)
     setIsDurationPickerOpen(false)
+    setIsSubmitting(false)
   }
 
   // --- Derived Member Data ---
@@ -1391,19 +1804,24 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         }
       })
 
-       // Parse dynamic amounts from notes [NAME_AMT:100]
-       const matches = event["备注"]?.matchAll(/\[([^\]]+)_AMT:(\d+)\]/g)
+       // Parse dynamic amounts from notes [NAME_AMT:100] or [NAME_AMT:100_IDX:0]
+       const matches = event["备注"]?.matchAll(/\[([^\]]+)_AMT:(\d+)(?:_IDX:\d+)?\]/g)
        if (matches) {
          for (const match of matches) {
            amount += Number(match[2]) || 0
          }
        }
+
+       // Parse member note from notes [MEMBER_NOTE:...]
+       const memberNoteMatch = event["备注"]?.match(/\[MEMBER_NOTE:(.*?)\]/)
+       const currentMemberNote = memberNoteMatch ? memberNoteMatch[1] : ''
  
        if (existing) {
          existing.totalSpend += amount
          existing.totalVisits += 1
-         if (eventDate > existing.lastVisit) {
+         if (eventDate >= existing.lastVisit) {
            existing.lastVisit = eventDate
+           if (currentMemberNote) existing.note = currentMemberNote
          }
          // Only update name if current is empty
          if (!existing.name && name) existing.name = name
@@ -1431,7 +1849,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           totalSpend: amount,
           totalVisits: 1,
           lastVisit: eventDate,
-          note: '',
+          note: currentMemberNote,
           history: [{
             date: eventDate,
             service: event["服务项目"],
@@ -1659,8 +2077,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
   return (
     <div className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative">
-      {/* Header */}
-      <div className={cn("relative flex items-center justify-center px-2 md:px-4 lg:px-6 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5 opacity-100", isModalOpen && "pointer-events-none")}>
+      <div className={cn(
+        "relative flex items-center justify-center px-2 md:px-4 lg:px-6 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5", 
+        isModalOpen ? "opacity-0 pointer-events-none" : "opacity-100",
+        isCalendarLocked && "pointer-events-none"
+      )}>
         {/* Year/Month Display Positioned Left */}
          {(viewType === 'year' || viewType === 'month') && (
            <div className="absolute left-12 md:left-24 lg:left-32 flex items-center gap-1 animate-in fade-in slide-in-from-left-4 duration-700">
@@ -1729,7 +2150,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       {/* Calendar Grid - Stretching to fill remaining space */}
       <div className={cn(
         "flex-1 flex flex-col min-h-0 relative overflow-hidden",
-        (viewType === 'day' || viewType === 'week') && "overflow-y-auto"
+        (viewType === 'day' || viewType === 'week') && "overflow-y-auto",
+        isModalOpen ? "opacity-0 pointer-events-none" : "opacity-100",
+        isCalendarLocked && "pointer-events-none"
       )}>
         {(viewType === 'day' || viewType === 'week') ? (
           <div className="flex flex-col h-full overflow-hidden">
@@ -1739,12 +2162,12 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               {viewType === 'day' && (
                 <div className="flex items-center gap-4 pl-[24px] md:pl-[40px] py-2">
                   <div 
-                      onClick={onToggleSidebar}
-                      className={cn(
-                        "flex items-center text-lg md:text-2xl lg:text-3xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group",
-                        isModalOpen && "pointer-events-none"
-                      )}
-                    >
+                        onClick={onToggleSidebar}
+                        className={cn(
+                          "flex items-center text-lg md:text-2xl lg:text-3xl font-black tracking-[0.28em] select-none drop-shadow-[0_0_16px_rgba(255,255,255,0.35)] cursor-pointer group antialiased",
+                          isModalOpen ? "opacity-0 pointer-events-none" : ""
+                        )}
+                      >
                     {/* Display Year */}
                      {[...format(currentDate, 'yyyy')].map((ch, i) => (
                        <span
@@ -1783,14 +2206,17 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               )}
               
               <div className="flex w-full">
-                <div className="w-20 md:w-28 flex flex-col items-center pt-4 pb-2 bg-transparent shrink-0">
+                <div className={cn(
+                  "w-20 md:w-28 flex flex-col items-center pt-4 pb-2 bg-transparent shrink-0",
+                  isModalOpen && "opacity-0 pointer-events-none"
+                )}>
                   {viewType === 'day' && (
                     <button
                       type="button"
                       onClick={() => setCurrentDate(new Date())}
                       className={cn(
                         "w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center",
-                        isSameDay(currentDate, today || new Date(2024, 0, 1))
+                        isSameDay(currentDate, today || getItalyTime())
                           ? "bg-gradient-to-br from-white/20 to-white/5 border-white/10 shadow-lg"
                           : "bg-transparent border-white/15 hover:border-white/30",
                         isModalOpen && "pointer-events-none"
@@ -1813,7 +2239,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   className={cn(
                     "flex-1 grid",
                     viewType === 'day' ? "" : "grid-cols-7 gap-1.5 md:gap-3 lg:gap-4",
-                    isModalOpen && "pointer-events-none"
+                    isModalOpen ? "opacity-0 pointer-events-none" : ""
                   )}
                   style={viewType === 'day' ? { gridTemplateColumns: `repeat(${activeStaff.length}, minmax(0, 1fr))` } : {}}
                 >
@@ -1837,19 +2263,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       >
                         <div className={cn(
                           "flex flex-col items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full transition-all duration-300",
-                          isSameDay(day, today || new Date(2024, 0, 1)) 
+                          isSameDay(day, today || getItalyTime()) 
                             ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]" 
                             : "hover:bg-white/10 group-hover/day-header:scale-110"
                         )}>
                           <div className={cn(
                             "text-[10px] md:text-xs font-black italic uppercase tracking-widest mb-0.5",
-                            isSameDay(day, today || new Date(2024, 0, 1)) ? "text-zinc-950/80" : "text-white"
+                            isSameDay(day, today || getItalyTime()) ? "text-zinc-950/80" : "text-white"
                           )}>
                             {format(day, 'EEE', { locale: zhCN })}
                           </div>
                           <div className={cn(
                             "text-lg md:text-xl font-black",
-                            isSameDay(day, today || new Date(2024, 0, 1)) ? "text-zinc-900" : "text-white"
+                            isSameDay(day, today || getItalyTime()) ? "text-zinc-900" : "text-white"
                           )}>
                             {format(day, 'd', { locale: zhCN })}
                           </div>
@@ -1862,20 +2288,20 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             </div>
 
             {/* 2. Scrollable Body (Time Axis + Grid) */}
-            <div className={cn("flex-1 overflow-y-auto scrollbar-none", isModalOpen && "pointer-events-none")}>
+            <div className={cn("flex-1 overflow-y-auto scrollbar-none", isModalOpen && "opacity-0 pointer-events-none")}>
               <div className="flex px-1 md:px-2 lg:px-3 min-h-fit pb-20 pt-4">
                 {/* Time Axis Column */}
-                <div className="w-20 md:w-28 shrink-0">
+                <div className={cn("w-20 md:w-28 shrink-0", isModalOpen && "opacity-0 pointer-events-none")}>
                   {TIME_SLOTS.map((time) => (
                     <div key={time} className="h-[4rem] relative">
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] md:text-xs font-bold text-white tabular-nums bg-transparent px-1">
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] md:text-xs font-black text-white tabular-nums bg-transparent px-1">
                         {time}
                       </div>
                     </div>
                   ))}
                   {/* Bottom Label for 22:00 */}
                   <div className="relative h-0">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] md:text-xs font-bold text-white tabular-nums bg-transparent px-1">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] md:text-xs font-black text-white tabular-nums bg-transparent px-1">
                       22:00
                     </div>
                   </div>
@@ -1892,7 +2318,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   } : {}}
                 >
                   {/* Now Line Indicator */}
-                  {isSameDay(currentDate, now) && (viewType === 'day' || viewType === 'week') && now.getHours() >= 8 && now.getHours() < 20 && (
+                  {now && !isCalendarLocked && isSameDay(currentDate, now) && (viewType === 'day' || viewType === 'week') && now.getHours() >= 8 && now.getHours() < 20 && (
                     <div 
                       className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
                       style={{ 
@@ -1913,24 +2339,31 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       })
 
                       return (
-                          <div key={staff.id} className="relative border-l border-white/5 first:border-l-0 z-10">
+                          <div key={staff.id} className={cn(
+                            "relative border-l border-white/5 first:border-l-0 z-10",
+                            isModalOpen && "border-transparent"
+                          )}>
                             {/* Static Gap Badges between appointments */}
-                            <GapBadge 
-                              staffId={staff.id} 
-                              events={events} 
-                              eventAssignments={eventAssignments} 
-                              currentDate={currentDate} 
-                              now={now}
-                            />
+                            {(now && !isCalendarLocked) && (
+                              <GapBadge 
+                                staffId={staff.id} 
+                                events={events} 
+                                eventAssignments={eventAssignments} 
+                                currentDate={currentDate} 
+                                now={now}
+                              />
+                            )}
                             
                             {/* Floating Timer attached to Now Line in this column */}
-                          <StaffTimer 
-                            staffId={staff.id} 
-                            events={events} 
-                            eventAssignments={eventAssignments} 
-                            now={now} 
-                            currentDate={currentDate}
-                          />
+                            {(now && !isCalendarLocked) && (
+                              <StaffTimer 
+                                staffId={staff.id} 
+                                events={events} 
+                                eventAssignments={eventAssignments} 
+                                now={now} 
+                                currentDate={currentDate}
+                              />
+                            )}
                           
                           {TIME_SLOTS.map((time) => {
                           const [hour, minute] = time.split(':').map(Number)
@@ -1970,6 +2403,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           
                           const isShort = durationInMinutes < 30
                           
+                          const isCompleted = event["备注"]?.includes('COMPLETED')
+                          
                           return (
                             <div 
                               key={event.id}
@@ -1985,17 +2420,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               }}
                               className={cn(
                                 "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden",
-                                isShort ? "px-1.5 py-0" : "px-2.5 py-1",
+                                isShort ? "px-1" : "px-2",
                                 "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
-                                "hover:brightness-110 flex flex-col gap-0.5 uppercase tracking-wider",
-                                event["背景颜色"] || 'bg-blue-600'
+                                "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
+                                event["背景颜色"] || 'bg-blue-600',
+                                isCompleted && "bg-opacity-[0.05] border border-white/20",
+                                (isModalOpen || isCalendarLocked) && "opacity-0 pointer-events-none"
                               )}
                             >
                               <div className={cn(
-                                "flex flex-col leading-none font-black italic w-full h-full justify-center",
-                                height < 1.5 ? "text-[8px] scale-[0.9] origin-left" : 
-                                height < 2 ? "text-[9px]" :
-                                isShort ? "text-[10px]" : "text-[13px]"
+                                "flex flex-col leading-none font-black italic w-full gap-0.5",
+                                height < 1.5 ? "text-[9px]" : 
+                                height < 2 ? "text-[10px]" :
+                                isShort ? "text-[11px]" : "text-[13px]"
                               )}>
                                 <div className="flex items-center gap-1 w-full overflow-hidden">
                                   {staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
@@ -2030,11 +2467,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   })()}
                                 </div>
                                   {isShort && memberDisplayId && (
-                                    <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-tight text-white">{memberDisplayId}</span>
+                                    <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-none text-white">{memberDisplayId}</span>
                                   )}
                                 </div>
                                 {!isShort && memberDisplayId && (
-                                  <div className="mt-1">
+                                  <div>
                                     <span className="text-[10px] font-black not-italic truncate leading-none inline-block text-white">
                                       {memberDisplayId}
                                     </span>
@@ -2136,6 +2573,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             const width = 100 / group.totalColumns
                             const left = group.column * width
 
+                            const isCompleted = event["备注"]?.includes('COMPLETED')
+
                             return (
                               <div 
                                 key={event.id}
@@ -2152,12 +2591,70 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   paddingRight: '2px'
                                 }}
                                 className={cn(
-                                  "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden transition-all duration-300",
+                                  "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden",
+                                  isShort ? "px-1" : "px-2",
                                   "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
-                                  "hover:brightness-110",
-                                  event["背景颜色"] || 'bg-blue-600'
+                                  "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
+                                  event["背景颜色"] || 'bg-blue-600',
+                                  isCompleted && "bg-opacity-[0.05] border border-white/20",
+                                  (isModalOpen || isCalendarLocked) && "opacity-0 pointer-events-none"
                                 )}
-                              />
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(event);
+                                }}
+                              >
+                                <div className={cn(
+                                  "flex flex-col leading-none font-black italic w-full gap-0.5",
+                                  height < 1.5 ? "text-[9px]" : 
+                                  height < 2 ? "text-[10px]" :
+                                  isShort ? "text-[11px]" : "text-[13px]"
+                                )}>
+                                  <div className="flex items-center gap-1 w-full overflow-hidden">
+                                    {staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
+                                  <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
+                                    {(() => {
+                                      const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
+                                      
+                                      // Extract staff sequence if present for Scheme A fallback
+                                      const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
+                                      const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
+                                      
+                                      return items.map((item, idx) => {
+                                        // 1. Try to get individual staff mapping if available in notes
+                                        const escapedItem = escapeRegExp(item);
+                                        const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+                                        
+                                        // 2. Fallback to sequence logic (Scheme A) if available
+                                        // 3. Fallback to main staffId
+                                        let itemStaffId = itemStaffMatch 
+                                          ? itemStaffMatch[1] 
+                                          : (staffSeq.length > 0 
+                                              ? (staffSeq[idx] || staffSeq[staffSeq.length - 1]) 
+                                              : staffId);
+                                        
+                                        return (
+                                          <React.Fragment key={idx}>
+                                            <span className="truncate text-white">{item}</span>
+                                            {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
+                                          </React.Fragment>
+                                        )
+                                      });
+                                    })()}
+                                  </div>
+                                    {isShort && memberDisplayId && (
+                                      <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-none text-white">{memberDisplayId}</span>
+                                    )}
+                                  </div>
+                                  {!isShort && memberDisplayId && (
+                                    <div>
+                                      <span className="text-[10px] font-black not-italic truncate leading-none inline-block text-white">
+                                        {memberDisplayId}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             )
                           })
                         })()}
@@ -2190,11 +2687,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               viewType === 'year' 
                 ? "grid-cols-3 md:grid-cols-4 grid-rows-4 md:grid-rows-3 gap-1 md:gap-2" 
                 : "grid-cols-7 grid-rows-6 gap-1 md:gap-2 lg:gap-2.5",
-              isModalOpen && "pointer-events-none"
+              isModalOpen ? "opacity-0 pointer-events-none" : ""
             )}>
               {days.map((day) => {
                 const isCurrentMonth = viewType === 'month' ? isSameMonth(day, monthStart) : true
-                const isToday = isSameDay(day, today || new Date(2024, 0, 1))
+                const isToday = today ? isSameDay(day, today) : false
                 
                 const dayEvents = events.filter(event => {
                   const eventDate = getEventStartTime(event)
@@ -2262,15 +2759,20 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                     {/* Show dots for year view - Disabled as per request to only show count */}
                     {false && viewType === 'year' && dayEvents.length > 0 && (
                       <div className="flex flex-wrap justify-center gap-1 mt-2">
-                        {dayEvents.slice(0, 6).map(event => (
-                          <div 
-                            key={event.id}
-                            className={cn(
-                              "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full",
-                              event["背景颜色"] || 'bg-blue-600'
-                            )}
-                          />
-                        ))}
+                        {dayEvents.slice(0, 6).map(event => {
+                           const isCompleted = event["备注"]?.includes('COMPLETED')
+ 
+                           return (
+                             <div 
+                               key={event.id}
+                               className={cn(
+                                 "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full",
+                                 event["背景颜色"] || 'bg-blue-600',
+                                 isCompleted && "bg-opacity-[0.05]"
+                               )}
+                             />
+                           )
+                          })}
                         {dayEvents.length > 6 && (
                           <div className="text-[8px] text-zinc-500 font-bold">+{dayEvents.length - 6}</div>
                         )}
@@ -2284,31 +2786,34 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         )}
       </div>
 
-      {isModalOpen && (
+      {(isModalOpen && !isCalendarLocked) && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-transparent"
-          onClick={closeModal}
+          onClick={() => handleSubmit()}
         >
           <div 
-            className="w-full max-w-2xl bg-white/[0.03] border border-white/30 rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden backdrop-blur-sm ring-1 ring-white/10"
+            className="w-full max-w-2xl max-h-[92vh] bg-black/95 border border-white/20 rounded-[2rem] shadow-2xl overflow-y-auto ring-1 ring-white/5 custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <form onSubmit={handleSubmit} className="flex flex-col">
-              <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 items-start">
                 {/* Left Column - Core Info */}
-                <div className="p-6 space-y-4">
+                <div className="p-6 pb-0 space-y-2">
                   {/* Title Section - Centered */}
-                  <div className="flex flex-col items-center justify-center mb-6 space-y-1.5">
-                    <h2 className="text-xl font-black italic tracking-[0.4em] text-white">FX ESTETICA</h2>
-                  </div>
+                  <div className="flex flex-col items-center justify-center mb-2 space-y-1 antialiased">
+                      <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">FX ESTETICA</h2>
+                    </div>
 
                   {/* Row 2: Service & Member */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                    <div className="space-y-1.5 antialiased">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         服务内容
                       </label>
-                      <div className="relative group w-full bg-white/[0.03] border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
+                      <div className="relative group w-full bg-white/[0.01] border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
                         <input 
                           autoFocus
                           type="text"
@@ -2317,10 +2822,12 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           value={newTitle}
                           onChange={(e) => setNewTitle(e.target.value)}
                           onFocus={() => {
-                            setShowServiceSelection(true)
-                            setShowMemberDetail(false)
-                            setShowCheckoutPreview(false)
-                            setShowTimeSelection(false)
+                            // Only switch to selection view if NOT in checkout preview
+                            if (!showCheckoutPreview) {
+                              setShowServiceSelection(true)
+                              setShowMemberDetail(false)
+                              setShowTimeSelection(false)
+                            }
                           }}
                           required
                         />
@@ -2367,14 +2874,14 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-1.5 relative">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                    <div className="space-y-1.5 relative antialiased">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         会员信息
                       </label>
                       <input 
                         type="text"
                         placeholder="姓名/卡号/电话"
-                        className="w-full bg-white/[0.03] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-500 shadow-inner"
+                        className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-500 shadow-inner"
                         value={memberInfo}
                         onChange={(e) => {
                           setMemberInfo(e.target.value)
@@ -2389,7 +2896,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       />
                       {/* Search Results Dropdown */}
                       {(filteredMembers.length > 0 || memberSearchQuery) && (
-                        <div className="absolute top-full left-0 w-full mt-1 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
+                        <div className="absolute top-full left-0 w-full mt-1 bg-white/[0.01] backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
                           {filteredMembers.map((member) => (
                             <button
                               key={member.card}
@@ -2428,13 +2935,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                   {/* Row 3: Date & Start Time */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5 relative">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                    <div className="space-y-1.5 relative antialiased">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         {I18N[lang].serviceDate}
                       </label>
                       <div 
                         onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
+                        className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
                       >
                         <span className="font-bold">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
                         <CalendarIcon className="w-4 h-4 text-white/60" />
@@ -2506,8 +3013,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         </div>
                       )}
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                    <div className="space-y-1.5 antialiased">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         {I18N[lang].startTime}
                       </label>
                       <div 
@@ -2521,13 +3028,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         }}
                       >
                         <div className={cn(
-                          "w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner transition-all",
+                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
                           showTimeSelection && timeSelectionType === 'start' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
                         )}>
                           {selectedDate ? format(selectedDate, 'HH') : '08'}{I18N[lang].hourSuffix}
                         </div>
                         <div className={cn(
-                          "w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner transition-all",
+                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
                           showTimeSelection && timeSelectionType === 'start' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
                         )}>
                           {selectedDate ? format(selectedDate, 'mm') : '00'}{I18N[lang].minuteSuffix}
@@ -2538,13 +3045,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                   {/* Row 4: Duration & End Time */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5 relative">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                    <div className="space-y-1.5 relative antialiased">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         {I18N[lang].duration}
                       </label>
                       <div 
                         onClick={() => setIsDurationPickerOpen(!isDurationPickerOpen)}
-                        className="w-full bg-white/5 border-none rounded-xl px-3 py-2.5 text-white text-xs font-bold shadow-inner cursor-pointer hover:bg-white/10 transition-all flex items-center justify-between"
+                        className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white text-xs font-bold shadow-inner cursor-pointer hover:bg-white/10 flex items-center justify-between"
                       >
                         <span>{duration} {I18N[lang].minutesSuffix}</span>
                         <ChevronDown className={cn("w-3.5 h-3.5 text-white/60 transition-transform", isDurationPickerOpen && "rotate-180")} />
@@ -2592,8 +3099,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         </>
                       )}
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                    <div className="space-y-1.5 antialiased">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         {I18N[lang].endTime}
                       </label>
                       <div 
@@ -2607,13 +3114,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         }}
                       >
                         <div className={cn(
-                          "w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner transition-all",
+                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
                           showTimeSelection && timeSelectionType === 'end' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
                         )}>
                           {selectedEndDate ? format(selectedEndDate, 'HH') : (selectedDate ? format(selectedDate, 'HH') : '08')}{I18N[lang].hourSuffix}
                         </div>
                         <div className={cn(
-                          "w-full bg-white/5 border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner transition-all",
+                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
                           showTimeSelection && timeSelectionType === 'end' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
                         )}>
                           {selectedEndDate ? format(selectedEndDate, 'mm') : (selectedDate ? format(selectedDate, 'mm') : '00')}{I18N[lang].minuteSuffix}
@@ -2623,9 +3130,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   </div>
 
                   {/* Row 5: Staff */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 antialiased">
                     <div className="flex items-center justify-between">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest">
+                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
                         {I18N[lang].staff}
                       </label>
                     </div>
@@ -2747,31 +3254,38 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 </div>
 
                 {/* Right Column - Member Detail or Service Selection or Checkout Preview */}
-                <div className="p-6 space-y-4 bg-transparent min-h-[400px]">
+                <div className="p-6 pb-0 space-y-2 bg-transparent min-h-[240px] overflow-visible">
                   {showCheckoutPreview ? (
-                    <div className="h-full flex flex-col space-y-6">
+                    <div className="h-full flex flex-col space-y-2 overflow-visible">
                       {/* Receipt Header */}
-                      <div className="flex flex-col items-center justify-center space-y-2 py-4 border-b border-white/5">
-                        <h2 className="text-xl font-black italic tracking-[0.4em] text-white">BILLING</h2>
-                        <div className="text-[10px] font-black italic text-white/90 uppercase tracking-widest">结账清单</div>
+                      <div className="flex items-center justify-between mb-2 px-2 relative">
+                        <button 
+                          onClick={() => setShowCheckoutPreview(false)}
+                          className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <div className="flex flex-col items-center justify-center flex-1">
+                          <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">BILLING</h2>
+                        </div>
                       </div>
 
                       {/* Items & Staff Amounts */}
-                      <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1">
+                      <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1 overflow-x-visible">
                         {/* Service Title */}
-                        <div className="space-y-2 group">
+                        <div className="space-y-1 group antialiased overflow-visible">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black italic text-white uppercase tracking-widest">项目</span>
+                            <span className="text-[10px] font-bold text-white uppercase tracking-widest subpixel-antialiased">项目</span>
                           </div>
                           
                           {/* Item Price Breakdown with Staff Colors */}
-                          <div className="flex flex-col gap-3 pl-2 border-l border-white/5">
+                          <div className="flex flex-col gap-1 pl-2 overflow-visible">
                             {mergedEvents.map((event, eventIdx) => {
                               const eventItems = event["服务项目"]?.split(',').map(s => s.trim()).filter(Boolean) || [];
                               const eventStaffId = event["背景颜色"]?.match(/bg-([a-z0-9-]+)/)?.[1] || 'sky'; // Try to extract staff from color if possible, but we'll use per-item if available
                               
                               return (
-                                <div key={eventIdx} className="space-y-1">
+                                <div key={eventIdx} className="space-y-1 overflow-visible">
                                   {eventItems.map((itemName, idx) => {
                                     const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
                                     if (!itemData) return null;
@@ -2795,37 +3309,47 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                             })());
                                     
                                     const colorClass = getStaffColorClass(itemStaffId, staffMembers, 'text')
-                                    const itemKey = `${eventIdx}-${itemName}`;
+                                    const itemKey = `${event.id}-${itemName}-${idx}`;
 
                                     return (
-                                      <div key={idx} className="flex items-center justify-between group/item">
-                                        <span className={cn("text-xs font-black italic", colorClass)}>{itemName}</span>
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-[10px] font-black text-white italic">€</span>
-                                          <input 
-                                            type="text"
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            value={customItemPrices[itemKey] || itemData.price}
-                                            onChange={(e) => {
-                                              const newVal = e.target.value.replace(/[^0-9]/g, '');
-                                              const oldVal = customItemPrices[itemKey] || itemData.price.toString();
-                                              const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
-                                              
-                                              // Update item price
-                                              setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
-                                              
-                                              // Update assigned staff's amount if exists
-                                              const staff = staffMembers.find(s => s.id === itemStaffId);
-                                              if (staff && staff.id !== 'NO') {
-                                                setStaffAmounts(prev => ({
-                                                  ...prev,
-                                                  [staff.name]: (Number(prev[staff.name] || 0) + diff).toString()
-                                                }));
-                                              }
-                                            }}
-                                             className="w-10 bg-transparent border-none rounded p-0 text-center focus:outline-none focus:ring-1 focus:ring-white/10 text-[10px] font-black italic text-white placeholder:text-zinc-800"
-                                           />
+                                      <div key={idx} className="flex items-center justify-between group/item py-1.5 overflow-visible">
+                                        <div className="flex items-center gap-3">
+                                          <div className={cn("w-2 h-2 rounded-full", getStaffColorClass(itemStaffId, staffMembers, 'bg') || 'bg-white')} />
+                                          <span className={cn("text-xs font-bold tracking-wide subpixel-antialiased", colorClass)}>{itemName}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 relative z-10 overflow-visible">
+                                          <span className="text-xs font-bold text-white shrink-0 opacity-80 subpixel-antialiased">€</span>
+                                          <div className="w-16 h-8 flex items-center justify-center transition-all">
+                                            <input 
+                                              type="text"
+                                              inputMode="numeric"
+                                              pattern="[0-9]*"
+                                              value={customItemPrices[itemKey] || itemData.price}
+                                              onChange={(e) => {
+                                                const newVal = e.target.value.replace(/[^0-9]/g, '');
+                                                const oldVal = customItemPrices[itemKey] || itemData.price.toString();
+                                                const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                                
+                                                // Update item price
+                                                setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
+                                                
+                                                // Update assigned staff's amount if exists
+                                                const staff = staffMembers.find(s => s.id === itemStaffId);
+                                                if (staff && staff.id !== 'NO') {
+                                                  setStaffAmounts(prev => {
+                                                    const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                                    return { ...prev, [staff.name]: newStaffAmount };
+                                                  });
+                                                }
+                                                
+                                                // If we had a manual total, update it too
+                                                if (manualTotalAmount !== null) {
+                                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                                }
+                                              }}
+                                              className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-sm font-bold text-white placeholder:text-zinc-800 subpixel-antialiased"
+                                            />
+                                          </div>
                                         </div>
                                       </div>
                                     );
@@ -2836,42 +3360,52 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           </div>
                         </div>
 
-                        <div className="h-[1px] bg-white/5 w-full" />
+                        <div className="h-[1px] w-full" />
 
                         {/* Staff Breakdown */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="text-[10px] font-black italic text-white uppercase tracking-widest">服务人员</div>
+                        <div className="space-y-1 antialiased overflow-visible">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[10px] font-bold text-white uppercase tracking-widest subpixel-antialiased">服务人员</div>
                           </div>
                           
                           {staffMembers
                             .filter(s => s.id !== 'NO' && (involvedStaffIds.includes(s.id) || staffAmounts[s.name] !== undefined))
                             .map((staff) => (
-                              <div key={staff.id} className="flex items-center justify-between bg-white/5 rounded-xl p-3 shadow-inner group hover:bg-white/10">
+                              <div key={staff.id} className="flex items-center justify-between group/item py-1.5 overflow-visible">
                                 <div className="flex items-center gap-3">
                                   <div className={cn("w-2 h-2 rounded-full", staff.color || 'bg-white')} />
                                   <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-white">{staff.name}</span>
-                                    {staff.id === selectedStaffId && (
-                                      <span className="text-[8px] font-black italic text-zinc-400 uppercase tracking-tighter">主服务人员</span>
-                                    )}
+                                    <span className={cn(
+                                      "text-[10px] font-bold uppercase tracking-widest subpixel-antialiased",
+                                      getStaffColorClass(staff.id, staffMembers, 'text')
+                                    )}>{staff.name}</span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <input 
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    value={staffAmounts[staff.name] || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/[^0-9]/g, '');
-                                      setStaffAmounts(prev => ({ ...prev, [staff.name]: val }));
-                                    }}
-                                    placeholder="0"
-                                    className="w-16 bg-transparent border-none rounded-lg py-1 text-center focus:outline-none focus:ring-1 focus:ring-white/10 text-sm font-black italic text-white placeholder:text-zinc-800"
-                                  />
-                                  <span className="text-xs font-black text-white italic">€</span>
-                                </div>
+                                <div className="flex items-center gap-1.5 relative z-10 overflow-visible">
+                                     <span className="text-xs font-bold text-white shrink-0 opacity-80 subpixel-antialiased">€</span>
+                                     <div className="w-16 h-8 flex items-center justify-center transition-all">
+                                       <input 
+                                         type="text"
+                                         inputMode="numeric"
+                                         pattern="[0-9]*"
+                                         value={staffAmounts[staff.name] || ''}
+                                         onChange={(e) => {
+                                           const newVal = e.target.value.replace(/[^0-9]/g, '');
+                                           const oldVal = staffAmounts[staff.name] || '0';
+                                           const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                           
+                                           setStaffAmounts(prev => ({ ...prev, [staff.name]: newVal }));
+                                           
+                                           // If we had a manual total, update it too
+                                           if (manualTotalAmount !== null) {
+                                             setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                           }
+                                         }}
+                                         placeholder="0"
+                                         className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-sm font-bold text-white placeholder:text-zinc-800 subpixel-antialiased"
+                                       />
+                                     </div>
+                                   </div>
                               </div>
                             ))}
                           {Object.values(staffAmounts).filter(v => v && Number(v) > 0).length === 0 && !selectedStaffId && (
@@ -2883,20 +3417,42 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         </div>
                       </div>
   
-                    {/* Total Amount Section */}
-                    <div className="pt-6 border-t border-white/5 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black italic text-white uppercase tracking-widest">总金额</span>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-xs font-black text-white">€</span>
-                            <span className="text-3xl font-black italic text-white">
-                              {Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
-                               Object.values(customItemPrices).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
-                               mergedTotalPrice}
-                            </span>
-                          </div>
+                    {/* Total Amount Section - Perfectly Centered in Right Panel with Input Box */}
+                    <div className="pt-2 pb-1 flex flex-col items-center w-full overflow-visible">
+                      {/* Row 1: TOTAL BILLING centered in right panel */}
+                      <div className="w-full flex justify-center overflow-visible mb-0.5">
+                        <h3 className="text-xl font-black italic text-white uppercase tracking-[0.2em] [text-shadow:0_2px_4px_rgba(0,0,0,0.8),0_0_1px_rgba(0,0,0,1)] mr-[-0.2em]">
+                          TOTAL BILLING
+                        </h3>
+                      </div>
+                      
+                      {/* Row 2: Pure Large Amount Display - No Box */}
+                      <div className="w-full flex justify-center overflow-visible">
+                        <div className="flex items-center justify-center overflow-visible">
+                          <input 
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={manualTotalAmount !== null ? manualTotalAmount : (
+                              Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
+                              mergedTotalPrice
+                            ).toString()}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9]/g, '');
+                              setManualTotalAmount(val);
+                            }}
+                            style={{ 
+                              fontSize: '45px',
+                              lineHeight: '1',
+                              height: 'auto',
+                              width: '100%',
+                              maxWidth: '250px'
+                            }}
+                            className="bg-transparent border-none p-0 text-center focus:outline-none font-black italic text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]"
+                          />
                         </div>
                       </div>
+                    </div>
                     </div>
                   ) : showMemberDetail && selectedMember ? (
                     <div className="space-y-6">
@@ -2932,7 +3488,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         </div>
                         <div className="bg-white/5 rounded-xl p-3 space-y-1 shadow-inner">
                           <div className="text-xs font-black text-white">
-                            {isNewMember ? '0' : today ? Math.floor((today.getTime() - new Date(selectedMember.lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : '...'} 天
+                            {isNewMember ? '0' : (today || getItalyTime()) ? Math.floor(((today || getItalyTime()).getTime() - new Date(selectedMember.lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : '...'} 天
                           </div>
                           <div className="text-[9px] text-white font-black italic uppercase tracking-widest">距离上次</div>
                         </div>
@@ -2990,9 +3546,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </div>
 
                       {/* Notes Section */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black italic text-white uppercase tracking-widest">{I18N[lang].notes}</label>
-                        <div className="bg-white/5 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white/10 shadow-inner">
+                      <div className="space-y-1.5 antialiased">
+                        <label className="text-[9px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">{I18N[lang].notes}</label>
+                        <div className="bg-white/[0.01] rounded-xl p-3 focus-within:ring-1 focus-within:ring-white/10 shadow-inner">
                           <input 
                             type="text"
                             placeholder={I18N[lang].notesPlaceholder}
@@ -3045,10 +3601,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   }
                                 }}
                                 className={cn(
-                                  "py-2.5 rounded-xl text-xs font-black italic transition-all shadow-inner",
+                                  "py-2.5 rounded-xl text-xs font-black italic shadow-inner",
                                   isSelected 
                                     ? "bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                                    : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                                    : "bg-white/[0.01] text-white hover:bg-white/10 hover:text-white"
                                 )}
                               >
                                 {hour.toString().padStart(2, '0')}:00
@@ -3090,10 +3646,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   }
                                 }}
                                 className={cn(
-                                  "py-2.5 rounded-xl text-xs font-black italic transition-all shadow-inner",
+                                  "py-2.5 rounded-xl text-xs font-black italic shadow-inner",
                                   isSelected 
                                     ? "bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                                    : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                                    : "bg-white/[0.01] text-white hover:bg-white/10 hover:text-white"
                                 )}
                               >
                                 {minute.toString().padStart(2, '0')}
@@ -3104,10 +3660,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </div>
                     </div>
                   ) : showServiceSelection ? (
-                    <div className="space-y-6">
+                    <div className="space-y-[-4px]">
                       {/* Title Section - Centered (Matching Left) */}
-                      <div className="flex flex-col items-center justify-center mb-6 space-y-1.5">
-                        <h2 className="text-xl font-black italic tracking-[0.4em] text-white">FX ESTETICA</h2>
+                      <div className="flex flex-col items-center justify-center mb-[-4px] space-y-1 antialiased">
+                        <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">FX ESTETICA</h2>
                       </div>
 
                       {/* Service Categories - 4 Columns */}
@@ -3115,32 +3671,27 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         {SERVICE_CATEGORIES.map((category) => {
                           const isSelected = newTitle.split(',').map(s => s.trim()).includes(category.title)
                           return (
-                          <div key={category.title} className="space-y-2">
+                          <div key={category.title} className="space-y-[1px]">
                             <div 
                               onClick={() => toggleService(category.title)}
                               className={cn(
-                                "aspect-[1.8/1] rounded-xl bg-gradient-to-br border-none flex flex-col items-center justify-center p-1.5 group cursor-pointer shadow-inner relative overflow-hidden",
-                                category.color,
-                                isSelected ? "ring-2 ring-white/50 shadow-[0_0_20px_rgba(255,255,255,0.1)]" : "hover:bg-white/10"
+                                "flex flex-col items-center justify-center pt-1 pb-0 px-2 group cursor-pointer relative overflow-hidden transition-all",
+                                isSelected ? "opacity-100" : "opacity-60 hover:opacity-100"
                               )}
                             >
-                              {isSelected && (
-                                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
-                              )}
                               <h4 className={cn(
-                                "text-[9px] font-black italic tracking-widest uppercase",
-                                isSelected ? "text-white" : "text-white/60"
+                                "text-[15px] font-black italic tracking-widest uppercase text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)] antialiased"
                               )}>
                                 {category.title}
                               </h4>
                               <div className={cn(
-                                "mt-1 h-[1px]",
+                                "mt-[2px] h-[1.5px] transition-all duration-300",
                                 isSelected ? "w-8 bg-white" : "w-4 bg-white/20 group-hover:w-8"
                               )} />
                             </div>
                             
                             {/* Sub Items */}
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-[1px]">
                               {category.items.map((item) => {
                                 const isItemSeleted = newTitle.split(',').map(s => s.trim()).includes(item.name)
                                 const itemStaffId = itemStaffMap[item.name]
@@ -3151,10 +3702,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   type="button"
                                   onClick={() => toggleService(item.name)}
                                   className={cn(
-                                    "w-full py-1.5 px-2 rounded-lg text-[10px] font-black italic shadow-inner",
+                                    "w-full py-1.5 px-2 rounded-lg text-[11px] font-bold tracking-wide subpixel-antialiased transition-colors",
                                     isItemSeleted 
-                                      ? `${getStaffColorClass(itemStaffId, staffMembers).replace('-500', '-400')} bg-white/20 ring-1 ring-white/30`
-                                      : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                                      ? `${getStaffColorClass(itemStaffId, staffMembers).replace('-500', '-400')} bg-white/10 ring-1 ring-white/20`
+                                      : "bg-white/[0.01] text-white/90 hover:bg-white/5 hover:text-white"
                                   )}
                                 >
                                   {item.name}
@@ -3177,17 +3728,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               </div>
 
               {/* Footer Actions */}
-              <div className="px-4 py-6 bg-transparent flex flex-col items-center justify-center">
-                <div className="flex flex-row flex-nowrap gap-4 w-full justify-center items-center overflow-x-auto custom-scrollbar">
+              <div 
+                  className="px-4 bg-transparent flex flex-col items-center justify-center"
+                  style={{ marginTop: '-12px', paddingTop: '0px', paddingBottom: '10px' }}
+                >
+                <div className="flex flex-row flex-nowrap gap-6 w-full justify-center items-center overflow-x-auto">
                   {editingEvent && (
                     <button 
                       type="button" 
                       onClick={handleDeleteEvent}
                       disabled={isSubmitting}
                       className={cn(
-                        "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
-                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
-                        "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                        "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all",
+                        "text-red-500 hover:text-red-400"
                       )}
                     >
                       {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '删除'}
@@ -3201,9 +3754,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         type="button" 
                         onClick={(e) => handleSubmit(e as any, 'sequential')}
                         className={cn(
-                          "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
-                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
-                          "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                          "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all text-white/80"
                         )}
                       >
                         分段服务
@@ -3213,9 +3764,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                         type="button" 
                         onClick={(e) => handleSubmit(e as any, 'parallel')}
                         className={cn(
-                          "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
-                          "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
-                          "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                          "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all text-white/80"
                         )}
                       >
                         同时服务
@@ -3234,9 +3783,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       }
                     }}
                     className={cn(
-                      "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
-                      "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
-                      "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                      "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all",
+                      showCheckoutPreview ? "text-emerald-400" : "text-white"
                     )}
                   >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (showCheckoutPreview ? '确认收款' : '收银结账')}
@@ -3247,9 +3795,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       disabled={isSubmitting} 
                       type="submit" 
                       className={cn(
-                        "px-6 py-3 bg-transparent rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/5 whitespace-nowrap",
-                        "bg-gradient-to-r from-zinc-500 via-white to-zinc-500 bg-[length:200%_auto] bg-clip-text text-transparent",
-                        "drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                        "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all text-white"
                       )}
                     >
                       {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '预约确定'}
@@ -3262,13 +3808,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         </div>
       )}
       {/* --- Staff Management Modal --- */}
-      {isStaffManagerOpen && (
+      {(isStaffManagerOpen && !isCalendarLocked) && (
         <div 
           className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60"
           onClick={() => setIsStaffManagerOpen(false)}
         >
           <div 
-            className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6"
+            className="w-full max-w-sm bg-white/[0.01] border border-white/40 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 backdrop-blur-[1px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -3284,7 +3830,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                 <input 
                   type="text"
                   placeholder="新员工姓名..."
-                  className="flex-1 bg-white/5 border-none rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white/20 text-xs"
+                  className="flex-1 bg-white/[0.01] border-none rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-1 focus:ring-white/20 text-xs"
                   value={newStaffName}
                   onChange={(e) => setNewStaffName(e.target.value)}
                   onKeyDown={(e) => {
@@ -3452,6 +3998,59 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             <p className="text-[9px] text-zinc-500 text-center uppercase tracking-[0.2em]">
               员工信息将自动保存
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar Lock Overlay */}
+      {isCalendarLocked && (
+        <div className="absolute inset-0 z-[9999] backdrop-blur-3xl bg-zinc-950/40 flex items-center justify-center transition-all duration-500 pointer-events-auto">
+          <div className="flex flex-col items-center gap-6 p-10 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-2 border border-white/10">
+                <span className="text-3xl font-black text-white tracking-tighter">FX</span>
+              </div>
+              <h2 className="text-xl font-black italic tracking-[0.3em] text-white uppercase [text-shadow:0_1px_1px_rgba(0,0,0,0.8)]">ESTETICA</h2>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Calendar Restricted</p>
+            </div>
+
+            <form onSubmit={handleUnlock} className="flex flex-col items-center gap-4 w-64">
+              <div className="relative w-full group">
+                <input
+                  autoFocus
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={lockPassword}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setLockPassword(val)
+                    if (val === "0428") {
+                      setIsCalendarLocked(false)
+                      setUnlockError(false)
+                      setLockPassword("")
+                    }
+                  }}
+                  placeholder="Enter Password"
+                  className={cn(
+                    "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-xl font-black tracking-[0.5em] text-white placeholder:text-zinc-700 placeholder:tracking-normal placeholder:text-xs focus:outline-none transition-all",
+                    unlockError ? "border-rose-500/50 bg-rose-500/5 ring-4 ring-rose-500/10" : "focus:border-white/20 focus:bg-white/10"
+                  )}
+                />
+                {unlockError && (
+                  <p className="absolute -bottom-6 left-0 right-0 text-center text-[9px] font-bold text-rose-500 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">
+                    Invalid Password
+                  </p>
+                )}
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full py-3.5 rounded-2xl bg-white text-zinc-950 font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/5 mt-2"
+              >
+                Unlock Access
+              </button>
+            </form>
           </div>
         </div>
       )}
