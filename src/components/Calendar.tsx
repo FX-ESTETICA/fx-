@@ -730,14 +730,15 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     });
     
     mergedEvents.forEach(event => {
+      const ev = event as CalendarEvent;
       // 0. Check billing_details
-      if (event.billing_details?.items) {
-        event.billing_details.items.forEach((item: any) => {
+      if (ev.billing_details?.items) {
+        ev.billing_details.items.forEach((item: any) => {
           if (item.staffId && item.staffId !== 'NO') ids.add(item.staffId);
         });
       }
-      if (event.billing_details?.staff) {
-        Object.keys(event.billing_details.staff).forEach(name => {
+      if (ev.billing_details?.staff) {
+        Object.keys(ev.billing_details.staff).forEach(name => {
           const staff = staffMembers.find(s => s.name === name);
           if (staff && staff.id !== 'NO') ids.add(staff.id);
         });
