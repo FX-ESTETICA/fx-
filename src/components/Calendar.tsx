@@ -1388,23 +1388,24 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       
       for (const event of otherEvents) {
         if (!event) continue;
+        const ev = event as CalendarEvent;
         // Calculate billing details for this specific event
-        const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
+        const eventItems = (ev["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
         const eventBilling: any = { items: [], staff: {}, manualTotal: null };
         let eventTotal = 0;
 
         eventItems.forEach((itemName, itemIdx) => {
-          const itemKey = `${event.id}-${itemName}-${itemIdx}`;
+          const itemKey = `${ev.id}-${itemName}-${itemIdx}`;
           const customPrice = customItemPrices[itemKey];
           const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
           const price = customPrice ? Number(customPrice) : (itemData?.price || 0);
           
           // Get assigned staff from notes if not in billing_details
-          let staffId = event.billing_details?.items?.[itemIdx]?.staffId;
+          let staffId = ev.billing_details?.items?.[itemIdx]?.staffId;
           if (!staffId) {
             const escapedItem = escapeRegExp(itemName);
-            const staffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`));
-            staffId = staffMatch ? staffMatch[1] : (event["背景颜色"] ? COLOR_TO_STAFF_ID[getCleanColorName(event["背景颜色"])] : 'sky');
+            const staffMatch = ev["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`));
+            staffId = staffMatch ? staffMatch[1] : (ev["背景颜色"] ? COLOR_TO_STAFF_ID[getCleanColorName(ev["背景颜色"])] : 'sky');
           }
 
           eventBilling.items.push({ name: itemName, price, staffId });
@@ -1417,8 +1418,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         });
 
         // Update status to completed if it's a checkout
-         let eventStatus = event.status || 'pending';
-         let eventNotes = event["备注"] || "";
+         let eventStatus = ev.status || 'pending';
+         let eventNotes = ev["备注"] || "";
          if ((isCheckout || isAlreadyCompleted)) {
            eventStatus = 'completed';
            if (!eventNotes.includes('[STATUS:COMPLETED]')) {
@@ -1435,7 +1436,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
              "status": eventStatus,
              "备注": eventNotes
            })
-           .eq('id', event.id);
+           .eq('id', ev.id);
       }
     }
 
