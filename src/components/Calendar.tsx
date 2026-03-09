@@ -606,9 +606,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         let changed = false;
 
         mergedEvents.forEach((event, eventIdx) => {
+          const ev = event as CalendarEvent;
           // --- Priority 1: billing_details (New Schema) ---
-          if (event.total_amount !== undefined && event.total_amount !== null && event.billing_details) {
-            const details = event.billing_details;
+          if (ev.total_amount !== undefined && ev.total_amount !== null && ev.billing_details) {
+            const details = ev.billing_details;
             
             // Items
             if (details.items) {
