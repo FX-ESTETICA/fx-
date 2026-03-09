@@ -1405,7 +1405,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           if (!staffId) {
             const escapedItem = escapeRegExp(itemName);
             const staffMatch = ev["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`));
-            staffId = staffMatch ? staffMatch[1] : (ev["背景颜色"] ? COLOR_TO_STAFF_ID[getCleanColorName(ev["背景颜色"])] : 'sky');
+            const colorName = getCleanColorName(ev["背景颜色"]);
+            staffId = staffMatch ? staffMatch[1] : (colorName ? COLOR_TO_STAFF_ID[colorName] : 'sky');
           }
 
           eventBilling.items.push({ name: itemName, price, staffId });
