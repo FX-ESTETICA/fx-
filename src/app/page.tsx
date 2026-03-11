@@ -135,7 +135,7 @@ export default function PortalPage() {
     // 这里构造给 AI 的本地知识库上下文
     const context = `
       你是 Rapallo 城市的智能导游。以下是当前 App 内的实时商家数据：
-      ${MERCHANTS.map(m => `- ${m.name} (${m.category}): 评分${m.rating}, 状态${m.status === 'available' ? '营业中' : '休息'}`).join('\n')}
+      ${MERCHANTS.map(m => `- ${m.name} (${m.category}): 评分${m.rating}`).join('\n')}
       
       请根据这些信息回答用户。如果用户问哪家好，请推荐评分高的。回复要简短科幻，带点意大利风情。
     `
