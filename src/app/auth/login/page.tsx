@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [isCounting, setIsCounting] = useState(false)
+  const [stayLoggedIn, setStayLoggedIn] = useState(true)
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -37,18 +38,19 @@ export default function LoginPage() {
     setCountdown(60)
     
     try {
-      const response = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true, // 允许新用户通过验证码注册并登录
+        },
       })
-      const data = await response.json()
-      if (data.error) {
-        console.error('Failed to send email:', data.error)
-        // Reset countdown if failed
+      
+      if (error) {
+        console.error('Failed to send OTP:', error.message)
         setIsCounting(false)
         setCountdown(0)
-        alert('发送验证码失败: ' + data.error)
+        alert('发送验证码失败: ' + error.message)
       } else {
         console.log('Verification code sent to:', email)
       }
@@ -63,18 +65,47 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    const supabase = createClient()
     
-    // Set simulation flags
-    localStorage.setItem('demo_is_logged_in', 'true')
-    // Default to merchant for demo if it's the admin email, else user
-    const role = email.includes('admin') ? 'merchant' : 'user'
-    localStorage.setItem('demo_user_role', role)
-    window.dispatchEvent(new Event('storage'))
-    
-    setIsLoading(false)
-    router.push('/me')
+    try {
+      let result;
+      if (loginMode === 'code') {
+        // 使用验证码登录
+        result = await supabase.auth.verifyOtp({
+          email,
+          token: code,
+          type: 'email',
+        })
+      } else {
+        // 使用密码登录
+        result = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+      }
+
+      if (result.error) {
+        console.error('Login error:', result.error.message)
+        alert('登录失败: ' + result.error.message)
+      } else {
+        // 登录成功
+        const user = result.data.user
+        if (user) {
+          localStorage.setItem('demo_is_logged_in', 'true')
+          const role = user.user_metadata?.role || (email.includes('admin') ? 'merchant' : 'user')
+          localStorage.setItem('demo_user_role', role)
+          localStorage.setItem('demo_stay_logged_in', stayLoggedIn.toString())
+          window.dispatchEvent(new Event('storage'))
+          
+          router.push('/')
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error during login:', error)
+      alert('发生意外错误，请重试')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSocialLogin = async (provider: Provider) => {
@@ -95,6 +126,14 @@ export default function LoginPage() {
       console.error('Social login error:', error.message)
       alert('登录失败: ' + error.message)
     }
+  }
+
+  const handleGuestLogin = () => {
+    localStorage.setItem('demo_is_logged_in', 'true')
+    localStorage.setItem('demo_user_role', 'guest')
+    localStorage.setItem('demo_stay_logged_in', 'false')
+    window.dispatchEvent(new Event('storage'))
+    router.push('/')
   }
 
   return (
@@ -238,6 +277,27 @@ export default function LoginPage() {
                 </div>
               </div>
             )}
+
+            <div className="flex items-center justify-between px-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={stayLoggedIn}
+                  onChange={(e) => setStayLoggedIn(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/10 bg-black/20 text-blue-500 focus:ring-blue-500/20 transition-all"
+                />
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest group-hover:text-zinc-400 transition-colors">
+                  保持登录状态
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                className="text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                游客登录
+              </button>
+            </div>
 
             <button 
               type="submit"

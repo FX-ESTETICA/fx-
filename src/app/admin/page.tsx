@@ -7,8 +7,11 @@ import Sidebar from '@/components/Sidebar'
 import PerformanceReport from '@/components/PerformanceReport'
 import AISmartBall from '@/components/AISmartBall'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
 
 export default function AdminPage() {
+  const router = useRouter()
   const [calendarDate, setCalendarDate] = useState(new Date())
   const [calendarView, setCalendarView] = useState<ViewType>('day')
   const [isSidebarVisible, setIsSidebarVisible] = useState(true)
@@ -18,7 +21,31 @@ export default function AdminPage() {
   const [lang, setLang] = useState<'zh' | 'it'>('zh')
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
   
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        router.push('/auth/login')
+        return
+      }
+      
+      const role = session.user.user_metadata?.role
+      if (role !== 'merchant') {
+        alert('权限不足，仅限商家访问')
+        router.push('/me')
+        return
+      }
+      
+      setIsAuthorized(true)
+    }
+    
+    checkAuth()
+  }, [router])
+
   const backgrounds = [
     '/wallhaven-eo68l8.jpg',
     '/wallhaven-47je19.jpg',
@@ -92,6 +119,14 @@ export default function AdminPage() {
       window.removeEventListener('mouseup', stopResizing)
     }
   }, [isResizing, resize, stopResizing])
+
+  if (!isAuthorized) {
+    return (
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <main className="h-screen w-screen bg-zinc-950 flex flex-row overflow-hidden p-0.5 relative">

@@ -27,6 +27,24 @@ export interface CalendarEvent {
   status?: 'pending' | 'completed' | 'deleted';
 }
 
+/**
+ * 用户详细信息模型 (Profiles)
+ * 用于存储生日、等级、积分等扩展信息
+ */
+export interface UserProfile {
+  id: string;
+  full_name?: string;
+  avatar_url?: string;
+  email?: string;
+  phone?: string;
+  birthday?: string; // 格式: YYYY-MM-DD
+  member_level: 'standard' | 'gold' | 'platinum' | 'diamond';
+  points: number;
+  role: 'user' | 'merchant' | 'admin';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StaffMember {
   id: string
   name: string

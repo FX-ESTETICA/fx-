@@ -3276,68 +3276,72 @@ export default function Calendar({
                           
                           const isShort = durationInMinutes < 30
                           
-                          const isCompleted = event["备注"]?.includes('COMPLETED')
-                          
-                          return (
-                            <div 
-                              key={event.id}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (mode === 'admin') {
-                                  openEditModal(event)
-                                }
-                              }}
-                              style={{ 
-                                top: `calc(${top}rem + 1px)`, 
-                                height: `calc(${height}rem - 2px)`,
-                                left: '4px',
-                                right: '4px'
-                              }}
-                              className={cn(
-                                "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden",
-                                isShort ? "px-1" : "px-2",
-                                "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
-                                "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
-                                mode === 'customer' ? 'bg-zinc-700/50' : (event["背景颜色"] || 'bg-blue-600'),
-                                isCompleted && cn("bg-opacity-[0.05] border", getStaffColorClass(staffId, staffMembers, 'border')),
-                                (isModalOpen || (mode === 'admin' && isCalendarLocked)) && "opacity-0 pointer-events-none"
-                              )}
-                            >
-                              <div className={cn(
-                                "flex flex-col leading-none font-black italic w-full gap-0.5",
-                                height < 1.5 ? "text-[9px]" : 
-                                height < 2 ? "text-[10px]" :
-                                isShort ? "text-[11px]" : "text-[13px]"
-                              )}>
-                                <div className="flex items-center gap-1 w-full overflow-hidden">
-                                  {mode === 'admin' && staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
-                                <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
-                                  {mode === 'customer' ? (
-                                    <span className="truncate text-white/40 font-medium">{(I18N[lang] as any).occupied}</span>
-                                  ) : (
-                                    (() => {
-                                      const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
-                                      
-                                      return items.map((item, idx) => {
-                                        // 1. Try to get individual staff mapping if available in notes
-                                        const escapedItem = escapeRegExp(item);
-                                        const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
-                                        
-                                        // 2. Fallback to main staffId
-                                        let itemStaffId = itemStaffMatch 
-                                          ? itemStaffMatch[1] 
-                                          : staffId;
-                                        
-                                        return (
-                                          <React.Fragment key={idx}>
-                                            <span className="truncate text-white">{item}</span>
-                                            {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
-                                          </React.Fragment>
-                                        )
-                                      });
-                                    })()
-                                  )}
-                                </div>
+  const isCompleted = event["备注"]?.includes('COMPLETED')
+  const isPending = event.status === 'pending'
+  
+  return (
+    <div 
+      key={event.id}
+      onClick={(e) => {
+        e.stopPropagation()
+        if (mode === 'admin') {
+          openEditModal(event)
+        }
+      }}
+      style={{ 
+        top: `calc(${top}rem + 1px)`, 
+        height: `calc(${height}rem - 2px)`,
+        left: '4px',
+        right: '4px'
+      }}
+      className={cn(
+        "absolute z-10 rounded-lg text-white shadow-2xl overflow-hidden",
+        isShort ? "px-1" : "px-2",
+        "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
+        "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
+        mode === 'customer' ? 'bg-zinc-700/50' : (event["背景颜色"] || 'bg-blue-600'),
+        isCompleted && cn("bg-opacity-[0.05] border", getStaffColorClass(staffId, staffMembers, 'border')),
+        isPending && "ring-2 ring-red-500 animate-pulse border-2 border-red-500",
+        (isModalOpen || (mode === 'admin' && isCalendarLocked)) && "opacity-0 pointer-events-none"
+      )}
+    >
+      <div className={cn(
+        "flex flex-col leading-none font-black italic w-full gap-0.5",
+        height < 1.5 ? "text-[9px]" : 
+        height < 2 ? "text-[10px]" :
+        isShort ? "text-[11px]" : "text-[13px]"
+      )}>
+        <div className="flex items-center gap-1 w-full overflow-hidden">
+          {mode === 'admin' && staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
+        <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
+          {isPending ? (
+            <span className="truncate text-white animate-bounce">您有新订单</span>
+          ) : mode === 'customer' ? (
+            <span className="truncate text-white/40 font-medium">{(I18N[lang] as any).occupied}</span>
+          ) : (
+            (() => {
+              const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
+              
+              return items.map((item, idx) => {
+                // 1. Try to get individual staff mapping if available in notes
+                const escapedItem = escapeRegExp(item);
+                const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+                
+                // 2. Fallback to main staffId
+                let itemStaffId = itemStaffMatch 
+                  ? itemStaffMatch[1] 
+                  : staffId;
+                
+                return (
+                  <React.Fragment key={idx}>
+                    <span className="truncate text-white">{item}</span>
+                    {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
+                  </React.Fragment>
+                )
+              });
+            })()
+          )}
+        </div>
                                   {mode === 'admin' && isShort && memberDisplayId && (
                                     <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-none text-white">{memberDisplayId}</span>
                                   )}
@@ -3446,6 +3450,7 @@ export default function Calendar({
                             const left = group.column * width
 
                             const isCompleted = mode === 'admin' && event["备注"]?.includes('COMPLETED')
+                            const isPending = event.status === 'pending'
 
                             return (
                               <div 
@@ -3470,6 +3475,7 @@ export default function Calendar({
                                   "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
                                   mode === 'customer' ? 'bg-zinc-700/50' : (event["背景颜色"] || 'bg-blue-600'),
                                   isCompleted && cn("bg-opacity-[0.05] border", getStaffColorClass(staffId, staffMembers, 'border')),
+                                  isPending && "ring-2 ring-red-500 animate-pulse border-2 border-red-500",
                                   (isModalOpen || (mode === 'admin' && isCalendarLocked)) && "opacity-0 pointer-events-none"
                                 )}
                               >
@@ -3482,7 +3488,9 @@ export default function Calendar({
                                   <div className="flex items-center gap-1 w-full overflow-hidden">
                                     {mode === 'admin' && staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
                                   <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
-                                    {mode === 'customer' ? (
+                                    {isPending ? (
+                                      <span className="truncate text-white animate-bounce">您有新订单</span>
+                                    ) : mode === 'customer' ? (
                                       <span className="truncate text-white/40 font-medium">{(I18N[lang] as any).occupied}</span>
                                     ) : (
                                       (() => {
@@ -3612,7 +3620,8 @@ export default function Calendar({
                         {dayEvents.length > 0 ? (
                           <span className={cn(
                             "font-black italic text-white/90 drop-shadow-[0_4px_12px_rgba(255,255,255,0.3)] tracking-tighter group-hover/cell:scale-110 transition-transform duration-500",
-                            viewType === 'year' ? "text-2xl md:text-4xl lg:text-5xl" : "text-xl md:text-3xl lg:text-4xl"
+                            viewType === 'year' ? "text-2xl md:text-4xl lg:text-5xl" : "text-xl md:text-3xl lg:text-4xl",
+                            dayEvents.some(e => e.status === 'pending') && "text-red-500 animate-pulse"
                           )}>
                             {dayEvents.length}
                           </span>

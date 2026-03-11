@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Store, MapPin, Phone, MessageCircle, Info, ArrowRight, Camera, Scissors, Utensils, ShoppingBag, Wine, Shirt, MoreHorizontal } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/utils/supabase/client'
 
 const CATEGORIES = [
   { id: 'beauty', name: '美容美发', icon: Scissors },
@@ -26,6 +27,30 @@ export default function MerchantOnboarding() {
     description: ''
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        router.push('/auth/login')
+        return
+      }
+      
+      const role = session.user.user_metadata?.role
+      if (role !== 'merchant') {
+        alert('权限不足，仅限商家访问')
+        router.push('/me')
+        return
+      }
+      
+      setIsAuthorized(true)
+    }
+    
+    checkAuth()
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,6 +64,14 @@ export default function MerchantOnboarding() {
 
     setIsLoading(false)
     router.push('/admin') // Redirect to merchant dashboard
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-zinc-100 border-t-zinc-900 rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (

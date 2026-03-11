@@ -38,17 +38,19 @@ export default function RegisterPage() {
     setCountdown(60)
     
     try {
-      const response = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        },
       })
-      const data = await response.json()
-      if (data.error) {
-        console.error('Failed to send email:', data.error)
+      
+      if (error) {
+        console.error('Failed to send OTP:', error.message)
         setIsCounting(false)
         setCountdown(0)
-        alert('发送验证码失败: ' + data.error)
+        alert('发送验证码失败: ' + error.message)
       } else {
         console.log('Verification code sent to:', email)
       }
@@ -63,20 +65,54 @@ export default function RegisterPage() {
     e.preventDefault()
     setIsLoading(true)
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    const supabase = createClient()
     
-    // Set simulation flags
-    localStorage.setItem('demo_is_logged_in', 'true')
-    localStorage.setItem('demo_user_role', isMerchant ? 'merchant' : 'user')
-    window.dispatchEvent(new Event('storage'))
-    
-    setIsLoading(false)
-    
-    if (isMerchant) {
-      router.push('/merchant/onboarding')
-    } else {
-      router.push('/me')
+    try {
+      // 首先验证 OTP
+      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email',
+      })
+
+      if (verifyError) {
+        alert('验证码错误: ' + verifyError.message)
+        setIsLoading(false)
+        return
+      }
+
+      // 如果提供了密码，则更新密码
+      if (password) {
+        await supabase.auth.updateUser({ password })
+      }
+
+      // 更新用户元数据（角色和昵称）
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { 
+          full_name: name,
+          role: isMerchant ? 'merchant' : 'user'
+        }
+      })
+
+      if (updateError) {
+        console.error('Update user metadata error:', updateError.message)
+      }
+
+      // 注册/登录成功
+      localStorage.setItem('demo_is_logged_in', 'true')
+      localStorage.setItem('demo_user_role', isMerchant ? 'merchant' : 'user')
+      window.dispatchEvent(new Event('storage'))
+      
+      if (isMerchant) {
+        router.push('/merchant/onboarding')
+      } else {
+        router.push('/me')
+      }
+    } catch (error) {
+      console.error('Unexpected error during registration:', error)
+      alert('发生意外错误，请重试')
+    } finally {
+      setIsLoading(false)
     }
   }
 

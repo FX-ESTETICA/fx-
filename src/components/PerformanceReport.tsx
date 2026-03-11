@@ -117,6 +117,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
           .select('*')
           .gte('服务日期', format(start, 'yyyy-MM-dd'))
           .lte('服务日期', format(end, 'yyyy-MM-dd'))
+          .eq('status', 'completed')
         
         if (error) throw error
         setEvents(data || [])
