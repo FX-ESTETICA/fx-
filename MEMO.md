@@ -94,7 +94,7 @@
 - **部署平台**: Vercel
 - **仓库地址**: [https://github.com/FX-ESTETICA/fx-.git](https://github.com/FX-ESTETICA/fx-.git)
 - **生产环境 URL**: [https://fx-rapallo.vercel.app](https://fx-rapallo.vercel.app)
-- **最近更新**: 2026-03-13 (已完成 Git 提交、推送并触发 Vercel 生产环境部署)。
+- **最近更新**: 2026-03-15 (已完成 Git 提交、推送并触发 Vercel 生产环境部署)。
 - **底部导航激活**: 为底部导航栏的“首页”、“发现”、“我的”按键绑定了真实的 Next.js 路由跳转（`/`, `/explore`, `/me`）。
 - **发现页滑动切换 (Swipe Navigation)**:
     - **手势支持**: 在 `ExplorePage` 中实现了 `onTouchStart`, `onTouchMove`, `onTouchEnd` 手势监听。
