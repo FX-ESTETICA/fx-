@@ -83,8 +83,11 @@ export default function RegisterPage() {
   const handleSocialLogin = async (provider: Provider) => {
     const supabase = createClient()
     const nextPath = isMerchant ? '/merchant/onboarding' : '/me'
-    // 强制使用 localhost 域名，避免 0.0.0.0 导致重定向失败
-    const origin = window.location.origin.replace('0.0.0.0', 'localhost')
+    // 如果在本地开发且是 0.0.0.0，替换为 localhost。在线上环境则保持原样。
+    const origin = window.location.origin.includes('0.0.0.0') 
+      ? window.location.origin.replace('0.0.0.0', 'localhost')
+      : window.location.origin;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {

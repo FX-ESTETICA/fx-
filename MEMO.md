@@ -52,7 +52,11 @@
 - **注册流程优化**:
     - **角色切换**: 注册页面支持“普通用户”与“商家”角色的实时切换，并根据选择自动调整登录后的首访页面（商家进入 `/merchant/onboarding`，用户进入 `/me`）。
 
-### 导航与路由
+### 部署信息 (Deployment)
+- **部署平台**: Vercel
+- **仓库地址**: [https://github.com/FX-ESTETICA/fx-.git](https://github.com/FX-ESTETICA/fx-.git)
+- **生产环境 URL**: [https://fx-rapallo.vercel.app](https://fx-rapallo.vercel.app)
+- **最近更新**: 2026-03-13 (已完成 Git 提交、推送并触发 Vercel 生产环境部署)。
 - **底部导航激活**: 为底部导航栏的“首页”、“发现”、“我的”按键绑定了真实的 Next.js 路由跳转（`/`, `/explore`, `/me`）。
 - **发现页滑动切换 (Swipe Navigation)**:
     - **手势支持**: 在 `ExplorePage` 中实现了 `onTouchStart`, `onTouchMove`, `onTouchEnd` 手势监听。

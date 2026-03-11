@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  // 强制将 0.0.0.0 替换为 localhost 供浏览器访问
-  const origin = new URL(request.url).origin.replace('0.0.0.0', 'localhost')
+  const { searchParams, origin: requestOrigin } = new URL(request.url)
+  // 如果在本地开发且是 0.0.0.0，替换为 localhost。在线上环境则保持原样。
+  const origin = requestOrigin.includes('0.0.0.0') 
+    ? requestOrigin.replace('0.0.0.0', 'localhost')
+    : requestOrigin;
+  
   const code = searchParams.get('code')
   // if "next" is in search params, use it as the redirection URL
   const next = searchParams.get('next') ?? '/me'
