@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { 
   format, 
   startOfMonth, 
@@ -27,7 +27,7 @@ import {
   addMinutes
 } from 'date-fns'
 import { zhCN, it as itLocale } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, ChevronDown, X, Loader2, Calendar as CalendarIcon, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, X, Loader2, Calendar as CalendarIcon, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, ShieldCheck, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -45,7 +45,9 @@ import {
   getCleanColorName,
   getStaffColorClass,
   SERVICE_CATEGORIES, 
-  I18N 
+  PRESET_PRICES,
+  I18N,
+  APP_VERSION
 } from '@/utils/calendar-constants'
 import { 
   getEventStartTime, 
@@ -54,6 +56,12 @@ import {
   generateTimeSlots,
   calculateTotalPrice 
 } from '@/utils/calendar-helpers'
+
+// --- Constants for Calendar Rendering ---
+const SLOT_INTERVAL = 15; // Minutes per selection block
+const HOUR_HEIGHT = 10; // Increased height for better precision (10rem per hour)
+const MINUTE_HEIGHT = HOUR_HEIGHT / 60; // Rem per minute
+const SLOT_HEIGHT = (SLOT_INTERVAL / 60) * HOUR_HEIGHT; // Rem per slot (15 min = 2.5rem)
 
 // --- Weather Component ---
 function WeatherDisplay() {
@@ -217,8 +225,8 @@ function GapBadge({ staffId, events, eventAssignments, currentDate, now }: {
       const diffMs = nextStart.getTime() - currentEnd.getTime();
       if (diffMs >= 5 * 60 * 1000) { // Only show if gap is at least 5 mins
         const minutes = Math.floor(diffMs / (1000 * 60));
-        const top = ((currentEnd.getHours() - 8) * 60 + currentEnd.getMinutes()) * (4 / 60);
-        const height = minutes * (4 / 60);
+        const top = ((currentEnd.getHours() - 8) * 60 + currentEnd.getMinutes()) * MINUTE_HEIGHT;
+        const height = minutes * MINUTE_HEIGHT;
         result.push({ top, height, minutes, startTime: currentEnd });
       }
     }
@@ -343,22 +351,18 @@ function StaffTimer({ staffId, events, eventAssignments, now, currentDate }: {
     return `${totalMinutes} MIN`;
   }, [timerData, now]);
 
-  if (!timerData) return (
-    <div className="h-5 flex items-center justify-center">
-      <div className="w-10 h-[2px] bg-white/10 rounded-full" />
-    </div>
-  );
+  if (!timerData) return null;
 
   return (
     <div className={cn(
       "absolute left-0 right-0 z-[999] flex flex-col items-center justify-center pointer-events-none",
       timerData.label === 'BUSY' ? "animate-pulse" : ""
     )} style={{ 
-      top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * (4 / 60)}rem`,
+      top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * MINUTE_HEIGHT}rem`,
       transform: 'translateY(-50%)'
     }}>
       <div className={cn(
-        "flex flex-col items-center justify-center px-2 py-0.5 rounded-md bg-black border backdrop-blur-md shadow-2xl scale-90 md:scale-100",
+        "flex flex-col items-center justify-center px-2 py-0.5 rounded-md bg-transparent border border-white/10 backdrop-blur-md shadow-2xl scale-90 md:scale-100",
         timerData.borderColor,
         `shadow-[0_0_25px_${timerData.shadowColor}]`
       )}>
@@ -385,6 +389,8 @@ interface CalendarProps {
   onModalToggle?: (isOpen: boolean) => void;
   bgIndex?: number;
   lang?: 'zh' | 'it';
+  mode?: 'admin' | 'customer';
+  initialService?: string;
 }
 
   // --- Helpers ---
@@ -415,7 +421,16 @@ const getItalyTime = () => {
   return new Date(dateMap.year, dateMap.month - 1, dateMap.day, dateMap.hour, dateMap.minute, dateMap.second);
 };
 
-export default function Calendar({ initialDate, initialView = 'day', onToggleSidebar, onModalToggle, bgIndex = 0, lang = 'zh' }: CalendarProps) {
+export default function Calendar({ 
+  initialDate, 
+  initialView = 'day', 
+  onToggleSidebar, 
+  onModalToggle, 
+  bgIndex = 0, 
+  lang = 'zh',
+  mode = 'admin',
+  initialService
+}: CalendarProps) {
   const supabase = createClient()
   
   // Use a stable initial date for SSR to avoid hydration mismatch
@@ -445,10 +460,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   }, [isMounted])
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   
   useEffect(() => {
-    onModalToggle?.(isModalOpen)
-  }, [isModalOpen, onModalToggle])
+    onModalToggle?.(isModalOpen || isBookingModalOpen)
+  }, [isModalOpen, isBookingModalOpen, onModalToggle])
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [showServiceSelection, setShowServiceSelection] = useState(false)
   const [showMemberDetail, setShowMemberDetail] = useState(false)
@@ -461,23 +477,190 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [showCheckoutPreview, setShowCheckoutPreview] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const [touchCurrentX, setTouchCurrentX] = useState<number | null>(null)
+  const [touchStartY, setTouchStartY] = useState<number | null>(null)
+  const [touchCurrentY, setTouchCurrentY] = useState<number | null>(null)
   const [showTimeSelection, setShowTimeSelection] = useState(false)
   const [timeSelectionType, setTimeSelectionType] = useState<'start' | 'end'>('start')
+  const [gestureTime, setGestureTime] = useState<{h1: number | null, h2: number | null, m: number | null}>({h1: null, h2: null, m: null})
+  const [isGesturing, setIsGesturing] = useState(false)
+  const gestureRef = useRef<HTMLDivElement>(null)
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showBookingSuccess, setShowBookingSuccess] = useState(false)
+  const [showRecycleBin, setShowRecycleBin] = useState(false)
+  const [hoverTime, setHoverTime] = useState<{ top: number; time: string; staffId?: string; date?: Date } | null>(null);
+
+  // --- Helpers for Precise Time Selection ---
+  const handleGridClick = (e: React.MouseEvent, date: Date, staffId?: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const totalMinutes = 13 * 60; // 8:00 to 21:00
+    const minutes = (y / rect.height) * totalMinutes;
+    
+    // Round to nearest 15 minutes
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    const finalDate = addMinutes(setMinutes(setHours(date, 8), 0), roundedMinutes);
+    
+    if (mode === 'customer') {
+      setSelectedDate(finalDate)
+      setSelectedEndDate(addMinutes(finalDate, SLOT_INTERVAL))
+      if (staffId) setClickedStaffId(staffId)
+      setIsBookingModalOpen(true)
+    } else {
+      setSelectedDate(finalDate)
+      setSelectedEndDate(addMinutes(finalDate, duration))
+      if (staffId) setClickedStaffId(staffId)
+      setIsModalOpen(true)
+      setShowServiceSelection(true)
+    }
+  };
+
+  const handleGridMouseMove = (e: React.MouseEvent, date: Date, staffId?: string) => {
+    if (isModalOpen) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const totalMinutes = 13 * 60;
+    const minutes = (y / rect.height) * totalMinutes;
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    const topRem = (roundedMinutes) * MINUTE_HEIGHT;
+    
+    const hours = 8 + Math.floor(roundedMinutes / 60);
+    const mins = roundedMinutes % 60;
+    const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    
+    setHoverTime({ top: topRem, time: timeStr, staffId, date });
+  };
+  
+  // Recycle Bin Data (Last 3 days)
+  const deletedEvents = useMemo(() => {
+    return allDatabaseEvents.filter(e => {
+      if (e.status !== 'deleted') return false;
+      const deletedAtMatch = e["备注"]?.match(/\[DELETED_AT:(.*?)\]/);
+      if (!deletedAtMatch) return false;
+      
+      try {
+        const deletedAt = new Date(deletedAtMatch[1].replace(/-/g, '/')); // Better cross-browser parsing
+        const now = new Date();
+        const diffHours = (now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60);
+        return diffHours <= 72; // 3 days
+      } catch (err) {
+        return false;
+      }
+    }).sort((a, b) => {
+      const timeA = a["备注"]?.match(/\[DELETED_AT:(.*?)\]/)?.[1] || '';
+      const timeB = b["备注"]?.match(/\[DELETED_AT:(.*?)\]/)?.[1] || '';
+      return new Date(timeB.replace(/-/g, '/')).getTime() - new Date(timeA.replace(/-/g, '/')).getTime();
+    });
+  }, [allDatabaseEvents]);
+
+  const handleRestoreEvent = async (event: CalendarEvent) => {
+    setIsSubmitting(true);
+    // Remove the deletion marker from notes
+    const updatedNotes = event["备注"]?.replace(/,?\s?\[DELETED_AT:.*?\]/, '') || '';
+    
+    const { error } = await supabase
+      .from('fx_events')
+      .update({
+        status: 'pending', // Default back to pending
+        "备注": updatedNotes
+      })
+      .eq('id', event.id);
+
+    if (error) {
+      handleSupabaseError(error, '恢复');
+    } else {
+      fetchEvents();
+      fetchAllEventsForLibrary();
+    }
+    setIsSubmitting(false);
+  };
+
+  const handlePermanentDelete = async (eventId: string) => {
+    if (!confirm('确定要彻底删除此预约吗？此操作不可撤销。')) return;
+    
+    setIsSubmitting(true);
+    const { error } = await supabase
+      .from('fx_events')
+      .delete()
+      .eq('id', eventId);
+
+    if (error) {
+      handleSupabaseError(error, '彻底删除');
+    } else {
+      fetchAllEventsForLibrary();
+    }
+    setIsSubmitting(false);
+  };
   
   // Calendar Lock State
   const [isCalendarLocked, setIsCalendarLocked] = useState(true)
   const [lockPassword, setLockPassword] = useState("")
   const [unlockError, setUnlockError] = useState(false)
+  const [isVersionOutdated, setIsVersionOutdated] = useState(false)
   
-  const handleUnlock = (e?: React.FormEvent) => {
+  // Version Check Helper
+  const checkVersion = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'min_app_version')
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // If the table or key doesn't exist, we assume it's okay for now
+          // but in production we should handle this
+          return true;
+        }
+        console.error('Version check failed:', error);
+        return true; 
+      }
+
+      const minVersion = data?.value;
+      if (minVersion && APP_VERSION < minVersion) {
+        setIsVersionOutdated(true);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('Version check error:', e);
+      return true;
+    }
+  }, [supabase]);
+
+  const handleSupabaseError = useCallback((error: any, context: string) => {
+    console.error(`Supabase error (${context}):`, error);
+    
+    // Check if error is related to Row Level Security (RLS) or 403 Forbidden
+    const isRLSError = error.message?.toLowerCase().includes('row-level security') || 
+                      error.message?.toLowerCase().includes('policy') ||
+                      error.code === '42501' || // PostgreSQL Insufficient Privilege
+                      error.status === 403;
+
+    if (isRLSError) {
+      setIsVersionOutdated(true);
+      setIsCalendarLocked(true);
+      return;
+    }
+
+    alert(`${context}失败: ${error.message}`);
+  }, [setIsVersionOutdated, setIsCalendarLocked]);
+
+  const handleUnlock = async (e?: React.FormEvent) => {
     e?.preventDefault()
+    
+    // Check version before unlocking
+    const isVersionOk = await checkVersion();
+    if (!isVersionOk) return;
+
     if (lockPassword === "0428") {
       setIsCalendarLocked(false)
       setUnlockError(false)
       setLockPassword("")
+      // Store unlock time (Date.now() returns milliseconds)
+      localStorage.setItem('calendar_unlock_time', Date.now().toString())
     } else {
       setUnlockError(true)
       // Reset error after a delay
@@ -490,10 +673,23 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [newStaffName, setNewStaffName] = useState('')
   const [activeColorPickerStaffId, setActiveColorPickerStaffId] = useState<string | null>(null)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-  
-  // Load staff from localStorage on mount
+
+  // Load unlock state and staff from localStorage on mount
   useEffect(() => {
     if (!isMounted) return
+
+    // Check unlock status (24 hours validity)
+    const unlockTime = localStorage.getItem('calendar_unlock_time')
+    if (unlockTime) {
+      const now = Date.now()
+      const diff = now - parseInt(unlockTime, 10)
+      if (diff < 24 * 60 * 60 * 1000) {
+        setIsCalendarLocked(false)
+      } else {
+        localStorage.removeItem('calendar_unlock_time')
+      }
+    }
+
     const saved = localStorage.getItem('staff_members')
     if (saved) {
       try {
@@ -510,7 +706,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   }, [staffMembers])
   
   // Form State
-  const [newTitle, setNewTitle] = useState('')
+  const [newTitle, setNewTitle] = useState(initialService || '')
+  
+  useEffect(() => {
+    if (initialService) setNewTitle(initialService)
+  }, [initialService])
   const [memberInfo, setMemberInfo] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null)
@@ -518,6 +718,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [selectedColor, setSelectedColor] = useState('bg-sky-400')
   const [selectedStaffId, setSelectedStaffId] = useState<string>('')
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([])
+  const [isDesignatedMode, setIsDesignatedMode] = useState(false)
   const [clickedStaffId, setClickedStaffId] = useState<string>('')
   
   // Calculate total price based on selected items in newTitle
@@ -527,6 +728,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const [itemStaffMap, setItemStaffMap] = useState<Record<string, string>>({})
   const [customItemPrices, setCustomItemPrices] = useState<Record<string, string>>({}) // Track custom prices for checkout preview
   const [manualTotalAmount, setManualTotalAmount] = useState<string | null>(null) // Manual override for total price
+  const [editingPriceItemKey, setEditingPriceItemKey] = useState<string | null>(null); // Track which item's price popover is open
+  const [showCustomKeypad, setShowCustomKeypad] = useState(false);
+  const [keypadTargetKey, setKeypadTargetKey] = useState<{ key: string, staffId: string, basePrice: number, name: string } | null>(null);
 
   // Merged events for checkout (same member, same day)
   const mergedEvents = useMemo(() => {
@@ -567,10 +771,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       id: editingEvent?.id || 'new',
       "服务项目": newTitle,
       "背景颜色": selectedColor,
-      "备注": [
-        ...Object.entries(itemStaffMap).map(([item, sId]) => `[${item}_STAFF:${sId}]`),
-        selectedStaffIds.length > 0 ? `[STAFF_SEQ:${selectedStaffIds.join(',')}]` : ''
-      ].filter(Boolean).join(' '),
+      "备注": Object.entries(itemStaffMap).map(([item, sId]) => `[${item}_STAFF:${sId}]`).filter(Boolean).join(' '),
       "会员信息": memberInfo + (memberId ? ` #${memberId}` : ''),
       "起始时间": selectedDate.toISOString(),
     };
@@ -582,10 +783,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const mergedTotalPrice = useMemo(() => {
     if (manualTotalAmount !== null) return Number(manualTotalAmount);
     return mergedEvents.reduce((total, event) => {
-      const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
+      const ev = event as any;
+      const eventItems = (ev["服务项目"] || '').split(',').map((s: string) => s.trim()).filter(Boolean);
       let eventSum = 0;
-      eventItems.forEach((itemName, idx) => {
-        const itemKey = `${event.id}-${itemName}-${idx}`;
+      eventItems.forEach((itemName: string, idx: number) => {
+        const itemKey = `${ev.id}-${itemName}-${idx}`;
         const customPrice = customItemPrices[itemKey];
         if (customPrice !== undefined && customPrice !== null && customPrice !== '') {
           eventSum += Number(customPrice);
@@ -606,7 +808,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         let changed = false;
 
         mergedEvents.forEach((event, eventIdx) => {
-          const ev = event as CalendarEvent;
+          const ev = event as any;
           // --- Priority 1: billing_details (New Schema) ---
           if (ev.total_amount !== undefined && ev.total_amount !== null && ev.billing_details) {
             const details = ev.billing_details;
@@ -614,7 +816,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             // Items
             if (details.items) {
               details.items.forEach((item: any, itemIdx: number) => {
-                const itemKey = `${event.id}-${item.name}-${itemIdx}`;
+                const itemKey = `${ev.id}-${item.name}-${itemIdx}`;
                 if (newPrices[itemKey] === undefined) {
                   newPrices[itemKey] = item.price.toString();
                   changed = true;
@@ -625,7 +827,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             // Staff
             if (details.staff) {
               Object.entries(details.staff).forEach(([name, amount]) => {
-                newStaffAmounts[name] = amount.toString();
+                newStaffAmounts[name] = (amount as any).toString();
               });
             }
 
@@ -638,38 +840,40 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           }
 
           // --- Priority 2: Legacy Parsing (Old Schema) ---
-          const eventItems = (event["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
-          const isCompleted = event["备注"]?.includes('[STATUS:COMPLETED]');
+          const eventItems = (ev["服务项目"] || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+          const isCompleted = ev["备注"]?.includes('[STATUS:COMPLETED]');
           
           // First, load any existing amounts from the event object (database)
           staffMembers.forEach(s => {
-            const val = (ev as any)[`金额_${s.name}`];
+            const val = ev[`金额_${s.name}`];
             if (val !== undefined && val !== null && val !== 0) {
               newStaffAmounts[s.name] = val.toString();
             }
           });
 
-          const hasSavedAmounts = Object.keys(newStaffAmounts).length > 0 || event["备注"]?.includes('_AMT:');
+          const hasSavedAmounts = Object.keys(newStaffAmounts).length > 0 || ev["备注"]?.includes('_AMT:');
 
-          eventItems.forEach((itemName, itemIdx) => {
-            const itemKey = `${event.id}-${itemName}-${itemIdx}`;
+          eventItems.forEach((itemName: string, itemIdx: number) => {
+            const itemKey = `${ev.id}-${itemName}-${itemIdx}`;
             const escapedItem = escapeRegExp(itemName);
             
             // Try to load custom price from '备注' or use default
             let currentItemPrice: string | undefined = newPrices[itemKey];
             
             if (currentItemPrice === undefined) {
-              const priceMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_AMT:(\\d+)_IDX:${itemIdx}\\]`));
+              const priceMatch = ev["备注"]?.match(new RegExp(`\\[${escapedItem}_AMT:(\\d+)_IDX:${itemIdx}\\]`));
               
-              if (priceMatch) {
-                currentItemPrice = priceMatch[1];
-                newPrices[itemKey] = currentItemPrice;
+              if (priceMatch && priceMatch[1]) {
+                const matchedPrice = priceMatch[1];
+                currentItemPrice = matchedPrice;
+                newPrices[itemKey] = matchedPrice;
                 changed = true;
               } else {
                 const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
                 if (itemData) {
-                  currentItemPrice = itemData.price.toString();
-                  newPrices[itemKey] = currentItemPrice;
+                  const priceStr = itemData.price.toString();
+                  currentItemPrice = priceStr;
+                  newPrices[itemKey] = priceStr;
                   changed = true;
                 }
               }
@@ -678,19 +882,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             // If we have a price for this item, and no saved amounts in database, 
             // and not completed, add it to the fresh staff amounts object
             if (currentItemPrice && !hasSavedAmounts && !isCompleted) {
-              const staffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
-              const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-              const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
+              const staffMatch = ev["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
               
               let itemStaffId = staffMatch ? staffMatch[1] : undefined;
               if (!itemStaffId) {
-                if (staffSeq.length > 0) {
-                  itemStaffId = staffSeq[itemIdx] || staffSeq[staffSeq.length - 1];
-                } else {
-                  const colorName = getCleanColorName(event["背景颜色"]);
-                  const eventStaffIdFromColor = colorName ? COLOR_TO_STAFF_ID[colorName] : undefined;
-                  itemStaffId = eventStaffIdFromColor;
-                }
+                const colorName = getCleanColorName(ev["背景颜色"]);
+                const eventStaffIdFromColor = colorName ? COLOR_TO_STAFF_ID[colorName] : undefined;
+                itemStaffId = eventStaffIdFromColor;
               }
               
               const staff = staffMembers.find(s => s.id === itemStaffId);
@@ -730,7 +928,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     });
     
     mergedEvents.forEach(event => {
-      const ev = event as CalendarEvent;
+      const ev = event as any;
       // 0. Check billing_details
       if (ev.billing_details?.items) {
         ev.billing_details.items.forEach((item: any) => {
@@ -745,29 +943,19 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       }
 
       // 1. Check item-specific staff in notes
-      const matches = event["备注"]?.matchAll(/\[[^\]]+_STAFF:([^\]]+)\]/g);
+      const matches = ev["备注"]?.matchAll(/\[[^\]]+_STAFF:([^\]]+)\]/g);
       if (matches) {
-        for (const match of Array.from(matches)) {
-          ids.add(match[1]);
+        for (const match of Array.from(matches) as any[]) {
+          if (match[1]) ids.add(match[1]);
         }
       }
 
-      // 2. Also check STAFF_SEQ
-      const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-      if (seqMatch) {
-        seqMatch[1].split(',').filter(Boolean).forEach(id => ids.add(id));
-      }
-
-      // 3. Also try to find a direct staff assignment from bgColor
-      const colorName = getCleanColorName(event["背景颜色"]);
+      // 2. Also try to find a direct staff assignment from bgColor
+      const colorName = getCleanColorName(ev["背景颜色"]);
       if (colorName) {
         const eventStaffId = COLOR_TO_STAFF_ID[colorName];
         if (eventStaffId && eventStaffId !== 'NO') ids.add(eventStaffId);
       }
-      
-      // 4. Check for any "技师:ID" legacy format in notes
-      const legacyMatch = event["备注"]?.match(/技师:([^,\]\s]+)/);
-      if (legacyMatch && legacyMatch[1] !== 'NO') ids.add(legacyMatch[1]);
     });
     
     return Array.from(ids);
@@ -781,8 +969,20 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   // Derived state for active staff columns
   const activeStaff = useMemo(() => {
     // Filter out hidden staff first
-    const visibleStaff = staffMembers.filter(s => !s.hidden);
+    let visibleStaff = staffMembers.filter(s => !s.hidden);
     
+    // For customers, hide the 'NO' column and anonymize others
+    if (mode === 'customer') {
+      visibleStaff = visibleStaff
+        .filter(s => s.id !== 'NO')
+        .map((s, idx) => ({
+          ...s,
+          name: `预约通道 ${idx + 1}`,
+          avatar: `${idx + 1}`,
+          role: '在线预约'
+        }));
+    }
+
     if (viewType !== 'day') return visibleStaff;
     
     return visibleStaff.filter(s => {
@@ -793,7 +993,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         e["备注"]?.includes('技师:NO')
       );
     });
-  }, [viewType, events, currentDate, staffMembers]);
+  }, [viewType, events, currentDate, staffMembers, mode]);
 
   // Pre-calculate which column each event should go to (for day view)
   const eventAssignments = useMemo(() => {
@@ -808,7 +1008,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
     // 1. First pass: Assign all DESIGNATED appointments (including NO)
     todayEvents.forEach(e => {
-      const staffIdMatch = e["备注"]?.match(/技师:([^,]+)/);
+      const staffIdMatch = e["备注"]?.match(/技师:([^,\]\s]+)/);
       const designatedStaffId = staffIdMatch ? staffIdMatch[1] : '';
       
       if (designatedStaffId && designatedStaffId !== '') {
@@ -892,9 +1092,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       .from('fx_events')
       .select('*')
       .or(`and("服务日期".gte.${format(start, 'yyyy-MM-dd')},"服务日期".lte.${format(end, 'yyyy-MM-dd')})`)
+      .not('status', 'eq', 'deleted')
 
     if (error) {
-      console.error('Error fetching events:', error)
+      handleSupabaseError(error, '获取预约')
     } else {
       setEvents(data || [])
     }
@@ -958,49 +1159,249 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   // Quick-jump to today handled via the “今/OGGI” button in header
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // If time selection is open, check if the touch starts in the gesture area
+    if (showTimeSelection && gestureRef.current) {
+      const rect = gestureRef.current.getBoundingClientRect();
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      
+      // Check if the touch is within the first column (Hour Tens)
+      // The first column is roughly the left 1/3 of the gesture container
+      if (touchX >= rect.left && touchX <= rect.left + rect.width / 3 &&
+          touchY >= rect.top && touchY <= rect.bottom) {
+        setIsGesturing(true);
+        setGestureTime({h1: null, h2: null, m: null});
+        // We don't return here because we still want to record the start positions
+      }
+    }
+
     setTouchStartX(e.touches[0].clientX)
     setTouchCurrentX(e.touches[0].clientX)
+    setTouchStartY(e.touches[0].clientY)
+    setTouchCurrentY(e.touches[0].clientY)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchCurrentX(e.touches[0].clientX)
+    setTouchCurrentY(e.touches[0].clientY)
+
+    // If we are in the middle of a time selection gesture, handle it
+    if (isGesturing && showTimeSelection && gestureRef.current) {
+      const rect = gestureRef.current.getBoundingClientRect();
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      
+      // Calculate which column and row we are over
+      const colWidth = rect.width / 3;
+      const colIndex = Math.floor((touchX - rect.left) / colWidth);
+      
+      // Get all interactive elements (buttons) in the gesture area
+      const buttons = gestureRef.current.querySelectorAll('button[data-gesture-val]');
+      let hoveredVal: string | null = null;
+      let hoveredType: string | null = null;
+
+      buttons.forEach(btn => {
+        const btnRect = btn.getBoundingClientRect();
+        if (touchX >= btnRect.left && touchX <= btnRect.right &&
+            touchY >= btnRect.top && touchY <= btnRect.bottom) {
+          hoveredVal = btn.getAttribute('data-gesture-val');
+          hoveredType = btn.getAttribute('data-gesture-type');
+        }
+      });
+
+      if (hoveredVal !== null && hoveredType !== null) {
+        const val = parseInt(hoveredVal);
+        setGestureTime(prev => {
+          const next = { ...prev };
+          if (hoveredType === 'h1') next.h1 = val;
+          if (hoveredType === 'h2') next.h2 = val;
+          if (hoveredType === 'm') next.m = val;
+          return next;
+        });
+      }
+    }
   }
 
   const handleTouchEnd = (e: React.TouchEvent | React.FormEvent) => {
-    if (touchStartX === null || touchCurrentX === null) return
+    // Handle the end of a time selection gesture
+    if (isGesturing && showTimeSelection) {
+      setIsGesturing(false);
+      
+      // If we have a valid time sequence, apply it
+      if (gestureTime.h1 !== null && gestureTime.h2 !== null && gestureTime.m !== null) {
+        const hour = gestureTime.h1 * 10 + gestureTime.h2;
+        const minute = gestureTime.m;
+        
+        // Validate hour (0-23)
+        if (hour >= 0 && hour <= 23) {
+          const baseDate = timeSelectionType === 'start' ? selectedDate : selectedEndDate;
+          if (baseDate) {
+            const newDate = new Date(baseDate);
+            newDate.setHours(hour);
+            newDate.setMinutes(minute);
+            
+            if (timeSelectionType === 'start') {
+              setSelectedDate(newDate);
+              if (selectedEndDate && newDate >= selectedEndDate) {
+                setSelectedEndDate(addMinutes(newDate, duration));
+              }
+            } else {
+              setSelectedEndDate(newDate);
+              if (selectedDate) {
+                setDuration(Math.max(15, (newDate.getTime() - selectedDate.getTime()) / 60000));
+              }
+            }
+          }
+        }
+        
+        // Close the selection UI after successful gesture
+        setShowTimeSelection(false);
+        setGestureTime({h1: null, h2: null, m: null});
+      }
+      return; // Stop further processing if it was a gesture
+    }
+
+    if (touchStartX === null || touchCurrentX === null || touchStartY === null || touchCurrentY === null) return
 
     const diffX = touchCurrentX - touchStartX
+    const diffY = touchCurrentY - touchStartY
     const threshold = 50 // Minimum distance for a swipe
 
-    if (diffX > threshold) {
-      // Right swipe detected
-      if (!showCheckoutPreview) {
-        // Step 1: Switch to checkout interface
-        setShowCheckoutPreview(true)
-        setShowServiceSelection(false)
-        setShowMemberDetail(false)
-        setShowTimeSelection(false)
+    // Priority for Vertical Swipe (Up/Down)
+    if (Math.abs(diffY) > Math.abs(diffX)) {
+      if (diffY < -threshold) {
+        // Swipe Up detected -> Save/Confirm
+        if (isModalOpen || isBookingModalOpen) {
+          const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
+          handleSubmit(submitEvent)
+        }
+      } else if (diffY > threshold) {
+        // Swipe Down detected -> Delete/Cancel
+        if (isModalOpen) {
+          // If editing an existing event, delete it
+          if (editingEvent) {
+            handleDeleteEvent()
+          } else {
+            // If it's a new event modal, just close it and reset (Cancel)
+            closeModal()
+          }
+        } else if (isBookingModalOpen) {
+          // Customer booking modal is always "new" in this context, reset everything
+          closeModal()
+        }
+      }
+    } else {
+      // Horizontal Swipe (Left/Right)
+      if (isModalOpen || isBookingModalOpen) {
+        if (diffX > threshold) {
+          // Right swipe
+          if (!showCheckoutPreview) {
+            // Switch to checkout preview
+            setShowCheckoutPreview(true)
+          } else {
+            // Already in checkout preview, final swipe to checkout
+            const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
+            handleSubmit(submitEvent, undefined, true)
+          }
+        } else if (diffX < -threshold) {
+          // Left swipe
+          if (showCheckoutPreview) {
+            // Back from checkout preview to appointment edit
+            setShowCheckoutPreview(false)
+          }
+        }
+      } else if (showCheckoutPreview) {
+        // This case handles showCheckoutPreview when no modal is explicitly open (if that's possible)
+        // or provides fallback. Keeping it for safety based on previous structure.
+        if (diffX > threshold) {
+          const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
+          handleSubmit(submitEvent, undefined, true)
+        } else if (diffX < -threshold) {
+          setShowCheckoutPreview(false)
+        }
       } else {
-        // Step 2: Final swipe to checkout and close
-        // If it's a touch event, we need to create a dummy FormEvent for handleSubmit
-        const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
-        handleSubmit(submitEvent, undefined, true)
+        // Main Calendar View - Navigate Days/Weeks/Months/Years
+        if (diffX > threshold) {
+          // Right swipe -> Previous
+          handlePrev()
+        } else if (diffX < -threshold) {
+          // Left swipe -> Next
+          handleNext()
+        }
       }
     }
 
     setTouchStartX(null)
     setTouchCurrentX(null)
+    setTouchStartY(null)
+    setTouchCurrentY(null)
   }
 
-  const handleSubmit = async (e?: React.FormEvent, forcedMode?: 'normal' | 'sequential' | 'parallel', isCheckout?: boolean) => {
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent, forcedMode?: 'normal' | 'sequential' | 'parallel', isCheckout?: boolean) => {
     e?.preventDefault()
     
     // UI optimization: ALWAYS close modal immediately for "instant feel" 
     // and let database update in the background
     setIsModalOpen(false)
+    setIsBookingModalOpen(false)
 
     if (isSubmitting) return
     setIsSubmitting(true)
+
+    // Mode-specific handling for customer
+    if (mode === 'customer') {
+      if (!selectedDate) {
+        setIsSubmitting(false);
+        return;
+      }
+      // Try to find the duration for the selected service
+      let bookingDuration = 30; // Default
+      const items = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+      if (items.length > 0) {
+        // Find the first matching service to get its duration
+        for (const cat of SERVICE_CATEGORIES) {
+          const found = cat.items.find(i => i.name === items[0]);
+          if (found && found.duration) {
+            bookingDuration = found.duration;
+            break;
+          }
+        }
+      }
+
+      const eventData: any = {
+        "服务项目": newTitle,
+        "会员信息": `(ID: NEW)${memberName} (${memberInfo})`,
+        "服务日期": format(selectedDate, 'yyyy-MM-dd'),
+        "开始时间": format(selectedDate, 'HH:mm:ss'),
+        "持续时间": bookingDuration,
+        "背景颜色": 'bg-zinc-500',
+        "备注": `技师:${selectedStaffId || 'NO'}, [CUSTOMER_BOOKING]`,
+        "status": 'pending',
+      }
+
+      const { error } = await supabase
+        .from('fx_events')
+        .insert([eventData]);
+
+      if (error) {
+        console.error('Booking error:', error);
+        alert('预约失败，请稍后重试或拨打电话联系商家。');
+      } else {
+        setShowBookingSuccess(true);
+        setTimeout(() => setShowBookingSuccess(false), 5000);
+        closeModal();
+        fetchEvents();
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Version check before saving (Admin only)
+    const isVersionOk = await checkVersion();
+    if (!isVersionOk) {
+      setIsSubmitting(false);
+      return;
+    }
 
     // If essential data is missing, just close (likely a click-outside on an empty new event)
     if (!newTitle || !selectedDate) {
@@ -1051,7 +1452,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         // Find all numbers currently in use (excluding those marked as NO-show)
         const allUsedNumbers = allDatabaseEvents.map(e => {
           const m = e["会员信息"]?.match(/\((?:[A-Z.\s]+)?(\d+)\)/);
-          const staffMatch = e["备注"]?.match(/技师:([^,]+)/);
+          const staffMatch = e["备注"]?.match(/技师:([^,\]\s]+)/);
           const isNoShowEvent = staffMatch ? staffMatch[1] === 'NO' : false;
           
           if (m && !isNoShowEvent) {
@@ -1102,10 +1503,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     //    b. User explicitly chose sequential/parallel mode
     
     const assignedStaffIds = new Set(items.map((item, idx) => {
-      return itemStaffMap[item] || 
-             (selectedStaffIds.length > 0 
-               ? (selectedStaffIds[idx] || selectedStaffIds[selectedStaffIds.length - 1]) 
-               : selectedStaffId);
+      const itemKey = `${editingEvent?.id || 'new'}-${item}-${idx}`;
+      return itemStaffMap[itemKey] || itemStaffMap[item] || selectedStaffId;
     }).filter(id => id && id !== ''));
 
     const hasMultipleStaff = assignedStaffIds.size > 1;
@@ -1122,18 +1521,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       if (splitMode === 'sequential') {
         let currentItemIdx = 0;
         for (const itemName of items) {
-          // Scheme A: Automatic sequential matching for split events
-          const itemStaffId = itemStaffMap[itemName] || 
-                             (selectedStaffIds.length > 0 
-                               ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1]) 
-                               : selectedStaffId);
+          // Use explicit itemStaffMap or current selectedStaffId
+          const itemKey = `${editingEvent?.id || 'new'}-${itemName}-${currentItemIdx}`;
+          const itemStaffId = itemStaffMap[itemKey] || itemStaffMap[itemName] || selectedStaffId;
           
           const itemStaff = staffMembers.find(s => s.id === itemStaffId);
-          currentItemIdx++;
           
           // Find item price and duration
-          const eventId = editingEvent?.id || 'new';
-          const itemKey = `${eventId}-${itemName}-${currentItemIdx}`;
           const customPriceVal = customItemPrices[itemKey];
           
           let itemPrice = customPriceVal ? Number(customPriceVal) : 0;
@@ -1198,19 +1592,17 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
           // Increment start time for next item in sequential mode
           currentStartTime = addMinutes(currentStartTime, itemDuration);
+          currentItemIdx++;
         }
       } else {
         // Parallel mode: Group items by staff to prevent same-staff overlap
         const staffGroups: Record<string, { items: Array<{ name: string, price: number, duration: number }>, duration: number, totalPrice: number }> = {};
         
         items.forEach((itemName, idx) => {
-          const itemStaffId = itemStaffMap[itemName] || 
-                             (selectedStaffIds.length > 0 
-                               ? (selectedStaffIds[idx] || selectedStaffIds[selectedStaffIds.length - 1]) 
-                               : selectedStaffId);
+          // Use explicit itemStaffMap or current selectedStaffId
+          const itemKey = `${editingEvent?.id || 'new'}-${itemName}-${idx}`;
+          const itemStaffId = itemStaffMap[itemKey] || itemStaffMap[itemName] || selectedStaffId;
           
-          const eventId = editingEvent?.id || 'new';
-          const itemKey = `${eventId}-${itemName}-${idx}`;
           const customPriceVal = customItemPrices[itemKey];
           
           let itemPrice = customPriceVal ? Number(customPriceVal) : 0;
@@ -1287,7 +1679,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             .eq('id', editingEvent.id);
           
           if (deleteError) {
-            alert('更新拆分预约失败 (删除旧项): ' + deleteError.message);
+            handleSupabaseError(deleteError, '更新拆分预约(删除旧项)');
             setIsSubmitting(false);
             return;
           }
@@ -1298,7 +1690,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           .insert(eventsToInsert);
 
         if (error) {
-          alert('预约拆分失败: ' + error.message);
+          handleSupabaseError(error, '预约拆分');
         } else {
           closeModal();
           fetchEvents();
@@ -1323,11 +1715,6 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
     if (memberNote) {
       eventData["备注"] += `, [MEMBER_NOTE:${memberNote}]`
-    }
-
-    // Add staff sequence for Scheme A if multiple staff are selected
-    if (selectedStaffIds.length > 1) {
-      eventData["备注"] += `, [STAFF_SEQ:${selectedStaffIds.join(',')}]`
     }
 
     // Add individual item-staff mappings and item-amounts to notes
@@ -1388,13 +1775,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       
       for (const event of otherEvents) {
         if (!event) continue;
-        const ev = event as CalendarEvent;
+        const ev = event as any;
         // Calculate billing details for this specific event
-        const eventItems = (ev["服务项目"] || '').split(',').map(s => s.trim()).filter(Boolean);
+        const eventItems = (ev["服务项目"] || '').split(',').map((s: string) => s.trim()).filter(Boolean);
         const eventBilling: any = { items: [], staff: {}, manualTotal: null };
         let eventTotal = 0;
 
-        eventItems.forEach((itemName, itemIdx) => {
+        eventItems.forEach((itemName: string, itemIdx: number) => {
           const itemKey = `${ev.id}-${itemName}-${itemIdx}`;
           const customPrice = customItemPrices[itemKey];
           const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
@@ -1487,7 +1874,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         .select()
 
       if (error) {
-        alert('更新失败: ' + error.message)
+        handleSupabaseError(error, '更新')
       } else if (data && data.length === 0) {
         console.warn('Update affected 0 rows. Possible ID mismatch:', editingEvent.id);
         alert('更新未生效，请刷新页面重试。')
@@ -1502,7 +1889,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         .insert([eventData])
 
       if (error) {
-        alert('添加失败: ' + error.message)
+        handleSupabaseError(error, '添加')
       } else {
         closeModal()
         fetchEvents()
@@ -1515,19 +1902,29 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     if (!editingEvent) return
 
     setIsSubmitting(true)
-    console.log('Attempting to delete event:', editingEvent.id);
+    console.log('Moving event to recycle bin:', editingEvent.id);
+    
+    // Add deletion timestamp to remarks for tracking (last 3 days)
+    const deletionTime = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
+    const updatedNotes = (editingEvent["备注"] || '') + (editingEvent["备注"] ? ', ' : '') + `[DELETED_AT:${deletionTime}]`;
+
     const { error, count } = await supabase
       .from('fx_events')
-      .delete()
+      .update({ 
+        status: 'deleted',
+        "备注": updatedNotes
+      })
       .eq('id', editingEvent.id)
       .select()
 
     if (error) {
-      alert('删除失败: ' + error.message)
+      handleSupabaseError(error, '移动至回收站');
     } else {
-      console.log('Delete result count:', count);
+      console.log('Soft delete result count:', count);
       closeModal()
       fetchEvents()
+      // Also refresh library to update recycle bin
+      fetchAllEventsForLibrary()
     }
     setIsSubmitting(false)
   }
@@ -1642,7 +2039,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       }
     }
 
-    const staffMatch = event["备注"]?.match(/技师:([^,]+)/)
+    const staffMatch = event["备注"]?.match(/技师:([^,\]\s]+)/)
     const parsedStaffId = staffMatch ? staffMatch[1] : ''
     setSelectedStaffId(parsedStaffId)
     
@@ -1692,12 +2089,8 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
     }
     setCustomItemPrices(newCustomPrices);
 
-    // Restore staff sequence if present, otherwise fallback to single staff selection
-    const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/)
-    if (seqMatch) {
-      const seqIds = seqMatch[1].split(',').filter(Boolean)
-      setSelectedStaffIds(seqIds)
-    } else if (parsedStaffId && parsedStaffId !== 'NO') {
+    // Use parsed main staff ID for selection
+    if (parsedStaffId && parsedStaffId !== 'NO') {
       setSelectedStaffIds([parsedStaffId])
     } else {
       setSelectedStaffIds([])
@@ -1832,7 +2225,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
          if (!existing.phone && phone) existing.phone = phone
          
          // Add to history
-         const staffId = event["备注"]?.match(/技师:([^,\]]+)/)?.[1]
+         const staffId = event["备注"]?.match(/技师:([^,\]\s]+)/)?.[1]
          const staffName = staffMembers.find(s => s.id === staffId)?.name || 'Unknown'
          
          existing.history.push({
@@ -1842,7 +2235,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
            amount: amount
          })
        } else {
-         const staffId = event["备注"]?.match(/技师:([^,\]]+)/)?.[1]
+         const staffId = event["备注"]?.match(/技师:([^,\]\s]+)/)?.[1]
          const staffName = staffMembers.find(s => s.id === staffId)?.name || 'Unknown'
 
          memberMap.set(key, {
@@ -1924,43 +2317,31 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const toggleService = (service: string) => {
     setNewTitle(prev => {
       const items = prev.split(',').map(s => s.trim()).filter(Boolean)
-      const index = items.indexOf(service)
+      const index = items.lastIndexOf(service) // Change to lastIndexOf to better handle multi-item removal
       const newItems = [...items]
       
-      if (index > -1) {
-        newItems.splice(index, 1)
-      } else {
-        newItems.push(service)
-      }
+      const eventId = editingEvent?.id || 'new';
 
-      // Re-calculate the entire mapping to ensure "Auto Average"
-      // This applies to both Full-auto (staff first) and Semi-auto (projects first)
-      if (selectedStaffIds.length > 1) {
+      if (index > -1) {
+        // Removing
+        newItems.splice(index, 1)
         setItemStaffMap(prevMap => {
           const newMap = { ...prevMap }
-          // Clear all current items to re-distribute
-          newItems.forEach((it, idx) => {
-            newMap[it] = selectedStaffIds[idx % selectedStaffIds.length]
-          })
-          // Clean up any items that were removed
-          if (index > -1) {
-            delete newMap[service]
-          }
+          const itemKey = `${eventId}-${service}-${index}`;
+          delete newMap[itemKey]
+          delete newMap[service] // Cleanup any legacy name-based keys
           return newMap
         })
-      } else if (index > -1) {
-        // Just remove if only one/no staff
-        setItemStaffMap(prevMap => {
-          const newMap = { ...prevMap }
-          delete newMap[service]
-          return newMap
-        })
-      } else if (selectedStaffId && selectedStaffId !== 'NO') {
-        // Assign to active staff if only one
-        setItemStaffMap(prevMap => ({
-          ...prevMap,
-          [service]: selectedStaffId
-        }))
+      } else {
+        // Adding
+        const newIndex = newItems.length;
+        newItems.push(service)
+        if (selectedStaffId && selectedStaffId !== 'NO') {
+          setItemStaffMap(prevMap => ({
+            ...prevMap,
+            [`${eventId}-${service}-${newIndex}`]: selectedStaffId
+          }))
+        }
       }
       
       return newItems.join(', ')
@@ -2077,10 +2458,305 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
   const monthStart = startOfMonth(currentDate)
   const locale = lang === 'zh' ? zhCN : itLocale
 
-  const TIME_SLOTS = generateTimeSlots()
+  const TIME_SLOTS = generateTimeSlots(8, 20, SLOT_INTERVAL)
+
+  // --- Render Billing Content Helper ---
+  const renderBillingContent = () => {
+    // Flatten all items and determine staff alignment
+    const allItemRows: any[] = [];
+    const staffFirstAppearanceIdx: Record<string, number> = {};
+
+    mergedEvents.forEach((event: any, eventIdx: number) => {
+      const eventItems = event["服务项目"]?.split(',').map((s: string) => s.trim()).filter(Boolean) || [];
+      eventItems.forEach((itemName: string, idx: number) => {
+        const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
+        if (!itemData) return;
+
+        const itemKey = `${event.id}-${itemName}-${idx}`;
+        const escapedItem = escapeRegExp(itemName);
+        const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`));
+        
+        const itemStaffId = itemStaffMap[itemKey] || 
+          (itemStaffMatch ? itemStaffMatch[1] : (() => {
+            const colorName = getCleanColorName(event["背景颜色"]);
+            return (colorName && COLOR_TO_STAFF_ID[colorName]) || (eventIdx === mergedEvents.length - 1 ? selectedStaffId : undefined);
+          })());
+
+        const rowIndex = allItemRows.length;
+        if (itemStaffId && staffFirstAppearanceIdx[itemStaffId] === undefined) {
+          staffFirstAppearanceIdx[itemStaffId] = rowIndex;
+        }
+
+        allItemRows.push({
+          itemName,
+          itemKey,
+          itemData,
+          itemStaffId,
+          event
+        });
+      });
+    });
+
+    // Identify extra staff (those with amounts but no items)
+    const extraStaff = staffMembers.filter(s => 
+      s.id !== 'NO' && 
+      staffFirstAppearanceIdx[s.id] === undefined && 
+      (involvedStaffIds.includes(s.id) || staffAmounts[s.name] !== undefined)
+    );
+
+    return (
+      <div className="h-full flex flex-col space-y-1 overflow-visible animate-in fade-in slide-in-from-right-4 duration-300">
+        {/* Receipt Header */}
+        <div className="flex items-center justify-between mb-1 px-2 relative">
+          <button 
+            onClick={() => setShowCheckoutPreview(false)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex flex-col items-center justify-center flex-1">
+            <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">BILLING</h2>
+          </div>
+        </div>
+
+        {/* Items & Staff Alignment Grid */}
+        <div className="flex-1 overflow-y-auto no-scrollbar overflow-x-visible">
+          <div className={cn(
+            "grid gap-x-6 px-2 transition-all duration-300",
+            showCustomKeypad ? "grid-cols-1 space-y-2" : "grid-cols-2"
+          )}>
+            {/* Headers */}
+            {!showCustomKeypad && (
+              <>
+                <div className="flex items-center justify-between border-b border-white/10 pb-1 mb-1">
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] subpixel-antialiased">项目 / Items</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-white/10 pb-1 mb-1 pl-6">
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] subpixel-antialiased">人员 / Staff</span>
+                </div>
+              </>
+            )}
+
+            {/* Render Rows */}
+            {allItemRows.map((row, rowIndex) => {
+              const { itemName, itemKey, itemData, itemStaffId } = row;
+              const colorClass = getStaffColorClass(itemStaffId, staffMembers, 'text');
+              const isFirstAppearance = staffFirstAppearanceIdx[itemStaffId] === rowIndex;
+              const staff = staffMembers.find(s => s.id === itemStaffId);
+
+              return (
+                <React.Fragment key={itemKey}>
+                  {/* Item Column */}
+                  <div className="flex flex-col py-0.5 overflow-visible h-[34px] justify-center relative">
+                    <div className="flex items-center justify-between group/item overflow-visible">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-1.5 h-1.5 rounded-full", getStaffColorClass(itemStaffId, staffMembers, 'bg') || 'bg-white')} />
+                        <span className={cn(
+                          "text-[12px] font-bold uppercase tracking-widest subpixel-antialiased", 
+                          colorClass
+                        )}>{itemName}</span>
+                      </div>
+                      <div className="flex items-center gap-1 relative z-10 overflow-visible">
+                        <span className="text-[10px] font-bold text-white/40 shrink-0 subpixel-antialiased">€</span>
+                        <div className="w-12 h-6 flex items-center justify-center transition-all">
+                          <input 
+                            type="text"
+                            readOnly
+                            value={customItemPrices[itemKey] || itemData.price}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingPriceItemKey(prev => prev === itemKey ? null : itemKey);
+                            }}
+                            className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-[12px] font-bold text-white subpixel-antialiased cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {editingPriceItemKey === itemKey && (
+                      <div className="absolute left-0 right-0 top-full mt-1 flex flex-wrap items-center gap-1 z-[100] animate-in fade-in slide-in-from-top-1 duration-200 overflow-visible bg-transparent backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-2xl">
+                        {(PRESET_PRICES[itemData.name] || [10, 20, 30]).map((price) => (
+                          <button
+                            key={price}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newVal = price.toString();
+                              const oldVal = customItemPrices[itemKey] || itemData.price.toString();
+                              const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                              setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
+                              if (staff && staff.id !== 'NO') {
+                                setStaffAmounts(prev => {
+                                  const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                  return { ...prev, [staff.name]: newStaffAmount };
+                                });
+                              }
+                              if (manualTotalAmount !== null) {
+                                setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                              }
+                              setEditingPriceItemKey(null);
+                            }}
+                            className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 hover:bg-white/20 text-[9px] font-bold text-white transition-all shadow-lg"
+                          >
+                            {price}
+                          </button>
+                        ))}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setKeypadTargetKey({ 
+                              key: itemKey, 
+                              staffId: itemStaffId, 
+                              basePrice: itemData.price,
+                              name: itemData.name
+                            });
+                            setShowCustomKeypad(true);
+                            setCustomItemPrices(prev => ({ ...prev, [itemKey]: '' }));
+                            setEditingPriceItemKey(null);
+                          }}
+                          className="px-2 py-0.5 rounded-full bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/20 hover:bg-emerald-500/30 text-[8px] font-black italic uppercase tracking-widest text-emerald-400 transition-all shadow-lg"
+                        >
+                          自定义
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Staff Column (Only on first appearance) */}
+                  {!showCustomKeypad && (
+                    <div className="pl-6 flex flex-col justify-center h-[34px]">
+                      {isFirstAppearance && staff ? (
+                        <div className="flex items-center justify-between group/item overflow-visible">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-1.5 h-1.5 rounded-full", getStaffColorClass(staff.id, staffMembers, 'bg') || 'bg-white')} />
+                            <span className={cn(
+                              "text-[12px] font-bold uppercase tracking-widest subpixel-antialiased",
+                              getStaffColorClass(staff.id, staffMembers, 'text')
+                            )}>{staff.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1 relative z-10 overflow-visible">
+                            <span className="text-[10px] font-bold text-white/40 shrink-0 subpixel-antialiased">€</span>
+                            <div className="w-12 h-6 flex items-center justify-center transition-all">
+                              <input 
+                                type="text"
+                                readOnly
+                                value={staffAmounts[staff.name] || ''}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setKeypadTargetKey({ 
+                                    key: `STAFF_${staff.name}`, 
+                                    staffId: staff.id, 
+                                    basePrice: 0,
+                                    name: staff.name
+                                  });
+                                  setShowCustomKeypad(true);
+                                }}
+                                placeholder="0"
+                                className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-[12px] font-bold text-white subpixel-antialiased cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-full" />
+                      )}
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+
+            {/* Extra Staff Rows */}
+            {extraStaff.map((staff) => (
+              <React.Fragment key={staff.id}>
+                <div className="h-[34px]" />
+                <div className="pl-6 flex flex-col justify-center h-[34px]">
+                  <div className="flex items-center justify-between group/item overflow-visible">
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-1.5 h-1.5 rounded-full", getStaffColorClass(staff.id, staffMembers, 'bg') || 'bg-white')} />
+                      <span className={cn(
+                        "text-[12px] font-bold uppercase tracking-widest subpixel-antialiased",
+                        getStaffColorClass(staff.id, staffMembers, 'text')
+                      )}>{staff.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 relative z-10 overflow-visible">
+                      <span className="text-[10px] font-bold text-white/40 shrink-0 subpixel-antialiased">€</span>
+                      <div className="w-12 h-6 flex items-center justify-center transition-all">
+                        <input 
+                          type="text"
+                          readOnly
+                          value={staffAmounts[staff.name] || ''}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setKeypadTargetKey({ 
+                              key: `STAFF_${staff.name}`, 
+                              staffId: staff.id, 
+                              basePrice: 0,
+                              name: staff.name
+                            });
+                            setShowCustomKeypad(true);
+                          }}
+                          placeholder="0"
+                          className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-[12px] font-bold text-white subpixel-antialiased cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {/* Total Amount Section */}
+        <div className="pt-1 pb-0.5 flex flex-col items-center w-full overflow-visible">
+          <div className="w-full flex justify-center overflow-visible">
+            <h3 className="text-xl font-black italic text-white uppercase tracking-[0.2em] [text-shadow:0_2px_4px_rgba(0,0,0,0.8),0_0_1px_rgba(0,0,0,1)] mr-[-0.2em]">
+              TOTAL BILLING
+            </h3>
+          </div>
+          
+          <div className="w-full flex justify-center overflow-visible">
+            <div className="flex items-center justify-center overflow-visible">
+              <input 
+                type="text"
+                readOnly
+                value={manualTotalAmount !== null ? (manualTotalAmount || '0') : (
+                  (Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
+                  (Number(mergedTotalPrice) || 0)).toString()
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setKeypadTargetKey({ 
+                    key: 'TOTAL', 
+                    staffId: 'TOTAL', 
+                    basePrice: 0,
+                    name: 'TOTAL BILLING'
+                  });
+                  setShowCustomKeypad(true);
+                }}
+                style={{ 
+                  fontSize: '45px',
+                  lineHeight: '1',
+                  height: 'auto',
+                  width: '100%',
+                  maxWidth: '250px'
+                }}
+                className="bg-transparent border-none p-0 text-center focus:outline-none font-black italic text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)] cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative">
+    <div 
+      className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className={cn(
         "relative flex items-center justify-center px-2 md:px-4 lg:px-6 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5", 
         isModalOpen ? "opacity-0 pointer-events-none" : "opacity-100",
@@ -2128,7 +2804,12 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             return (
               <button
                 key={type}
-                onClick={() => setViewType(type)}
+                onClick={() => {
+                  setViewType(type)
+                  if (type === 'day') {
+                    setCurrentDate(new Date())
+                  }
+                }}
                 className={cn(
                   "w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center text-xs md:text-sm font-black transition-all duration-300",
                   isActive 
@@ -2148,12 +2829,22 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
           >
             <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
           </button>
+
+          {mode === 'admin' && (
+            <button 
+              onClick={() => setShowRecycleBin(true)} 
+              className="p-1.5 md:p-2 rounded-full bg-transparent border border-white/20 text-zinc-400/80 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all ml-2"
+              title="回收站"
+            >
+              <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Calendar Grid - Stretching to fill remaining space */}
       <div className={cn(
-        "flex-1 flex flex-col min-h-0 relative overflow-hidden",
+        "flex-1 flex flex-col min-h-0 relative overflow-hidden no-scrollbar",
         (viewType === 'day' || viewType === 'week') && "overflow-y-auto",
         isModalOpen ? "opacity-0 pointer-events-none" : "opacity-100",
         isCalendarLocked && "pointer-events-none"
@@ -2211,7 +2902,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               
               <div className="flex w-full">
                 <div className={cn(
-                  "w-20 md:w-28 flex flex-col items-center pt-4 pb-2 bg-transparent shrink-0",
+                  "w-14 md:w-20 flex flex-col items-start pl-2 pt-4 pb-2 bg-transparent shrink-0",
                   isModalOpen && "opacity-0 pointer-events-none"
                 )}>
                   {viewType === 'day' && (
@@ -2292,21 +2983,28 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
             </div>
 
             {/* 2. Scrollable Body (Time Axis + Grid) */}
-            <div className={cn("flex-1 overflow-y-auto scrollbar-none", isModalOpen && "opacity-0 pointer-events-none")}>
+            <div className={cn("flex-1 overflow-y-auto no-scrollbar", isModalOpen && "opacity-0 pointer-events-none")}>
               <div className="flex px-1 md:px-2 lg:px-3 min-h-fit pb-20 pt-4">
                 {/* Time Axis Column */}
-                <div className={cn("w-20 md:w-28 shrink-0", isModalOpen && "opacity-0 pointer-events-none")}>
+                <div className={cn("w-14 md:w-20 shrink-0", isModalOpen && "opacity-0 pointer-events-none")}>
                   {TIME_SLOTS.map((time) => (
-                    <div key={time} className="h-[4rem] relative">
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] md:text-xs font-black text-white tabular-nums bg-transparent px-1">
-                        {time}
-                      </div>
+                    <div key={time} className="relative" style={{ height: `${SLOT_HEIGHT}rem` }}>
+                      {time.endsWith(':00') && (
+                        <div className="absolute top-0 left-2 -translate-y-1/2 text-[10px] md:text-xs font-black tabular-nums text-white bg-transparent px-1">
+                          {time}
+                        </div>
+                      )}
                     </div>
                   ))}
-                  {/* Bottom Label for 22:00 */}
+                  {/* Bottom Label for End Time */}
                   <div className="relative h-0">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] md:text-xs font-black text-white tabular-nums bg-transparent px-1">
-                      22:00
+                    <div className="absolute top-0 left-2 -translate-y-1/2 text-[10px] md:text-xs font-black text-white tabular-nums bg-transparent px-1">
+                      {(() => {
+                        const lastSlot = TIME_SLOTS[TIME_SLOTS.length - 1]
+                        const [h, m] = lastSlot.split(':').map(Number)
+                        const endDate = addMinutes(new Date(0, 0, 0, h, m), SLOT_INTERVAL)
+                        return format(endDate, 'HH:mm')
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2322,11 +3020,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   } : {}}
                 >
                   {/* Now Line Indicator */}
-                  {now && !isCalendarLocked && isSameDay(currentDate, now) && (viewType === 'day' || viewType === 'week') && now.getHours() >= 8 && now.getHours() < 20 && (
+                  {now && !isCalendarLocked && isSameDay(currentDate, now) && (viewType === 'day' || viewType === 'week') && now.getHours() >= 8 && now.getHours() < 21 && (
                     <div 
                       className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
                       style={{ 
-                        top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * (4 / 60)}rem`,
+                        top: `${((now.getHours() - 8) * 60 + now.getMinutes()) * MINUTE_HEIGHT}rem`,
                       }}
                     >
                       <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] -ml-1" />
@@ -2344,11 +3042,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                       return (
                           <div key={staff.id} className={cn(
-                            "relative border-l border-white/5 first:border-l-0 z-10",
-                            isModalOpen && "border-transparent"
+                            "relative z-10",
+                            isModalOpen && "opacity-0"
                           )}>
                             {/* Static Gap Badges between appointments */}
-                            {(now && !isCalendarLocked) && (
+                            {(now && !isCalendarLocked && mode === 'admin') && (
                               <GapBadge 
                                 staffId={staff.id} 
                                 events={events} 
@@ -2359,7 +3057,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             )}
                             
                             {/* Floating Timer attached to Now Line in this column */}
-                            {(now && !isCalendarLocked) && (
+                            {(now && !isCalendarLocked && mode === 'admin') && (
                               <StaffTimer 
                                 staffId={staff.id} 
                                 events={events} 
@@ -2369,26 +3067,26 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               />
                             )}
                           
-                          {TIME_SLOTS.map((time) => {
-                          const [hour, minute] = time.split(':').map(Number)
-                          const slotStart = setMinutes(setHours(currentDate, hour), minute)
-                          
-                          return (
-                            <div 
-                              key={time} 
-                              onClick={() => {
-                                setSelectedDate(slotStart)
-                                setSelectedEndDate(addMinutes(slotStart, duration))
-                                setClickedStaffId(staff.id)
-                                setIsModalOpen(true)
-                                setShowServiceSelection(true)
-                              }}
-                              className="h-[4rem] group/slot relative cursor-pointer"
-                            >
-                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10" />
-                            </div>
-                          )
-                        })}
+                          {/* Precise Click Area */}
+                          <div 
+                            className="absolute inset-0 z-0 cursor-crosshair group/grid"
+                            onClick={(e) => handleGridClick(e, currentDate, staff.id)}
+                            onMouseMove={(e) => handleGridMouseMove(e, currentDate, staff.id)}
+                            onMouseLeave={() => setHoverTime(null)}
+                          >
+                            {/* Hover Preview Line */}
+                            {hoverTime && hoverTime.staffId === staff.id && (
+                              <div 
+                                className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                                style={{ top: `${hoverTime.top}rem` }}
+                              >
+                                <div className="flex-1 h-[1px] bg-sky-400/50" />
+                                <div className="bg-sky-500 text-[9px] text-white px-1 py-0.5 rounded shadow-lg font-black italic -mr-1 scale-90">
+                                  {hoverTime.time}
+                                </div>
+                              </div>
+                            )}
+                          </div>
 
                         {filteredEvents.map(event => {
                           const start = getEventStartTime(event)
@@ -2396,11 +3094,11 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                           const totalStartMinutes = (start.getHours() - 8) * 60 + start.getMinutes()
                           const durationInMinutes = (end.getTime() - start.getTime()) / 60000
                           
-                          const top = (totalStartMinutes / 60) * 4
-                          const height = (durationInMinutes / 60) * 4
+                          const top = (totalStartMinutes) * MINUTE_HEIGHT
+                          const height = (durationInMinutes) * MINUTE_HEIGHT
                           
-                          const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
-                          const staffId = staffIdMatch ? staffIdMatch[1] : undefined
+                          const staffIdMatch = event["备注"]?.match(/技师:([^,\]\s]+)/)
+                          const staffId = staffIdMatch ? staffIdMatch[1] : 'NO'
                           
                           const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
                           const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
@@ -2414,7 +3112,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                               key={event.id}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                openEditModal(event)
+                                if (mode === 'admin') {
+                                  openEditModal(event)
+                                }
                               }}
                               style={{ 
                                 top: `calc(${top}rem + 1px)`, 
@@ -2427,9 +3127,9 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                 isShort ? "px-1" : "px-2",
                                 "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
                                 "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
-                                event["背景颜色"] || 'bg-blue-600',
-                                isCompleted && "bg-opacity-[0.05] border border-white/20",
-                                (isModalOpen || isCalendarLocked) && "opacity-0 pointer-events-none"
+                                mode === 'customer' ? 'bg-zinc-700/50' : (event["背景颜色"] || 'bg-blue-600'),
+                                isCompleted && cn("bg-opacity-[0.05] border", getStaffColorClass(staffId, staffMembers, 'border')),
+                                (isModalOpen || (mode === 'admin' && isCalendarLocked)) && "opacity-0 pointer-events-none"
                               )}
                             >
                               <div className={cn(
@@ -2439,42 +3139,39 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                 isShort ? "text-[11px]" : "text-[13px]"
                               )}>
                                 <div className="flex items-center gap-1 w-full overflow-hidden">
-                                  {staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
+                                  {mode === 'admin' && staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
                                 <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
-                                  {(() => {
-                                    const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
-                                    
-                                    // Extract staff sequence if present for Scheme A fallback
-                                    const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-                                    const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
-                                    
-                                    return items.map((item, idx) => {
-                                      // 1. Try to get individual staff mapping if available in notes
-                                      const escapedItem = escapeRegExp(item);
-                                      const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+                                  {mode === 'customer' ? (
+                                    <span className="truncate text-white/40 font-medium">{(I18N[lang] as any).occupied}</span>
+                                  ) : (
+                                    (() => {
+                                      const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
                                       
-                                      // 2. Fallback to sequence logic (Scheme A) if available
-                                      // 3. Fallback to main staffId
-                                      let itemStaffId = itemStaffMatch 
-                                        ? itemStaffMatch[1] 
-                                        : (staffSeq.length > 0 
-                                            ? (staffSeq[idx] || staffSeq[staffSeq.length - 1]) 
-                                            : staffId);
-                                      
-                                      return (
-                                        <React.Fragment key={idx}>
-                                          <span className="truncate text-white">{item}</span>
-                                          {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
-                                        </React.Fragment>
-                                      )
-                                    });
-                                  })()}
+                                      return items.map((item, idx) => {
+                                        // 1. Try to get individual staff mapping if available in notes
+                                        const escapedItem = escapeRegExp(item);
+                                        const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+                                        
+                                        // 2. Fallback to main staffId
+                                        let itemStaffId = itemStaffMatch 
+                                          ? itemStaffMatch[1] 
+                                          : staffId;
+                                        
+                                        return (
+                                          <React.Fragment key={idx}>
+                                            <span className="truncate text-white">{item}</span>
+                                            {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
+                                          </React.Fragment>
+                                        )
+                                      });
+                                    })()
+                                  )}
                                 </div>
-                                  {isShort && memberDisplayId && (
+                                  {mode === 'admin' && isShort && memberDisplayId && (
                                     <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-none text-white">{memberDisplayId}</span>
                                   )}
                                 </div>
-                                {!isShort && memberDisplayId && (
+                                {mode === 'admin' && !isShort && memberDisplayId && (
                                   <div>
                                     <span className="text-[10px] font-black not-italic truncate leading-none inline-block text-white">
                                       {memberDisplayId}
@@ -2492,26 +3189,26 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                     return (
                       <div key={day.toString()} className="relative border-none">
-                        {TIME_SLOTS.map((time) => {
-                          const [hour, minute] = time.split(':').map(Number)
-                          const slotStart = setMinutes(setHours(day, hour), minute)
-                          
-                          return (
+                        {/* Precise Click Area */}
+                        <div 
+                          className="absolute inset-0 z-0 cursor-crosshair group/grid"
+                          onClick={(e) => handleGridClick(e, day)}
+                          onMouseMove={(e) => handleGridMouseMove(e, day)}
+                          onMouseLeave={() => setHoverTime(null)}
+                        >
+                          {/* Hover Preview Line */}
+                          {hoverTime && hoverTime.date && isSameDay(hoverTime.date, day) && !hoverTime.staffId && (
                             <div 
-                              key={time} 
-                              onClick={() => {
-                                setSelectedDate(slotStart)
-                                setSelectedEndDate(addMinutes(slotStart, duration))
-                                setClickedStaffId('')
-                                setIsModalOpen(true)
-                                setShowServiceSelection(true)
-                              }}
-                              className="h-[4rem] group/slot relative cursor-pointer"
+                              className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                              style={{ top: `${hoverTime.top}rem` }}
                             >
-                              <div className="absolute inset-0 bg-white/0 group-hover/slot:bg-white/10" />
+                              <div className="flex-1 h-[1px] bg-sky-400/50" />
+                              <div className="bg-sky-500 text-[9px] text-white px-1 py-0.5 rounded shadow-lg font-black italic -mr-1 scale-90">
+                                {hoverTime.time}
+                              </div>
                             </div>
-                          )
-                        })}
+                          )}
+                        </div>
 
                         {(() => {
                           const sortedEvents = [...filteredEvents].sort((a, b) => {
@@ -2563,13 +3260,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             const totalStartMinutes = (start.getHours() - 8) * 60 + start.getMinutes()
                             const durationInMinutes = (end.getTime() - start.getTime()) / 60000
                             
-                            const top = (totalStartMinutes / 60) * 4
-                            const height = (durationInMinutes / 60) * 4
+                            const top = (totalStartMinutes) * MINUTE_HEIGHT
+                            const height = (durationInMinutes) * MINUTE_HEIGHT
 
                             const memberIdMatch = event["会员信息"]?.match(/\(([^)]+)\)/)
                             const memberDisplayId = memberIdMatch ? memberIdMatch[1] : ''
                             
-                            const staffIdMatch = event["备注"]?.match(/技师:([^,]+)/)
+                            const staffIdMatch = event["备注"]?.match(/技师:([^,\]\s]+)/)
                             const staffId = staffIdMatch ? staffIdMatch[1] : undefined
                             
                             const isShort = durationInMinutes < 30
@@ -2577,12 +3274,13 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             const width = 100 / group.totalColumns
                             const left = group.column * width
 
-                            const isCompleted = event["备注"]?.includes('COMPLETED')
+                            const isCompleted = mode === 'admin' && event["备注"]?.includes('COMPLETED')
 
                             return (
                               <div 
                                 key={event.id}
                                 onClick={(e) => {
+                                  if (mode === 'customer') return
                                   e.stopPropagation()
                                   openEditModal(event)
                                 }}
@@ -2599,14 +3297,10 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   isShort ? "px-1" : "px-2",
                                   "shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/10",
                                   "hover:brightness-110 flex flex-col justify-center uppercase tracking-wider",
-                                  event["背景颜色"] || 'bg-blue-600',
-                                  isCompleted && "bg-opacity-[0.05] border border-white/20",
-                                  (isModalOpen || isCalendarLocked) && "opacity-0 pointer-events-none"
+                                  mode === 'customer' ? 'bg-zinc-700/50' : (event["背景颜色"] || 'bg-blue-600'),
+                                  isCompleted && cn("bg-opacity-[0.05] border", getStaffColorClass(staffId, staffMembers, 'border')),
+                                  (isModalOpen || (mode === 'admin' && isCalendarLocked)) && "opacity-0 pointer-events-none"
                                 )}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditModal(event);
-                                }}
                               >
                                 <div className={cn(
                                   "flex flex-col leading-none font-black italic w-full gap-0.5",
@@ -2615,42 +3309,39 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   isShort ? "text-[11px]" : "text-[13px]"
                                 )}>
                                   <div className="flex items-center gap-1 w-full overflow-hidden">
-                                    {staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
+                                    {mode === 'admin' && staffId === 'NO' && <span className="text-[7px] bg-zinc-800 px-0.5 rounded border border-zinc-700 not-italic shrink-0 scale-90">NO</span>}
                                   <div className="truncate flex-1 flex items-center gap-0.5 overflow-hidden">
-                                    {(() => {
-                                      const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
-                                      
-                                      // Extract staff sequence if present for Scheme A fallback
-                                      const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-                                      const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
-                                      
-                                      return items.map((item, idx) => {
-                                        // 1. Try to get individual staff mapping if available in notes
-                                        const escapedItem = escapeRegExp(item);
-                                        const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+                                    {mode === 'customer' ? (
+                                      <span className="truncate text-white/40 font-medium">{(I18N[lang] as any).occupied}</span>
+                                    ) : (
+                                      (() => {
+                                        const items = event["服务项目"].split(',').map(s => s.trim()).filter(Boolean);
                                         
-                                        // 2. Fallback to sequence logic (Scheme A) if available
-                                        // 3. Fallback to main staffId
-                                        let itemStaffId = itemStaffMatch 
-                                          ? itemStaffMatch[1] 
-                                          : (staffSeq.length > 0 
-                                              ? (staffSeq[idx] || staffSeq[staffSeq.length - 1]) 
-                                              : staffId);
-                                        
-                                        return (
-                                          <React.Fragment key={idx}>
-                                            <span className="truncate text-white">{item}</span>
-                                            {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
-                                          </React.Fragment>
-                                        )
-                                      });
-                                    })()}
+                                        return items.map((item, idx) => {
+                                          // 1. Try to get individual staff mapping if available in notes
+                                          const escapedItem = escapeRegExp(item);
+                                          const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
+                                          
+                                          // 2. Fallback to main staffId
+                                          let itemStaffId = itemStaffMatch 
+                                            ? itemStaffMatch[1] 
+                                            : staffId;
+                                          
+                                          return (
+                                            <React.Fragment key={idx}>
+                                              <span className="truncate text-white">{item}</span>
+                                              {idx < items.length - 1 && <span className="text-white/60 mx-0.5">/</span>}
+                                            </React.Fragment>
+                                          )
+                                        });
+                                      })()
+                                    )}
                                   </div>
-                                    {isShort && memberDisplayId && (
+                                    {mode === 'admin' && isShort && memberDisplayId && (
                                       <span className="text-[9px] ml-auto shrink-0 font-black not-italic leading-none text-white">{memberDisplayId}</span>
                                     )}
                                   </div>
-                                  {!isShort && memberDisplayId && (
+                                  {mode === 'admin' && !isShort && memberDisplayId && (
                                     <div>
                                       <span className="text-[10px] font-black not-italic truncate leading-none inline-block text-white">
                                         {memberDisplayId}
@@ -2790,676 +3481,889 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         )}
       </div>
 
-      {(isModalOpen && !isCalendarLocked) && (
+      {(isModalOpen && (mode === 'customer' || !isCalendarLocked)) && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-transparent"
-          onClick={() => handleSubmit()}
         >
           <div 
-            className="w-full max-w-2xl max-h-[92vh] bg-black/95 border border-white/20 rounded-[2rem] shadow-2xl overflow-y-auto ring-1 ring-white/5 custom-scrollbar"
+            className="w-full max-w-2xl max-h-[92vh] bg-transparent border border-white/20 rounded-[2rem] shadow-2xl overflow-y-auto ring-1 ring-white/5 no-scrollbar"
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
             <form onSubmit={handleSubmit} className="flex flex-col">
-              <div className="grid grid-cols-1 md:grid-cols-2 items-start">
+              <div className={cn(
+                "grid items-start transition-all duration-300",
+                (showCheckoutPreview && !showCustomKeypad) ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
+              )}>
                 {/* Left Column - Core Info */}
-                <div className="p-6 pb-0 space-y-2">
-                  {/* Title Section - Centered */}
-                  <div className="flex flex-col items-center justify-center mb-2 space-y-1 antialiased">
-                      <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">FX ESTETICA</h2>
-                    </div>
-
-                  {/* Row 2: Service & Member */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5 antialiased">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        服务内容
-                      </label>
-                      <div className="relative group w-full bg-white/[0.01] border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
-                        <input 
-                          autoFocus
-                          type="text"
-                          placeholder="输入服务项目..."
-                          className="w-full bg-transparent border-none px-3 py-2.5 text-transparent caret-transparent focus:outline-none text-xs placeholder:text-zinc-500 relative z-10"
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          onFocus={() => {
-                            // Only switch to selection view if NOT in checkout preview
-                            if (!showCheckoutPreview) {
-                              setShowServiceSelection(true)
-                              setShowMemberDetail(false)
-                              setShowTimeSelection(false)
-                            }
-                          }}
-                          required
-                        />
-                        {/* Colored Content Display - Directly inside the box */}
-                        <div className="absolute inset-0 flex items-center px-3 pointer-events-none z-0 overflow-hidden">
-                          {newTitle ? (
-                            <div className="flex items-center text-xs font-bold whitespace-pre">
-                              {(() => {
-                                const parts = newTitle.split(/(\s*,\s*)/);
-                                const itemParts = parts.filter(p => !p.includes(',') && p.trim());
-                                let currentItemIdx = 0;
-                                
-                                return parts.map((part, idx) => {
-                                  const trimmed = part.trim()
-                                  const isSeparator = part.includes(',')
-                                  
-                                  if (isSeparator || !trimmed) {
-                            return <span key={idx} className="text-white/40">{part}</span>
-                          }
-
-                                  // Priority for color display (L1/L2/L3 unified):
-                                  // 1. Explicit manual/auto binding (itemStaffMap)
-                                  // 2. If no binding, fallback to sequential assignment (L1) based on selectedStaffIds
-                                  const staffId = itemStaffMap[trimmed] || 
-                                                 (selectedStaffIds.length > 1 
-                                                   ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1]) 
-                                                   : selectedStaffId);
-                                  
-                                  currentItemIdx++;
-                                  
-                                  const colorClass = getStaffColorClass(staffId, staffMembers, 'text');
-                                  
-                                  return (
-                                    <span key={idx} className={cn("font-black italic tracking-wider", colorClass)}>
-                                      {part}
-                                    </span>
-                                  )
-                                });
-                              })()}
-                            </div>
-                          ) : (
-                            <span className="text-zinc-500 text-xs">输入服务项目...</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5 relative antialiased">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        会员信息
-                      </label>
-                      <input 
-                        type="text"
-                        placeholder="姓名/卡号/电话"
-                        className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-500 shadow-inner"
-                        value={memberInfo}
-                        onChange={(e) => {
-                          setMemberInfo(e.target.value)
-                          setMemberSearchQuery(e.target.value)
-                        }}
-                        onFocus={() => {
-                          setShowServiceSelection(false)
-                          if (selectedMember) setShowMemberDetail(true)
-                          setShowCheckoutPreview(false)
-                          setShowTimeSelection(false)
-                        }}
-                      />
-                      {/* Search Results Dropdown */}
-                      {(filteredMembers.length > 0 || memberSearchQuery) && (
-                        <div className="absolute top-full left-0 w-full mt-1 bg-white/[0.01] backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
-                          {filteredMembers.map((member) => (
-                            <button
-                              key={member.card}
-                              type="button"
-                              onClick={() => handleSelectMember(member)}
-                              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5"
-                            >
-                              <div className="flex flex-col items-start">
-                                {member.name && <span className="text-xs font-bold text-white">{member.name}</span>}
-                                <span className="text-[10px] text-zinc-400">{member.phone}</span>
-                              </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-white/60">
-                                {member.card}
-                              </span>
-                            </button>
-                          ))}
-                          {memberSearchQuery && !filteredMembers.some(m => m.phone === memberSearchQuery) && (
-                            <button
-                              type="button"
-                              onClick={() => handleNewMember(memberSearchQuery)}
-                              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 text-emerald-500"
-                            >
-                              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                <span className="text-lg">+</span>
-                              </div>
-                              <div className="flex flex-col items-start">
-                                <span className="text-[10px] font-bold uppercase tracking-widest">创建新会员</span>
-                                <span className="text-xs font-black">{memberSearchQuery}</span>
-                              </div>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Row 3: Date & Start Time */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5 relative antialiased">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        {I18N[lang].serviceDate}
-                      </label>
-                      <div 
-                        onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                        className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
-                      >
-                        <span className="font-bold">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
-                        <CalendarIcon className="w-4 h-4 text-white/60" />
-                      </div>
-
-                      {/* Custom Date Picker Popup */}
-                      {isDatePickerOpen && (
-                        <div className="absolute top-full left-0 mt-2 z-[100] bg-black/50 backdrop-blur-xl border border-white/5 rounded-2xl p-3 shadow-2xl w-[240px]">
-                          {/* Header: YYYY年 MM月 */}
-                          <div className="flex items-center justify-center mb-4">
-                            <h3 className="text-[11px] font-black tracking-widest text-white uppercase italic">
-                              {selectedDate ? format(selectedDate, 'yyyy年 MM月') : ''}
-                            </h3>
-                          </div>
-
-                          {/* Weekdays */}
-                          <div className="grid grid-cols-7 mb-2">
-                            {['一', '二', '三', '四', '五', '六', '日'].map(d => (
-                              <div key={d} className="text-center text-[9px] font-black italic text-zinc-400">
-                                {d}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Days Grid */}
-                          <div className="grid grid-cols-7 gap-y-0.5">
-                            {(() => {
-                              if (!selectedDate) return null;
-                              const monthStart = startOfMonth(selectedDate);
-                              const monthEnd = endOfMonth(selectedDate);
-                              const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-                              const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-                              
-                              const calendarDays = eachDayOfInterval({
-                                start: startDate,
-                                end: endDate
-                              });
-
-                              return calendarDays.map((day, i) => {
-                                const isSelected = isSameDay(day, selectedDate);
-                                const isCurrentMonth = isSameMonth(day, monthStart);
-                                
-                                return (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => {
-                                      const newDate = new Date(selectedDate);
-                                      newDate.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
-                                      setSelectedDate(newDate);
-                                      setSelectedEndDate(addMinutes(newDate, duration));
-                                      setIsDatePickerOpen(false);
-                                    }}
-                                    className={cn(
-                                      "h-7 w-7 flex items-center justify-center text-[10px] transition-all rounded-lg",
-                                      isSelected 
-                                        ? "bg-white text-black font-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
-                                        : isCurrentMonth 
-                                          ? "text-zinc-300 hover:bg-white/10" 
-                                          : "text-zinc-800"
-                                    )}
-                                  >
-                                    {format(day, 'd')}
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 antialiased">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        {I18N[lang].startTime}
-                      </label>
-                      <div 
-                        className="grid grid-cols-2 gap-2 cursor-pointer"
-                        onClick={() => {
-                          setShowTimeSelection(true);
-                          setTimeSelectionType('start');
-                          setShowServiceSelection(false);
-                          setShowMemberDetail(false);
-                          setShowCheckoutPreview(false);
-                        }}
-                      >
-                        <div className={cn(
-                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
-                          showTimeSelection && timeSelectionType === 'start' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
-                        )}>
-                          {selectedDate ? format(selectedDate, 'HH') : '08'}{I18N[lang].hourSuffix}
-                        </div>
-                        <div className={cn(
-                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
-                          showTimeSelection && timeSelectionType === 'start' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
-                        )}>
-                          {selectedDate ? format(selectedDate, 'mm') : '00'}{I18N[lang].minuteSuffix}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Row 4: Duration & End Time */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5 relative antialiased">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        {I18N[lang].duration}
-                      </label>
-                      <div 
-                        onClick={() => setIsDurationPickerOpen(!isDurationPickerOpen)}
-                        className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white text-xs font-bold shadow-inner cursor-pointer hover:bg-white/10 flex items-center justify-between"
-                      >
-                        <span>{duration} {I18N[lang].minutesSuffix}</span>
-                        <ChevronDown className={cn("w-3.5 h-3.5 text-white/60 transition-transform", isDurationPickerOpen && "rotate-180")} />
-                      </div>
-
-                      {/* Custom Duration Picker Popover */}
-                      {isDurationPickerOpen && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-[60]" 
-                            onClick={() => setIsDurationPickerOpen(false)}
-                          />
-                          <div className="absolute top-full left-0 w-full mt-2 bg-zinc-950/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[70] overflow-hidden">
-                            <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                              {(() => {
-                                const baseOptions = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300];
-                                const options = [...baseOptions];
-                                if (duration && !options.includes(duration)) {
-                                  options.push(duration);
-                                }
-                                return options.sort((a, b) => a - b).map(m => (
-                                  <button
-                                    key={m}
-                                    type="button"
-                                    onClick={() => {
-                                      setDuration(m);
-                                      if (selectedDate) {
-                                        setSelectedEndDate(addMinutes(new Date(selectedDate), m));
-                                      }
-                                      setIsDurationPickerOpen(false);
-                                    }}
-                                    className={cn(
-                                      "w-full px-4 py-2.5 text-left text-xs font-bold transition-colors rounded-xl",
-                                      duration === m 
-                                        ? "bg-white text-zinc-950" 
-                                        : "text-zinc-400 hover:bg-white/5 hover:text-white"
-                                    )}
-                                  >
-                                    {m} {I18N[lang].minutesSuffix}
-                                  </button>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 antialiased">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        {I18N[lang].endTime}
-                      </label>
-                      <div 
-                        className="grid grid-cols-2 gap-2 cursor-pointer"
-                        onClick={() => {
-                          setShowTimeSelection(true);
-                          setTimeSelectionType('end');
-                          setShowServiceSelection(false);
-                          setShowMemberDetail(false);
-                          setShowCheckoutPreview(false);
-                        }}
-                      >
-                        <div className={cn(
-                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
-                          showTimeSelection && timeSelectionType === 'end' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
-                        )}>
-                          {selectedEndDate ? format(selectedEndDate, 'HH') : (selectedDate ? format(selectedDate, 'HH') : '08')}{I18N[lang].hourSuffix}
-                        </div>
-                        <div className={cn(
-                          "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner",
-                          showTimeSelection && timeSelectionType === 'end' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
-                        )}>
-                          {selectedEndDate ? format(selectedEndDate, 'mm') : (selectedDate ? format(selectedDate, 'mm') : '00')}{I18N[lang].minuteSuffix}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Row 5: Staff */}
-                  <div className="space-y-1.5 antialiased">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
-                        {I18N[lang].staff}
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {staffMembers.map((staff) => {
-                        const isInvolved = Object.values(itemStaffMap).includes(staff.id) || selectedStaffIds.includes(staff.id);
-                        const isActive = selectedStaffId === staff.id;
-                        const orderIndex = selectedStaffIds.indexOf(staff.id);
-                        
-                        return (
-                        <button
-                          key={staff.id}
-                          type="button"
-                          onClick={() => {
-                            if (staff.id === 'NO') {
-                              setSelectedStaffId('NO')
-                              setSelectedStaffIds([])
-                              setSelectedColor('bg-zinc-500')
-                              return
-                            }
-                            
-                            // Toggle logic for selection
-                            const isAlreadySelected = selectedStaffIds.includes(staff.id);
-                            
-                            if (isAlreadySelected) {
-                              // If already selected, remove it
-                              const newIds = selectedStaffIds.filter(id => id !== staff.id);
-                              setSelectedStaffIds(newIds);
-                              
-                              // Scheme B: Re-distribute ALL items among remaining staff
-                              const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
-                              if (currentItems.length > 0) {
-                                setItemStaffMap(prev => {
-                                  const newMap = { ...prev };
-                                  // Clear all mappings first to ensure a clean re-distribution
-                                  Object.keys(newMap).forEach(it => delete newMap[it]);
-                                  
-                                  if (newIds.length > 0) {
-                                    // If still have staff, re-distribute all items among them
-                                    currentItems.forEach((it, idx) => {
-                                      newMap[it] = newIds[idx % newIds.length];
-                                    });
-                                  }
-                                  return newMap;
-                                });
-                              }
-
-                              // If it was the primary selectedStaffId, update it to the next available or empty
-                              if (selectedStaffId === staff.id) {
-                                if (newIds.length > 0) {
-                                  setSelectedStaffId(newIds[0]);
-                                  const nextStaff = staffMembers.find(s => s.id === newIds[0]);
-                                  const nextColor = nextStaff?.bgColor?.replace('/10', '') || 'bg-sky-400';
-                                  setSelectedColor(nextColor);
-                                } else {
-                                  setSelectedStaffId('');
-                                  setSelectedColor('bg-sky-400'); // Default unassigned color
-                                }
-                              }
-                            } else {
-                              // If not selected, add it
-                              const newSelectedIds = [...selectedStaffIds, staff.id];
-                              setSelectedStaffId(staff.id);
-                              setSelectedStaffIds(newSelectedIds);
-
-                              // Scheme B: Click Binding (Priority L2/L1)
-                              // When staff are clicked, RE-DISTRIBUTE ALL items among current staff selection
-                              const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
-                              
-                              if (currentItems.length > 0) {
-                                setItemStaffMap(prev => {
-                                  const newMap = { ...prev };
-                                  // Clear previous auto-mappings and re-distribute
-                                  // This ensures "Semi-auto flow": click projects first -> select multiple staff = auto re-average
-                                  currentItems.forEach((it, idx) => {
-                                    newMap[it] = newSelectedIds[idx % newSelectedIds.length];
-                                  });
-                                  return newMap;
-                                });
-                              }
-
-                              // Use the staff's color via helper
-                              const color = getStaffColorClass(staff.id, staffMembers, 'bg')
-                              setSelectedColor(color)
-                            }
-                          }}
-                          className={cn(
-                            "relative w-full py-2 rounded-xl text-[10px] font-black italic tracking-widest uppercase truncate px-1 border-2",
-                            isActive 
-                              ? `${getStaffColorClass(staff.id, staffMembers, 'bg')} text-white border-transparent shadow-lg` 
-                              : isInvolved
-                                ? `bg-white/10 text-white ${staff.color || 'border-white/40'}`
-                                : "bg-white/5 text-white hover:text-white hover:bg-white/10 border-transparent"
-                          )}
-                        >
-                          {staff.name}
-                          
-                          {/* Order Indicator (Sequence Number) */}
-                          {orderIndex > -1 && (
-                            <div className={cn(
-                              "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shadow-lg border border-white/20",
-                              getStaffColorClass(staff.id, staffMembers, 'bg')
-                            )}>
-                              {orderIndex + 1}
-                            </div>
-                          )}
-                        </button>
-                      )})}
-                      {/* Management "Box" Button */}
-                      <button 
-                        type="button"
-                        onClick={() => setIsStaffManagerOpen(true)}
-                        className="w-full py-2 rounded-xl text-[10px] font-black bg-white/5 text-zinc-600 hover:text-white hover:bg-white/10 flex items-center justify-center border border-dashed border-white/10"
-                      >
-                        <Settings2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column - Member Detail or Service Selection or Checkout Preview */}
-                <div className="p-6 pb-0 space-y-2 bg-transparent min-h-[240px] overflow-visible">
-                  {showCheckoutPreview ? (
-                    <div className="h-full flex flex-col space-y-2 overflow-visible">
-                      {/* Receipt Header */}
-                      <div className="flex items-center justify-between mb-2 px-2 relative">
-                        <button 
-                          onClick={() => setShowCheckoutPreview(false)}
-                          className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                        >
-                          <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <div className="flex flex-col items-center justify-center flex-1">
-                          <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">BILLING</h2>
-                        </div>
-                      </div>
-
-                      {/* Items & Staff Amounts */}
-                      <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1 overflow-x-visible">
-                        {/* Service Title */}
-                        <div className="space-y-1 group antialiased overflow-visible">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-white uppercase tracking-widest subpixel-antialiased">项目</span>
-                          </div>
-                          
-                          {/* Item Price Breakdown with Staff Colors */}
-                          <div className="flex flex-col gap-1 pl-2 overflow-visible">
-                            {mergedEvents.map((event, eventIdx) => {
-                              const eventItems = event["服务项目"]?.split(',').map(s => s.trim()).filter(Boolean) || [];
-                              const eventStaffId = event["背景颜色"]?.match(/bg-([a-z0-9-]+)/)?.[1] || 'sky'; // Try to extract staff from color if possible, but we'll use per-item if available
-                              
-                              return (
-                                <div key={eventIdx} className="space-y-1 overflow-visible">
-                                  {eventItems.map((itemName, idx) => {
-                                    const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
-                                    if (!itemData) return null;
-                                    
-                                    // Parse item-specific staff if available in notes
-                                    const escapedItem = escapeRegExp(itemName);
-                                    const itemStaffMatch = event["备注"]?.match(new RegExp(`\\[${escapedItem}_STAFF:([^\\]]+)\\]`))
-                                    
-                                    // Fallback to STAFF_SEQ for Scheme A if available
-                                    const seqMatch = event["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/);
-                                    const staffSeq = seqMatch ? seqMatch[1].split(',').filter(Boolean) : [];
-                                    
-                                    const itemStaffId = itemStaffMatch 
-                                      ? itemStaffMatch[1] 
-                                      : (staffSeq.length > 0 
-                                          ? (staffSeq[idx] || staffSeq[staffSeq.length - 1])
-                                          : (() => {
-                                              // Fallback: try to extract staff ID from the event's background/border color
-                                              const colorName = getCleanColorName(event["背景颜色"]);
-                                              return (colorName && COLOR_TO_STAFF_ID[colorName]) || (eventIdx === mergedEvents.length - 1 ? selectedStaffId : undefined);
-                                            })());
-                                    
-                                    const colorClass = getStaffColorClass(itemStaffId, staffMembers, 'text')
-                                    const itemKey = `${event.id}-${itemName}-${idx}`;
-
-                                    return (
-                                      <div key={idx} className="flex items-center justify-between group/item py-1.5 overflow-visible">
-                                        <div className="flex items-center gap-3">
-                                          <div className={cn("w-2 h-2 rounded-full", getStaffColorClass(itemStaffId, staffMembers, 'bg') || 'bg-white')} />
-                                          <span className={cn("text-xs font-bold tracking-wide subpixel-antialiased", colorClass)}>{itemName}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 relative z-10 overflow-visible">
-                                          <span className="text-xs font-bold text-white shrink-0 opacity-80 subpixel-antialiased">€</span>
-                                          <div className="w-16 h-8 flex items-center justify-center transition-all">
-                                            <input 
-                                              type="text"
-                                              inputMode="numeric"
-                                              pattern="[0-9]*"
-                                              value={customItemPrices[itemKey] || itemData.price}
-                                              onChange={(e) => {
-                                                const newVal = e.target.value.replace(/[^0-9]/g, '');
-                                                const oldVal = customItemPrices[itemKey] || itemData.price.toString();
-                                                const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
-                                                
-                                                // Update item price
-                                                setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
-                                                
-                                                // Update assigned staff's amount if exists
-                                                const staff = staffMembers.find(s => s.id === itemStaffId);
-                                                if (staff && staff.id !== 'NO') {
-                                                  setStaffAmounts(prev => {
-                                                    const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
-                                                    return { ...prev, [staff.name]: newStaffAmount };
-                                                  });
-                                                }
-                                                
-                                                // If we had a manual total, update it too
-                                                if (manualTotalAmount !== null) {
-                                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
-                                                }
-                                              }}
-                                              className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-sm font-bold text-white placeholder:text-zinc-800 subpixel-antialiased"
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="h-[1px] w-full" />
-
-                        {/* Staff Breakdown */}
-                        <div className="space-y-1 antialiased overflow-visible">
-                          <div className="flex items-center justify-between">
-                            <div className="text-[10px] font-bold text-white uppercase tracking-widest subpixel-antialiased">服务人员</div>
-                          </div>
-                          
-                          {staffMembers
-                            .filter(s => s.id !== 'NO' && (involvedStaffIds.includes(s.id) || staffAmounts[s.name] !== undefined))
-                            .map((staff) => (
-                              <div key={staff.id} className="flex items-center justify-between group/item py-1.5 overflow-visible">
-                                <div className="flex items-center gap-3">
-                                  <div className={cn("w-2 h-2 rounded-full", staff.color || 'bg-white')} />
-                                  <div className="flex flex-col">
-                                    <span className={cn(
-                                      "text-[10px] font-bold uppercase tracking-widest subpixel-antialiased",
-                                      getStaffColorClass(staff.id, staffMembers, 'text')
-                                    )}>{staff.name}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1.5 relative z-10 overflow-visible">
-                                     <span className="text-xs font-bold text-white shrink-0 opacity-80 subpixel-antialiased">€</span>
-                                     <div className="w-16 h-8 flex items-center justify-center transition-all">
-                                       <input 
-                                         type="text"
-                                         inputMode="numeric"
-                                         pattern="[0-9]*"
-                                         value={staffAmounts[staff.name] || ''}
-                                         onChange={(e) => {
-                                           const newVal = e.target.value.replace(/[^0-9]/g, '');
-                                           const oldVal = staffAmounts[staff.name] || '0';
-                                           const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
-                                           
-                                           setStaffAmounts(prev => ({ ...prev, [staff.name]: newVal }));
-                                           
-                                           // If we had a manual total, update it too
-                                           if (manualTotalAmount !== null) {
-                                             setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
-                                           }
-                                         }}
-                                         placeholder="0"
-                                         className="w-full bg-transparent border-none p-0 text-center focus:outline-none text-sm font-bold text-white placeholder:text-zinc-800 subpixel-antialiased"
-                                       />
-                                     </div>
-                                   </div>
-                              </div>
-                            ))}
-                          {Object.values(staffAmounts).filter(v => v && Number(v) > 0).length === 0 && !selectedStaffId && (
-                            <div className="text-center py-4 text-[10px] font-bold text-zinc-600 uppercase italic tracking-widest">
-                              未选择服务人员
-                            </div>
-                          )}
-
-                        </div>
-                      </div>
-  
-                    {/* Total Amount Section - Perfectly Centered in Right Panel with Input Box */}
-                    <div className="pt-2 pb-1 flex flex-col items-center w-full overflow-visible">
-                      {/* Row 1: TOTAL BILLING centered in right panel */}
-                      <div className="w-full flex justify-center overflow-visible mb-0.5">
-                        <h3 className="text-xl font-black italic text-white uppercase tracking-[0.2em] [text-shadow:0_2px_4px_rgba(0,0,0,0.8),0_0_1px_rgba(0,0,0,1)] mr-[-0.2em]">
-                          TOTAL BILLING
-                        </h3>
+                {(!showCheckoutPreview || showCustomKeypad) && (
+                  <div className="p-6 pb-0 space-y-2">
+                    {showCustomKeypad ? (
+                      renderBillingContent()
+                    ) : (
+                      <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+                      {/* Title Section - Centered */}
+                      <div className="flex flex-col items-center justify-center mb-2 space-y-1 antialiased">
+                        <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">FX ESTETICA</h2>
                       </div>
                       
-                      {/* Row 2: Pure Large Amount Display - No Box */}
-                      <div className="w-full flex justify-center overflow-visible">
-                        <div className="flex items-center justify-center overflow-visible">
+                      {/* Row 2: Service & Member */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5 antialiased">
+                          <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                            服务内容
+                          </label>
+                          <div className="relative group w-full bg-white/[0.01] border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
+                            <input 
+                              autoFocus
+                              type="text"
+                              placeholder="输入服务项目..."
+                              className="w-full bg-transparent border-none px-3 py-2.5 text-transparent caret-transparent focus:outline-none text-xs placeholder:text-zinc-500 relative z-10"
+                              value={newTitle}
+                              onChange={(e) => setNewTitle(e.target.value)}
+                              onFocus={() => {
+                                // Only switch to selection view if NOT in checkout preview
+                                if (!showCheckoutPreview) {
+                                  setShowServiceSelection(true)
+                                  setShowMemberDetail(false)
+                                  setShowTimeSelection(false)
+                                }
+                              }}
+                              required
+                            />
+                            {/* Colored Content Display - Directly inside the box */}
+                            <div className="absolute inset-0 flex items-center px-3 pointer-events-none z-0 overflow-hidden">
+                              {newTitle ? (
+                                <div className="flex items-center text-xs font-bold whitespace-pre">
+                                  {(() => {
+                                    const parts = newTitle.split(/(\s*,\s*)/);
+                                    const itemParts = parts.filter(p => !p.includes(',') && p.trim());
+                                    let currentItemIdx = 0;
+                                    
+                                    return parts.map((part, idx) => {
+                                      const trimmed = part.trim()
+                                      const isSeparator = part.includes(',')
+                                      
+                                      if (isSeparator || !trimmed) {
+                                return <span key={idx} className="text-white/40">{part}</span>
+                              }
+
+                                      // Priority for color display (L1/L2/L3 unified):
+                                      // 1. Explicit manual/auto binding (itemStaffMap)
+                                      // 2. If no binding, fallback to sequential assignment (L1) based on selectedStaffIds
+                                      const itemKey = `${editingEvent?.id || 'new'}-${trimmed}-${currentItemIdx}`;
+                                      const staffId = itemStaffMap[itemKey] || itemStaffMap[trimmed] || 
+                                                     (selectedStaffIds.length > 1 
+                                                       ? (selectedStaffIds[currentItemIdx] || selectedStaffIds[selectedStaffIds.length - 1]) 
+                                                       : selectedStaffId);
+                                      
+                                      currentItemIdx++;
+                                      
+                                      const colorClass = getStaffColorClass(staffId, staffMembers, 'text');
+                                      
+                                      return (
+                                        <span key={idx} className={cn("font-black italic tracking-wider", colorClass)}>
+                                          {part}
+                                        </span>
+                                      )
+                                    });
+                                  })()}
+                                </div>
+                              ) : (
+                                <span className="text-zinc-500 text-xs">输入服务项目...</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 relative antialiased">
+                          <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                            会员信息
+                          </label>
                           <input 
                             type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={manualTotalAmount !== null ? manualTotalAmount : (
-                              Object.values(staffAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
-                              mergedTotalPrice
-                            ).toString()}
+                            placeholder="姓名/卡号/电话"
+                            className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-500 shadow-inner"
+                            value={memberInfo}
                             onChange={(e) => {
-                              const val = e.target.value.replace(/[^0-9]/g, '');
-                              setManualTotalAmount(val);
+                              setMemberInfo(e.target.value)
+                              setMemberSearchQuery(e.target.value)
                             }}
-                            style={{ 
-                              fontSize: '45px',
-                              lineHeight: '1',
-                              height: 'auto',
-                              width: '100%',
-                              maxWidth: '250px'
+                            onFocus={() => {
+                              setShowServiceSelection(false)
+                              if (selectedMember) setShowMemberDetail(true)
+                              setShowCheckoutPreview(false)
+                              setShowTimeSelection(false)
                             }}
-                            className="bg-transparent border-none p-0 text-center focus:outline-none font-black italic text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]"
                           />
+                          {/* Search Results Dropdown */}
+                          {(filteredMembers.length > 0 || memberSearchQuery) && (
+                            <div className="absolute top-full left-0 w-full mt-1 bg-white/[0.01] backdrop-blur-md border border-white/20 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto overflow-x-hidden">
+                              {filteredMembers.map((member) => (
+                                <button
+                                  key={member.card}
+                                  type="button"
+                                  onClick={() => handleSelectMember(member)}
+                                  className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5"
+                                >
+                                  <div className="flex flex-col items-start">
+                                    {member.name && <span className="text-xs font-bold text-white">{member.name}</span>}
+                                    <span className="text-[10px] text-zinc-400">{member.phone}</span>
+                                  </div>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-white/60">
+                                    {member.card}
+                                  </span>
+                                </button>
+                              ))}
+                              {memberSearchQuery && !filteredMembers.some(m => m.phone === memberSearchQuery) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleNewMember(memberSearchQuery)}
+                                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-emerald-500/10 text-emerald-500"
+                                >
+                                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                                    <span className="text-lg">+</span>
+                                  </div>
+                                  <div className="flex flex-col items-start">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">创建新会员</span>
+                                    <span className="text-xs font-black">{memberSearchQuery}</span>
+                                  </div>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Row 3: Date & Start Time */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5 relative antialiased">
+                          <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                            {I18N[lang].serviceDate}
+                          </label>
+                          <div 
+                            onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                            className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs shadow-inner cursor-pointer flex items-center justify-between"
+                          >
+                            <span className="font-bold">{selectedDate ? format(selectedDate, 'yyyy/MM/dd') : ''}</span>
+                            <CalendarIcon className="w-4 h-4 text-white/60" />
+                          </div>
+
+                          {/* Custom Date Picker Popup */}
+                          {isDatePickerOpen && (
+                            <div className="absolute top-full left-0 mt-2 z-[100] bg-transparent backdrop-blur-xl border border-white/5 rounded-2xl p-3 shadow-2xl w-[240px]">
+                              {/* Header: YYYY年 MM月 */}
+                              <div className="flex items-center justify-center mb-4">
+                                <h3 className="text-[11px] font-black tracking-widest text-white uppercase italic">
+                                  {selectedDate ? format(selectedDate, 'yyyy年 MM月') : ''}
+                                </h3>
+                              </div>
+
+                              {/* Weekdays */}
+                              <div className="grid grid-cols-7 mb-2">
+                                {['一', '二', '三', '四', '五', '六', '日'].map(d => (
+                                  <div key={d} className="text-center text-[9px] font-black italic text-zinc-400">
+                                    {d}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Days Grid */}
+                              <div className="grid grid-cols-7 gap-y-0">
+                                {(() => {
+                                  if (!selectedDate) return null;
+                                  const monthStart = startOfMonth(selectedDate);
+                                  const monthEnd = endOfMonth(selectedDate);
+                                  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+                                  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+                                  
+                                  const calendarDays = eachDayOfInterval({
+                                    start: startDate,
+                                    end: endDate
+                                  });
+
+                                  return calendarDays.map((day, i) => {
+                                    const isSelected = isSameDay(day, selectedDate);
+                                    const isCurrentMonth = isSameMonth(day, monthStart);
+                                    
+                                    return (
+                                      <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => {
+                                          const newDate = new Date(selectedDate);
+                                          newDate.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
+                                          setSelectedDate(newDate);
+                                          setSelectedEndDate(addMinutes(newDate, duration));
+                                          setIsDatePickerOpen(false);
+                                        }}
+                                        className={cn(
+                                          "h-7 w-7 flex items-center justify-center text-[10px] transition-all rounded-lg",
+                                          isSelected 
+                                            ? "bg-white text-black font-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
+                                            : isCurrentMonth 
+                                              ? "text-zinc-300 hover:bg-white/10" 
+                                              : "text-zinc-800"
+                                        )}
+                                      >
+                                        {format(day, 'd')}
+                                      </button>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-1.5 antialiased">
+                          <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                            {I18N[lang].startTime}
+                          </label>
+                          <div 
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setShowTimeSelection(true);
+                              setTimeSelectionType('start');
+                              setShowServiceSelection(false);
+                              setShowMemberDetail(false);
+                              setShowCheckoutPreview(false);
+                            }}
+                          >
+                            <div className={cn(
+                              "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner flex items-center justify-center gap-1",
+                              showTimeSelection && timeSelectionType === 'start' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
+                            )}>
+                              <span>{selectedDate ? format(selectedDate, 'HH') : '08'}{I18N[lang].hourSuffix}</span>
+                              <span className="opacity-40">:</span>
+                              <span>{selectedDate ? format(selectedDate, 'mm') : '00'}{I18N[lang].minuteSuffix}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 4: Duration & End Time */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5 relative antialiased">
+                          <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                            {I18N[lang].duration}
+                          </label>
+                          <div 
+                            onClick={() => setIsDurationPickerOpen(!isDurationPickerOpen)}
+                            className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white text-xs font-bold shadow-inner cursor-pointer hover:bg-white/10 flex items-center justify-between"
+                          >
+                            <span>{duration} {I18N[lang].minutesSuffix}</span>
+                            <ChevronDown className={cn("w-3.5 h-3.5 text-white/60 transition-transform", isDurationPickerOpen && "rotate-180")} />
+                          </div>
+
+                          {/* Custom Duration Picker Popover */}
+                          {isDurationPickerOpen && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-[60]" 
+                                onClick={() => setIsDurationPickerOpen(false)}
+                              />
+                              <div className="absolute top-full left-0 w-full mt-2 bg-transparent backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[70] overflow-hidden">
+                                <div className="max-h-48 overflow-y-auto no-scrollbar p-1">
+                                  {(() => {
+                                    const baseOptions = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300];
+                                    const options = [...baseOptions];
+                                    if (duration && !options.includes(duration)) {
+                                      options.push(duration);
+                                    }
+                                    return options.sort((a, b) => a - b).map(m => (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => {
+                                          setDuration(m);
+                                          if (selectedDate) {
+                                            setSelectedEndDate(addMinutes(new Date(selectedDate), m));
+                                          }
+                                          setIsDurationPickerOpen(false);
+                                        }}
+                                        className={cn(
+                                          "w-full px-4 py-2.5 text-left text-xs font-bold transition-colors rounded-xl",
+                                          duration === m 
+                                            ? "bg-white text-zinc-950" 
+                                            : "text-zinc-400 hover:bg-white/5 hover:text-white"
+                                        )}
+                                      >
+                                        {m} {I18N[lang].minutesSuffix}
+                                      </button>
+                                    ));
+                                  })()}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <div className="space-y-1.5 antialiased">
+                          <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                            {I18N[lang].endTime}
+                          </label>
+                          <div 
+                            className="cursor-pointer"
+                            onClick={() => {
+                              setShowTimeSelection(true);
+                              setTimeSelectionType('end');
+                              setShowServiceSelection(false);
+                              setShowMemberDetail(false);
+                              setShowCheckoutPreview(false);
+                            }}
+                          >
+                            <div className={cn(
+                              "w-full bg-white/[0.01] border-none rounded-xl px-2 py-2.5 text-white text-xs text-center font-bold shadow-inner flex items-center justify-center gap-1",
+                              showTimeSelection && timeSelectionType === 'end' ? "bg-white/20 ring-1 ring-white/30" : "hover:bg-white/10"
+                            )}>
+                              <span>{selectedEndDate ? format(selectedEndDate, 'HH') : (selectedDate ? format(selectedDate, 'HH') : '08')}{I18N[lang].hourSuffix}</span>
+                              <span className="opacity-40">:</span>
+                              <span>{selectedEndDate ? format(selectedEndDate, 'mm') : (selectedDate ? format(selectedDate, 'mm') : '00')}{I18N[lang].minuteSuffix}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {!showCustomKeypad && !showCheckoutPreview && (
+                    <div className="space-y-1.5 antialiased">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] md:text-[10px] font-black italic text-white uppercase tracking-widest [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">
+                          {I18N[lang].staff}
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          {/* Designated Allocation Toggle */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsDesignatedMode(!isDesignatedMode);
+                            }}
+                            className={cn(
+                              "flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold transition-all border",
+                              isDesignatedMode 
+                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
+                                : "bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/60"
+                            )}
+                            title="指定分配模式：先选员工，再选项目"
+                          >
+                            <div className={cn("w-1.5 h-1.5 rounded-full", isDesignatedMode ? "bg-emerald-400 animate-pulse" : "bg-white/20")} />
+                            <span>指定分配</span>
+                          </button>
+
+                          {/* Manual Redistribute (Average) Button */}
+                          {selectedStaffIds.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+                                if (currentItems.length > 0) {
+                                  setItemStaffMap(prev => {
+                                    const newMap = { ...prev };
+                                    currentItems.forEach((it, idx) => {
+                                      newMap[it] = selectedStaffIds[idx % selectedStaffIds.length];
+                                    });
+                                    return newMap;
+                                  });
+                                }
+                              }}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[8px] font-bold text-white/60 hover:text-white transition-colors border border-white/5"
+                              title="平均分配所有任务"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" />
+                              <span>平均分配</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {staffMembers.map((staff) => {
+                          const isInvolved = Object.values(itemStaffMap).includes(staff.id) || selectedStaffIds.includes(staff.id);
+                          const isActive = selectedStaffId === staff.id;
+                          const orderIndex = selectedStaffIds.indexOf(staff.id);
+                          
+                          return (
+                          <button
+                            key={staff.id}
+                            type="button"
+                            onClick={() => {
+                              if (staff.id === 'NO') {
+                                setSelectedStaffId('NO')
+                                setSelectedStaffIds([])
+                                setSelectedColor('bg-zinc-500')
+                                return
+                              }
+                              
+                              // Toggle logic for selection
+                              const isAlreadySelected = selectedStaffIds.includes(staff.id);
+                              
+                              if (isAlreadySelected) {
+                                // If already selected, remove it
+                                const newIds = selectedStaffIds.filter(id => id !== staff.id);
+                                setSelectedStaffIds(newIds);
+                                
+                                // Improved Removal Logic:
+                                // Only clear assignments for the removed staff.
+                                // If only one staff remains, assign all items to them (ONLY if not in Designated Mode).
+                                const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+                                if (currentItems.length > 0) {
+                                  setItemStaffMap(prev => {
+                                    const newMap = { ...prev };
+                                    
+                                    if (newIds.length === 1 && !isDesignatedMode) {
+                                      // If only one staff left, assign everything to them
+                                      currentItems.forEach(it => {
+                                        newMap[it] = newIds[0];
+                                      });
+                                    } else {
+                                      // Multiple staff left: just clear items assigned to the removed staff
+                                      currentItems.forEach(it => {
+                                        if (newMap[it] === staff.id) {
+                                          delete newMap[it];
+                                        }
+                                      });
+                                    }
+                                    return newMap;
+                                  });
+                                }
+
+                                // If it was the primary selectedStaffId, update it to the next available or empty
+                                if (selectedStaffId === staff.id) {
+                                  if (newIds.length > 0) {
+                                    setSelectedStaffId(newIds[0]);
+                                    const nextStaff = staffMembers.find(s => s.id === newIds[0]);
+                                    const nextColor = nextStaff?.bgColor?.replace('/10', '') || 'bg-sky-400';
+                                    setSelectedColor(nextColor);
+                                  } else {
+                                    setSelectedStaffId('');
+                                    setSelectedColor('bg-sky-400'); // Default unassigned color
+                                  }
+                                }
+                              } else {
+                                // If not selected, add it
+                                const newSelectedIds = [...selectedStaffIds, staff.id];
+                                setSelectedStaffId(staff.id);
+                                setSelectedStaffIds(newSelectedIds);
+
+                                // Improved Click Binding:
+                                // Only trigger auto-allocation if NOT in Designated Mode.
+                                const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+                                
+                                if (currentItems.length > 0 && !isDesignatedMode) {
+                                  setItemStaffMap(prev => {
+                                    const newMap = { ...prev };
+                                    
+                                    if (newSelectedIds.length === 1) {
+                                      // First staff: assign everything to them
+                                      currentItems.forEach((it) => {
+                                        newMap[it] = newSelectedIds[0];
+                                      });
+                                    } else {
+                                      // Multiple staff: 
+                                      // Case A: If all items are currently assigned to only ONE staff (the first one),
+                                      // then redistribute them among all selected staff (Average Allocation).
+                                      const assignedStaffIds = currentItems.map(it => newMap[it]).filter(id => id && id !== 'NO');
+                                      const uniqueAssignedStaff = [...new Set(assignedStaffIds)];
+                                      
+                                      if (uniqueAssignedStaff.length === 1 && uniqueAssignedStaff[0] === newSelectedIds[0]) {
+                                        // Special case: If ALL items are on the FIRST staff, do a full redistribution (Average)
+                                        currentItems.forEach((it, idx) => {
+                                          const staffIndex = idx % newSelectedIds.length;
+                                          newMap[it] = newSelectedIds[staffIndex];
+                                        });
+                                      } else {
+                                        // Case B: Segmented Allocation + Incremental Average
+                                        // 1. Assign unassigned items to the new staff
+                                        let hasAssignedAny = false;
+                                        currentItems.forEach((it) => {
+                                          if (!newMap[it] || newMap[it] === 'NO') {
+                                            newMap[it] = staff.id;
+                                            hasAssignedAny = true;
+                                          }
+                                        });
+                                        
+                                        // 2. Incremental Average: If the new staff still has NO items, 
+                                        // and someone else has >1 item, take one from the person with the most.
+                                        if (!hasAssignedAny) {
+                                          // Count current assignments
+                                          const counts: Record<string, number> = {};
+                                          currentItems.forEach(it => {
+                                            const sId = newMap[it];
+                                            if (sId) counts[sId] = (counts[sId] || 0) + 1;
+                                          });
+                                          
+                                          // Find staff with most items
+                                          let maxCount = 0;
+                                          let maxStaffId = '';
+                                          Object.entries(counts).forEach(([sId, count]) => {
+                                            if (count > maxCount) {
+                                              maxCount = count;
+                                              maxStaffId = sId;
+                                            }
+                                          });
+                                          
+                                          // If someone has > 1 item, take the last one they were assigned
+                                          if (maxCount > 1 && maxStaffId) {
+                                            const lastItemOfMaxStaff = [...currentItems].reverse().find(it => newMap[it] === maxStaffId);
+                                            if (lastItemOfMaxStaff) {
+                                              newMap[lastItemOfMaxStaff] = staff.id;
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                    return newMap;
+                                  });
+                                }
+
+                                // Use the staff's color via helper
+                                const color = getStaffColorClass(staff.id, staffMembers, 'bg')
+                                setSelectedColor(color)
+                              }
+                            }}
+                            className={cn(
+                              "relative w-full py-2 rounded-xl text-[10px] font-black italic tracking-widest uppercase truncate px-1 border-2",
+                              isActive 
+                                ? `${getStaffColorClass(staff.id, staffMembers, 'bg')} text-white border-transparent shadow-lg` 
+                                : isInvolved
+                                  ? `bg-white/10 text-white ${staff.color || 'border-white/40'}`
+                                  : "bg-white/5 text-white hover:text-white hover:bg-white/10 border-transparent"
+                            )}
+                          >
+                            {staff.name}
+                            
+                            {/* Order Indicator (Sequence Number) */}
+                            {orderIndex > -1 && (
+                              <div className={cn(
+                                "absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shadow-lg border border-white/20",
+                                getStaffColorClass(staff.id, staffMembers, 'bg')
+                              )}>
+                                {orderIndex + 1}
+                              </div>
+                            )}
+
+                            {/* Designated Mode Active Indicator */}
+                            {isDesignatedMode && isActive && (
+                              <div className="absolute -bottom-1 left-0 right-0 flex justify-center">
+                                <div className="bg-emerald-400 text-[6px] text-zinc-900 px-1 rounded-sm font-black leading-tight animate-bounce">
+                                  分配中
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        )})}
+                        {/* Management "Box" Button */}
+                        <button 
+                          type="button"
+                          onClick={() => setIsStaffManagerOpen(true)}
+                          className="w-full py-2 rounded-xl text-[10px] font-black bg-white/5 text-zinc-600 hover:text-white hover:bg-white/10 flex items-center justify-center border border-dashed border-white/10"
+                        >
+                          <Settings2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
+                  )}
+                </div>
+                )}
+
+                {/* Right Column - Member Detail or Service Selection or Checkout Preview */}
+                <div className={cn(
+                  "p-6 pb-0 space-y-2 bg-transparent min-h-[240px] overflow-visible transition-all duration-300",
+                  (showCheckoutPreview && !showCustomKeypad) && "max-w-2xl mx-auto w-full"
+                )}>
+                  {showCustomKeypad && keypadTargetKey ? (() => {
+                    const target = keypadTargetKey;
+                    if (!target) return null;
+                    const { key, staffId, basePrice, name } = target;
+
+                    return (
+                      <div className="bg-transparent border border-white/10 rounded-[2rem] shadow-2xl p-6 w-full animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black italic text-zinc-500 uppercase tracking-widest">{name}</span>
+                            <span className="text-sm font-black italic text-white uppercase tracking-widest">CUSTOM PRICE</span>
+                          </div>
+                          <button 
+                            onClick={() => setShowCustomKeypad(false)}
+                            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* Display Area */}
+                        <div className="bg-white/5 rounded-2xl p-4 mb-6 flex items-center justify-center min-h-[80px] border border-white/5 shadow-inner">
+                          <span className="text-4xl font-black italic text-white subpixel-antialiased tracking-tighter">
+                            €{key === 'TOTAL'
+                              ? (manualTotalAmount !== null ? (manualTotalAmount || '0') : (
+                                  (Object.values(staffAmounts || {}).reduce((sum, val) => sum + (Number(val) || 0), 0) || 
+                                  (Number(mergedTotalPrice) || 0)).toString()
+                                ))
+                              : key.startsWith('STAFF_') 
+                                ? (staffAmounts[key.replace('STAFF_', '')] || '0')
+                                : (customItemPrices[key] || '0')}
+                          </span>
+                        </div>
+
+                        {/* Keypad Grid */}
+                        <div className="grid grid-cols-4 gap-3">
+                          {[1, 2, 3].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => {
+                                if (key === 'TOTAL') {
+                                  setManualTotalAmount(prev => (prev || '') + num.toString());
+                                  return;
+                                }
+
+                                const isStaffAmount = key.startsWith('STAFF_');
+                                 if (isStaffAmount) {
+                                   const staffName = key.replace('STAFF_', '');
+                                   const current = (staffAmounts || {})[staffName] || '';
+                                   const newVal = current + num.toString();
+                                   const oldVal = current || '0';
+                                   const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                   
+                                   setStaffAmounts(prev => ({ ...(prev || {}), [staffName]: newVal }));
+                                   if (manualTotalAmount !== null) {
+                                     setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                   }
+                                   return;
+                                 }
+
+                                 const current = (customItemPrices || {})[key] || '';
+                                 const newVal = current + num.toString();
+                                 const oldVal = (customItemPrices || {})[key] || (Number(basePrice) || 0).toString();
+                                 const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                 
+                                 setCustomItemPrices(prev => ({ ...(prev || {}), [key]: newVal }));
+                                const staff = staffMembers.find(s => s.id === staffId);
+                                if (staff && staff.id !== 'NO') {
+                                  setStaffAmounts(prev => {
+                                    const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                    return { ...prev, [staff.name]: newStaffAmount };
+                                  });
+                                }
+                                if (manualTotalAmount !== null) {
+                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                }
+                              }}
+                              className="h-14 rounded-xl bg-white/5 hover:bg-white/10 text-xl font-black italic text-white transition-all active:scale-90 border border-white/5"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (key === 'TOTAL') {
+                                // If it's already empty, reset to null to return to auto-calculate
+                                if (manualTotalAmount === '' || manualTotalAmount === null) {
+                                  setManualTotalAmount(null);
+                                } else {
+                                  setManualTotalAmount('');
+                                }
+                                return;
+                              }
+
+                              const isStaffAmount = key.startsWith('STAFF_');
+                              if (isStaffAmount) {
+                                const staffName = key.replace('STAFF_', '');
+                                const oldVal = (staffAmounts || {})[staffName] || '0';
+                                const diff = -Number(oldVal);
+                                setStaffAmounts(prev => ({ ...(prev || {}), [staffName]: '' }));
+                                if (manualTotalAmount !== null) {
+                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                }
+                                return;
+                              }
+
+                              setCustomItemPrices(prev => ({ ...(prev || {}), [key]: '' }));
+                              const oldVal = (customItemPrices || {})[key] || (Number(basePrice) || 0).toString();
+                              const diff = -Number(oldVal);
+                              const staff = staffMembers.find(s => s.id === staffId);
+                              if (staff && staff.id !== 'NO') {
+                                setStaffAmounts(prev => {
+                                  const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                  return { ...prev, [staff.name]: newStaffAmount };
+                                });
+                              }
+                              if (manualTotalAmount !== null) {
+                                setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                              }
+                            }}
+                            className="h-14 rounded-xl bg-rose-500/20 text-rose-500 text-xl font-black italic border border-rose-500/20 hover:bg-rose-500/30 transition-all active:scale-90"
+                          >
+                            C
+                          </button>
+
+                          {[4, 5, 6].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => {
+                                if (key === 'TOTAL') {
+                                  setManualTotalAmount(prev => (prev || '') + num.toString());
+                                  return;
+                                }
+
+                                const isStaffAmount = key.startsWith('STAFF_');
+                                 if (isStaffAmount) {
+                                   const staffName = key.replace('STAFF_', '');
+                                   const current = (staffAmounts || {})[staffName] || '';
+                                   const newVal = current + num.toString();
+                                   const oldVal = current || '0';
+                                   const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                   
+                                   setStaffAmounts(prev => ({ ...(prev || {}), [staffName]: newVal }));
+                                   if (manualTotalAmount !== null) {
+                                     setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                   }
+                                   return;
+                                 }
+
+                                 const current = (customItemPrices || {})[key] || '';
+                                 const newVal = current + num.toString();
+                                 const oldVal = (customItemPrices || {})[key] || (Number(basePrice) || 0).toString();
+                                 const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                 
+                                 setCustomItemPrices(prev => ({ ...(prev || {}), [key]: newVal }));
+                                const staff = staffMembers.find(s => s.id === staffId);
+                                if (staff && staff.id !== 'NO') {
+                                  setStaffAmounts(prev => {
+                                    const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                    return { ...prev, [staff.name]: newStaffAmount };
+                                  });
+                                }
+                                if (manualTotalAmount !== null) {
+                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                }
+                              }}
+                              className="h-14 rounded-xl bg-white/5 hover:bg-white/10 text-xl font-black italic text-white transition-all active:scale-90 border border-white/5"
+                            >
+                              {num}
+                            </button>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (key === 'TOTAL') {
+                                setManualTotalAmount(prev => (prev || '').slice(0, -1));
+                                return;
+                              }
+
+                              const isStaffAmount = key.startsWith('STAFF_');
+                              if (isStaffAmount) {
+                                const staffName = key.replace('STAFF_', '');
+                                const current = (staffAmounts || {})[staffName] || '';
+                                if (current.length === 0) return;
+                                const newVal = current.slice(0, -1);
+                                const oldVal = current || '0';
+                                const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                
+                                setStaffAmounts(prev => ({ ...(prev || {}), [staffName]: newVal }));
+                                if (manualTotalAmount !== null) {
+                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                }
+                                return;
+                              }
+
+                              const current = (customItemPrices || {})[key] || '';
+                              if (current.length === 0) return;
+                              const newVal = current.slice(0, -1);
+                              const oldVal = (customItemPrices || {})[key] || (Number(basePrice) || 0).toString();
+                              const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                              
+                              setCustomItemPrices(prev => ({ ...(prev || {}), [key]: newVal }));
+                              const staff = staffMembers.find(s => s.id === staffId);
+                              if (staff && staff.id !== 'NO') {
+                                setStaffAmounts(prev => {
+                                  const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                  return { ...prev, [staff.name]: newStaffAmount };
+                                });
+                              }
+                              if (manualTotalAmount !== null) {
+                                setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                              }
+                            }}
+                            className="h-14 rounded-xl bg-white/5 hover:bg-white/10 text-xl font-black italic text-white transition-all active:scale-90 border border-white/5 flex items-center justify-center"
+                          >
+                            <ChevronLeft className="w-6 h-6" />
+                          </button>
+
+                          {[7, 8, 9, 0].map(num => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => {
+                                if (key === 'TOTAL') {
+                                  setManualTotalAmount(prev => (prev || '') + num.toString());
+                                  return;
+                                }
+
+                                const isStaffAmount = key.startsWith('STAFF_');
+                                 if (isStaffAmount) {
+                                   const staffName = key.replace('STAFF_', '');
+                                   const current = (staffAmounts || {})[staffName] || '';
+                                   const newVal = current + num.toString();
+                                   const oldVal = current || '0';
+                                   const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                   
+                                   setStaffAmounts(prev => ({ ...(prev || {}), [staffName]: newVal }));
+                                   if (manualTotalAmount !== null) {
+                                     setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                   }
+                                   return;
+                                 }
+
+                                 const current = (customItemPrices || {})[key] || '';
+                                 const newVal = current + num.toString();
+                                 const oldVal = (customItemPrices || {})[key] || (Number(basePrice) || 0).toString();
+                                 const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                 
+                                 setCustomItemPrices(prev => ({ ...(prev || {}), [key]: newVal }));
+                                const staff = staffMembers.find(s => s.id === staffId);
+                                if (staff && staff.id !== 'NO') {
+                                  setStaffAmounts(prev => {
+                                    const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                    return { ...prev, [staff.name]: newStaffAmount };
+                                  });
+                                }
+                                if (manualTotalAmount !== null) {
+                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                }
+                              }}
+                              className="h-14 rounded-xl bg-white/5 hover:bg-white/10 text-xl font-black italic text-white transition-all active:scale-90 border border-white/5"
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomKeypad(false)}
+                            className="py-4 rounded-2xl bg-white/5 text-white/40 font-black italic text-sm uppercase tracking-[0.2em] border border-white/5 active:scale-95 transition-all"
+                          >
+                            取消
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomKeypad(false)}
+                            className="py-4 rounded-2xl bg-white text-zinc-950 font-black italic text-sm uppercase tracking-[0.2em] shadow-xl shadow-white/10 active:scale-95 transition-all"
+                          >
+                            OK
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })() : showCheckoutPreview ? (
+                    renderBillingContent()
                   ) : showMemberDetail && selectedMember ? (
-                    <div className="space-y-6">
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                       {/* Member Info Header */}
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex flex-col flex-1 min-w-0">
@@ -3532,7 +4436,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             ))}
                           </div>
                         ) : (
-                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                          <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
                             {selectedMember.history.map((item: MemberHistoryItem, idx: number) => (
                               <div key={idx} className="bg-white/5 rounded-xl p-3 flex items-center justify-between group hover:bg-white/10 shadow-inner">
                                 <div className="flex flex-col gap-0.5">
@@ -3567,104 +4471,78 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </div>
                     </div>
                   ) : showTimeSelection ? (
-                    <div className="space-y-8">
-                      {/* Title Section */}
-                      <div className="flex flex-col items-center justify-center mb-6 space-y-1.5">
-                        <h2 className="text-sm md:text-base font-black italic tracking-[0.2em] text-white whitespace-nowrap">SELECT {timeSelectionType === 'start' ? 'START' : 'END'} TIME</h2>
-                      </div>
-
-                      {/* Hour Selection Grid */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="h-[1px] flex-1 bg-white/10" />
-                          <span className="text-[10px] font-black italic tracking-widest text-white uppercase">Select Hour</span>
-                          <div className="h-[1px] flex-1 bg-white/10" />
+                    <div className="space-y-6">
+                      {/* Gesture Picker Area */}
+                      <div 
+                        ref={gestureRef}
+                        className="relative grid grid-cols-3 gap-8 p-4 bg-white/[0.02] rounded-[2rem] border border-white/10 select-none touch-none"
+                        style={{ height: '320px' }}
+                      >
+                        {/* Column 1: Hour Tens (0, 1, 2) */}
+                        <div className="flex flex-col justify-start items-center gap-4">
+                          {[2, 1, 0].map(val => (
+                            <button
+                              key={`h1-${val}`}
+                              data-gesture-val={val}
+                              data-gesture-type="h1"
+                              type="button"
+                              className={cn(
+                                "w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-black italic transition-all duration-200",
+                                gestureTime.h1 === val 
+                                  ? "bg-white text-zinc-950 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
+                                  : "text-white/80 hover:bg-white/10"
+                              )}
+                            >
+                              {val}
+                            </button>
+                          ))}
                         </div>
-                        <div className="grid grid-cols-4 md:grid-cols-5 gap-2">
-                          {Array.from({ length: 13 }, (_, i) => i + 8).map((hour) => {
-                            const isSelected = (timeSelectionType === 'start' ? selectedDate : selectedEndDate)?.getHours() === hour;
-                            return (
+
+                        {/* Column 2: Hour Units (0-9) */}
+                        <div className="flex flex-col justify-between items-center py-2">
+                          <div className="grid grid-cols-2 gap-3">
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(val => (
                               <button
-                                key={hour}
+                                key={`h2-${val}`}
+                                data-gesture-val={val}
+                                data-gesture-type="h2"
                                 type="button"
-                                onClick={() => {
-                                  const baseDate = timeSelectionType === 'start' ? selectedDate : selectedEndDate;
-                                  if (!baseDate) return;
-                                  const newDate = new Date(baseDate);
-                                  newDate.setHours(hour);
-                                  if (timeSelectionType === 'start') {
-                                    setSelectedDate(newDate);
-                                    if (selectedEndDate && newDate >= selectedEndDate) {
-                                      setSelectedEndDate(addMinutes(newDate, duration));
-                                    }
-                                  } else {
-                                    setSelectedEndDate(newDate);
-                                    if (selectedDate) {
-                                      setDuration(Math.max(15, (newDate.getTime() - selectedDate.getTime()) / 60000));
-                                    }
-                                  }
-                                }}
                                 className={cn(
-                                  "py-2.5 rounded-xl text-xs font-black italic shadow-inner",
-                                  isSelected 
-                                    ? "bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                                    : "bg-white/[0.01] text-white hover:bg-white/10 hover:text-white"
+                                  "w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black italic transition-all duration-200",
+                                  gestureTime.h2 === val 
+                                    ? "bg-white text-zinc-950 scale-110 shadow-[0_0_15px_rgba(255,255,255,0.4)]" 
+                                    : "text-white/80 hover:bg-white/10"
                                 )}
                               >
-                                {hour.toString().padStart(2, '0')}:00
+                                {val}
                               </button>
-                            );
-                          })}
+                            ))}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Minute Selection Grid */}
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="h-[1px] flex-1 bg-white/10" />
-                          <span className="text-[10px] font-black italic tracking-widest text-white uppercase">Select Minute</span>
-                          <div className="h-[1px] flex-1 bg-white/10" />
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          {[0, 15, 30, 45].map((minute) => {
-                            const isSelected = (timeSelectionType === 'start' ? selectedDate : selectedEndDate)?.getMinutes() === minute;
-                            return (
-                              <button
-                                key={minute}
-                                type="button"
-                                onClick={() => {
-                                  const baseDate = timeSelectionType === 'start' ? selectedDate : selectedEndDate;
-                                  if (!baseDate) return;
-                                  const newDate = new Date(baseDate);
-                                  newDate.setMinutes(minute);
-                                  if (timeSelectionType === 'start') {
-                                    setSelectedDate(newDate);
-                                    if (selectedEndDate && newDate >= selectedEndDate) {
-                                      setSelectedEndDate(addMinutes(newDate, duration));
-                                    }
-                                  } else {
-                                    setSelectedEndDate(newDate);
-                                    if (selectedDate) {
-                                      setDuration(Math.max(15, (newDate.getTime() - selectedDate.getTime()) / 60000));
-                                    }
-                                  }
-                                }}
-                                className={cn(
-                                  "py-2.5 rounded-xl text-xs font-black italic shadow-inner",
-                                  isSelected 
-                                    ? "bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                                    : "bg-white/[0.01] text-white hover:bg-white/10 hover:text-white"
-                                )}
-                              >
-                                {minute.toString().padStart(2, '0')}
-                              </button>
-                            );
-                          })}
+                        {/* Column 3: Minutes (00, 15, 30, 45) */}
+                        <div className="flex flex-col justify-around items-center">
+                          {[0, 15, 30, 45].map(val => (
+                            <button
+                              key={`m-${val}`}
+                              data-gesture-val={val}
+                              data-gesture-type="m"
+                              type="button"
+                              className={cn(
+                                "w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black italic transition-all duration-200",
+                                gestureTime.m === val 
+                                  ? "bg-white text-zinc-950 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
+                                  : "text-white/80 hover:bg-white/10"
+                              )}
+                            >
+                              {val.toString().padStart(2, '0')}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>
                   ) : showServiceSelection ? (
-                    <div className="space-y-[-4px]">
+                    <div className="space-y-[-4px] animate-in fade-in slide-in-from-right-4 duration-300">
                       {/* Title Section - Centered (Matching Left) */}
                       <div className="flex flex-col items-center justify-center mb-[-4px] space-y-1 antialiased">
                         <h2 className="text-xl font-black italic tracking-[0.4em] text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.8),0_0_0.5px_rgba(0,0,0,1)]">FX ESTETICA</h2>
@@ -3697,8 +4575,15 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                             {/* Sub Items */}
                             <div className="flex flex-col gap-[1px]">
                               {category.items.map((item) => {
-                                const isItemSeleted = newTitle.split(',').map(s => s.trim()).includes(item.name)
-                                const itemStaffId = itemStaffMap[item.name]
+                                const currentItems = newTitle.split(',').map(s => s.trim()).filter(Boolean);
+                                const itemIndex = currentItems.lastIndexOf(item.name);
+                                const isItemSeleted = itemIndex > -1;
+                                
+                                // Support both new index-based keys and legacy name-based keys
+                                const eventId = editingEvent?.id || 'new';
+                                const itemStaffId = isItemSeleted 
+                                  ? (itemStaffMap[`${eventId}-${item.name}-${itemIndex}`] || itemStaffMap[item.name] || selectedStaffId)
+                                  : selectedStaffId;
                                 
                                 return (
                                 <button
@@ -3708,7 +4593,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                                   className={cn(
                                     "w-full py-1.5 px-2 rounded-lg text-[11px] font-bold tracking-wide subpixel-antialiased transition-colors",
                                     isItemSeleted 
-                                      ? `${getStaffColorClass(itemStaffId, staffMembers).replace('-500', '-400')} bg-white/10 ring-1 ring-white/20`
+                                      ? `${getStaffColorClass(itemStaffId, staffMembers, 'text')} bg-white/10 ring-1 ring-white/20`
                                       : "bg-white/[0.01] text-white/90 hover:bg-white/5 hover:text-white"
                                   )}
                                 >
@@ -3721,7 +4606,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       </div>
                     </div>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20">
+                    <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20 animate-in fade-in duration-300">
                       <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
                         <span className="text-white/20 text-xl font-black">?</span>
                       </div>
@@ -3736,63 +4621,21 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   className="px-4 bg-transparent flex flex-col items-center justify-center"
                   style={{ marginTop: '-12px', paddingTop: '0px', paddingBottom: '10px' }}
                 >
-                <div className="flex flex-row flex-nowrap gap-6 w-full justify-center items-center overflow-x-auto">
-                  {editingEvent && (
+                <div className={cn(
+                  "flex flex-row flex-nowrap gap-6 w-full items-center overflow-x-auto justify-end",
+                )}>
+                  {showCheckoutPreview && (
                     <button 
+                      disabled={isSubmitting} 
                       type="button" 
-                      onClick={handleDeleteEvent}
-                      disabled={isSubmitting}
+                      onClick={() => handleSubmit(new Event('submit') as any, 'parallel')}
                       className={cn(
-                        "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all",
-                        "text-red-500 hover:text-red-400"
+                        "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all text-emerald-400"
                       )}
                     >
-                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '删除'}
+                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : '确认收款'}
                     </button>
                   )}
-
-                  {!showCheckoutPreview && !editingEvent && (
-                    <>
-                      <button 
-                        disabled={isSubmitting} 
-                        type="button" 
-                        onClick={(e) => handleSubmit(e as any, 'sequential')}
-                        className={cn(
-                          "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all text-white/80"
-                        )}
-                      >
-                        分段服务
-                      </button>
-                      <button 
-                        disabled={isSubmitting} 
-                        type="button" 
-                        onClick={(e) => handleSubmit(e as any, 'parallel')}
-                        className={cn(
-                          "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all text-white/80"
-                        )}
-                      >
-                        同时服务
-                      </button>
-                    </>
-                  )}
-
-                  <button 
-                    disabled={isSubmitting} 
-                    type="button" 
-                    onClick={() => {
-                      if (!showCheckoutPreview) {
-                        setShowCheckoutPreview(true)
-                      } else {
-                        handleSubmit(new Event('submit') as any, 'parallel')
-                      }
-                    }}
-                    className={cn(
-                      "px-6 py-3 rounded-xl font-black italic disabled:opacity-50 flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-all",
-                      showCheckoutPreview ? "text-emerald-400" : "text-white"
-                    )}
-                  >
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (showCheckoutPreview ? '确认收款' : '收银结账')}
-                  </button>
 
                   {!showCheckoutPreview && (
                     <button 
@@ -3814,16 +4657,15 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
       {/* --- Staff Management Modal --- */}
       {(isStaffManagerOpen && !isCalendarLocked) && (
         <div 
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60"
-          onClick={() => setIsStaffManagerOpen(false)}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-transparent"
         >
           <div 
-            className="w-full max-w-sm bg-white/[0.01] border border-white/40 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 backdrop-blur-[1px]"
+            className="w-full max-w-sm bg-transparent border border-white/40 rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 backdrop-blur-[1px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black italic tracking-widest text-white uppercase">管理服务人员</h3>
-              <button onClick={() => setIsStaffManagerOpen(false)} className="text-zinc-500 hover:text-white">
+              <button type="button" onClick={() => setIsStaffManagerOpen(false)} className="text-zinc-500 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -3857,6 +4699,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                   }}
                 />
                 <button 
+                  type="button"
                   onClick={() => {
                     const name = newStaffName.trim()
                     if (name) {
@@ -3879,7 +4722,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
               </div>
 
               {/* Staff List */}
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
                 {staffMembers.map((staff, index) => (
                   <div 
                     key={staff.id} 
@@ -3915,6 +4758,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                     <div className="flex items-center gap-3">
                       {/* Color Picker Ball */}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setActiveColorPickerStaffId(activeColorPickerStaffId === staff.id ? null : staff.id);
@@ -3937,6 +4781,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       {/* Visibility Toggle */}
                       {staff.id !== 'NO' && (
                         <button 
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setStaffMembers(staffMembers.map(s => 
@@ -3956,6 +4801,7 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
                       {/* Delete Button */}
                       {staff.id !== 'NO' && (
                         <button 
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setStaffMembers(staffMembers.filter(s => s.id !== staff.id))
@@ -3970,11 +4816,12 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
 
                     {/* Color Picker Popup */}
                     {activeColorPickerStaffId === staff.id && (
-                      <div className="absolute left-14 top-0 z-[120] w-48 p-3 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl">
+                      <div className="absolute left-14 top-0 z-[120] w-48 p-3 bg-transparent backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl">
                         <div className="grid grid-cols-5 gap-2">
                           {COLOR_OPTIONS.map((color) => (
                             <button
                               key={color.value}
+                              type="button"
                               onClick={() => {
                                 setStaffMembers(staffMembers.map(s => 
                                   s.id === staff.id 
@@ -4006,55 +4853,278 @@ export default function Calendar({ initialDate, initialView = 'day', onToggleSid
         </div>
       )}
 
-      {/* Calendar Lock Overlay */}
-      {isCalendarLocked && (
-        <div className="absolute inset-0 z-[9999] backdrop-blur-3xl bg-zinc-950/40 flex items-center justify-center transition-all duration-500 pointer-events-auto">
-          <div className="flex flex-col items-center gap-6 p-10 rounded-[2.5rem] bg-white/[0.03] border border-white/10 shadow-2xl animate-in fade-in zoom-in duration-300">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-2 border border-white/10">
-                <span className="text-3xl font-black text-white tracking-tighter">FX</span>
+      {/* Customer Booking Modal */}
+      {isBookingModalOpen && (
+        <div 
+          className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-transparent backdrop-blur-sm"
+        >
+          <div 
+            className="w-full max-w-md bg-transparent border border-white/20 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 space-y-6">
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-bold text-white">{(I18N[lang] as any).bookNow}</h3>
+                <p className="text-sm text-zinc-400 font-medium">
+                  {selectedDate && format(selectedDate, 'M月d日 HH:mm', { locale: lang === 'zh' ? zhCN : zhCN })}
+                </p>
               </div>
-              <h2 className="text-xl font-black italic tracking-[0.3em] text-white uppercase [text-shadow:0_1px_1px_rgba(0,0,0,0.8)]">ESTETICA</h2>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Calendar Restricted</p>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider ml-1">您的姓名</label>
+                  <input 
+                    type="text"
+                    placeholder="请输入姓名"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20 placeholder:text-zinc-600"
+                    value={memberName}
+                    onChange={(e) => setMemberName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider ml-1">联系电话</label>
+                  <input 
+                    type="tel"
+                    placeholder="请输入电话号码"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20 placeholder:text-zinc-600"
+                    value={memberInfo}
+                    onChange={(e) => setMemberInfo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider ml-1">预约项目 / 需求</label>
+                  <textarea 
+                    placeholder="如：洗剪吹、美甲等"
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20 resize-none placeholder:text-zinc-600"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => closeModal()}
+                  className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-zinc-400 hover:bg-white/5 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    // Set default staff to NO for customer bookings if not assigned
+                    if (!selectedStaffId) setSelectedStaffId('NO');
+                    handleSubmit(e);
+                  }}
+                  disabled={isSubmitting || !memberName || !memberInfo || !newTitle}
+                  className="flex-[2] py-3.5 rounded-2xl text-sm font-bold text-white bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                >
+                  {isSubmitting ? '正在提交...' : '立即预约'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Recycle Bin Modal --- */}
+      {showRecycleBin && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-transparent backdrop-blur-sm">
+          <div 
+            className="w-full max-w-xl bg-transparent border border-white/20 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 pb-4 border-b border-white/10 flex items-center justify-between bg-transparent">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+                  <Trash2 className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black italic tracking-widest text-white uppercase">回收站</h3>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">仅保留最近 3 天删除的预约</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowRecycleBin(false)} 
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleUnlock} className="flex flex-col items-center gap-4 w-64">
-              <div className="relative w-full group">
-                <input
-                  autoFocus
-                  type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={lockPassword}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setLockPassword(val)
-                    if (val === "0428") {
-                      setIsCalendarLocked(false)
-                      setUnlockError(false)
-                      setLockPassword("")
-                    }
-                  }}
-                  placeholder="Enter Password"
-                  className={cn(
-                    "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-xl font-black tracking-[0.5em] text-white placeholder:text-zinc-700 placeholder:tracking-normal placeholder:text-xs focus:outline-none transition-all",
-                    unlockError ? "border-rose-500/50 bg-rose-500/5 ring-4 ring-rose-500/10" : "focus:border-white/20 focus:bg-white/10"
-                  )}
-                />
-                {unlockError && (
-                  <p className="absolute -bottom-6 left-0 right-0 text-center text-[9px] font-bold text-rose-500 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">
-                    Invalid Password
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+              {deletedEvents.length > 0 ? (
+                deletedEvents.map((event) => {
+                  const deletedAtMatch = event["备注"]?.match(/\[DELETED_AT:(.*?)\]/);
+                  const deletionTime = deletedAtMatch ? deletedAtMatch[1] : '未知';
+                  
+                  return (
+                    <div 
+                      key={event.id}
+                      className="group relative flex flex-col p-5 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-3xl transition-all duration-300"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-3">
+                          {/* Event Info */}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
+                                event["背景颜色"] || "bg-zinc-500/20 text-zinc-400"
+                              )}>
+                                {event["服务项目"] || "未命名项目"}
+                              </span>
+                              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                                {event["服务日期"]} {event["开始时间"]}
+                              </span>
+                            </div>
+                            <div className="text-sm font-black italic text-white tracking-wide">
+                              {event["会员信息"] || "匿名客户"}
+                            </div>
+                          </div>
+
+                          {/* Deletion Info */}
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-rose-500/60 uppercase tracking-widest">
+                            <Trash2 className="w-3 h-3" />
+                            <span>删除时间: {deletionTime}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleRestoreEvent(event)}
+                            className="p-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white border border-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                            title="恢复预约"
+                          >
+                            <Undo2 className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest px-1">恢复</span>
+                          </button>
+                          <button
+                            onClick={() => handlePermanentDelete(event.id)}
+                            className="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 transition-all flex items-center justify-center gap-2"
+                            title="永久删除"
+                          >
+                            <X className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest px-1">清除</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+                    <Trash2 className="w-8 h-8 text-zinc-700" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-black italic text-zinc-500 uppercase tracking-widest">回收站是空的</p>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mt-1">最近 3 天内删除的预约将出现在这里</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-white/10 bg-transparent flex justify-center">
+              <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.2em]">
+                FX ESTETICA RECYCLE SYSTEM v{APP_VERSION}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar Lock Overlay */}
+      {(mode === 'admin' && isCalendarLocked) && (
+        <div className="fixed inset-0 z-[99999] bg-transparent flex items-center justify-center transition-all duration-500 pointer-events-auto">
+          <div className="flex flex-col items-center gap-6 p-10 rounded-[2.5rem] bg-transparent border border-white/10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            {isVersionOutdated ? (
+              <div className="flex flex-col items-center gap-6 text-center max-w-xs">
+                <div className="w-16 h-16 rounded-2xl bg-rose-500/20 flex items-center justify-center mb-2 border border-rose-500/30">
+                  <Settings2 className="w-8 h-8 text-rose-500 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-black italic tracking-[0.2em] text-white uppercase">版本更新提示</h2>
+                  <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest leading-relaxed">
+                    亲：请刷新网页更新最新版本
                   </p>
-                )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="w-full py-4 rounded-2xl bg-rose-500 text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-600 active:scale-95 transition-all shadow-xl shadow-rose-500/20"
+                >
+                  立即刷新网页
+                </button>
+                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">
+                  Current: v{APP_VERSION}
+                </p>
               </div>
-              
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-2xl bg-white text-zinc-950 font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/5 mt-2"
-              >
-                Unlock Access
-              </button>
-            </form>
+            ) : (
+              <>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-2 border border-white/10">
+                    <span className="text-3xl font-black text-white tracking-tighter">FX</span>
+                  </div>
+                  <h2 className="text-xl font-black italic tracking-[0.3em] text-white uppercase [text-shadow:0_1px_1px_rgba(0,0,0,0.8)]">ESTETICA</h2>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Calendar Restricted</p>
+                </div>
+
+                <form onSubmit={handleUnlock} className="flex flex-col items-center gap-4 w-64">
+                  <div className="relative w-full group">
+                    <input
+                      autoFocus
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={lockPassword}
+                      onChange={async (e) => {
+                        const val = e.target.value
+                        setLockPassword(val)
+                        if (val === "0428") {
+                          const isVersionOk = await checkVersion();
+                          if (isVersionOk) {
+                            setIsCalendarLocked(false)
+                            setUnlockError(false)
+                            setLockPassword("")
+                          }
+                        }
+                      }}
+                      placeholder="Enter Password"
+                      className={cn(
+                        "w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-xl font-black tracking-[0.5em] text-white placeholder:text-zinc-700 placeholder:tracking-normal placeholder:text-xs focus:outline-none transition-all",
+                        unlockError ? "border-rose-500/50 bg-rose-500/5 ring-4 ring-rose-500/10" : "focus:border-white/20 focus:bg-white/10"
+                      )}
+                    />
+                    {unlockError && (
+                      <p className="absolute -bottom-6 left-0 right-0 text-center text-[9px] font-bold text-rose-500 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">
+                        Invalid Password
+                      </p>
+                    )}
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Booking Success Toast */}
+      {showBookingSuccess && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100001] animate-in slide-in-from-bottom-10 duration-500">
+          <div className="bg-emerald-500 text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5" />
+            <div className="flex flex-col">
+              <span className="text-sm font-black uppercase tracking-widest">预约成功!</span>
+              <span className="text-[10px] font-bold opacity-80 uppercase tracking-tighter">商家将尽快通过电话与您确认</span>
+            </div>
           </div>
         </div>
       )}

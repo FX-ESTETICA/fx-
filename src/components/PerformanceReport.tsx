@@ -197,26 +197,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         }
       })
 
-      // 3. If no realized amount yet, count as "Booked" for the main staff or assigned staff
-      if (!eventHasAnyAmount) {
-        // Find main staff from 备注: 技师:STAFF_ID
-        const mainStaffIdMatch = noteContent.match(/技师:([^,\]\s]+)/)
-        const mainStaffId = mainStaffIdMatch ? mainStaffIdMatch[1] : null
-        const mainStaff = staffMembers.find(s => s.id === mainStaffId)
-
-        if (mainStaff) {
-          const projects = (e.服务项目 || "").split(',').map((s: string) => s.trim()).filter(Boolean)
-          let estimatedTotal = 0
-          projects.forEach((p: string) => {
-            estimatedTotal += projectPrices[p] || 0
-          })
-
-          if (estimatedTotal > 0) {
-            staffData[mainStaff.name].amount += estimatedTotal
-            staffData[mainStaff.name].count += 1
-          }
-        }
-      }
+      // 3. (Fallback removed: STAFF_SEQ and Name-based 技师:姓名 are deprecated)
     })
 
     // Convert to array and filter out those with 0 amount (unless we need mock data)
@@ -308,11 +289,6 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
           if (staffId) {
             // Check [ITEM_STAFF:staffId] pattern
             if (e["备注"]?.includes(`_STAFF:${staffId}]`)) return true
-            // Check [STAFF_SEQ:...,staffId,...] pattern
-            const seqMatch = e["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/)
-            if (seqMatch && seqMatch[1].split(',').includes(staffId)) return true
-            // 4. Check for Main Staff binding in 备注: 技师:staffId
-            if (e["备注"]?.includes(`技师:${staffId}`)) return true
           }
           
           return false
@@ -344,15 +320,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
             // Check individual item bindings
             projects.forEach((proj: string, idx: number) => {
-              const isAssigned = e["备注"]?.includes(`[${proj}_STAFF:${staffId}]`) || 
-                                 (() => {
-                                   const seqMatch = e["备注"]?.match(/\[STAFF_SEQ:([^\]]+)\]/)
-                                   if (!seqMatch) return false
-                                   const seq = seqMatch[1].split(',')
-                                   return seq[idx] === staffId
-                                 })() ||
-                                 // Check if it's the main staff and NO specific item bindings exist for other staff
-                                 (e["备注"]?.includes(`技师:${staffId}`) && !e["备注"]?.includes(`_STAFF:`))
+              const isAssigned = e["备注"]?.includes(`[${proj}_STAFF:${staffId}]`);
               
               if (isAssigned) {
                 assignedProjects.push(proj)
@@ -637,7 +605,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
           {activeTab === 'overview' ? (
             <div className="flex flex-col space-y-8">
               {/* Top Section: Staff Performance (More transparent) */}
@@ -652,7 +620,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                 </div>
 
                 {/* 2. Middle: Horizontal Bars Cluster (Compact and centered) */}
-                <div className="flex-1 px-10 flex flex-col justify-center space-y-3 py-1 overflow-y-auto custom-scrollbar max-h-[300px]">
+                <div className="flex-1 px-10 flex flex-col justify-center space-y-3 py-1 overflow-y-auto no-scrollbar max-h-[300px]">
                   {stats.sortedStats.map((staff, idx) => {
                     const maxAmount = Math.max(...stats.sortedStats.map(s => s.amount), 1)
                     const percentage = (staff.amount / maxAmount) * 100
@@ -712,7 +680,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                   
                   {/* Content */}
                   <div className="flex-1 flex flex-col pl-6 -mt-1.5 min-h-0">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 pt-0 pb-6 max-h-[400px]">
+                    <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pt-0 pb-6 max-h-[400px]">
                       {projectStats.map((item, i) => {
                         const maxCount = Math.max(...projectStats.map(p => p.count), 1)
                         const width = (item.count / maxCount) * 100
@@ -768,7 +736,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                 {name}
                               </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 pt-1 max-h-[400px]">
+                            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pt-1 max-h-[400px]">
                               {staffFlow[name]?.map((item, i) => (
                                 <div key={i} className="bg-white/10 rounded-lg p-2 border border-white/10 hover:bg-white/20 shadow-sm">
                                   <div className="text-[8px] font-bold text-white/40 mb-1">
@@ -803,7 +771,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                     </h4>
                   
                   <div className="px-2 relative flex-1 min-h-0">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[400px] pr-2">
+                    <div className="flex-1 overflow-y-auto no-scrollbar max-h-[400px]">
                       {section.isSpecial ? (
                       /* Special Style: Label outside, Value inside, with separator line */
                       <div className="relative flex flex-col space-y-4 min-h-full">
@@ -873,28 +841,6 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       </div>
     </div>
 
-      <style jsx global>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .animate-shimmer {
-          animation: shimmer 6s infinite linear;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
     </div>
   )
 }

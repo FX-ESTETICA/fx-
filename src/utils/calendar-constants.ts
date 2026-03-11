@@ -1,3 +1,5 @@
+export const APP_VERSION = '1.0.2';
+
 export type ViewType = 'day' | 'week' | 'month' | 'year'
 
 export const FIXED_STAFF_NAMES = ['FANG', 'SARA', 'DAN', 'ALEXA', 'FEDE'] as const;
@@ -22,7 +24,7 @@ export interface CalendarEvent {
     staff?: Record<string, number>;
     manualTotal?: number;
   }
-  status?: 'pending' | 'completed';
+  status?: 'pending' | 'completed' | 'deleted';
 }
 
 export interface StaffMember {
@@ -139,7 +141,7 @@ export const getStaffColorClass = (
     return 'border-sky-400'
   }
   
-  const staff = staffMembers.find(s => s.id === staffId)
+  const staff = staffMembers.find(s => s.id === staffId || s.name === staffId)
   let colorName = getCleanColorName(staff?.bgColor) || 'sky'
   
   // Explicitly return full strings for Tailwind JIT detection in a safe way
@@ -207,6 +209,20 @@ export const SERVICE_CATEGORIES = [
   ] }
 ];
 
+/**
+ * Preset prices for common nail services.
+ * Used for quick selection in the billing/checkout section.
+ */
+export const PRESET_PRICES: Record<string, number[]> = {
+  'Mn': [13, 15, 16],
+  'Ms': [30, 35, 40],
+  'Rc': [60, 68],
+  'Rt': [46, 54],
+  'Cop': [49, 57],
+  'Pn': [28, 31],
+  'Ps': [38, 42]
+};
+
 export const I18N = {
   zh: {
     viewLabels: { day: '日视图', week: '周视图', month: '月视图', year: '年视图' } as Record<ViewType, string>,
@@ -226,7 +242,10 @@ export const I18N = {
     headerDayFmt: 'yyyy / MM / dd',
     headerMonthFmt: 'yyyy / MM',
     headerYearFmt: 'yyyy',
-    weekdays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    weekdays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+    occupied: '已占用',
+    booking: '预约',
+    bookNow: '立即预约'
   },
   it: {
     viewLabels: { day: 'Giorno', week: 'Settimana', month: 'Mese', year: 'Anno' } as Record<ViewType, string>,
@@ -246,6 +265,9 @@ export const I18N = {
     headerDayFmt: 'dd / MM / yyyy',
     headerMonthFmt: 'MM / yyyy',
     headerYearFmt: 'yyyy',
-    weekdays: ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
+    weekdays: ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'],
+    occupied: 'Occupato',
+    booking: 'Prenotazione',
+    bookNow: 'Prenota ora'
   }
 }
