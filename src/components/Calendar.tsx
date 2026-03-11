@@ -29,7 +29,7 @@ import {
 import { zhCN, it as itLocale } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, ChevronDown, X, Loader2, Calendar as CalendarIcon, Settings2, GripVertical, Eye, EyeOff, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, ShieldCheck, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/utils/supabase/client'
+import { createClient, validateLicense } from '@/utils/supabase/client'
 
 import { 
   ViewType, 
@@ -437,12 +437,20 @@ export default function Calendar({
   const [currentDate, setCurrentDate] = useState<Date>(initialDate || getItalyTime())
   const [isMounted, setIsMounted] = useState(false)
   const [viewType, setViewType] = useState<ViewType>(initialView)
+  const [isAuthorized, setIsAuthorized] = useState(true)
 
   // Combined effect for initialization and prop updates
   useEffect(() => {
     setIsMounted(true)
     if (initialDate) setCurrentDate(initialDate)
     if (initialView) setViewType(initialView)
+
+    // 执行授权校验
+    const checkAuth = async () => {
+      const authorized = await validateLicense()
+      setIsAuthorized(authorized)
+    }
+    checkAuth()
   }, [initialDate, initialView])
 
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -637,6 +645,8 @@ export default function Calendar({
     if (error) {
       handleSupabaseError(error, '彻底删除');
     } else {
+      // 触发机器人互动
+      window.dispatchEvent(new CustomEvent('appointment_deleted'));
       fetchAllEventsForLibrary();
     }
     setIsSubmitting(false);
@@ -1759,7 +1769,10 @@ export default function Calendar({
             .delete()
             .eq('id', editingEvent.id);
           
-          if (deleteError) {
+          if (!deleteError) {
+            // 触发机器人互动
+            window.dispatchEvent(new CustomEvent('appointment_deleted'));
+          } else {
             handleSupabaseError(deleteError, '更新拆分预约(删除旧项)');
             setIsSubmitting(false);
             return;
@@ -2002,6 +2015,10 @@ export default function Calendar({
       handleSupabaseError(error, '移动至回收站');
     } else {
       console.log('Soft delete result count:', count);
+      
+      // 触发机器人互动
+      window.dispatchEvent(new CustomEvent('appointment_deleted'));
+      
       closeModal()
       fetchEvents()
       // Also refresh library to update recycle bin
@@ -2887,6 +2904,30 @@ export default function Calendar({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {!isAuthorized && (
+        <div className="absolute inset-0 z-[9999] bg-zinc-950/90 backdrop-blur-3xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
+          <div className="w-20 h-20 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center mb-6 animate-pulse">
+            <ShieldCheck className="w-10 h-10 text-rose-500" />
+          </div>
+          <h2 className="text-2xl font-black italic text-white mb-2 tracking-widest uppercase" style={{ fontFamily: 'var(--font-orbitron)' }}>
+            系统已锁定
+          </h2>
+          <p className="text-zinc-400 text-sm max-w-xs font-medium leading-relaxed">
+            当前版本 ({APP_VERSION}) 授权已过期或未激活。请联系管理员获取最新授权。
+          </p>
+          <div className="mt-8 flex gap-4">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 rounded-full bg-white text-black text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+            >
+              重试校验
+            </button>
+          </div>
+          <div className="absolute bottom-8 text-[10px] font-bold text-zinc-600 tracking-[0.3em] uppercase">
+            FX-Rapallo 安全保护系统
+          </div>
+        </div>
+      )}
       <div className={cn(
         "relative flex items-center justify-center px-2 md:px-4 lg:px-6 bg-transparent z-20 overflow-hidden max-h-[100px] py-1 md:py-1.5", 
         isModalOpen ? "opacity-0 pointer-events-none" : "opacity-100",

@@ -6,6 +6,8 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { cn } from '@/lib/utils'
 
+import AISmartBall from '@/components/AISmartBall'
+
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
   loading: () => (
@@ -106,32 +108,14 @@ export default function PortalPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false)
   const [showMapModal, setShowMapModal] = useState<{
     show: boolean;
     type: 'parking' | 'bus' | 'train' | 'none';
   }>({ show: false, type: 'none' })
-  const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false)
-  const [isAIChatOpen, setIsAIChatOpen] = useState(false)
-  const [chatMessage, setChatMessage] = useState('')
-  const [isAILoading, setIsAILoading] = useState(false)
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', content: string}[]>([
-    { role: 'ai', content: 'Ciao! 我是您的 Rapallo 智能助手。我已经同步了本地所有商户信息，想找好吃的、好玩的，直接问我就好！' }
-  ])
-
-  // 禁止弹窗时背景滚动
-  useEffect(() => {
-    if (showMapModal.show || isAIChatOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
-    return () => { document.body.style.overflow = 'unset' }
-  }, [showMapModal.show, isAIChatOpen])
 
   // 模拟集成 Gemini API 的真实请求函数
-  const askGemini = async (userPrompt: string) => {
-    setIsAILoading(true)
-    
+  const handleAISendMessage = async (userPrompt: string): Promise<string> => {
     // 这里构造给 AI 的本地知识库上下文
     const context = `
       你是 Rapallo 城市的智能导游。以下是当前 App 内的实时商家数据：
@@ -140,35 +124,28 @@ export default function PortalPage() {
       请根据这些信息回答用户。如果用户问哪家好，请推荐评分高的。回复要简短科幻，带点意大利风情。
     `
 
-    try {
-      // 模拟网络请求延迟
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // 模拟 AI 根据本地数据生成的回复
-      let response = ""
-      if (userPrompt.includes("美甲")) {
-        response = "为您检索到 Rapallo 评分最高的【Estetica Bloom】，它目前处于营业状态，评分 4.9。需要我为您在地图上定位吗？"
-      } else if (userPrompt.includes("吃") || userPrompt.includes("餐")) {
-        response = "本地最受欢迎的是【Pizzeria Rapallo】，评分 4.8。地道的意式风味，系统建议立即前往。"
-      } else {
-        response = "系统已接收指令。Rapallo 港口周边有丰富的休闲选择，建议查看‘景点推荐’或直接询问具体分类。"
-      }
-
-      setChatHistory(prev => [...prev, { role: 'ai', content: response }])
-    } catch (error) {
-      setChatHistory(prev => [...prev, { role: 'ai', content: "系统连接波动，请重试指令。" }])
-    } finally {
-      setIsAILoading(false)
+    // 模拟网络请求延迟
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // 模拟 AI 根据本地数据生成的回复
+    if (userPrompt.includes("美甲")) {
+      return "为您检索到 Rapallo 评分最高的【Estetica Bloom】，它目前处于营业状态，评分 4.9。需要我为您在地图上定位吗？"
+    } else if (userPrompt.includes("吃") || userPrompt.includes("餐")) {
+      return "本地最受欢迎的是【Pizzeria Rapallo】，评分 4.8。地道的意式风味，系统建议立即前往。"
+    } else {
+      return "系统已接收指令。Rapallo 港口周边有丰富的休闲选择，建议查看‘景点推荐’或直接询问具体分类。"
     }
   }
 
-  const handleSendMessage = () => {
-    if (!chatMessage.trim() || isAILoading) return
-    const userMsg = chatMessage
-    setChatHistory(prev => [...prev, { role: 'user', content: userMsg }])
-    setChatMessage('')
-    askGemini(userMsg)
-  }
+  // 禁止弹窗时背景滚动
+  useEffect(() => {
+    if (showMapModal.show) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => { document.body.style.overflow = 'unset' }
+  }, [showMapModal.show])
 
   const filteredMerchants = MERCHANTS.filter(shop => {
     const matchesSearch = shop.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -555,135 +532,13 @@ export default function PortalPage() {
   )}
 </div>
       {/* AI 智能球 & 聊天窗口 */}
-      <div className="fixed bottom-24 right-6 z-[200] flex flex-col items-end gap-4 mb-2">
-        {/* 聊天窗口 */}
-        {isAIChatOpen && (
-          <div className="w-[300px] h-[420px] bg-zinc-950/95 backdrop-blur-2xl rounded-[2rem] shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-white/10 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-            {/* 窗口 Header - 科幻风格 */}
-            <div className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 p-4 flex items-center justify-between border-b border-white/5 relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.15),transparent)] pointer-events-none" />
-              <div className="flex items-center gap-2.5 relative">
-                <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.3)]">
-                  <Cpu size={16} className="text-cyan-400 animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-[11px] font-black text-cyan-50 tracking-[0.1em] uppercase">Core OS</h4>
-                  <div className="flex items-center gap-1">
-                    <div className="w-1 h-1 rounded-full bg-cyan-500 shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
-                    <span className="text-[8px] text-cyan-500/80 font-black uppercase tracking-tighter">Online</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsAIChatOpen(false)}
-                className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-white/30 hover:text-white transition-all hover:bg-white/10 border border-white/10"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* 消息区域 - 科幻对话流 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
-              {chatHistory.map((msg, idx) => (
-                <div key={idx} className={cn(
-                  "flex flex-col max-w-[90%]",
-                  msg.role === 'user' ? "ml-auto items-end" : "items-start"
-                )}>
-                  <div className={cn(
-                    "px-4 py-3 rounded-[1.5rem] text-[12px] font-medium leading-relaxed backdrop-blur-md transition-all",
-                    msg.role === 'user' 
-                      ? "bg-cyan-500/10 text-cyan-50 border border-cyan-500/30 rounded-tr-none shadow-[0_0_15px_rgba(34,211,238,0.05)]" 
-                      : "bg-zinc-900/80 text-zinc-300 border border-white/5 rounded-tl-none"
-                  )}>
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-              
-              {/* Loading 动画 */}
-              {isAILoading && (
-                <div className="flex flex-col items-start max-w-[90%]">
-                  <div className="bg-zinc-900/80 border border-white/5 px-4 py-3 rounded-[1.5rem] rounded-tl-none flex items-center gap-1.5">
-                    <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" />
-                    <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                    <div className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.4s]" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 输入区域 - 极简科技感 */}
-            <div className="p-4 bg-zinc-900/50 border-t border-white/5 backdrop-blur-xl">
-              <div className="relative flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus-within:border-cyan-500/50 transition-all">
-                <input 
-                  type="text" 
-                  placeholder="等待指令..." 
-                  className="flex-1 bg-transparent text-[12px] text-cyan-50 placeholder:text-zinc-600 outline-none"
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                />
-                <button 
-                  onClick={handleSendMessage}
-                  disabled={!chatMessage.trim()}
-                  className="w-8 h-8 rounded-lg bg-cyan-500 text-zinc-950 flex items-center justify-center active:scale-90 transition-all disabled:opacity-20 shadow-[0_0_10px_rgba(34,211,238,0.4)]"
-                >
-                  <Send size={12} strokeWidth={2.5} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 3D 科幻球体 */}
-        <button 
-          onClick={() => setIsAIChatOpen(!isAIChatOpen)}
-          className={cn(
-            "group relative w-14 h-14 rounded-full transition-all duration-700 animate-float",
-            isAIChatOpen ? "rotate-[360deg] scale-110" : "hover:scale-110"
-          )}
-        >
-          {/* 3D 球体核心 - 多层渐变 */}
-          <div className={cn(
-            "absolute inset-0 rounded-full transition-all duration-700 overflow-hidden",
-            "bg-[radial-gradient(circle_at_30%_30%,#334155,0%,#0f172a_100%)]",
-            "shadow-[inset_-3px_-3px_10px_rgba(0,0,0,0.8),inset_3px_3px_10px_rgba(255,255,255,0.1),0_0_20px_rgba(34,211,238,0.2)]",
-            isAIChatOpen ? "bg-cyan-900 border-2 border-cyan-400/50" : "border border-white/10"
-          )}>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(34,211,238,0.4)_0%,transparent_60%)]" />
-            <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(34,211,238,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.2)_1px,transparent_1px)] bg-[size:8px_8px] animate-slow-spin" />
-            <div className="absolute top-[10%] left-[15%] w-[40%] h-[30%] bg-white/20 rounded-full blur-[2px] rotate-[-20deg]" />
-          </div>
-
-          {/* 外环轨道 */}
-          <div className={cn(
-            "absolute -inset-1.5 border border-cyan-500/20 rounded-full border-dashed animate-slow-spin transition-all duration-700",
-            isAIChatOpen ? "scale-125 opacity-100 rotate-180" : "scale-100 opacity-50"
-          )} />
-          
-          <div className="absolute inset-1.5 rounded-full border border-cyan-400/30 animate-pulse-glow" />
-
-          {/* 中心图标 */}
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            {isAIChatOpen ? (
-              <X size={24} className="text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
-            ) : (
-              <div className="relative">
-                <Bot size={24} className="text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-                <div className="absolute -inset-1 bg-gradient-to-b from-transparent via-cyan-400/40 to-transparent h-0.5 top-0 animate-[scan_2s_linear_infinite]" />
-              </div>
-            )}
-          </div>
-
-          {/* 粒子装饰 */}
-          {!isAIChatOpen && (
-            <>
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-cyan-500 rounded-full border-[3px] border-zinc-950 shadow-[0_0_10px_rgba(34,211,238,0.8)] animate-pulse" />
-              <div className="absolute bottom-1 -left-1 w-1.5 h-1.5 bg-cyan-400 rounded-full opacity-50 animate-ping" />
-            </>
-          )}
-        </button>
-      </div>
+      <AISmartBall 
+        withChat={true} 
+        onSendMessage={handleAISendMessage}
+        initialMessages={[
+          { role: 'ai', content: "Ciao! 我是您的 Rapallo 智能助手。我已经同步了本地所有商户信息，想找好吃的、好玩的，直接问我就好！" }
+        ]}
+      />
 
       {/* 底部导航栏 - 全透明 */}
       <div className="fixed bottom-0 left-0 right-0 z-[150] bg-transparent">

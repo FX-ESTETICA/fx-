@@ -5,6 +5,7 @@ import Calendar from '@/components/Calendar'
 import { ViewType } from '@/utils/calendar-constants'
 import Sidebar from '@/components/Sidebar'
 import PerformanceReport from '@/components/PerformanceReport'
+import AISmartBall from '@/components/AISmartBall'
 import { cn } from '@/lib/utils'
 
 export default function AdminPage() {
@@ -160,6 +161,13 @@ export default function AdminPage() {
         isOpen={isReportOpen} 
         onClose={() => setIsReportOpen(false)} 
         lang={lang}
+      />
+
+      {/* AI Smart Ball (Visual Only for now) */}
+      <AISmartBall 
+        className="bottom-8 right-8" 
+        withChat={false} 
+        disabled={true} 
       />
     </main>
   )
