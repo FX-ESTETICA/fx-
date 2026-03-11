@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, Star, Phone, MessageCircle, MapPin, Clock, ShieldCheck, ChevronRight, X } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -63,6 +63,25 @@ export default function ShopDetailPage() {
   const [showBooking, setShowBooking] = useState(false)
   const [activeTab, setActiveTab] = useState<'services' | 'reviews' | 'about'>('services')
   const [selectedServiceName, setSelectedServiceName] = useState<string | undefined>()
+
+  // Lock body scroll when booking modal is open with mobile-safe position: fixed
+  useEffect(() => {
+    if (showBooking) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        const scrollY = document.body.style.top;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      };
+    }
+  }, [showBooking])
 
   const handleBookService = (serviceName?: string) => {
     setSelectedServiceName(serviceName)
@@ -238,8 +257,8 @@ export default function ShopDetailPage() {
 
       {/* Booking Calendar Modal */}
       {showBooking && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md p-0 sm:p-4">
-          <div className="bg-white w-full max-w-4xl h-[95vh] sm:h-[90vh] sm:rounded-3xl overflow-hidden flex flex-col relative animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md p-0 sm:p-4 overscroll-contain">
+          <div className="bg-white w-full max-w-4xl h-[95vh] sm:h-[90vh] sm:rounded-3xl overflow-hidden flex flex-col relative animate-in slide-in-from-bottom duration-300 overscroll-contain">
             <button 
               onClick={() => setShowBooking(false)} 
               className="absolute top-4 right-4 z-[1000] p-2 bg-black/10 hover:bg-black/20 rounded-full text-zinc-900 transition-colors"
@@ -252,7 +271,7 @@ export default function ShopDetailPage() {
               <p className="text-xs text-zinc-400 font-medium mt-1">请选择您方便的时间段</p>
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden overscroll-contain">
               <Calendar mode="customer" lang="zh" initialService={selectedServiceName} />
             </div>
           </div>

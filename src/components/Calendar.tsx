@@ -59,9 +59,9 @@ import {
 
 // --- Constants for Calendar Rendering ---
 const SLOT_INTERVAL = 15; // Minutes per selection block
-const HOUR_HEIGHT = 10; // Increased height for better precision (10rem per hour)
+const HOUR_HEIGHT = 5; // Reduced height for smaller gap (5rem per hour)
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60; // Rem per minute
-const SLOT_HEIGHT = (SLOT_INTERVAL / 60) * HOUR_HEIGHT; // Rem per slot (15 min = 2.5rem)
+const SLOT_HEIGHT = (SLOT_INTERVAL / 60) * HOUR_HEIGHT; // Rem per slot (15 min = 1.25rem)
 
 // --- Weather Component ---
 function WeatherDisplay() {
@@ -481,8 +481,11 @@ export default function Calendar({
   const [touchCurrentY, setTouchCurrentY] = useState<number | null>(null)
   const [showTimeSelection, setShowTimeSelection] = useState(false)
   const [timeSelectionType, setTimeSelectionType] = useState<'start' | 'end'>('start')
-  const [gestureTime, setGestureTime] = useState<{h1: number | null, h2: number | null, m: number | null}>({h1: null, h2: null, m: null})
+  const [gestureTime, setGestureTime] = useState<{h: number | null, m: number | null, p: 'AM' | 'PM'}>({h: null, m: null, p: 'PM'})
   const [isGesturing, setIsGesturing] = useState(false)
+  const [gestureStartX, setGestureStartX] = useState<number>(0)
+  const [gestureStartY, setGestureStartY] = useState<number>(0)
+  const [activeHour, setActiveHour] = useState<number | null>(null)
   const gestureRef = useRef<HTMLDivElement>(null)
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [isDurationPickerOpen, setIsDurationPickerOpen] = useState(false)
@@ -490,6 +493,49 @@ export default function Calendar({
   const [showBookingSuccess, setShowBookingSuccess] = useState(false)
   const [showRecycleBin, setShowRecycleBin] = useState(false)
   const [hoverTime, setHoverTime] = useState<{ top: number; time: string; staffId?: string; date?: Date } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Robust Mobile Scroll Locking & Gesture Prevention
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const preventDefault = (e: TouchEvent) => {
+      // Only prevent default if we are in a modal or checkout preview
+      // and NOT in a scrollable area within the modal
+      if (isModalOpen || isBookingModalOpen || showCheckoutPreview) {
+        // Check if the target is within the scrollable items area
+        const isScrollable = (e.target as HTMLElement).closest('.overflow-y-auto');
+        if (!isScrollable) {
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+    };
+
+    container.addEventListener('touchmove', preventDefault, { passive: false });
+    return () => {
+      container.removeEventListener('touchmove', preventDefault);
+    };
+  }, [isModalOpen, isBookingModalOpen, showCheckoutPreview]);
+
+  // Handle body locking for iOS specifically (position: fixed approach)
+  useEffect(() => {
+    if (isModalOpen || isBookingModalOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        const scrollY = document.body.style.top;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      };
+    }
+  }, [isModalOpen, isBookingModalOpen]);
 
   // --- Helpers for Precise Time Selection ---
   const handleGridClick = (e: React.MouseEvent, date: Date, staffId?: string) => {
@@ -513,6 +559,9 @@ export default function Calendar({
       if (staffId) setClickedStaffId(staffId)
       setIsModalOpen(true)
       setShowServiceSelection(true)
+      setShowMemberDetail(false)
+      setShowTimeSelection(false)
+      setShowCheckoutPreview(false)
     }
   };
 
@@ -1159,65 +1208,89 @@ export default function Calendar({
   // Quick-jump to today handled via the “今/OGGI” button in header
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    // If time selection is open, check if the touch starts in the gesture area
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+
+    // If time selection is open, check if the touch starts on an hour button
     if (showTimeSelection && gestureRef.current) {
       const rect = gestureRef.current.getBoundingClientRect();
-      const touchX = e.touches[0].clientX;
-      const touchY = e.touches[0].clientY;
+      const buttons = gestureRef.current.querySelectorAll('button[data-hour]');
       
-      // Check if the touch is within the first column (Hour Tens)
-      // The first column is roughly the left 1/3 of the gesture container
-      if (touchX >= rect.left && touchX <= rect.left + rect.width / 3 &&
-          touchY >= rect.top && touchY <= rect.bottom) {
-        setIsGesturing(true);
-        setGestureTime({h1: null, h2: null, m: null});
-        // We don't return here because we still want to record the start positions
-      }
-    }
-
-    setTouchStartX(e.touches[0].clientX)
-    setTouchCurrentX(e.touches[0].clientX)
-    setTouchStartY(e.touches[0].clientY)
-    setTouchCurrentY(e.touches[0].clientY)
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchCurrentX(e.touches[0].clientX)
-    setTouchCurrentY(e.touches[0].clientY)
-
-    // If we are in the middle of a time selection gesture, handle it
-    if (isGesturing && showTimeSelection && gestureRef.current) {
-      const rect = gestureRef.current.getBoundingClientRect();
-      const touchX = e.touches[0].clientX;
-      const touchY = e.touches[0].clientY;
-      
-      // Calculate which column and row we are over
-      const colWidth = rect.width / 3;
-      const colIndex = Math.floor((touchX - rect.left) / colWidth);
-      
-      // Get all interactive elements (buttons) in the gesture area
-      const buttons = gestureRef.current.querySelectorAll('button[data-gesture-val]');
-      let hoveredVal: string | null = null;
-      let hoveredType: string | null = null;
-
       buttons.forEach(btn => {
         const btnRect = btn.getBoundingClientRect();
         if (touchX >= btnRect.left && touchX <= btnRect.right &&
             touchY >= btnRect.top && touchY <= btnRect.bottom) {
-          hoveredVal = btn.getAttribute('data-gesture-val');
-          hoveredType = btn.getAttribute('data-gesture-type');
+          const hour = parseInt(btn.getAttribute('data-hour') || '0');
+          // Intelligent AM/PM default based on shop logic:
+          // 8-11 -> AM (Morning)
+          // 12, 1-7 -> PM (Afternoon/Evening)
+          const defaultPeriod: 'AM' | 'PM' = (hour >= 8 && hour <= 11) ? 'AM' : 'PM';
+          
+          setIsGesturing(true);
+          setActiveHour(hour);
+          setGestureStartX(touchX);
+          setGestureStartY(touchY);
+          setGestureTime({ h: hour, m: 0, p: defaultPeriod }); // Default to whole hour with smart period
         }
       });
+    }
 
-      if (hoveredVal !== null && hoveredType !== null) {
-        const val = parseInt(hoveredVal);
-        setGestureTime(prev => {
-          const next = { ...prev };
-          if (hoveredType === 'h1') next.h1 = val;
-          if (hoveredType === 'h2') next.h2 = val;
-          if (hoveredType === 'm') next.m = val;
-          return next;
-        });
+    setTouchStartX(touchX)
+    setTouchCurrentX(touchX)
+    setTouchStartY(touchY)
+    setTouchCurrentY(touchY)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+
+    // Determine swipe direction early to prevent browser interference
+    const diffX = Math.abs(touchX - (touchStartX || touchX));
+    const diffY = Math.abs(touchY - (touchStartY || touchY));
+    const isHorizontalPotential = diffX > diffY && diffX > 10;
+
+    // If we are in a modal or checkout preview, handle preventDefault carefully
+    if (isModalOpen || isBookingModalOpen || showCheckoutPreview) {
+      const scrollableElement = (e.target as HTMLElement).closest('.overflow-y-auto') as HTMLElement;
+      
+      // If it's a horizontal swipe, ALWAYS prevent default to avoid browser vertical scroll takeover
+      // which often cancels the touch event stream on mobile devices.
+      if (isHorizontalPotential) {
+        if (e.cancelable) e.preventDefault();
+      } else if (scrollableElement) {
+        // Vertical swipe on a scrollable element
+        const isAtTop = scrollableElement.scrollTop <= 0;
+        const isSwipingDown = touchY > (touchStartY || touchY);
+        
+        // If swiping down at the top of the modal, prevent default to avoid "rubber-band" shrink effect
+        // and allow our custom swipe-down-to-delete gesture to handle it smoothly.
+        if (isAtTop && isSwipingDown && e.cancelable) {
+          e.preventDefault();
+        }
+      } else if (e.cancelable) {
+        // Only prevent default on non-scrollable parts for vertical movement
+        e.preventDefault();
+      }
+    }
+
+    setTouchCurrentX(touchX)
+    setTouchCurrentY(touchY)
+
+    // Handle "Compass" gesture for time selection
+    if (isGesturing && showTimeSelection && gestureRef.current) {
+      const deltaX = touchX - gestureStartX;
+      const deltaY = touchY - gestureStartY;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      if (distance > 25) { // Threshold for direction detection
+        let minute = 0;
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          minute = deltaX > 0 ? 15 : 45; // Right: 15, Left: 45
+        } else {
+          minute = deltaY > 0 ? 30 : 0;  // Down: 30, Up: 0
+        }
+        setGestureTime(prev => ({ ...prev, m: minute }));
       }
     }
   }
@@ -1226,39 +1299,37 @@ export default function Calendar({
     // Handle the end of a time selection gesture
     if (isGesturing && showTimeSelection) {
       setIsGesturing(false);
+      const { h, m, p } = gestureTime;
       
-      // If we have a valid time sequence, apply it
-      if (gestureTime.h1 !== null && gestureTime.h2 !== null && gestureTime.m !== null) {
-        const hour = gestureTime.h1 * 10 + gestureTime.h2;
-        const minute = gestureTime.m;
-        
-        // Validate hour (0-23)
-        if (hour >= 0 && hour <= 23) {
-          const baseDate = timeSelectionType === 'start' ? selectedDate : selectedEndDate;
-          if (baseDate) {
-            const newDate = new Date(baseDate);
-            newDate.setHours(hour);
-            newDate.setMinutes(minute);
-            
-            if (timeSelectionType === 'start') {
-              setSelectedDate(newDate);
-              if (selectedEndDate && newDate >= selectedEndDate) {
-                setSelectedEndDate(addMinutes(newDate, duration));
-              }
-            } else {
-              setSelectedEndDate(newDate);
-              if (selectedDate) {
-                setDuration(Math.max(15, (newDate.getTime() - selectedDate.getTime()) / 60000));
-              }
+      if (h !== null && m !== null) {
+        // Convert 12h format to 24h for Date object
+        let finalHour = h;
+        if (p === 'PM' && h < 12) finalHour += 12;
+        if (p === 'AM' && h === 12) finalHour = 0;
+
+        const baseDate = timeSelectionType === 'start' ? selectedDate : selectedEndDate;
+        if (baseDate) {
+          const newDate = new Date(baseDate);
+          newDate.setHours(finalHour);
+          newDate.setMinutes(m);
+          
+          if (timeSelectionType === 'start') {
+            setSelectedDate(newDate);
+            if (selectedEndDate && newDate >= selectedEndDate) {
+              setSelectedEndDate(addMinutes(newDate, duration));
+            }
+          } else {
+            setSelectedEndDate(newDate);
+            if (selectedDate) {
+              setDuration(Math.max(15, (newDate.getTime() - selectedDate.getTime()) / 60000));
             }
           }
         }
-        
-        // Close the selection UI after successful gesture
         setShowTimeSelection(false);
-        setGestureTime({h1: null, h2: null, m: null});
+        setActiveHour(null);
+        setGestureTime({h: null, m: null, p: 'PM'});
       }
-      return; // Stop further processing if it was a gesture
+      return;
     }
 
     if (touchStartX === null || touchCurrentX === null || touchStartY === null || touchCurrentY === null) return
@@ -1266,14 +1337,21 @@ export default function Calendar({
     const diffX = touchCurrentX - touchStartX
     const diffY = touchCurrentY - touchStartY
     const threshold = 50 // Minimum distance for a swipe
+    const absX = Math.abs(diffX)
+    const absY = Math.abs(diffY)
 
-    // Priority for Vertical Swipe (Up/Down)
-    if (Math.abs(diffY) > Math.abs(diffX)) {
+    // Vector-based Gesture Detection: ensure the swipe is primarily vertical or horizontal
+    // Ratio of 1.2 means one dimension is at least 20% larger than the other
+    const isVertical = absY > absX * 1.2 && absY > threshold
+    const isHorizontal = absX > absY * 1.2 && absX > threshold
+
+    if (isVertical) {
       if (diffY < -threshold) {
-        // Swipe Up detected -> Save/Confirm
+        // Swipe Up detected -> Save/Confirm OR Checkout
         if (isModalOpen || isBookingModalOpen) {
           const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
-          handleSubmit(submitEvent)
+          // If in checkout preview, trigger final checkout (User request: Swipe Up to Checkout)
+          handleSubmit(submitEvent, undefined, showCheckoutPreview)
         }
       } else if (diffY > threshold) {
         // Swipe Down detected -> Delete/Cancel
@@ -1290,7 +1368,7 @@ export default function Calendar({
           closeModal()
         }
       }
-    } else {
+    } else if (isHorizontal) {
       // Horizontal Swipe (Left/Right)
       if (isModalOpen || isBookingModalOpen) {
         if (diffX > threshold) {
@@ -1298,25 +1376,28 @@ export default function Calendar({
           if (!showCheckoutPreview) {
             // Switch to checkout preview
             setShowCheckoutPreview(true)
+            // Reset other views to ensure we land in checkout
+            setShowServiceSelection(false)
+            setShowMemberDetail(false)
+            setShowTimeSelection(false)
           } else {
-            // Already in checkout preview, final swipe to checkout
-            const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
-            handleSubmit(submitEvent, undefined, true)
+            // Already in checkout preview, Right swipe means BACK (User request)
+            setShowCheckoutPreview(false)
           }
         } else if (diffX < -threshold) {
           // Left swipe
           if (showCheckoutPreview) {
-            // Back from checkout preview to appointment edit
+            // Back from checkout preview (Previously left was back, now right is back as per user request)
+            // Keeping left as back for flexibility unless it conflicts
             setShowCheckoutPreview(false)
           }
         }
       } else if (showCheckoutPreview) {
-        // This case handles showCheckoutPreview when no modal is explicitly open (if that's possible)
-        // or provides fallback. Keeping it for safety based on previous structure.
         if (diffX > threshold) {
-          const submitEvent = ('preventDefault' in e) ? e : { preventDefault: () => {} } as React.FormEvent
-          handleSubmit(submitEvent, undefined, true)
+          // Right swipe to go back if no modal is explicitly open
+          setShowCheckoutPreview(false)
         } else if (diffX < -threshold) {
+          // Left swipe to go back if no modal is explicitly open
           setShowCheckoutPreview(false)
         }
       } else {
@@ -1967,34 +2048,61 @@ export default function Calendar({
           setMemberName(extractedName)
         }
 
-        if (id !== '0000') {
-          setShowMemberDetail(true)
-          const existingMember = allMembers.find(m => m.card === id)
-          if (existingMember) {
-            setSelectedMember(existingMember)
-            setMemberNote(existingMember.note || '')
-          } else {
-            // Also try to extract from current event's notes as fallback
-            const memberNoteMatch = event["备注"]?.match(/\[MEMBER_NOTE:(.*?)\]/)
-            const noteFromEvent = memberNoteMatch ? memberNoteMatch[1] : ''
-            setMemberNote(noteFromEvent)
-            
-            setSelectedMember({
-              name: extractedName || '',
-              phone: info,
-              card: id,
-              level: id.startsWith('NO') ? '爽约名单' : '普通会员',
-              totalSpend: 0,
-              totalVisits: 0,
-              lastVisit: event["服务日期"],
-              note: noteFromEvent,
-              history: []
-            })
-          }
+        // Initialize member detail view (but the final decision on which window to show 
+        // will be made at the end of the function based on appointment progress)
+        setShowMemberDetail(true)
+        const existingMember = allMembers.find(m => m.card === id)
+        if (existingMember) {
+          setSelectedMember(existingMember)
+          setMemberNote(existingMember.note || '')
+        } else {
+          // Also try to extract from current event's notes as fallback
+          const memberNoteMatch = event["备注"]?.match(/\[MEMBER_NOTE:(.*?)\]/)
+          const noteFromEvent = memberNoteMatch ? memberNoteMatch[1] : ''
+          setMemberNote(noteFromEvent)
+          
+          setSelectedMember({
+            name: extractedName || (id === '0000' ? '散客' : ''),
+            phone: info,
+            card: id,
+            level: id === '0000' ? '散客' : (id.startsWith('NO') ? '爽约名单' : '普通会员'),
+            totalSpend: 0,
+            totalVisits: 0,
+            lastVisit: event["服务日期"],
+            note: noteFromEvent,
+            history: []
+          })
         }
       } else {
         setMemberInfo(event["会员信息"])
+        // If it's a completely unparsed string, we still want a placeholder member object to show
+        setSelectedMember({
+          name: event["会员信息"] || '未知',
+          phone: '',
+          card: '0000',
+          level: '普通会员',
+          totalSpend: 0,
+          totalVisits: 0,
+          lastVisit: event["服务日期"],
+          note: '',
+          history: []
+        })
+        setShowMemberDetail(true)
       }
+    } else {
+      // No member info at all -> set a fallback to avoid "?" screen
+      setSelectedMember({
+        name: '散客',
+        phone: '',
+        card: '0000',
+        level: '散客',
+        totalSpend: 0,
+        totalVisits: 0,
+        lastVisit: event["服务日期"],
+        note: '',
+        history: []
+      })
+      setShowMemberDetail(true)
     }
 
     // Set amounts dynamically
@@ -2117,11 +2225,22 @@ export default function Calendar({
       }
     }
 
+    // PERFECT LOGIC: 
+    // 1. If completed or passed midpoint -> Show Checkout Preview
+    // 2. Otherwise (upcoming/newly started) -> Show Member Detail (including "散客")
     if (shouldShowBilling) {
       setShowCheckoutPreview(true)
+      setShowMemberDetail(false)
+      setShowServiceSelection(false)
     } else {
       setShowCheckoutPreview(false)
+      setShowMemberDetail(true)
+      setShowServiceSelection(false)
     }
+    
+    // Always hide time selection and custom keypad initially
+    setShowTimeSelection(false)
+    setShowCustomKeypad(false)
   }
 
   const closeModal = () => {
@@ -2469,7 +2588,7 @@ export default function Calendar({
     mergedEvents.forEach((event: any, eventIdx: number) => {
       const eventItems = event["服务项目"]?.split(',').map((s: string) => s.trim()).filter(Boolean) || [];
       eventItems.forEach((itemName: string, idx: number) => {
-        const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name === itemName);
+        const itemData = SERVICE_CATEGORIES.flatMap(c => c.items).find(i => i.name.toLowerCase() === itemName.toLowerCase());
         if (!itemData) return;
 
         const itemKey = `${event.id}-${itemName}-${idx}`;
@@ -2507,7 +2626,7 @@ export default function Calendar({
     return (
       <div className="h-full flex flex-col space-y-1 overflow-visible animate-in fade-in slide-in-from-right-4 duration-300">
         {/* Receipt Header */}
-        <div className="flex items-center justify-between mb-1 px-2 relative">
+        <div className="flex items-center justify-between mb-1 px-2 relative touch-none overscroll-contain">
           <button 
             onClick={() => setShowCheckoutPreview(false)}
             className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
@@ -2520,7 +2639,7 @@ export default function Calendar({
         </div>
 
         {/* Items & Staff Alignment Grid */}
-        <div className="flex-1 overflow-y-auto no-scrollbar overflow-x-visible">
+        <div className="flex-1 overflow-y-auto no-scrollbar overflow-x-visible pb-12">
           <div className={cn(
             "grid gap-x-6 px-2 transition-all duration-300",
             showCustomKeypad ? "grid-cols-1 space-y-2" : "grid-cols-2"
@@ -2575,31 +2694,35 @@ export default function Calendar({
 
                     {editingPriceItemKey === itemKey && (
                       <div className="absolute left-0 right-0 top-full mt-1 flex flex-wrap items-center gap-1 z-[100] animate-in fade-in slide-in-from-top-1 duration-200 overflow-visible bg-transparent backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-2xl">
-                        {(PRESET_PRICES[itemData.name] || [10, 20, 30]).map((price) => (
-                          <button
-                            key={price}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newVal = price.toString();
-                              const oldVal = customItemPrices[itemKey] || itemData.price.toString();
-                              const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
-                              setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
-                              if (staff && staff.id !== 'NO') {
-                                setStaffAmounts(prev => {
-                                  const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
-                                  return { ...prev, [staff.name]: newStaffAmount };
-                                });
-                              }
-                              if (manualTotalAmount !== null) {
-                                setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
-                              }
-                              setEditingPriceItemKey(null);
-                            }}
-                            className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 hover:bg-white/20 text-[9px] font-bold text-white transition-all shadow-lg"
-                          >
-                            {price}
-                          </button>
-                        ))}
+                        {(() => {
+                          const presetKey = Object.keys(PRESET_PRICES).find(k => k.toLowerCase() === itemData.name.toLowerCase());
+                          const prices = presetKey ? PRESET_PRICES[presetKey] : [10, 20, 30];
+                          return prices.map((price) => (
+                            <button
+                              key={price}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newVal = price.toString();
+                                const oldVal = customItemPrices[itemKey] || itemData.price.toString();
+                                const diff = (Number(newVal) || 0) - (Number(oldVal) || 0);
+                                setCustomItemPrices(prev => ({ ...prev, [itemKey]: newVal }));
+                                if (staff && staff.id !== 'NO') {
+                                  setStaffAmounts(prev => {
+                                    const newStaffAmount = (Number(prev[staff.name] || 0) + diff).toString();
+                                    return { ...prev, [staff.name]: newStaffAmount };
+                                  });
+                                }
+                                if (manualTotalAmount !== null) {
+                                  setManualTotalAmount(prev => (Number(prev || 0) + diff).toString());
+                                }
+                                setEditingPriceItemKey(null);
+                              }}
+                              className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 hover:bg-white/20 text-[9px] font-bold text-white transition-all shadow-lg"
+                            >
+                              {price}
+                            </button>
+                          ));
+                        })()}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -2708,7 +2831,7 @@ export default function Calendar({
         </div>
 
         {/* Total Amount Section */}
-        <div className="pt-1 pb-0.5 flex flex-col items-center w-full overflow-visible">
+        <div className="pt-1 pb-0.5 flex flex-col items-center w-full overflow-visible touch-none overscroll-contain">
           <div className="w-full flex justify-center overflow-visible">
             <h3 className="text-xl font-black italic text-white uppercase tracking-[0.2em] [text-shadow:0_2px_4px_rgba(0,0,0,0.8),0_0_1px_rgba(0,0,0,1)] mr-[-0.2em]">
               TOTAL BILLING
@@ -2745,6 +2868,12 @@ export default function Calendar({
               />
             </div>
           </div>
+          {/* Swipe Hint - Added for User Request */}
+          {showCheckoutPreview && (
+            <div className="absolute bottom-4 right-6 flex flex-col items-end gap-1 pointer-events-none">
+              <span className="text-[11px] font-black italic text-emerald-400 uppercase tracking-widest [text-shadow:0_0_8px_rgba(52,211,153,0.5)]">确认收款</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2752,6 +2881,7 @@ export default function Calendar({
 
   return (
     <div 
+      ref={containerRef}
       className="flex flex-col h-full w-full bg-transparent text-zinc-100 overflow-hidden relative"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -3486,7 +3616,7 @@ export default function Calendar({
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-transparent"
         >
           <div 
-            className="w-full max-w-2xl max-h-[92vh] bg-transparent border border-white/20 rounded-[2rem] shadow-2xl overflow-y-auto ring-1 ring-white/5 no-scrollbar"
+            className="w-full max-w-2xl max-h-[92vh] bg-transparent border border-white/20 rounded-[2rem] shadow-2xl overflow-y-auto overscroll-y-contain ring-1 ring-white/5 no-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             <form onSubmit={handleSubmit} className="flex flex-col">
@@ -3514,8 +3644,8 @@ export default function Calendar({
                           </label>
                           <div className="relative group w-full bg-white/[0.01] border-none rounded-xl focus-within:ring-2 focus-within:ring-white/10 shadow-inner overflow-hidden">
                             <input 
-                              autoFocus
                               type="text"
+                              inputMode="none"
                               placeholder="输入服务项目..."
                               className="w-full bg-transparent border-none px-3 py-2.5 text-transparent caret-transparent focus:outline-none text-xs placeholder:text-zinc-500 relative z-10"
                               value={newTitle}
@@ -3580,6 +3710,7 @@ export default function Calendar({
                           </label>
                           <input 
                             type="text"
+                            inputMode="none"
                             placeholder="姓名/卡号/电话"
                             className="w-full bg-white/[0.01] border-none rounded-xl px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/10 text-xs placeholder:text-zinc-500 shadow-inner"
                             value={memberInfo}
@@ -4471,74 +4602,93 @@ export default function Calendar({
                       </div>
                     </div>
                   ) : showTimeSelection ? (
-                    <div className="space-y-6">
-                      {/* Gesture Picker Area */}
+                    <div className="flex items-center justify-center py-4">
+                      {/* Clock Dial Area */}
                       <div 
                         ref={gestureRef}
-                        className="relative grid grid-cols-3 gap-8 p-4 bg-white/[0.02] rounded-[2rem] border border-white/10 select-none touch-none"
-                        style={{ height: '320px' }}
+                        className="relative w-[300px] h-[300px] rounded-full border border-white/10 select-none touch-none flex items-center justify-center"
                       >
-                        {/* Column 1: Hour Tens (0, 1, 2) */}
-                        <div className="flex flex-col justify-start items-center gap-4">
-                          {[2, 1, 0].map(val => (
+                        {/* Hour Numbers in a Circle (1-12) */}
+                        {[...Array(12)].map((_, i) => {
+                          const hour = i + 1;
+                          const angle = (hour * 30 - 90) * (Math.PI / 180);
+                          const radius = 115;
+                          const x = Math.cos(angle) * radius;
+                          const y = Math.sin(angle) * radius;
+                          const isActive = activeHour === hour;
+                          
+                          return (
                             <button
-                              key={`h1-${val}`}
-                              data-gesture-val={val}
-                              data-gesture-type="h1"
+                              key={`hour-${hour}`}
+                              data-hour={hour}
                               type="button"
                               className={cn(
-                                "w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-black italic transition-all duration-200",
-                                gestureTime.h1 === val 
-                                  ? "bg-white text-zinc-950 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
-                                  : "text-white/80 hover:bg-white/10"
+                                "absolute w-11 h-11 rounded-full flex items-center justify-center text-lg font-black italic transition-all duration-200",
+                                isActive 
+                                  ? "bg-white text-zinc-950 scale-125 shadow-[0_0_20px_rgba(255,255,255,0.4)] z-10" 
+                                  : "text-white/60 hover:bg-white/5"
+                              )}
+                              style={{
+                                transform: `translate(${x}px, ${y}px)`
+                              }}
+                            >
+                              {hour}
+                            </button>
+                          );
+                        })}
+
+                        {/* Center Indicator (Shows current selection + AM/PM Toggle) */}
+                        <div className="flex flex-col items-center justify-center bg-white/5 w-28 h-28 rounded-full border border-white/10 relative overflow-hidden group">
+                          {/* Time Display */}
+                          <div className="flex items-baseline gap-1">
+                            <div className="text-3xl font-black italic text-white leading-none">
+                              {gestureTime.h !== null ? gestureTime.h.toString().padStart(2, '0') : '--'}
+                            </div>
+                            <div className="text-emerald-400 text-sm font-black italic">
+                              :{gestureTime.m !== null ? gestureTime.m.toString().padStart(2, '0') : '--'}
+                            </div>
+                          </div>
+
+                          {/* AM/PM Toggle */}
+                          <div className="mt-2 flex items-center bg-white/10 rounded-full p-0.5 border border-white/5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setGestureTime(prev => ({ ...prev, p: 'AM' }));
+                              }}
+                              className={cn(
+                                "px-3 py-0.5 rounded-full text-[10px] font-black italic transition-all",
+                                gestureTime.p === 'AM' ? "bg-white text-zinc-950" : "text-white/40"
                               )}
                             >
-                              {val}
+                              AM
                             </button>
-                          ))}
-                        </div>
-
-                        {/* Column 2: Hour Units (0-9) */}
-                        <div className="flex flex-col justify-between items-center py-2">
-                          <div className="grid grid-cols-2 gap-3">
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(val => (
-                              <button
-                                key={`h2-${val}`}
-                                data-gesture-val={val}
-                                data-gesture-type="h2"
-                                type="button"
-                                className={cn(
-                                  "w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black italic transition-all duration-200",
-                                  gestureTime.h2 === val 
-                                    ? "bg-white text-zinc-950 scale-110 shadow-[0_0_15px_rgba(255,255,255,0.4)]" 
-                                    : "text-white/80 hover:bg-white/10"
-                                )}
-                              >
-                                {val}
-                              </button>
-                            ))}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setGestureTime(prev => ({ ...prev, p: 'PM' }));
+                              }}
+                              className={cn(
+                                "px-3 py-0.5 rounded-full text-[10px] font-black italic transition-all",
+                                gestureTime.p === 'PM' ? "bg-white text-zinc-950" : "text-white/40"
+                              )}
+                            >
+                              PM
+                            </button>
                           </div>
                         </div>
 
-                        {/* Column 3: Minutes (00, 15, 30, 45) */}
-                        <div className="flex flex-col justify-around items-center">
-                          {[0, 15, 30, 45].map(val => (
-                            <button
-                              key={`m-${val}`}
-                              data-gesture-val={val}
-                              data-gesture-type="m"
-                              type="button"
-                              className={cn(
-                                "w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black italic transition-all duration-200",
-                                gestureTime.m === val 
-                                  ? "bg-white text-zinc-950 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
-                                  : "text-white/80 hover:bg-white/10"
-                              )}
-                            >
-                              {val.toString().padStart(2, '0')}
-                            </button>
-                          ))}
-                        </div>
+                        {/* Directional Guides (Faint) */}
+                        {isGesturing && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute top-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-white/20 uppercase italic">00</div>
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] font-black text-white/20 uppercase italic">15</div>
+                            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black text-white/20 uppercase italic">30</div>
+                            <div className="absolute left-8 top-1/2 -translate-y-1/2 text-[10px] font-black text-white/20 uppercase italic">45</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : showServiceSelection ? (

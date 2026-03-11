@@ -20,6 +20,7 @@ interface SidebarProps {
   onLogoClick?: () => void;
   onBrandClick?: () => void;
   onClockClick?: () => void;
+  onSwipeLeft?: () => void;
   lang?: 'zh' | 'it';
 }
 
@@ -28,9 +29,11 @@ export default function Sidebar({
   onLogoClick, 
   onBrandClick, 
   onClockClick,
+  onSwipeLeft,
   lang = 'zh' 
 }: SidebarProps) {
   const [now, setNow] = useState<Date | null>(null)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
 
   // Update clock every second
   useEffect(() => {
@@ -52,8 +55,28 @@ export default function Sidebar({
     ? ['一','二','三','四','五','六','日']
     : ['L','M','M','G','V','S','D']
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return
+    const touchEnd = e.changedTouches[0].clientX
+    const distance = touchStart - touchEnd
+    
+    // Swipe left distance threshold (e.g., 50px)
+    if (distance > 50) {
+      onSwipeLeft?.()
+    }
+    setTouchStart(null)
+  }
+
   return (
-    <div className="flex flex-col h-full bg-transparent p-4 md:p-6 overflow-hidden">
+    <div 
+      className="flex flex-col h-full bg-transparent p-4 md:p-6 overflow-hidden select-none touch-pan-y"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Logo Section - Reduced padding and size for better zoom fit */}
       <div className="flex flex-col items-center justify-center py-2 md:py-4 shrink-0">
         <div 

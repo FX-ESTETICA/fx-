@@ -63,6 +63,17 @@ export default function AdminPage() {
   }, [isResizing])
 
   useEffect(() => {
+    if (isModalOpen || isReportOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [isModalOpen, isReportOpen])
+
+  useEffect(() => {
     if (isResizing) {
       window.addEventListener('mousemove', resize)
       window.addEventListener('mouseup', stopResizing)
@@ -109,6 +120,7 @@ export default function AdminPage() {
             onLogoClick={cycleBackground} 
             onBrandClick={toggleLanguage} 
             onClockClick={() => setIsReportOpen(true)}
+            onSwipeLeft={() => setIsSidebarVisible(false)}
             lang={lang} 
           />
         </div>
