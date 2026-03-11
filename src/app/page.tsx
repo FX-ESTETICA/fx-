@@ -6,7 +6,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { cn } from '@/lib/utils'
 
-import AISmartBall from '@/components/AISmartBall'
+import { MAIN_CATEGORIES, LIFE_CATEGORIES, MERCHANTS } from '@/data/merchants'
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
@@ -20,90 +20,6 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   )
 })
 
-// 模拟分类数据
-const MAIN_CATEGORIES = [
-  { id: 'beauty', name: '美容', icon: Scissors, color: 'text-pink-500' },
-  { id: 'food', name: '餐饮', icon: Utensils, color: 'text-orange-500' },
-  { id: 'hotel', name: '酒店', icon: ShoppingBag, color: 'text-blue-500' },
-  { id: 'bar', name: '酒吧', icon: Wine, color: 'text-purple-500' },
-  { id: 'market', name: '超市', icon: Store, color: 'text-rose-500' },
-  { id: 'cloth', name: '服装', icon: Shirt, color: 'text-indigo-500' },
-]
-
-const LIFE_CATEGORIES = [
-  { id: 'scenic', name: '景点推荐', icon: Camera, color: 'text-cyan-400' },
-  { id: 'parking', name: '停车场', icon: Car, color: 'text-emerald-500' },
-  { id: 'bus', name: '公交车', icon: Bus, color: 'text-blue-400' },
-  { id: 'train', name: '火车站', icon: Train, color: 'text-slate-400' },
-  { id: 'gas', name: '加油站', icon: Fuel, color: 'text-slate-300' },
-  { id: 'pharmacy', name: '药房', icon: Pill, color: 'text-red-500' },
-  { id: 'hospital', name: '医院', icon: Hospital, color: 'text-blue-500' },
-]
-
-// 模拟商家数据
-const MERCHANTS = [
-  {
-    id: '3',
-    name: '中央停车场',
-    category: '停车位',
-    rating: 4.5,
-    price: '2/h',
-    distance: '0.3km',
-    image: '/wallhaven-xe75wv.png',
-    tags: ['车位充足', '24小时'],
-  },
-  {
-    id: '1',
-    name: 'Estetica Bloom',
-    category: '美甲',
-    rating: 4.9,
-    price: '35',
-    distance: '0.8km',
-    image: '/wallhaven-eo68l8.jpg',
-    tags: ['今日可约', '环境好', '老店'],
-  },
-  {
-    id: '2',
-    name: 'Bella Vista 餐厅',
-    category: '餐饮',
-    rating: 4.7,
-    price: '60',
-    distance: '1.2km',
-    image: '/wallhaven-qr3o8q.png',
-    tags: ['海景', '地道意餐'],
-  },
-  {
-    id: '4',
-    name: 'Rapallo 意式咖啡馆',
-    category: '酒吧',
-    rating: 4.8,
-    price: '5',
-    distance: '0.5km',
-    image: '/wallhaven-eo68l8.jpg',
-    tags: ['手工烘焙', '安静'],
-  },
-  {
-    id: '5',
-    name: '海滨酒店',
-    category: '酒店',
-    rating: 4.6,
-    price: '120',
-    distance: '1.5km',
-    image: '/wallhaven-qr3o8q.png',
-    tags: ['海景房', '含早餐'],
-  },
-  {
-    id: '6',
-    name: '本地海鲜市场',
-    category: '餐饮',
-    rating: 4.5,
-    price: '20',
-    distance: '2.0km',
-    image: '/wallhaven-xe75wv.png',
-    tags: ['新鲜', '高性价比'],
-  }
-]
-
 export default function PortalPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
@@ -113,29 +29,6 @@ export default function PortalPage() {
     show: boolean;
     type: 'parking' | 'bus' | 'train' | 'none';
   }>({ show: false, type: 'none' })
-
-  // 模拟集成 Gemini API 的真实请求函数
-  const handleAISendMessage = async (userPrompt: string): Promise<string> => {
-    // 这里构造给 AI 的本地知识库上下文
-    const context = `
-      你是 Rapallo 城市的智能导游。以下是当前 App 内的实时商家数据：
-      ${MERCHANTS.map(m => `- ${m.name} (${m.category}): 评分${m.rating}`).join('\n')}
-      
-      请根据这些信息回答用户。如果用户问哪家好，请推荐评分高的。回复要简短科幻，带点意大利风情。
-    `
-
-    // 模拟网络请求延迟
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // 模拟 AI 根据本地数据生成的回复
-    if (userPrompt.includes("美甲")) {
-      return "为您检索到 Rapallo 评分最高的【Estetica Bloom】，它目前处于营业状态，评分 4.9。需要我为您在地图上定位吗？"
-    } else if (userPrompt.includes("吃") || userPrompt.includes("餐")) {
-      return "本地最受欢迎的是【Pizzeria Rapallo】，评分 4.8。地道的意式风味，系统建议立即前往。"
-    } else {
-      return "系统已接收指令。Rapallo 港口周边有丰富的休闲选择，建议查看‘景点推荐’或直接询问具体分类。"
-    }
-  }
 
   // 禁止弹窗时背景滚动
   useEffect(() => {
@@ -531,38 +424,6 @@ export default function PortalPage() {
     </>
   )}
 </div>
-      {/* AI 智能球 & 聊天窗口 */}
-      <AISmartBall 
-        withChat={true} 
-        onSendMessage={handleAISendMessage}
-        initialMessages={[
-          { role: 'ai', content: "Ciao! 我是您的 Rapallo 智能助手。我已经同步了本地所有商户信息，想找好吃的、好玩的，直接问我就好！" }
-        ]}
-      />
-
-      {/* 底部导航栏 - 全透明 */}
-      <div className="fixed bottom-0 left-0 right-0 z-[150] bg-transparent">
-        <div className="max-w-md mx-auto flex items-center justify-around py-3 px-2 relative">
-          <Link href="/" className="flex flex-col items-center gap-1 group relative px-6">
-            {/* 选中态指示光 - 增强发光以补偿全透明背景 */}
-            <div className="absolute -top-[13px] left-1/2 -translate-x-1/2 w-10 h-[2.5px] bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,1)] z-20" />
-            <div className="absolute -top-[13px] left-1/2 -translate-x-1/2 w-20 h-10 bg-cyan-400/20 blur-2xl rounded-full pointer-events-none" />
-            
-            <Home size={22} className="text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.8)] relative z-10" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] relative z-10">首页</span>
-          </Link>
-          
-          <Link href="/explore" className="flex flex-col items-center gap-1 group px-6">
-            <Compass size={22} className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover:text-cyan-300 transition-colors" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover:text-cyan-300 transition-colors">发现</span>
-          </Link>
-          
-          <Link href="/me" className="flex flex-col items-center gap-1 group px-6">
-            <User size={22} className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover:text-cyan-300 transition-colors" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover:text-cyan-300 transition-colors">我的</span>
-          </Link>
-        </div>
-      </div>
     </main>
   )
 }

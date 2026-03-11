@@ -42,12 +42,102 @@ export default function AISmartBall({
   const [isMouseOver, setIsMouseOver] = useState(false)
   const [chatHistory, setChatHistory] = useState<Message[]>(initialMessages)
   
+  // 拖拽相关状态
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [hasMoved, setHasMoved] = useState(false)
+  
   // 机器人状态
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isIdle, setIsIdle] = useState(false)
   const [idleMessage, setIdleMessage] = useState<string | null>(null)
   const robotRef = useRef<HTMLDivElement>(null)
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 处理拖拽逻辑
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if (disabled) return
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    
+    setDragStart({
+      x: clientX - position.x,
+      y: clientY - position.y
+    })
+    setIsDragging(true)
+    setHasMoved(false)
+  }
+
+  const handleDragMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isDragging) return
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    
+    const newX = clientX - dragStart.x
+    const newY = clientY - dragStart.y
+    
+    // 边界检测 (防止拖出屏幕)
+    const padding = 20
+    const rect = robotRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    // 计算当前位置与视口边界的距离
+    // translate(newX, newY) 是相对于初始 CSS 位置的偏移
+    // 我们需要确保变换后的 rect 仍然在视口内
+    
+    const deltaX = newX - position.x
+    const deltaY = newY - position.y
+    
+    let finalX = newX
+    let finalY = newY
+    
+    // 检查 X 轴边界
+    if (rect.left + deltaX < padding) {
+      finalX = position.x - (rect.left - padding)
+    } else if (rect.right + deltaX > window.innerWidth - padding) {
+      finalX = position.x + (window.innerWidth - padding - rect.right)
+    }
+    
+    // 检查 Y 轴边界
+    if (rect.top + deltaY < padding) {
+      finalY = position.y - (rect.top - padding)
+    } else if (rect.bottom + deltaY > window.innerHeight - padding) {
+      finalY = position.y + (window.innerHeight - padding - rect.bottom)
+    }
+    
+    setPosition({ x: finalX, y: finalY })
+    setHasMoved(true)
+    
+    // 拖拽时露出惊讶表情
+    setIsSurprised(true)
+  }, [isDragging, dragStart, position.x, position.y])
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    setIsSurprised(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove)
+      window.addEventListener('mouseup', handleDragEnd)
+      window.addEventListener('touchmove', handleDragMove)
+      window.addEventListener('touchend', handleDragEnd)
+    } else {
+      window.removeEventListener('mousemove', handleDragMove)
+      window.removeEventListener('mouseup', handleDragEnd)
+      window.removeEventListener('touchmove', handleDragMove)
+      window.removeEventListener('touchend', handleDragEnd)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove)
+      window.removeEventListener('mouseup', handleDragEnd)
+      window.removeEventListener('touchmove', handleDragMove)
+      window.removeEventListener('touchend', handleDragEnd)
+    }
+  }, [isDragging, handleDragMove])
 
   // 处理鼠标跟随逻辑
   useEffect(() => {
@@ -122,7 +212,7 @@ export default function AISmartBall({
   }
 
   const toggleChat = () => {
-    if (disabled || isAngry) return
+    if (disabled || isAngry || hasMoved) return
     // 点击时露出惊讶表情，不再打开窗口
     setIsSurprised(true)
     setTimeout(() => setIsSurprised(false), 800)
@@ -201,10 +291,16 @@ export default function AISmartBall({
   return (
     <div 
       ref={robotRef}
+      onMouseDown={handleDragStart}
+      onTouchStart={handleDragStart}
       className={cn(
         "fixed z-[200] flex flex-col items-end gap-4 mb-2 transition-all duration-500 animate-bounce-in", 
         className || "bottom-24 right-6"
       )}
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+      }}
     >
       {/* 气泡对话 (空闲时或对话时) */}
       {idleMessage && (
@@ -233,8 +329,9 @@ export default function AISmartBall({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={cn(
-          "relative w-20 h-20 group transition-all duration-700 animate-float-slow outline-none",
+          "relative w-20 h-20 group transition-all duration-700 animate-float-slow outline-none select-none touch-none",
           isAIChatOpen ? "scale-110" : "hover:scale-110",
+          isDragging && "scale-110 cursor-grabbing",
           isAngry && "animate-shake",
           disabled && "cursor-default"
         )}

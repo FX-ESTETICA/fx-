@@ -184,7 +184,7 @@ export default function MePage() {
 
   return (
     <main 
-      className="min-h-screen bg-zinc-50 pb-24 touch-pan-y"
+      className="min-h-screen bg-zinc-50 pb-32 touch-pan-y"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

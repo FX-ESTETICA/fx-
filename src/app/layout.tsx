@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, ZCOOL_KuaiLe, Noto_Sans_SC, Orbitron } from "next/font/google";
 import "./globals.css";
+import BottomNav from "@/components/BottomNav";
+import GlobalAI from "@/components/GlobalAI";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,6 +66,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${zcoolKuaiLe.variable} ${notoSansSC.variable} ${orbitron.variable} antialiased`}
       >
         {children}
+        <BottomNav />
+        <GlobalAI />
       </body>
     </html>
   );

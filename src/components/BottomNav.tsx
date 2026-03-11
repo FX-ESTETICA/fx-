@@ -62,8 +62,8 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-white/80 backdrop-blur-xl border-t border-zinc-100 pb-safe-area-inset-bottom">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-4">
+    <div className="fixed bottom-0 left-0 right-0 z-[150] bg-transparent pointer-events-none">
+      <div className="max-w-md mx-auto flex items-center justify-around py-3 px-2 relative pointer-events-auto">
         {finalNavItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
@@ -72,20 +72,30 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 min-w-[64px] transition-all duration-300",
-                isActive ? (userRole === 'merchant' && item.label === '工作台' ? "text-emerald-500 scale-110" : "text-amber-500 scale-110") : "text-zinc-400 hover:text-zinc-600"
-              )}
+              className="flex flex-col items-center gap-1 group relative px-6"
             >
-              <div className={cn(
-                "p-1 rounded-xl transition-colors",
-                isActive ? (userRole === 'merchant' && item.label === '工作台' ? "bg-emerald-50" : "bg-amber-50") : "bg-transparent"
-              )}>
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-              </div>
+              {isActive && (
+                <>
+                  {/* 选中态指示光 - 增强发光以补偿全透明背景 */}
+                  <div className="absolute -top-[13px] left-1/2 -translate-x-1/2 w-10 h-[2.5px] bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,1)] z-20" />
+                  <div className="absolute -top-[13px] left-1/2 -translate-x-1/2 w-20 h-10 bg-cyan-400/20 blur-2xl rounded-full pointer-events-none" />
+                </>
+              )}
+              
+              <Icon 
+                size={22} 
+                className={cn(
+                  "transition-all duration-300 relative z-10",
+                  isActive 
+                    ? "text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.8)]" 
+                    : "text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover:text-cyan-300"
+                )} 
+              />
               <span className={cn(
-                "text-[10px] font-bold tracking-wider transition-opacity",
-                isActive ? "opacity-100" : "opacity-80"
+                "text-[10px] font-black uppercase tracking-widest transition-all duration-300 relative z-10",
+                isActive
+                  ? "text-cyan-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                  : "text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] group-hover:text-cyan-300"
               )}>
                 {item.label}
               </span>
@@ -93,6 +103,6 @@ export default function BottomNav() {
           )
         })}
       </div>
-    </nav>
+    </div>
   )
 }
