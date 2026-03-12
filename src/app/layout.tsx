@@ -39,13 +39,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Rapallo 收银台",
-  description: "Rapallo 收银台日历系统",
+  title: "GX⁺ 私人管家",
+  description: "您的专属私人管家系统",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Rapallo",
+    title: "GX⁺ 管家",
   },
   formatDetection: {
     telephone: false,

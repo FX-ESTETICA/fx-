@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { MediaRenderer } from '@/components/MediaRenderer'
+import { FlashUpload } from '@/components/FlashUpload'
 
 // Mock Data for Social Feed
 const EXPLORE_POSTS = [
@@ -30,7 +32,26 @@ const EXPLORE_POSTS = [
     tags: ['美甲', '法式', '夏日款'],
     relatedService: '经典美睫',
     shopId: '1',
-    category: '商家'
+    category: '商家',
+    type: 'image'
+  },
+  {
+    id: 'video-1',
+    user: {
+      name: '时尚博主 Sofia',
+      avatar: '/wallhaven-qr3o8q.png',
+    },
+    image: '/wallhaven-qr3o8q.png',
+    title: '探秘拉帕洛最美的隐藏沙滩 🎥',
+    description: '今天带大家去一个只有当地人才知道的绝美沙滩，海水清澈见底！',
+    likes: 1542,
+    comments: 89,
+    tags: ['探店', '海滩', 'Vlog'],
+    relatedService: '沙滩导览',
+    shopId: '3',
+    category: '景点',
+    type: 'video',
+    videoId: '607f8725-7835-4630-8096-7429188d368b' // 示例视频 ID
   },
   {
     id: '2',
@@ -171,122 +192,157 @@ export default function ExplorePage() {
 
   return (
     <main 
-      className="min-h-screen bg-white pb-32 touch-pan-y"
+      className="relative w-full bg-[#0a0a0c] pb-32 overflow-x-hidden min-h-screen text-zinc-100 touch-pan-y"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-zinc-100">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex gap-6">
-            <button 
-              onClick={() => setActiveTab('recommend')}
-              className={cn(
-                "text-sm font-black uppercase tracking-widest transition-all",
-                activeTab === 'recommend' ? "text-zinc-900 scale-110" : "text-zinc-400"
-              )}
-            >
-              推荐
-            </button>
-            <button 
-              onClick={() => setActiveTab('nearby')}
-              className={cn(
-                "text-sm font-black uppercase tracking-widest transition-all",
-                activeTab === 'nearby' ? "text-zinc-900 scale-110" : "text-zinc-400"
-              )}
-            >
-              附近
-            </button>
-            <button 
-              onClick={() => setActiveTab('follow')}
-              className={cn(
-                "text-sm font-black uppercase tracking-widest transition-all",
-                activeTab === 'follow' ? "text-zinc-900 scale-110" : "text-zinc-400"
-              )}
-            >
-              关注
-            </button>
-          </div>
-          <div className="flex gap-4 text-zinc-400">
-            <Search size={20} />
-            <Filter size={20} />
-          </div>
-        </div>
+      {/* 确保没有白色层级 */}
+      <div className="absolute inset-0 bg-[#0a0a0c] z-[-1]" />
 
-        {/* Categories Horizontal Scroll */}
-        <div className="px-4 pb-3 flex gap-3 overflow-x-auto no-scrollbar">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              ref={el => { categoryRefs.current[cat] = el }}
-              onClick={() => setSelectedCategory(cat)}
-              className={cn(
-                "px-4 py-1.5 rounded-full text-[11px] font-black whitespace-nowrap transition-all",
-                selectedCategory === cat 
-                  ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200 scale-105" 
-                  : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      {/* Full-screen Background Image with Dark Overlay */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <MediaRenderer 
+          src="/wallhaven-eo68l8.jpg" 
+          alt="background" 
+          className="w-full h-full opacity-30 grayscale-[0.5] contrast-[1.2]"
+          priority={true}
+          options={{ quality: 60, format: 'webp' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0c]/80 via-transparent to-[#0a0a0c]/90" />
       </div>
 
-      {/* Waterfall Layout (Masonry-like) */}
-      <div 
-        key={selectedCategory}
-        className="px-3 py-4 grid grid-cols-2 gap-3 animate-fade-in"
-      >
-        {filteredPosts.map((post) => (
-          <div key={post.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-zinc-100 flex flex-col group">
-            {/* Post Image */}
-            <div className="relative aspect-[3/4] overflow-hidden">
-              <img 
-                src={post.image} 
-                alt={post.title} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute top-2 right-2">
-                <button className="w-8 h-8 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white active:scale-90 transition-all">
-                  <Bookmark size={14} />
-                </button>
-              </div>
-            </div>
+      {/* Background Decorative Glows */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse duration-[4000ms]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse duration-[5000ms]" />
+        <div className="absolute top-[30%] right-[10%] w-[40%] h-[40%] bg-blue-400/10 rounded-full blur-[100px]" />
+      </div>
 
-            {/* Post Content */}
-            <div className="p-3 space-y-2">
-              <h3 className="text-xs font-black text-zinc-900 line-clamp-2 leading-relaxed">
-                {post.title}
-              </h3>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-5 h-5 rounded-full overflow-hidden">
-                    <img src={post.user.avatar} alt={post.user.name} className="w-full h-full object-cover" />
-                  </div>
-                  <span className="text-[10px] text-zinc-500 font-bold truncate max-w-[60px]">
-                    {post.user.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-zinc-400">
-                  <Heart size={12} />
-                  <span className="text-[10px] font-bold">{post.likes}</span>
-                </div>
-              </div>
-
-              {/* Booking Shortcut (Book Same Item) */}
-              <Link 
-                href={`/shop/${post.shopId}?service=${encodeURIComponent(post.relatedService)}`}
-                className="mt-2 w-full bg-amber-50 text-amber-600 py-2 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+      {/* Content Wrapper to ensure visibility over background */}
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-50 bg-transparent">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex gap-6">
+              <button 
+                onClick={() => setActiveTab('recommend')}
+                className={cn(
+                  "text-sm font-black uppercase tracking-widest transition-all",
+                  activeTab === 'recommend' ? "text-white scale-110 underline underline-offset-8 decoration-2 decoration-blue-500" : "text-zinc-400"
+                )}
               >
-                <Calendar size={12} className="stroke-[3]" />
-                <span className="text-[10px] font-black uppercase tracking-tighter">预约同款</span>
-              </Link>
+                推荐
+              </button>
+              <button 
+                onClick={() => setActiveTab('nearby')}
+                className={cn(
+                  "text-sm font-black uppercase tracking-widest transition-all",
+                  activeTab === 'nearby' ? "text-white scale-110 underline underline-offset-8 decoration-2 decoration-blue-500" : "text-zinc-400"
+                )}
+              >
+                附近
+              </button>
+              <button 
+                onClick={() => setActiveTab('follow')}
+                className={cn(
+                  "text-sm font-black uppercase tracking-widest transition-all",
+                  activeTab === 'follow' ? "text-white scale-110 underline underline-offset-8 decoration-2 decoration-blue-500" : "text-zinc-400"
+                )}
+              >
+                关注
+              </button>
+            </div>
+            <div className="flex gap-4 text-zinc-400">
+              <Search size={20} className="hover:text-white transition-colors cursor-pointer" />
+              <Filter size={20} className="hover:text-white transition-colors cursor-pointer" />
             </div>
           </div>
-        ))}
+
+          {/* Categories Horizontal Scroll */}
+          <div className="px-4 pb-3 flex gap-3 overflow-x-auto no-scrollbar">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                ref={el => { categoryRefs.current[cat] = el }}
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-[11px] font-black whitespace-nowrap transition-all",
+                  selectedCategory === cat 
+                    ? "bg-white text-zinc-900 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-105" 
+                    : "bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Waterfall Layout (Masonry-like) */}
+        <div className="px-4 mb-4">
+          <FlashUpload 
+            onSuccess={(data) => console.log('Upload success:', data)}
+            onError={(err) => alert(err)}
+          />
+        </div>
+
+        <div 
+          key={selectedCategory}
+          className="px-3 py-4 grid grid-cols-2 gap-3 animate-fade-in"
+        >
+          {filteredPosts.map((post) => (
+            <div key={post.id} className="bg-white/5 backdrop-blur-md rounded-2xl overflow-hidden shadow-sm border border-white/10 flex flex-col group hover:border-white/20 transition-all">
+              {/* Post Media (Image or Video) */}
+              <div className="relative aspect-[3/4] overflow-hidden">
+                <MediaRenderer
+                  src={post.image}
+                  alt={post.title}
+                  type={post.type as any}
+                  videoId={post.videoId}
+                  aspectRatio="portrait"
+                  className="group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute top-2 right-2 z-20">
+                  <button className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white active:scale-90 transition-all hover:bg-black/60">
+                    <Bookmark size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Post Content */}
+              <div className="p-3 space-y-2">
+                <h3 className="text-xs font-black text-white line-clamp-2 leading-relaxed group-hover:text-blue-400 transition-colors">
+                  {post.title}
+                </h3>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-full overflow-hidden border border-white/10">
+                      <img src={post.user.avatar} alt={post.user.name} className="w-full h-full object-cover" />
+                    </div>
+                    <span className="text-[10px] text-zinc-400 font-bold truncate max-w-[60px]">
+                      {post.user.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-zinc-500">
+                    <Heart size={12} className="hover:text-red-500 transition-colors" />
+                    <span className="text-[10px] font-bold">{post.likes}</span>
+                  </div>
+                </div>
+
+                {/* Booking Shortcut (Book Same Item) */}
+                <Link 
+                  href={`/shop/${post.shopId}?service=${encodeURIComponent(post.relatedService)}`}
+                  className="mt-2 w-full bg-amber-500/10 text-amber-400 py-2 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-amber-500/20 hover:bg-amber-500/20"
+                >
+                  <Calendar size={12} className="stroke-[3]" />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">预约同款</span>
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </main>
   )

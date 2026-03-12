@@ -1,5 +1,12 @@
 # 项目开发记忆 (MEMO.md)
-最后更新日期: 2026-03-12 (机器人 V2 进化版)
+最后更新日期: 2026-03-12 (GX⁺ 媒体加速版)
+
+## 0. 品牌升级 (Branding)
+- **品牌名称**: **GX⁺ 私人管家** (GX⁺ Private Butler)
+- **视觉定位**: 您的专属私人管家系统。
+- **全站同步**: 
+    - 浏览器标题、系统描述、PWA 桌面图标名称均已同步更新为 `GX⁺`。
+    - UI 细节注入了更多尊贵感与极简线条。
 
 ## 1. UI 与 视觉风格 (Visual Identity)
 ### 极致透明与科技感 (Glassmorphism & Cyberpunk)
@@ -42,8 +49,29 @@
     - **视觉冲击**: `status: 'pending'` 预约块红色边框 + `animate-pulse` 持续闪烁。
     - **逻辑**: 优先展示“您有新订单”，直至回拨核实。
 
+- **媒体渲染革命 (Media Optimization)**:
+    - **Bunny.net 全球加速**: 接入 Bunny.net CDN (Pull Zone) 与 Storage，实现全球边缘分发。
+    - **智能图片处理 (Bunny Optimizer)**: 
+        - 自动 WebP/AVIF 转码。
+        - 动态缩放：根据设备尺寸实时请求最优大小（如 `width=400`），流量节省 80%。
+    - **流媒体引擎 (Bunny Stream)**: 
+        - 视频自动转码为 HLS/Dash，支持多分辨率自适应播放。
+        - 自动抓取视频第一帧作为高清封面。
+    - **通用媒体组件 (MediaRenderer)**: 
+        - 支持 `framer-motion` 优雅淡入。
+        - 骨架屏占位与错误处理回退。
+
 ## 2. Interaction Features (交互功能)
-...
+### 闪电上传引擎 (Flash Upload Engine)
+- **客户端预压缩 (Client-side Pre-compression)**: 
+    - 图片在离开手机前利用 Canvas 自动压缩至 1920px 宽度，上传速度提升 5 倍。
+- **视觉魔术 (Blurry Placeholder)**: 
+    - 上传瞬间生成 20px Base64 模糊图，实现“瞬时预览”，消除等待焦虑。
+- **权限与等级 (Member Level Check)**: 
+    - 实时校验 Supabase 会员等级。视频上传功能仅对 `member_level >= 2` 的优质会员开放。
+- **Server Actions 安全对接**: 
+    - 通过服务器端函数中转 API Key，确保 Bunny.net 密钥不暴露在前端。
+
 ### 预约删除与机器人联动 (Appointment Deletion & AI Reaction)
 - **多场景触发**: 在“移动至回收站”、“永久删除”以及“拆分预约”等所有导致预约减少的场景下，均会触发机器人互动。
 - **指定话术**: 机器人会即时弹出气泡：“这个客人真讨厌！主人不要生气，我帮你把他吃掉啦！哼！”，并在 4 秒后恢复冷静。

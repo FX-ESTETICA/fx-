@@ -1,7 +1,7 @@
 {
-  "name": "Rapallo 收银台",
-  "short_name": "Rapallo",
-  "description": "Rapallo 收银台日历系统",
+  "name": "GX⁺ 私人管家",
+  "short_name": "GX⁺ 管家",
+  "description": "您的专属私人管家系统",
   "start_url": "/",
   "display": "fullscreen",
   "background_color": "#000000",

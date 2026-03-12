@@ -14,11 +14,12 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // Set a flag in localStorage for demo purposes if needed, 
-      // but since this is server-side, we can't touch localStorage here.
-      // The middleware or client-side check should handle the session.
+    const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && user) {
+      // 检查用户是否已完善资料（是否有姓名）
+      if (!user.user_metadata?.full_name) {
+        return NextResponse.redirect(`${origin}/auth/complete-profile`)
+      }
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

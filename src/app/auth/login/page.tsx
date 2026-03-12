@@ -97,7 +97,12 @@ export default function LoginPage() {
           localStorage.setItem('demo_stay_logged_in', stayLoggedIn.toString())
           window.dispatchEvent(new Event('storage'))
           
-          router.push('/')
+          // 检查是否已完善个人资料（姓名）
+          if (user.user_metadata?.full_name) {
+            router.push('/')
+          } else {
+            router.push('/auth/complete-profile')
+          }
         }
       }
     } catch (error) {
