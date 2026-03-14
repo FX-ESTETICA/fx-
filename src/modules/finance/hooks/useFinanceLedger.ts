@@ -162,7 +162,7 @@ export function useFinanceLedger() {
         const platform_fee = Math.round(net_before_tax * platform_fee_rate)
         
         // 跨店借调逻辑
-        const isCrossMerchant = item.original_merchant_id && item.original_merchant_id !== booking.merchant_id
+        const isCrossMerchant = !!(item.original_merchant_id && item.original_merchant_id !== booking.merchant_id)
         let m2m_settlement = null
         let merchant_amount = net_before_tax - staff_amount - platform_fee
         let resource_management_fee = 0
@@ -229,7 +229,7 @@ export function useFinanceLedger() {
         }
 
         // [Sovereign Guard] 财务主权审计日志
-        console.group(`[Sovereign Finance] Item Audit: ${item.resource_id || 'Unknown Resource'}`);
+        console.group(`[Sovereign Finance] Item Audit: ${item.staff_id || 'Unknown Resource'}`);
         console.log(`Total Sold: ${(price_sold / 100).toFixed(2)} ${EXCHANGE_RATES.BASE_CURRENCY}`);
         console.log(`- Staff Share: ${(staff_amount / 100).toFixed(2)}`);
         console.log(`- Merchant Net: ${(merchant_amount / 100).toFixed(2)}`);

@@ -214,10 +214,18 @@ const EnergySphereMaterial = shaderMaterial(
 extend({ EnergySphereMaterial })
 
 declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      energySphereMaterial: any
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements {
+        energySphereMaterial: any
+      }
     }
+  }
+}
+
+declare module '@react-three/fiber' {
+  interface ThreeElements {
+    energySphereMaterial: any
   }
 }
 
