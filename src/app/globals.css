@@ -25,7 +25,23 @@
   --animate-bounce-in: bounce-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   --animate-float-slow: float-slow 4s ease-in-out infinite;
   --animate-shake: shake 0.2s ease-in-out infinite;
+  --animate-gradient-x: gradient-x 3s ease infinite;
+
+  /* [Sovereign UI] Brand Colors */
+  --color-pitch-black: #050505;
+  --color-holographic-purple: #a855f7;
+  --color-financial-green: #10b981;
   
+  @keyframes gradient-x {
+    0%, 100% {
+      background-size: 200% 200%;
+      background-position: left center;
+    }
+    50% {
+      background-size: 200% 200%;
+      background-position: right center;
+    }
+  }
   @keyframes scan {
     0% { transform: translateY(-100%); opacity: 0; }
     50% { opacity: 0.5; }

@@ -9,9 +9,14 @@ import AISmartBall from '@/components/AISmartBall'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
+import { IndustryType } from '@/modules/core/types/omni-flow'
+import { useCalendarStore } from '@/components/calendar/store/useCalendarStore'
 
 export default function AdminPage() {
   const router = useRouter()
+  const viewType = useCalendarStore(s => s.viewType)
+  const isNebulaMode = viewType === 'nebula'
+
   const [calendarDate, setCalendarDate] = useState(new Date())
   const [calendarView, setCalendarView] = useState<ViewType>('day')
   const [isSidebarVisible, setIsSidebarVisible] = useState(true)
@@ -22,7 +27,17 @@ export default function AdminPage() {
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  
+  const [industryType, setIndustryType] = useState<IndustryType>('beauty')
+
+  useEffect(() => {
+    // 自动处理侧边栏：进入星云模式时自动收起，退出时恢复
+    if (isNebulaMode) {
+      setIsSidebarVisible(false)
+    } else {
+      setIsSidebarVisible(true)
+    }
+  }, [isNebulaMode])
+
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient()
@@ -33,11 +48,20 @@ export default function AdminPage() {
         return
       }
       
-      const role = session.user.user_metadata?.role
-      if (role !== 'merchant') {
-        alert('权限不足，仅限商家访问')
+      const metadata = session.user.user_metadata
+      const role = metadata?.role
+      if (role !== 'merchant' && role !== 'admin') {
+        alert('权限不足，仅限商家或管理员访问')
         router.push('/me')
         return
+      }
+      
+      // 顶级进化：从用户元数据或商户配置中获取行业类型
+      if (metadata?.industry_type) {
+        setIndustryType(metadata.industry_type as IndustryType)
+      } else if (metadata?.mc_id?.startsWith('MC_RE')) {
+        // 简单启发式：如果是餐厅 ID 开头，设为餐厅
+        setIndustryType('restaurant')
       }
       
       setIsAuthorized(true)
@@ -129,7 +153,10 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="h-screen w-screen bg-zinc-950 flex flex-row overflow-hidden p-0.5 relative">
+    <main className={cn(
+      "h-screen w-screen bg-zinc-950 flex flex-row overflow-hidden relative",
+      isNebulaMode ? "p-0" : "p-0.5"
+    )}>
       {/* Global Background Image */}
       <div 
         className="absolute inset-0 z-0 pointer-events-none"
@@ -187,6 +214,7 @@ export default function AdminPage() {
             onModalToggle={setIsModalOpen}
             bgIndex={bgIndex}
             lang={lang}
+            industryType={industryType}
           />
         </div>
       </div>

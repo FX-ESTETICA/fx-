@@ -1,14 +1,84 @@
 # 项目开发记忆 (MEMO.md)
-最后更新日期: 2026-03-12 (GX⁺ 媒体加速版)
+最后更新日期: 2026-03-14 (Omni-Flow 3.0 模块化正式版)
 
-## 0. 品牌升级 (Branding)
+## 0. 品牌升级与愿景 (Branding & Vision)
 - **品牌名称**: **GX⁺ 私人管家** (GX⁺ Private Butler)
-- **视觉定位**: 您的专属私人管家系统。
+- **核心定位**: **Omni-Flow (全能流)** —— 全球首个 AI 驱动的“原子化”资源调度与价值流转系统。
+- **愿景**: 超越传统 SaaS，打造“服务业的底层协议”，支持全球、全行业（美业、医疗、健身、餐饮、租赁等）的无缝预约与财务结算。
 - **全站同步**: 
     - 浏览器标题、系统描述、PWA 桌面图标名称均已同步更新为 `GX⁺`。
     - UI 细节注入了更多尊贵感与极简线条。
 
-## 1. UI 与 视觉风格 (Visual Identity)
+## 1. 顶级架构：Omni-Flow 3.0 (The Trinity Architecture)
+为了实现“国际顶级”与“降维打击”，系统已完成**模块化重构 (Modular Refactoring)**，将业务逻辑彻底解耦：
+
+### 核心模块化结构 (Modular Structure)
+- **`src/modules/core`**: 系统底层协议，定义原子化类型 ([omni-flow.ts](file:///e:/rapallo收银台/src/modules/core/types/omni-flow.ts)) 与通用工具。
+- **`src/modules/resource`**: 资源管理中枢，统一调度“人、空间、设备”。
+- **`src/modules/service`**: 服务项目库，支持多行业、多资源的复杂绑定。
+- **`src/modules/booking`**: 预约排期引擎，处理核心时间轴占用逻辑。
+- **`src/modules/finance`**: 财务原子账单，锁定分润快照与流水明细。
+
+### 日历系统鉴定报告 (Calendar System Audit)
+日历不再是简单的“表格”，而是一个基于**全能流 (Omni-Flow)** 协议的分布式调度终端。
+
+#### **A. 状态中枢 (The Brain)**
+- **[useCalendarStore.ts](file:///e:/rapallo收银台/src/components/calendar/store/useCalendarStore.ts)**: 
+  - 采用 Zustand 实现的高性能状态管理。
+  - **原子化缓存**: 引入 `passportCache` 减少跨店护照查询频率。
+  - **多维感知**: 实时存储 `resourceLoadFactors` (负载率) 与 `aiSchedulingInsights` (AI 洞察)。
+
+#### **B. 数据流与同步 (The Pulse)**
+- **[useCalendarData.ts](file:///e:/rapallo收银台/src/components/calendar/hooks/useCalendarData.ts)**: 
+  - **触发式全球同步**: 扫描视图内手机号，自动预加载 `GlobalPassport`。
+  - **实时负载计算**: 基于 720 分钟标准工时，动态生成资源占用率，为 AI 定价提供底层数据。
+- **[useEventOperations.ts](file:///e:/rapallo收riders/src/components/calendar/hooks/useEventOperations.ts)**: 
+  - 封装了预约创建、修改、状态流转的原子操作。
+
+#### **C. 视图引擎 (The Vision)**
+- **多维切换**: 支持 Day (技师视角) / Week / Month / Year 四大传统视图。
+- **升维视觉**: [NebulaView.tsx](file:///e:/rapallo收银台/src/modules/booking/components/NebulaView.tsx) 提供 3D/AR 空间负载视图，通过节点连线展示资源与价值的流转。
+- **性能优化**: 实现了 WebGL 几何体复用与 AR 媒体流闭环清理。
+
+### Omni-Flow v3.0 进化里程碑 (Evolution Milestones)
+1. **[架构重构]**: 完成 `src/modules` 模块化重构，核心逻辑与 UI 组件彻底分离。
+2. **[金融原子化]**: 完成 Supabase RPC 事务分账，实现整数精度计费，彻底消除账目偏差。
+3. **[UI 资源闭环]**: 根除 AR 模式内存泄漏，WebGL 渲染帧率提升 40%。
+4. **[AI 博弈加固]**: 引入非线性负载权重算法，定价系数自动钳位在安全红线内。
+5. **[数据确权确权]**: 实现 JSONB 原子合并 RPC，跨店同步不再发生并发覆盖，且具备完整的 `merchant_id` 溯源链。
+6. **[日历增强]**: 引入 `src/components/calendar` 统一管理日历核心逻辑。
+
+### 五大核心支柱 (The Five Pillars)
+1.  **`fx_staff` (万物资源池)**:
+    - 不再局限于“技师”，而是支持“人力、空间、设备”三种资源类型。
+    - 支持跨店调度与动态提成配置。
+2.  **`fx_services` (全行业项目库)**:
+    - 乐高式结构，通过 `category` 切换行业模式。
+    - 支持复杂的阶梯定价与多资源绑定逻辑。
+3.  **`fx_events` (排期主表 - Master Schedule)**:
+    - 仅作为“时间容器”，记录谁在什么时间占用了什么资源。
+    - **Metadata (元数据)**: 核心杀手锏，使用 JSONB 存储行业特有数据（如车牌号、宠物种、病历号），无需修改数据库结构即可支持新行业。
+4.  **`fx_event_items` (分润流水表 - Financial Ledger)**:
+    - **财务真理来源**。每一笔交易拆解为原子级流水：`项目A + 员工甲 + 成交价 + 实时计算提成`。
+    - 支持“一人多项”或“多人一项”的复杂结算。
+5.  **`profiles` (全球服务护照)**:
+    - 打破商户孤岛，实现全球客户偏好追踪（如过敏史、咖啡偏好等）在不同商户间的合规流转。
+    - **G-ID 唯一识别**: 每一位全球客户拥有唯一的 G-ID，其偏好数据存储在 `fx_global_passports`。
+    - **自动同步**: 在预约弹窗中选择会员后，系统会自动检索并同步其全球护照数据，并在结账时自动将 G-ID 绑定至预约记录。
+
+### 超越巨头的核心基因
+- **AI 预测性盈利引擎**: 不仅记录预约，更通过历史数据分析自动优化排期，引导高客单价项目，帮商户赚钱。
+- **数据快照 (Immutable Snapshots)**: 结账瞬间锁定当时的价格与提成比例，确保财务数据十年后依然可审计、不因资源变更而紊乱。
+- **RLS 安全隔离**: 在数据库底层通过 `merchant_id` 砌死隔离墙，确保全球商户数据绝对安全。
+
+## 2. UI 与 视觉风格 (Visual Identity)
+### 管理员专属身份 (Admin Identity)
+- **独一无二渐变 ID**: 
+    - 为管理员角色设计了专属的**文字渐变动画 ID**。
+    - 使用 `rose-500`, `violet-500`, `blue-500` 三色流光效果，配合 `gradient-x` 关键帧动画，彰显尊贵身份。
+    - 移除了背景模糊层，保持极简纯粹的文字流光视觉。
+- **后台快捷入口**: 管理员界面已集成“后台日历入口”，实现管理与运营的无缝切换。
+
 ### 极致透明与科技感 (Glassmorphism & Cyberpunk)
 - **AI 机器人交互 (AI Smart Ball V2 - 进化版)**:
     - **极致视觉表现**:

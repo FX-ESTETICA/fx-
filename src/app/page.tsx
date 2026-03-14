@@ -52,11 +52,7 @@ export default function PortalPage() {
     <main className="relative w-full bg-[#0a0a0c] pb-32 overflow-y-auto min-h-screen text-zinc-100">
       {/* Full-screen Background Image with Dark Overlay */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <img 
-          src="/wallhaven-eo68l8.jpg" 
-          alt="background" 
-          className="w-full h-full object-cover opacity-30 grayscale-[0.5] contrast-[1.2]"
-        />
+        <div className="absolute inset-0 bg-[#0a0a0c]" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0c]/80 via-transparent to-[#0a0a0c]/90" />
       </div>
 
@@ -357,42 +353,42 @@ export default function PortalPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
                 <img src={shop.image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               </div>
-              <div className="flex-1 flex flex-col justify-between py-0.5 relative z-10">
+              <div className="flex-1 flex flex-col justify-between py-1">
                 <div>
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-black text-white line-clamp-1 tracking-tight group-hover:text-blue-400 transition-colors">{shop.name}</h3>
-                    <span className="text-[10px] text-zinc-500 font-black">{shop.distance}</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-1">
-                    <div className="flex items-center text-amber-400 gap-0.5">
-                      <Star size={12} fill="currentColor" />
-                      <span className="text-xs font-black">{shop.rating}</span>
+                  <div className="flex justify-between items-start mb-1">
+                    <h3 className="font-black text-sm text-white group-hover:text-blue-400 transition-colors line-clamp-1 uppercase tracking-tight italic">{shop.name}</h3>
+                    <div className="flex items-center gap-0.5 bg-amber-400 text-black px-1.5 py-0.5 rounded-lg">
+                      <Star size={8} fill="currentColor" />
+                      <span className="text-[8px] font-black">{shop.rating}</span>
                     </div>
-                    <span className="text-zinc-800">/</span>
-                    <span className="text-[11px] text-zinc-400 font-bold italic">€{shop.price}起</span>
                   </div>
-                  <div className="text-[11px] text-zinc-500 mt-1 font-bold uppercase tracking-tighter">
-                    {shop.category} · Rapallo 核心区
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                    <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">{shop.category}</span>
+                    <span>{shop.distance}</span>
                   </div>
                 </div>
-                <div className="flex gap-1.5 mt-2">
-                  {shop.tags.map(tag => (
-                    <span key={tag} className={cn(
-                      "text-[8px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md",
-                      tag === '今日可约' ? "bg-blue-500/20 text-blue-400 border border-blue-500/20" : "bg-white/5 text-zinc-500 border border-white/5"
-                    )}>
-                      {tag}
-                    </span>
-                  ))}
+                <div className="flex justify-between items-end">
+                  <div className="flex gap-1">
+                    {shop.tags.map((tag: string) => (
+                      <span key={tag} className="text-[8px] font-black text-blue-400/80 uppercase tracking-tighter">#{tag}</span>
+                    ))}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-zinc-500 font-black italic uppercase">from</span>
+                    <div className="text-sm font-black text-white italic">¥{shop.price}</div>
+                  </div>
                 </div>
               </div>
             </Link>
           )) : (
-            <div className="py-20 text-center space-y-3">
-              <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-300">
-                <Search size={32} />
+            <div className="bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/10 p-12 flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-zinc-600">
+                <Store size={32} />
               </div>
-              <p className="text-sm text-zinc-400 font-medium">没有找到相关商家</p>
+              <div className="space-y-1">
+                <p className="text-sm font-black text-zinc-300 uppercase tracking-widest">暂无推荐商家</p>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.1em]">我们正在为您挑选拉帕洛最优质的店面</p>
+              </div>
             </div>
           )}
         </div>

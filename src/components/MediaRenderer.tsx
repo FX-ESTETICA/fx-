@@ -25,6 +25,7 @@ interface MediaRendererProps {
   type?: 'image' | 'video'
   videoId?: string // 如果是视频，提供 Bunny Stream 的视频 ID
   aspectRatio?: 'square' | 'video' | 'portrait' | 'auto'
+  isActive?: boolean // 用于控制视频是否激活播放
 }
 
 export function MediaRenderer({
@@ -35,7 +36,8 @@ export function MediaRenderer({
   options = {},
   type = 'image',
   videoId,
-  aspectRatio = 'auto'
+  aspectRatio = 'auto',
+  isActive = false
 }: MediaRendererProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -54,6 +56,9 @@ export function MediaRenderer({
     : '';
 
   if (type === 'video' && videoId) {
+    // 动态构建视频 URL，根据 isActive 控制 autoplay
+    const videoUrl = `https://iframe.mediadelivery.net/embed/${process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID}/${videoId}?autoplay=${isActive}&loop=true&muted=true&preload=true&responsive=true`
+
     return (
       <div className={cn("relative overflow-hidden bg-zinc-900", aspectRatioClass, className)}>
         {/* 视频加载时的封面图 */}
@@ -68,7 +73,7 @@ export function MediaRenderer({
         </AnimatePresence>
         
         <iframe
-          src={`https://iframe.mediadelivery.net/embed/${process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID}/${videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+          src={videoUrl}
           loading="lazy"
           className="w-full h-full border-0"
           allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"

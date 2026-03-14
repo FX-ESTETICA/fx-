@@ -115,8 +115,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
         const { data, error } = await supabase
           .from('fx_events')
           .select('*')
-          .gte('服务日期', format(start, 'yyyy-MM-dd'))
-          .lte('服务日期', format(end, 'yyyy-MM-dd'))
+          .gte('service_date', format(start, 'yyyy-MM-dd'))
+          .lte('service_date', format(end, 'yyyy-MM-dd'))
           .eq('status', 'completed')
         
         if (error) throw error
@@ -146,8 +146,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
     // Build project prices for estimation
     const projectPrices: Record<string, number> = {}
-    SERVICE_CATEGORIES.forEach(cat => {
-      cat.items.forEach(item => {
+    SERVICE_CATEGORIES.forEach((cat: any) => {
+      cat.items.forEach((item: any) => {
         projectPrices[item.name] = item.price
       })
     })
@@ -158,6 +158,21 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       // 0. NEW PERFECT BILLING LOGIC: Priority 1 - billing_details.staff
       if (e.billing_details?.staff) {
         Object.entries(e.billing_details.staff).forEach(([name, amount]) => {
+          const numAmount = Number(amount) || 0
+          if (numAmount > 0) {
+            if (!staffData[name]) {
+              staffData[name] = { amount: 0, count: 0 }
+            }
+            staffData[name].amount += numAmount
+            staffData[name].count += 1
+            eventHasAnyAmount = true
+          }
+        })
+      }
+
+      // 0.5. CONTEXT SNAPSHOT: Priority 2 - context_snapshot.staff_amounts
+      if (!eventHasAnyAmount && e.context_snapshot?.staff_amounts) {
+        Object.entries(e.context_snapshot.staff_amounts).forEach(([name, amount]) => {
           const numAmount = Number(amount) || 0
           if (numAmount > 0) {
             if (!staffData[name]) {
@@ -183,7 +198,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       })
 
       // 2. Check notes for dynamic staff amounts [NAME_AMT:100] or [NAME_AMT:100_IDX:0] (Realized)
-      const noteContent = e["备注"] || ""
+      const noteContent = e.notes || ""
       const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)(?:_IDX:\d+)?\]/g))
       amtMatches.forEach((match: any) => {
         const name = match[1]
@@ -233,7 +248,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
   const projectStats = useMemo(() => {
     const counts: Record<string, number> = {}
     events.forEach(e => {
-      const project = e.服务项目 || (lang === 'zh' ? '未知' : 'Sconosciuto')
+      const project = e.service_item || (lang === 'zh' ? '未知' : 'Sconosciuto')
       counts[project] = (counts[project] || 0) + 1
     })
 
@@ -266,8 +281,8 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
     // Build a map of project prices for quick lookup
     const projectPrices: Record<string, number> = {}
-    SERVICE_CATEGORIES.forEach(cat => {
-      cat.items.forEach(item => {
+    SERVICE_CATEGORIES.forEach((cat: any) => {
+      cat.items.forEach((item: any) => {
         projectPrices[item.name] = item.price
       })
     })
@@ -279,25 +294,30 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       
       flow[name] = events
         .filter(e => {
+          // 0. Check context_snapshot (New Standard)
+          if (e.context_snapshot?.staff_amounts?.[name]) return true
+          if (e.context_snapshot?.selected_staff_id === staffId) return true
+          
           // 1. Check staff-specific column (already checked out)
+          const amountKey = `金额_${name}`
           const amount = Number(e[amountKey]) || 0
           if (amount > 0) return true
           
           // 2. Check notes for dynamic amount [NAME_AMT:100] (already checked out)
-          if (e["备注"]?.includes(`[${name}_AMT:`)) return true
+          if (e.notes?.includes(`[${name}_AMT:`)) return true
           
           // 3. Check for explicit staff binding (even if not checked out)
           if (staffId) {
             // Check [ITEM_STAFF:staffId] pattern
-            if (e["备注"]?.includes(`_STAFF:${staffId}]`)) return true
+            if (e.notes?.includes(`_STAFF:${staffId}]`)) return true
           }
           
           return false
         })
         .sort((a, b) => {
-          const dateCompare = b.服务日期.localeCompare(a.服务日期)
+          const dateCompare = b.service_date.localeCompare(a.service_date)
           if (dateCompare !== 0) return dateCompare
-          return b.开始时间.localeCompare(a.开始时间)
+          return b.start_time.localeCompare(a.start_time)
         })
         .slice(0, 15) // Show a bit more for flow
         .map(e => {
@@ -305,7 +325,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
           
           // If no direct amount, try to find in notes [NAME_AMT:XX]
           if (amount === 0) {
-            const noteMatch = e["备注"]?.match(new RegExp(`\\[${name}_AMT:(\\d+)\\]`))
+            const noteMatch = e.notes?.match(new RegExp(`\\[${name}_AMT:(\\d+)\\]`))
             if (noteMatch) {
               amount = Number(noteMatch[1])
             }
@@ -313,15 +333,15 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
 
           // If still no amount, it means it's not checked out yet.
           // Try to find projects specifically assigned to this staff.
-          let projectDisplay = e.服务项目
+          let projectDisplay = e.service_item
           if (amount === 0 && staffId) {
-            const projects = e.服务项目.split(',').map((s: string) => s.trim()).filter(Boolean)
+            const projects = e.service_item.split(',').map((s: string) => s.trim()).filter(Boolean)
             const assignedProjects: string[] = []
             let totalEstimatedAmount = 0
 
             // Check individual item bindings
             projects.forEach((proj: string, idx: number) => {
-              const isAssigned = e["备注"]?.includes(`[${proj}_STAFF:${staffId}]`);
+              const isAssigned = e.notes?.includes(`[${proj}_STAFF:${staffId}]`);
               
               if (isAssigned) {
                 assignedProjects.push(proj)
@@ -336,7 +356,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
           }
           
           return {
-            time: e.开始时间,
+            time: e.start_time,
             project: projectDisplay,
             amount: amount
           }
@@ -355,15 +375,15 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
     
     // Build project prices for estimation
     const projectPrices: Record<string, number> = {}
-    SERVICE_CATEGORIES.forEach(cat => {
-      cat.items.forEach(item => {
+    SERVICE_CATEGORIES.forEach((cat: any) => {
+      cat.items.forEach((item: any) => {
         projectPrices[item.name] = item.price
       })
     })
 
     events.forEach(e => {
-      const memberInfo = e.会员信息 || (lang === 'zh' ? '散客' : 'Anonimo')
-      const project = e.服务项目 || (lang === 'zh' ? '未知' : 'Sconosciuto')
+      const memberInfo = e.customer_id || (lang === 'zh' ? '散客' : 'Anonimo')
+      const project = e.service_item || (lang === 'zh' ? '未知' : 'Sconosciuto')
       
       let eventTotal = 0
       let eventHasAnyAmount = false
@@ -379,7 +399,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       })
 
       // 2. Check notes for dynamic staff amounts [NAME_AMT:100] or [NAME_AMT:100_IDX:0] (Realized)
-      const noteContent = e["备注"] || ""
+      const noteContent = e.notes || ""
       const amtMatches = Array.from(noteContent.matchAll(/\[([^\]]+)_AMT:(\d+)(?:_IDX:\d+)?\]/g))
       amtMatches.forEach((match: any) => {
         const name = match[1]
@@ -397,7 +417,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
       // 3. If no realized amount yet, estimate for "Booked" status
       if (!eventHasAnyAmount) {
         // Use project prices to estimate
-        const projects = (e.服务项目 || "").split(',').map((s: string) => s.trim()).filter(Boolean)
+        const projects = (e.service_item || "").split(',').map((s: string) => s.trim()).filter(Boolean)
         let estimatedTotal = 0
         projects.forEach((p: string) => {
           estimatedTotal += projectPrices[p] || 0
@@ -643,7 +663,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                           {/* Amount Display */}
                           <div className="absolute inset-y-0 right-3 flex items-center">
                             <span className="text-[10px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                              €{staff.amount.toLocaleString()}
+                              ¥{staff.amount.toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -658,7 +678,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                     {lang === 'zh' ? '总计业绩' : 'Totale Lordo'}
                   </span>
                   <div className="flex items-baseline space-x-1">
-                    <span className="text-lg font-black text-white/90 font-mono">€</span>
+                    <span className="text-lg font-black text-white/90 font-mono">¥</span>
                     <span className="text-5xl font-black text-white font-mono tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                       {stats.totalAmount.toLocaleString()}
                     </span>
@@ -745,7 +765,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                   </div>
                                   <div className="text-[9px] font-black text-white/90 truncate drop-shadow-sm flex items-center justify-between gap-2">
                                     <span className="truncate">{item.project}</span>
-                                    <span className="text-white font-black shrink-0">€{item.amount}</span>
+                                    <span className="text-white font-black shrink-0">¥{item.amount}</span>
                                   </div>
                                 </div>
                               ))}
@@ -762,7 +782,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
             <div className="grid grid-cols-3 gap-8">
               {/* Member Rankings (Img 4 style) */}
                 {[
-                  { title: lang === 'zh' ? '消费排行' : 'Spesa', data: memberStats.spendRanking, unit: '€', isSpecial: true },
+                  { title: lang === 'zh' ? '消费排行' : 'Spesa', data: memberStats.spendRanking, unit: '¥', isSpecial: true },
                   { title: lang === 'zh' ? '到店频次' : 'Visite', data: memberStats.visitRanking, unit: '次', isSpecial: true },
                   { title: lang === 'zh' ? '技师人气' : 'Staff', data: memberStats.staffRanking, unit: '次', isSpecial: true }
                 ].map((section, idx) => (
@@ -798,7 +818,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                    />
                                  </div>
                                  <span className="text-[10px] font-black text-white/80 whitespace-nowrap min-w-[40px]">
-                                   {section.unit === '€' ? '€' : ''}{item.value.toLocaleString()}{section.unit !== '€' ? section.unit : ''}
+                                   {section.unit === '¥' ? '¥' : ''}{item.value.toLocaleString()}{section.unit !== '¥' ? section.unit : ''}
                                  </span>
                                </div>
                              </div>
@@ -819,7 +839,7 @@ export default function PerformanceReport({ isOpen, onClose, lang = 'zh' }: Perf
                                   {item.name}
                                 </span>
                                 <span className="text-white font-black">
-                                  {section.unit === '€' ? `€${item.value.toLocaleString()}` : `${item.value}${section.unit}`}
+                                  {section.unit === '¥' ? `¥${item.value.toLocaleString()}` : `${item.value}${section.unit}`}
                                 </span>
                               </div>
                               <div className="h-1 bg-white/5 rounded-full overflow-hidden">

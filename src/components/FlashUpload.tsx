@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import { canUploadMedia, MediaType } from '@/utils/media-permissions'
 import { compressImage, generatePlaceholder } from '@/utils/media-processor'
-import { uploadImageToBunny, uploadVideoToBunny } from '@/app/actions/bunny-upload'
+import { uploadImageToBunny, uploadVideoToBunny, savePostToDb } from '@/app/actions/bunny-upload'
 
 /**
  * GX⁺ 闪电上传引擎 (Flash Upload Engine)
@@ -78,10 +78,23 @@ export function FlashUpload({ onSuccess, onError, className }: FlashUploadProps)
         
         const result = await uploadImageToBunny(formData)
         
-        onSuccess?.({ 
+        // 5. 存入数据库
+        await savePostToDb({
           type: 'image', 
-          url: result.url 
+          media_url: result.url,
+          title: '从 GX⁺ 闪电引擎上传的精彩瞬间'
         })
+        
+        // 6. 成功反馈
+        setProgress(100)
+        setTimeout(() => {
+          setIsUploading(false)
+          setPreviewUrl(null) // 清除模糊预览，让列表显示清晰图
+          onSuccess?.({ 
+            type: 'image', 
+            url: result.url 
+          })
+        }, 1000)
       } else {
         // 视频逻辑：暂不进行客户端压缩，直接上传 (Bunny Stream)
         const videoPreview = URL.createObjectURL(file)
@@ -93,15 +106,25 @@ export function FlashUpload({ onSuccess, onError, className }: FlashUploadProps)
         
         const result = await uploadVideoToBunny(formData)
         
-        onSuccess?.({ 
+        // 5. 存入数据库
+        await savePostToDb({
           type: 'video', 
-          url: '', 
-          videoId: result.videoId 
+          media_url: '',
+          video_id: result.videoId,
+          title: '优质会员专享：精彩 VLOG'
         })
+        
+        // 6. 成功反馈
+        setProgress(100)
+        setTimeout(() => {
+          setIsUploading(false)
+          onSuccess?.({ 
+            type: 'video', 
+            url: '', 
+            videoId: result.videoId 
+          })
+        }, 500)
       }
-
-      setProgress(100)
-      setTimeout(() => setIsUploading(false), 500)
     } catch (err: any) {
       console.error('Upload error:', err)
       setError(err.message || '上传失败，请重试')

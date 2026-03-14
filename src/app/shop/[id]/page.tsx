@@ -12,6 +12,7 @@ const SHOPS_DATA: Record<string, any> = {
   '1': {
     name: 'FX Estetica Rapallo',
     category: '美甲美睫',
+    industryType: 'beauty',
     rating: 4.9,
     reviews: 156,
     price: '35',
@@ -34,6 +35,7 @@ const SHOPS_DATA: Record<string, any> = {
   '2': {
     name: 'Bella Vista 餐厅',
     category: '意式料理',
+    industryType: 'restaurant',
     rating: 4.7,
     reviews: 256,
     price: '60',
@@ -166,7 +168,7 @@ export default function ShopDetailPage() {
                 activeTab === tab ? "text-zinc-950" : "text-zinc-400"
               )}
             >
-              {tab === 'services' ? '服务项目' : tab === 'reviews' ? '评价' : '商家介绍'}
+              {tab === 'services' ? '服务内容' : tab === 'reviews' ? '评价' : '商家介绍'}
               {activeTab === tab && (
                 <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-amber-400 rounded-full" />
               )}
@@ -192,7 +194,7 @@ export default function ShopDetailPage() {
                     <p className="text-[10px] text-zinc-400 font-medium">服务耗时: {item.duration}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-black text-zinc-950">€{item.price}</p>
+                    <p className="text-lg font-black text-zinc-950">¥{item.price}</p>
                     <button 
                       onClick={() => handleBookService(item.name)}
                       className="mt-2 bg-amber-400 hover:bg-amber-500 text-zinc-900 px-5 py-1.5 rounded-2xl text-[11px] font-black uppercase tracking-wider shadow-lg shadow-amber-200 transition-all"
@@ -272,7 +274,12 @@ export default function ShopDetailPage() {
             </div>
 
             <div className="flex-1 overflow-hidden overscroll-contain">
-              <Calendar mode="customer" lang="zh" initialService={selectedServiceName} />
+              <Calendar 
+                mode="customer" 
+                lang="zh" 
+                initialService={selectedServiceName} 
+                industryType={shop.industryType}
+              />
             </div>
           </div>
         </div>

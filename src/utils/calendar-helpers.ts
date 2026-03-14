@@ -16,9 +16,11 @@ import { CalendarEvent, ViewType } from './calendar-constants'
  * Parses the start time from a calendar event to a Date object.
  */
 export const getEventStartTime = (event: CalendarEvent): Date => {
-  if (!event["开始时间"] || !event["服务日期"]) return new Date()
-  const [h, m, s] = event["开始时间"].split(':').map(Number)
-  const [y, month, d] = event["服务日期"].split('-').map(Number)
+  const startTime = event.start_time
+  const serviceDate = event.service_date
+  if (!startTime || !serviceDate) return new Date()
+  const [h, m, s] = startTime.split(':').map(Number)
+  const [y, month, d] = serviceDate.split('-').map(Number)
   return new Date(y, month - 1, d, h, m, s)
 }
 
@@ -26,7 +28,8 @@ export const getEventStartTime = (event: CalendarEvent): Date => {
  * Calculates the end time of a calendar event.
  */
 export const getEventEndTime = (event: CalendarEvent): Date => {
-  return addMinutes(getEventStartTime(event), event["持续时间"])
+  const duration = event.duration ?? 0
+  return addMinutes(getEventStartTime(event), duration)
 }
 
 /**
@@ -59,6 +62,13 @@ export const getCalendarDays = (viewType: ViewType, currentDate: Date): Date[] =
     start: calendarStart,
     end: calendarEnd,
   })
+}
+
+/**
+ * Escapes special characters in a string for use in a regular expression.
+ */
+export const escapeRegExp = (string: string): string => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

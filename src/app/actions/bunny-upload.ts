@@ -1,6 +1,7 @@
 'use server'
 
 import { MediaType } from '@/utils/media-permissions'
+import { createClient } from '@/utils/supabase/server'
 
 const STORAGE_API_KEY = process.env.BUNNY_STORAGE_API_KEY
 const STORAGE_ZONE_NAME = process.env.BUNNY_STORAGE_ZONE_NAME || 'gx-plus-media'
@@ -95,4 +96,37 @@ export async function uploadVideoToBunny(formData: FormData) {
     videoId,
     libraryId: STREAM_LIBRARY_ID
   }
+}
+
+/**
+ * 将上传成功的媒体信息存入 Supabase
+ */
+export async function savePostToDb(data: {
+  type: MediaType
+  media_url: string
+  video_id?: string
+  title?: string
+  category?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('User not authenticated')
+
+  const { error } = await supabase.from('posts').insert({
+    user_id: user.id,
+    type: data.type,
+    media_url: data.media_url,
+    video_id: data.video_id,
+    title: data.title || '新动态',
+    category: data.category || '全部',
+    tags: []
+  })
+
+  if (error) {
+    console.error('Database save error:', error)
+    throw new Error(`Failed to save post: ${error.message}`)
+  }
+
+  return { success: true }
 }
