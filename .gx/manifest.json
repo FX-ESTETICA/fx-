@@ -1,0 +1,22 @@
+{
+  "nexus_version": "4.0",
+  "project_name": "GX",
+  "last_checkpoint": {
+    "id": "GX-P4-STABLE-v1.0.0",
+    "timestamp": "2026-03-20T15:38:00Z",
+    "status": "STABLE",
+    "physical_integrity": "100%",
+    "diagnostics": {
+      "errors": 0,
+      "warnings": 0,
+      "noise": [
+        "globals.css: Unknown at rule @theme/@apply (Tailwind v4 noise)"
+      ]
+    },
+    "dependencies": {
+      "react-hook-form": "latest"
+    },
+    "memo_hash": "pending"
+  },
+  "history": []
+}
