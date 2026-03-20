@@ -69,15 +69,15 @@
 ## 3. 【任务指针 (Task Pointer)】 - **当前执行进度**
 
 ### 当前状态：**Phase 5 - [IN_PROGRESS] Supabase 集成与数据持久化**
-- **最后一次操作**：安装 `@supabase/supabase-js` 并初始化 [supabase.ts](file:///c:/Users/xu/Desktop/GX/src/lib/supabase.ts)。
-- **物理红字 (Linter Redline)**：`0` (已验证环境同步)。
-- **Nexus Checkpoint**: `GX-P4-STABLE-v1.0.0` (当前为 P5 开发态)
+- **最后一次操作**：创建 `BookingService` 并重构 `BookingPage` 预约逻辑，实现 UI 与 API 的震荡隔离。
+- **物理红字 (Linter Redline)**：`0` (已通过全量审计)。
+- **Nexus Checkpoint**: `GX-P5-STABLE-v1.0.0` (即将存盘)
 - **Mind Snapshot**:
-  - **核心组件**: [supabase.ts](file:///c:/Users/xu/Desktop/GX/src/lib/supabase.ts), [.env.local.example](file:///c:/Users/xu/Desktop/GX/.env.local.example)
-  - **心智上下文**: 已建立 Supabase 客户端，准备定义 Booking 数据库契约并实现持久化。
-  - **重载路径**: `Read(lib/supabase.ts) && Read(features/booking/types/index.ts)`
-- **AI 物理分 (Integrity Score)**：`100/100` (环境就绪)。
-- **下一步即刻动作**：定义 Booking 数据库契约并同步 TypeScript 类型。
+  - **核心组件**: [booking.ts](file:///c:/Users/xu/Desktop/GX/src/features/booking/api/booking.ts), [page.tsx](file:///c:/Users/xu/Desktop/GX/src/app/booking/page.tsx)
+  - **心智上下文**: 已完成预约数据的持久化逻辑封装，支持实时状态订阅。
+  - **重载路径**: `Read(features/booking/api/booking.ts)`
+- **AI 物理分 (Integrity Score)**：`100/100` (逻辑闭环)。
+- **下一步即刻动作**：集成 Supabase Auth 实现用户登录态下的预约关联。
 
 ---
 

@@ -4,12 +4,11 @@ import { useState, useEffect } from "react";
 import { BookingForm } from "@/features/booking/components/BookingForm";
 import { BookingConfirmation } from "@/features/booking/components/BookingConfirmation";
 import { BookingSuccess } from "@/features/booking/components/BookingSuccess";
-import { BookingStep, BookingDetails, DB_Booking } from "@/features/booking/types";
+import { BookingStep, BookingDetails } from "@/features/booking/types";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/utils/cn";
-import { supabase } from "@/lib/supabase";
-import { BookingAdapter } from "@/features/booking/utils/adapter";
+import { BookingService } from "@/features/booking/api/booking";
 
 export default function BookingPage() {
   const [step, setStep] = useState<BookingStep>("form");
@@ -37,26 +36,15 @@ export default function BookingPage() {
     setError(null);
     
     try {
-      // 1. 数据转换与持久化
-      const dbData = BookingAdapter.toDB(details);
-      const { data, error: dbError } = await supabase
-        .from('bookings')
-        .insert([dbData])
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      // 2. 更新本地状态（包含后端生成的 ID）
-      if (data) {
-        setDetails(BookingAdapter.fromDB(data));
-      }
+      // 1. 调用 Service 层进行持久化
+      const result = await BookingService.createBooking(details);
       
+      // 2. 更新本地状态（包含后端生成的 ID）
+      setDetails(result);
       setStep("success");
     } catch (err: any) {
       console.error("Booking failed:", err);
       setError(err.message || "预约失败，请检查连接或重试 / Booking failed, please check connection or retry.");
-      // 如果提交失败，可以选择停留在确认页并显示错误
     } finally {
       setIsSubmitting(false);
     }
@@ -70,26 +58,14 @@ export default function BookingPage() {
   useEffect(() => {
     if (!details.id || step !== "success") return;
 
-    const channel = supabase
-      .channel(`booking-updates-${details.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bookings',
-          filter: `id=eq.${details.id}`
-        },
-        (payload) => {
-          console.log('Booking updated:', payload);
-          const updatedBooking = BookingAdapter.fromDB(payload.new as DB_Booking);
-          setDetails(prev => ({ ...prev, ...updatedBooking }));
-        }
-      )
-      .subscribe();
+    const channel = BookingService.subscribeToBooking(details.id, (updatedBooking) => {
+      setDetails(prev => ({ ...prev, ...updatedBooking }));
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        BookingService.unsubscribe(channel);
+      }
     };
   }, [details.id, step]);
 
