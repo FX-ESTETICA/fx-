@@ -3,7 +3,6 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { CheckCircle, AlertTriangle, ShieldCheck, MapPin, Calendar, Clock, CreditCard, User } from "lucide-react";
 import { BookingDetails } from "../types";
-import { cn } from "@/utils/cn";
 
 interface BookingConfirmationProps {
   details: BookingDetails;
