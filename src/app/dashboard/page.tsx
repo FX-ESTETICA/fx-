@@ -106,7 +106,7 @@ export default function DashboardPage() {
             {role === "user" ? (
               <UserDashboard profile={currentProfile} />
             ) : (
-              <MerchantDashboard />
+              <MerchantDashboard merchantId={currentProfile.id} />
             )}
           </motion.div>
         </AnimatePresence>
