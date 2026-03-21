@@ -1,9 +1,9 @@
-"use client";
-
+import { useState } from "react";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
-import { CheckCircle, AlertTriangle, ShieldCheck, MapPin, Calendar, Clock, CreditCard } from "lucide-react";
+import { CheckCircle, AlertTriangle, ShieldCheck, MapPin, Calendar, Clock, CreditCard, User } from "lucide-react";
 import { BookingDetails } from "../types";
+import { cn } from "@/utils/cn";
 
 interface BookingConfirmationProps {
   details: BookingDetails;
@@ -13,6 +13,8 @@ interface BookingConfirmationProps {
 }
 
 export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: BookingConfirmationProps) => {
+  const [termsAgreed, setTermsAgreed] = useState(false);
+
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="text-center space-y-3">
@@ -75,7 +77,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
           {/* 客户信息 */}
           <div className="space-y-4 py-4">
             <h4 className="text-[10px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
-              <CheckCircle className="w-3 h-3" /> 联系人详情 / CONTACT DETAILS
+              <User className="w-3 h-3" /> 联系人详情 / CONTACT DETAILS
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
@@ -95,12 +97,29 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
             )}
           </div>
 
-          {/* 提示信息 */}
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 text-orange-400/80">
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <p className="text-[10px] leading-relaxed font-mono uppercase tracking-tight">
-              温馨提示：预约成功后如需更改或取消，请提前至少 24 小时在系统中进行操作。
-            </p>
+          {/* 提示信息与合规勾选 */}
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 text-orange-400/80">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <p className="text-[10px] leading-relaxed font-mono uppercase tracking-tight">
+                温馨提示：预约成功后如需更改或取消，请提前至少 24 小时在系统中进行操作。
+              </p>
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center">
+                <input 
+                  type="checkbox" 
+                  checked={termsAgreed}
+                  onChange={(e) => setTermsAgreed(e.target.checked)}
+                  className="peer appearance-none w-5 h-5 rounded-md border border-white/10 bg-white/5 checked:bg-gx-cyan checked:border-gx-cyan transition-all"
+                />
+                <CheckCircle className="absolute w-3 h-3 text-black opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+              </div>
+              <span className="text-[11px] text-white/40 group-hover:text-white/60 transition-colors select-none">
+                我已确认预约信息准确无误，并同意相关预约协议 / I agree to terms.
+              </span>
+            </label>
           </div>
 
           <div className="flex gap-4 pt-4">
@@ -117,6 +136,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
               className="flex-1 gap-2"
               onClick={onConfirm}
               isLoading={isLoading}
+              disabled={!termsAgreed || isLoading}
             >
               确认提交 / Submit Booking
             </Button>

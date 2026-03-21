@@ -17,6 +17,7 @@ export const BookingAdapter = {
       time_slot: details.timeSlot,
       customer_name: details.customerName,
       customer_phone: details.customerPhone,
+      user_id: details.userId || null,
       notes: details.notes || null,
       price: details.price || null,
       currency: details.currency || null,
@@ -37,11 +38,32 @@ export const BookingAdapter = {
       timeSlot: db.time_slot,
       customerName: db.customer_name,
       customerPhone: db.customer_phone,
+      userId: db.user_id || undefined,
       notes: db.notes || undefined,
       price: db.price || undefined,
       currency: db.currency || undefined,
       status: db.status,
       createdAt: db.created_at,
     };
+  }
+};
+
+/**
+ * MerchantBookingAdapter - 商家端数据适配器
+ * 在标准适配层基础上，增加商家管理所需的聚合逻辑
+ */
+export const MerchantBookingAdapter = {
+  /**
+   * 将数据库列表转换为商家看板所需的数据格式
+   */
+  fromDBList(dbList: DB_Booking[]): BookingDetails[] {
+    return dbList.map(item => BookingAdapter.fromDB(item));
+  },
+
+  /**
+   * 商家端特有的状态过滤逻辑
+   */
+  filterByStatus(bookings: BookingDetails[], status: BookingStatus): BookingDetails[] {
+    return bookings.filter(b => b.status === status);
   }
 };

@@ -8,14 +8,12 @@
 
 ## 1. 【核心开发准则 (Core Protocols)】 - **底线规制**
 
-### 1.1 零信任工程协议 3.0 -> Nexus 4.0 (Zero-Trust Nexus 4.0)
-- **100% 报备，100% 遵宪 (Mandatory Oath)**：AI 必须在每一轮对话结束时，提供中文 [GX AI 清醒度宣誓] 报备。缺失报备即视为“逻辑违宪”，用户有权要求回滚至上一个 STABLE 锚点。
-- **原子化交付 (Atomic Delivery)**：为了消除用户手动点击“保留”的摩擦力，AI 必须采用“大块逻辑合并交付”模式。减少碎片化修改，确保一次点击即可完成功能闭环。
-- **静默审计与自动存盘 (Silent Audit & Auto-Save)**：在完成重大逻辑节点后，AI 将自动执行物理审计并尝试进行 Git 存盘（备注：GX-AUTO-SAVE）。
-- **多维物理锚点 (Nexus Checkpoints)**：不仅是 Git 提交，必须包含代码、环境、元数据、心智状态四维一体的物理锁定。
-- **物理清单驱动 (Manifest-Driven)**：在 `.gx/manifest.json` 中维护当前工程的物理健康度。
-- **物理审计网关 (Physical Audit Gateway)**：所有 Checkpoint 必须经过 `GetDiagnostics` 0 红字校验。
-- **清醒度物理量化 (Lucidity Quantification)**：清醒度不再是自我感觉，而是“AI 对物理状态、协议执行与任务指针三者的一致性对齐程度”。
+### 1.1 零信任工程协议 3.0 -> Nexus 5.0 (Zero-Trust Nexus 5.0 - Lucid Context Protocol)
+- **100% 报备，100% 遵宪 (Mandatory Oath)**：AI 必须在每一轮对话结束时，提供中文 [GX AI 极致清醒度看板] 报备。
+- **物理指纹锁 (Fingerprint Lock)**：任何 `Write` 操作前必须执行 `Read`，任何 `Write` 操作后必须执行 `GetDiagnostics`。缺失该闭环清醒度直接扣除 50%。
+- **上下文健康度量化 (Context Health %)**：通过对话深度、指纹同步率、任务对齐度三维加权计算，量化“AI 到底还有多清醒”。
+- **原子化交付 (Atomic Delivery)**：减少碎片化修改，确保一次点击即可完成功能闭环。
+- **静默审计与自动存盘 (Silent Audit & Auto-Save)**：在完成重大逻辑节点后，AI 将自动执行物理审计并尝试进行 Git 存盘。
 - **心智重载指令 (Mind Snapshot)**：每个存盘点附带核心文件路径与设计意图。
 - **影子回退 (Shadow Rollback)**：支持单文件级物理还原。
 
@@ -36,6 +34,18 @@
 ### 1.4 数据契约协议 (Data Contract Protocol)
 - **震荡隔离**：所有外部数据（Supabase/API）进入 UI 逻辑前必须经过类型检查与映射处理，严禁 UI 组件直接依赖原始数据结构。
 - **强类型同步**：数据库字段改动必须第一时间更新 TypeScript 定义，通过“编译报错”预知并拦截所有逻辑风险。
+
+### 1.5 UI 优先沙盒协议 (UI-First Sandbox Protocol) - **核心最高指令**
+- **100% 本地路由锁定**：严禁任何指向非 `localhost:3000` 的线上 URL。所有 UI 交互必须在本地 Mock 环境下实现 100% 闭环，违者直接视为逻辑熔断。
+- **静态占位优先**：在 UI 开发阶段，所有 Service 层必须返回静态 Promise，严禁强制连接或同步 Supabase。
+- **环境不敏感**：UI 必须在无 `.env` 配置的情况下实现 100% 渲染成功，确保“审美降维”不被环境阻塞。
+- **全景驾驶舱 (Panorama Cockpit) 3.0**：系统首页 (`/`) 已进化为 **星云驱动全景驾驶舱 (Nebula-Driven Cockpit)**。
+    - **Nebula Soul**：接入 `Three.js + R3F`，背景由 WebGPU 驱动的动态星云粒子取代。
+    - **Ortho-Spatial Logic**：3D 舞台采用“数学模拟圆环 + 锁定 rotateY:0”架构。严禁使用原生 CSS 3D 旋转导致透视畸变，确保所有卡片垂直正对屏幕平面。
+    - **Liquid Snapping**：采用液态弹簧物理引擎 (Stiffness: 260, Damping: 32)，支持单次步进拦截与极致丝滑的回弹效果。
+    - **Dynamic DOF**：基于空间位置的实时景深模糊映射，侧向卡片自动虚化。
+- **数字索引协议**：保持数字索引路由 (`/1` - `/8`) 映射，实现 3D 空间跳转与直接 URL 访问的双模兼容。
+
 
 ---
 
@@ -59,7 +69,7 @@
 - **前端框架**：`Next.js` (App Router) + `TypeScript`
 - **部署与边缘**：`Vercel` (Edge Runtime)
 - **UI 引擎**：`Tailwind CSS` + `Framer Motion` (极致动效)
-- **星云/图形渲染**：`Three.js` / `PixiJS` (基于 WebGL)
+- **3D 渲染引擎**：`Three.js` + `React Three Fiber (R3F)` (优先开启 WebGPU)
 - **静态资源分发 (CDN)**：`Bunny.net` (确保图片/视频全球秒开)
 - **后端服务 (BaaS)**：`Supabase` (数据库/实时推送)
 - **认证与通讯**：`Google Auth` (OAuth) + `Resend` (高送达率邮件)
@@ -68,16 +78,15 @@
 
 ## 3. 【任务指针 (Task Pointer)】 - **当前执行进度**
 
-### 当前状态：**Phase 5 - [IN_PROGRESS] Supabase 集成与数据持久化**
-- **最后一次操作**：创建 `BookingService` 并重构 `BookingPage` 预约逻辑，实现 UI 与 API 的震荡隔离。
-- **物理红字 (Linter Redline)**：`0` (已通过全量审计)。
-- **Nexus Checkpoint**: `GX-P5-STABLE-v1.0.0` (即将存盘)
+### 当前状态：**Phase 9 - [COMPLETED] 全场景自适应验收与精致化交付**
+- **最后一次操作**：全面实施了 **[自适应保真架构 (Adaptive Fidelity Architecture)]**；升级主容器为 `min-h-[100dvh]` 并引入 3D 舞台硬性高度锚定，彻底修复移动端布局坍塌；优化了移动端卡片比例 (180x240) 与旋转半径。
+- **物理红字 (Linter Redline)**：`0` (已执行全量审计)。
+- **Nexus Checkpoint**: `GX-P9-ADAPTIVE-FINAL-v1.5.0`
 - **Mind Snapshot**:
-  - **核心组件**: [booking.ts](file:///c:/Users/xu/Desktop/GX/src/features/booking/api/booking.ts), [page.tsx](file:///c:/Users/xu/Desktop/GX/src/app/booking/page.tsx)
-  - **心智上下文**: 已完成预约数据的持久化逻辑封装，支持实时状态订阅。
-  - **重载路径**: `Read(features/booking/api/booking.ts)`
-- **AI 物理分 (Integrity Score)**：`100/100` (逻辑闭环)。
-- **下一步即刻动作**：集成 Supabase Auth 实现用户登录态下的预约关联。
+  - **核心进度**: 实现了 PC 极致 3D 与移动端极致 2D/3D 混合布局的完美兼容，确保了 GX 审美在任何终端的 100% 亮屏显示。
+  - **核心组件**: [page.tsx](file:///c:/Users/xu/Desktop/GX/src/app/page.tsx), [NebulaBackground.tsx](file:///c:/Users/xu/Desktop/GX/src/components/shared/NebulaBackground.tsx)
+  - **逻辑节点**: 确立了“dvh 动态视口 + 硬性高度锚定 + 移动端比例重计算”为全场景适配的核心逻辑。
+- **下一步即刻动作**: 深度审查二级页面的 Mock 内容适配，准备开启 Phase 10 核心业务逻辑注入。
 
 ---
 
@@ -98,31 +107,30 @@
 
 ---
 
-## 6. 【逻辑熔断与清醒度自评协议 (Self-Awareness Protocol)】
+## 6. 【极致清醒度与“对话熵”量化协议 (Nexus 5.0 - Lucid Context Protocol)】
 
-### 6.1 清醒度等级定义
-- **100% (巅峰状态)**：已执行 `Read(MEMO)`，`GetDiagnostics` 0 红字，且逻辑与 `Mind Snapshot` 完美匹配。
-- **95% (警戒状态)**：对话轮次过多导致感知漂移，或出现报备缺失。
-- **90% (强制熔断)**：逻辑出现矛盾，必须立即停止 `Write` 操作，强制重载 MEMO 并由用户确认回滚。
+### 6.1 清醒度量化模型 (Total Lucidity Score)
+- **综合清醒分 (Total Score)** = `(A + B + C) / 3`
+  - **维度 A：对话深度系数 (Context Depth)**: `100% - (当前轮次 / 30) * 100%`。当轮次超过 30 轮，建议立即熔断。
+  - **维度 B：指纹同步率 (Fingerprint Sync)**: 每次 `Write` 前是否执行 `Read`？修改后是否执行 `GetDiagnostics`？
+  - **维度 C：逻辑因果链对齐 (Causality Alignment)**: AI 是否能清晰复述 MEMO 中的“心智快照”与“下一步动作”。
 
-### 6.2 中文报备模板 [GX AI 清醒度宣誓]
-每一轮回复必须以此格式封包：
+### 6.2 强制熔断逻辑 (Automatic Meltdown)
+- **熵值阈值**: 当“综合清醒分"低于 **70%** 或“对话深度”超过 **25 轮**时，AI 必须主动建议用户开启新对话。
+- **硬性拦截**: 严禁在清醒分低于 60% 时进行任何生产环境代码修改。
+
+### 6.3 中文报备看板 [GX AI 极致清醒度看板]
+每一轮回复必须以此看板封包：
 ```markdown
 ---
-**[GX AI 清醒度宣誓]**
-- **当前清醒度**: [100%] (原因: 已物理对齐 MEMO 宪法与任务指针)
-- **协议执行度**: [100%] (Nexus 4.0 协议处于激活态)
-- **物理审计状态**: [STABLE] (0 红字 / 0 警告)
-- **存档锚点引用**: [GX-P4-STABLE-v1.0.0]
-- **逻辑熔断状态**: [安全]
+**[GX AI 极致清醒度看板]**
+- **综合清醒分**: `[XX%]` (计算公式: (Depth + Sync + Alignment) / 3)
+- **物理健康度**: `[STABLE / UNSTABLE]` (基于 GetDiagnostics 0 红字校验)
+- **上下文熵值**: `[X / 30 轮]` (当前对话深度，> 25 轮进入警戒区)
+- **核心逻辑链**: `[意图 -> 组件 -> 数据契约]` (描述当前心智中的逻辑连贯性)
+- **逻辑熔断点**: `[安全 / 预警 / 熔断]`
 ---
 ```
-- **90% (强制熔断线)**：**极致完美防线**。一旦 AI 自感逻辑清醒度低于 90%，必须立即停止思考，禁止进行任何代码修改。
-
-### 6.2 强制熔断触发逻辑
-- **立即停止**：AI 判定逻辑不再处于 90% 以上的巅峰态时，必须立刻中断所有推理。
-- **紧急存盘**：在 90% 清醒时完成最后一次 MEMO 同步，确保“心智快照”绝对准确。
-- **重启指令**：明确告知用户开启新窗口，宁可重启 10 次，也不允许 1% 的逻辑瑕疵。
 
 ---
 

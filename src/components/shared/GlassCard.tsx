@@ -36,6 +36,8 @@ export const GlassCard = ({
       whileHover={hoverGlow ? { scale: 1.01, transition: { duration: 0.2 } } : {}}
       className={cn(
         "glass-effect rounded-2xl p-6 transition-all duration-300",
+        "md:backdrop-blur-xl backdrop-blur-none", // 方案 C：移动端彻底移除模糊，仅保留高透背景
+        "bg-white/10 md:bg-white/5", // 移动端通过提高背景不透明度来维持质感
         glowStyles[glowColor],
         hoverGlow && "hover:bg-white/10",
         className

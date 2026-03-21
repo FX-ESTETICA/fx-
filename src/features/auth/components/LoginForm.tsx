@@ -7,6 +7,7 @@ import { Input } from "@/components/shared/Input";
 import { useState } from "react";
 import { Chrome } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { AuthService } from "../api/auth";
 
 /**
  * LoginForm - GX 核心登录组件
@@ -14,11 +15,12 @@ import { cn } from "@/utils/cn";
  */
 export const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [lang, setLang] = useState<"zh" | "en" | "it">("zh");
 
-  const t = {
+  const t: Record<string, any> = {
     zh: {
       title: "GX 身份验证",
       subtitle: "银河体验接入系统",
@@ -30,46 +32,66 @@ export const LoginForm = () => {
       google: "使用 Google 账号同步",
       reset: "重置密钥",
       register: "初始化新实体",
-      security: "加密传输由边缘网络提供 // ID: GX-AUTH-v2.0"
+      security: "加密传输由边缘网络提供 // ID: GX-AUTH-v2.0",
+      error: "验证失败：请检查密钥或网络"
     },
     en: {
-      title: "GX IDENTITY",
+      title: "GX Authentication",
       subtitle: "Galaxy Experience Access System",
-      emailLabel: "Security Identifier (Email)",
+      emailLabel: "Security Identity (Email)",
       passwordLabel: "Access Key (Password)",
       submit: "Establish Connection",
       authenticating: "Authenticating...",
       or: "OR",
-      google: "Sync with Google Entity",
-      reset: "Request Key Reset",
+      google: "Sync with Google Account",
+      reset: "Reset Key",
       register: "Initialize New Entity",
-      security: "Encrypted via Edge Network // ID: GX-AUTH-v2.0"
+      security: "Encrypted transfer by Edge Network // ID: GX-AUTH-v2.0",
+      error: "Auth Failed: Check key or network"
     },
     it: {
-      title: "GX IDENTITÀ",
-      subtitle: "Sistema di Accesso Galaxy Experience",
-      emailLabel: "Identificatore di Sicurezza (Email)",
+      title: "Autenticazione GX",
+      subtitle: "Sistema di Accesso Galaxy",
+      emailLabel: "Identità di Sicurezza (Email)",
       passwordLabel: "Chiave di Accesso (Password)",
       submit: "Stabilisci Connessione",
       authenticating: "Autenticazione...",
-      or: "O",
+      or: "OPPURE",
       google: "Sincronizza con Google",
-      reset: "Reimposta Chiave",
+      reset: "Resetta Chiave",
       register: "Inizializza Nuova Entità",
-      security: "Criptato via Edge Network // ID: GX-AUTH-v2.0"
+      security: "Trasferimento crittografato da Edge Network // ID: GX-AUTH-v2.0",
+      error: "Accesso Negato: Controlla chiave o rete"
     }
   };
 
-  const current = t[lang];
+  const current = t[lang] || t.zh;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // 模拟登录逻辑
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      await AuthService.signInWithEmail(email, password);
+      // 移除 router.push，由父组件或状态变更驱动 UI
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setError(err.message || current.error);
+    } finally {
       setIsLoading(false);
-      console.log("Logging in with:", { email, password });
-    }, 1500);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      await AuthService.signInWithGoogle();
+    } catch (err: any) {
+      console.error("Google Auth error:", err);
+      setError(err.message || current.error);
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -79,11 +101,21 @@ export const LoginForm = () => {
       transition={{ duration: 0.8, ease: "easeOut" }}
       className="w-full max-w-md mx-auto relative"
     >
+      {/* 错误提示 */}
+      {error && (
+        <div className="absolute -top-20 left-0 right-0 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-red-500/10 border border-red-500/20 backdrop-blur-xl p-4 rounded-xl text-red-500 text-[10px] font-mono uppercase tracking-widest text-center">
+            {error}
+          </div>
+        </div>
+      )}
+
       {/* Language Switcher */}
       <div className="absolute -top-12 right-0 flex items-center space-x-4">
         {(["zh", "en", "it"] as const).map((l) => (
           <button
             key={l}
+            type="button"
             onClick={() => setLang(l)}
             className={cn(
               "text-[10px] font-mono uppercase tracking-widest transition-colors",
@@ -120,6 +152,7 @@ export const LoginForm = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={isLoading}
           />
           <Input 
             label={current.passwordLabel} 
@@ -128,13 +161,14 @@ export const LoginForm = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={isLoading}
           />
           
           <div className="pt-4">
             <Button 
               type="submit" 
               className="w-full h-12 uppercase tracking-[0.2em] text-sm"
-              disabled={isLoading}
+              isLoading={isLoading}
             >
               {isLoading ? current.authenticating : current.submit}
             </Button>
@@ -155,8 +189,10 @@ export const LoginForm = () => {
         <div className="space-y-3">
           <Button 
             variant="ghost" 
+            type="button"
             className="w-full h-11 space-x-3 text-xs uppercase tracking-widest"
-            onClick={() => console.log("Google Login clicked")}
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
           >
             <Chrome className="w-4 h-4 text-gx-cyan" />
             <span>{current.google}</span>
@@ -165,9 +201,9 @@ export const LoginForm = () => {
 
         {/* Footer Links */}
         <div className="flex justify-between items-center text-[10px] font-mono text-white/20 uppercase tracking-tighter pt-4">
-          <button className="hover:text-gx-cyan transition-colors">{current.reset}</button>
+          <button type="button" className="hover:text-gx-cyan transition-colors">{current.reset}</button>
           <span className="opacity-50">|</span>
-          <button className="hover:text-gx-cyan transition-colors">{current.register}</button>
+          <button type="button" className="hover:text-gx-cyan transition-colors">{current.register}</button>
         </div>
       </GlassCard>
 

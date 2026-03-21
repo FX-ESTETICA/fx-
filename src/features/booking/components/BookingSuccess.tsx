@@ -36,7 +36,9 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-white/5">
             <div className="space-y-1 text-left">
               <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em]">BOOKING_ID</p>
-              <p className="text-xl font-mono text-white/80 uppercase">GX-{Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+              <p className="text-xl font-mono text-white/80 uppercase">
+                {details.id ? `GX-${details.id.split("-")[0].toUpperCase()}` : `GX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`}
+              </p>
             </div>
             <div className="flex gap-4">
               <Button variant="ghost" size="sm" className="p-2 border-white/10 hover:bg-white/5">

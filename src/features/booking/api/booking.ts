@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, isMockMode } from "@/lib/supabase";
 import { BookingDetails, DB_Booking } from "../types";
 import { BookingAdapter } from "../utils/adapter";
 
@@ -11,6 +11,10 @@ export const BookingService = {
    * 提交新预约
    */
   async createBooking(details: BookingDetails): Promise<BookingDetails> {
+    if (isMockMode) {
+      console.log("[GX-SANDBOX] Mocking createBooking...");
+      return { ...details, id: `mock-id-${Date.now()}`, status: "pending", createdAt: new Date().toISOString() };
+    }
     const dbData = BookingAdapter.toDB(details);
     
     const { data, error } = await supabase
@@ -35,7 +39,7 @@ export const BookingService = {
    * 订阅单个预约的状态变更
    */
   subscribeToBooking(bookingId: string, onUpdate: (details: BookingDetails) => void) {
-    if (!bookingId) return null;
+    if (isMockMode || !bookingId) return null;
 
     const channel = supabase
       .channel(`booking-updates-${bookingId}`)
@@ -59,11 +63,34 @@ export const BookingService = {
   },
 
   /**
+   * 订阅全量预约变更（商家端看板）
+   */
+  subscribeToAllBookings(onEvent: (payload: any) => void) {
+    if (isMockMode) return null;
+
+    const channel = supabase
+      .channel('merchant-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          onEvent(payload);
+        }
+      )
+      .subscribe();
+
+    return channel;
+  },
+
+  /**
    * 取消订阅
    */
   async unsubscribe(channel: any) {
-    if (channel) {
-      await supabase.removeChannel(channel);
-    }
+    if (isMockMode || !channel) return;
+    await supabase.removeChannel(channel);
   }
 };

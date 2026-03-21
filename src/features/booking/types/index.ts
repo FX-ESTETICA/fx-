@@ -12,6 +12,7 @@ export interface BookingDetails {
   timeSlot: string;
   customerName: string;
   customerPhone: string;
+  userId?: string;
   notes?: string;
   price?: number;
   currency?: string;
@@ -32,6 +33,7 @@ export interface DB_Booking {
   time_slot: string;
   customer_name: string;
   customer_phone: string;
+  user_id: string | null;
   notes: string | null;
   price: number | null;
   currency: string | null;
