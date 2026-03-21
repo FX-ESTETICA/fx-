@@ -125,22 +125,12 @@ function OrbitalSpheroids({ rotation }: { rotation: number }) {
   );
 }
 
-// --- 主入口：自适应保真控制器 ---
+// --- 主入口：3D 星云控制器 ---
 export function NebulaBackground({ rotation }: { rotation: number }) {
-  const [isLowPowerDevice, setIsLowPowerDevice] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    // 基础性能检测：仅在极低性能设备下回退
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    const hasHighPerformance = gl && (gl as WebGLRenderingContext).getExtension('WEBGL_draw_buffers');
-
-    if (!hasHighPerformance) {
-      setIsLowPowerDevice(true);
-      console.log("GX_SYSTEM: Low-power device detected. Activating Aesthetic Reduction Mode.");
-    }
-    
     setIsLoaded(true);
   }, []);
 
@@ -149,12 +139,11 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
   return (
     <div className="fixed inset-0 z-0 pointer-events-none bg-black">
       <AnimatePresence mode="wait">
-        {isLowPowerDevice ? (
+        {hasError ? (
           <motion.div
             key="fallback"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
           >
             <MobileNebulaFallback rotation={rotation} />
           </motion.div>
@@ -173,9 +162,10 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
                 powerPreference: "high-performance" 
               }}
               onCreated={({ gl }) => {
-                // 如果 Canvas 渲染失败（Shader 编译错误等），强制回退
-                if (!gl) setIsLowPowerDevice(true);
+                // 仅在 Canvas 渲染失败（极其罕见）时，静默回退
+                if (!gl) setHasError(true);
               }}
+              onError={() => setHasError(true)}
             >
               <color attach="background" args={["#000000"]} />
               <ambientLight intensity={0.8} />
