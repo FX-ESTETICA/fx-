@@ -6,15 +6,10 @@ import { Button } from "@/components/shared/Button";
 import { 
   LayoutDashboard, 
   Calendar, 
-  Users, 
-  Settings, 
-  Bell,
   Clock,
   CheckCircle2,
-  XCircle,
-  MoreVertical,
-  Search,
-  Filter
+  Filter,
+  MoreVertical
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { BookingDetails } from "@/features/booking/types";
@@ -32,21 +27,17 @@ interface MerchantDashboardProps {
  */
 export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed" | "all">("pending");
 
   // 1. 初始化数据加载
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        setIsLoading(true);
         // 此处在实际项目中应调用针对商家的 API，目前暂用全量订阅模拟
         // TODO: 替换为具体的商家订单查询 API
         console.log(`[MerchantDashboard] Initializing for merchant: ${merchantId}`);
       } catch (error) {
         console.error("Failed to fetch merchant bookings:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -153,7 +144,7 @@ export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
 
 const StatsCard = ({ label, value, icon, color }: any) => (
   <GlassCard 
-    glowColor={color === "red" ? "red" : color === "cyan" ? "cyan" : "gold"} 
+    glowColor={color === "red" ? "danger" : color === "cyan" ? "cyan" : "purple"}
     className="p-6 group hover:bg-white/5 transition-all"
   >
     <div className="flex items-center justify-between">
@@ -231,11 +222,11 @@ const BookingItem = ({ booking }: { booking: BookingDetails }) => (
         
         <div className="flex items-center gap-2">
           {booking.status === "pending" && (
-            <Button variant="ghost" size="icon" className="w-8 h-8 text-gx-cyan hover:bg-gx-cyan/10">
+            <Button variant="ghost" size="sm" className="w-8 h-8 p-0 text-gx-cyan hover:bg-gx-cyan/10">
               <CheckCircle2 className="w-4 h-4" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="w-8 h-8 text-white/20 hover:text-white/60">
+          <Button variant="ghost" size="sm" className="w-8 h-8 p-0 text-white/20 hover:text-white/40">
             <MoreVertical className="w-4 h-4" />
           </Button>
         </div>
