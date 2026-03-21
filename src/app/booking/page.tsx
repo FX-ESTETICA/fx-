@@ -30,6 +30,20 @@ export default function BookingPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // 渲染加载状态，解决 isAuthLoading 未使用问题
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCcw className="w-8 h-8 text-gx-cyan animate-spin" />
+          <span className="text-zinc-500 font-mono text-xs uppercase tracking-widest">
+            Authenticating / 正在验证身份...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const handleFormSubmit = (formData: BookingDetails) => {
     setDetails({ ...details, ...formData });
     setStep("confirmation");
