@@ -185,7 +185,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
               <NebulaParticles rotation={rotation} />
               <OrbitalSpheroids rotation={rotation} />
               
-              <fog attach="fog" args={["#000000", 15, 35]} />
+              <fog attach="fog" args={["#000000", 25, 45]} />
             </Canvas>
           </motion.div>
         )}
