@@ -131,15 +131,12 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // 1. 基础性能检测：移动端判断
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
-    // 2. 深度性能检测：检查 WebGL 扩展或特定硬件加速
+    // 基础性能检测：仅在极低性能设备下回退
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
     const hasHighPerformance = gl && (gl as WebGLRenderingContext).getExtension('WEBGL_draw_buffers');
 
-    if (isMobile || !hasHighPerformance) {
+    if (!hasHighPerformance) {
       setIsLowPowerDevice(true);
       console.log("GX_SYSTEM: Low-power device detected. Activating Aesthetic Reduction Mode.");
     }
