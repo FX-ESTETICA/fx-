@@ -392,7 +392,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           </div>
 
           {/* 动态当前时间显示区 (居中置底) */}
-          <div className="mt-auto p-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity">
+          <div className="mt-auto p-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity relative">
+            {/* 配置入口按钮 (移动至左下角) */}
+            <button 
+              onClick={() => setIsConfigOpen(true)}
+              className="absolute left-8 bottom-8 p-3 bg-black/40 hover:bg-gx-cyan/10 rounded-xl text-white/40 hover:text-gx-cyan transition-all border border-white/10 hover:border-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.05)] hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] backdrop-blur-md group"
+              title="全局运营配置 (Nebula Config Hub)"
+            >
+              <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+            </button>
+
             {isMounted ? (
               <>
                 <div className="flex items-baseline gap-1">
@@ -468,13 +477,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setIsConfigOpen(true)}
-                      className="p-2 mr-4 hover:bg-gx-cyan/10 rounded-lg text-gx-cyan transition-all shadow-[0_0_15px_rgba(0,240,255,0.1)] hover:shadow-[0_0_20px_rgba(0,240,255,0.3)]"
-                      title="全局运营配置 (Nebula Config Hub)"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </button>
                     <button 
                       onClick={() => handleNavigate('prev')}
                       className="p-2 hover:bg-white/5 rounded-lg text-white hover:text-gx-cyan transition-all"
