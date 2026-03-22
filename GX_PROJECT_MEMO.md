@@ -101,43 +101,30 @@
 
 ## 3. 【任务指针 (Task Pointer)】 - **当前执行进度**
 
-### 当前状态：**Phase 13.8 - [IN_PROGRESS] 双窗状态机与多维计费架构 (Dual-pane State Machine & Multi-tier Pricing)**
-- **目标**：重构双窗预约面板的底层交互逻辑，实现彻底的“预约与结账解耦”，并建立世界顶端的“焦点驱动”交互范式。
+### 当前状态：**Phase 13.9 - [COMPLETED] 移动端降维打击与响应式重构 (Mobile Paradigm Shift & Responsive Mastery)**
+- **目标**：彻底解决移动端界面的挤压问题，将 B 端管理员的“大屏排班矩阵”优雅降维至手机屏幕，实现真正的原生丝滑滑动。
 - **核心变更**：
-    - **双窗焦点驱动机制 (Left-Focus Driven Right-Pane)**：
-        - 彻底废弃传统的“点击弹窗”模式。左侧表单作为永驻的“主控制台”，右侧面板作为“动态监视器”。
-        - **状态机流转**：当操作员点击左侧不同的输入框（服务内容 / 会员信息 / 预约日期 / 开始时间）时，右侧面板平滑切换为对应的辅助工具（服务矩阵 / 会员雷达 / 迷你日历 / 赛博时钟拨盘）。
-    - **人员主导印章涂色模型 (Staff-Driven Brush Mode)**：
-        - 彻底重构传统的“先选服务再选员工”流程，创新采用“印章涂色”隐喻。选中员工即作为全局“画笔”，随后点击服务项目直接赋予该员工标识与专属色彩。
-        - **快捷反向重分配 (Reverse Quick-Reassignment)**：员工指示器旁动态映射当前已挂载的服务标签，支持一键点击进入“重定向模式”，2-Click 极速更换责任员工。
-    - **微光文本流交互 (Glowing Text Stream)**：
-        - 废弃左侧传统笨重的胶囊块，改为高度融合的内联文本流。不同员工负责的项目呈现不同色彩的字体发光阴影。
-        - 尾部无缝拼接全透明自由输入框，实现数据呈现与自由录入的零割裂感。
-    - **赛博表单矩阵对齐 (Cyber Matrix Alignment)**：
-        - 左侧 6 大输入模块（服务内容、会员信息、预约日期、开始时间、服务时长、结束时间）强制统一高度 `h-[38px]`，统周边框 `border-gx-cyan/30`，内部强制横向平滑滚动 (`no-scrollbar`)。
-        - Label 标题统一使用亮白粗斜体 (`text-[10px] text-white font-bold italic font-mono tracking-widest uppercase`)，拉满高对比度与降噪体验。
-        - 自动基于服务累加时长与开始时间动态推算“服务时长”与“结束时间”。
-    - **服务矩阵瀑布流与多选拼接 (Waterfall Flat-List & Multi-select)**：
-        - 废弃了传统的顶部 Tab 切换逻辑。右侧服务矩阵重构为 **4 列 (grid-cols-4) 全局平铺瀑布流**。
-        - 顶部分类名称（如 MANI, PIEDI）仅作为页面内**快捷滚动锚点 (Anchor Links)**。
-    - **平行多级计费模型 (Parallel Multi-tier Pricing)**：
-        - 废弃了繁琐的“基础价+挂件(Add-ons)”叠加逻辑，重构为更符合线下收银直觉的“单项多价格档位”模型。
-        - **NLP 极速录入**：配置中心支持输入 `日式美甲 30/35/40 45`，系统智能解析为包含 3 个平级价格档位的服务项目。
-        - **结账与预约物理隔离**：预约双窗中彻底隐藏价格数字（仅展示服务名称和耗时），保持视觉降噪。结账 UI 被完全剥离为独立的、占据全屏（或大视窗）的工作流。
+    - **触控封印解除与原生滑动 (Touch-Action Unsealed)**：
+        - 移除了大屏矩阵中用于支持盲操的 `touch-action: none` 和鼠标事件拦截，恢复了移动端原生的 `overflow-x-auto` 动量滚动，手感极其丝滑。
+    - **移动端列宽自适应 (Responsive Column Width)**：
+        - 将员工列宽从固定的 `200px` 压缩至 `120px`，确保在手机窄屏（如 iPhone）上能同屏呈现至少 3 个员工的排班情况。
+    - **空间剥离与组件降维 (Space Stripping & Downgrading)**：
+        - **侧边栏 (Sidebar)**：由物理挤压改为绝对定位的毛玻璃浮层 (`absolute bg-black/90 backdrop-blur-xl`)，并在移动端默认折叠，通过点击顶部大字号日期唤出。
+        - **全局配置中心 (Nebula Config Hub)**：在移动端废弃了右侧滑出逻辑，重构为**从底部升起的全屏面板 (BottomSheet)**，占据 `90vh` 高度并带有顶部抓手。
+        - **双窗预约界面 (DualPane Booking)**：利用 `flex-col md:flex-row` 将原本的左右分屏在手机上强制降级为**上下垂直堆叠**结构，彻底释放横向空间。
+    - **极简视图切换器 (Minimalist View Cycler)**：
+        - 将顶部的 `DAY / WEEK / MONTH` 三个按钮重构为**单体循环按钮**，点击即可循环切换视图，节约顶部空间并强化极简赛博感。
+        - 将“设置”齿轮按钮下沉至左侧边栏的左下角，保持主日历界面的绝对纯净。
 - **技术规范 (Engine Specs)**：
-    - **React 渲染韧性 (Render Phase Safety)**：彻底解决 `Cannot update a component while rendering a different component` 的并发渲染报错。废弃带副作用的函数式状态更新，改用原生 Event-Driven 机制 (`window.dispatchEvent`) 实现跨组件的安全状态广播与同步更新。
-    - **UI 沙盒持久化 (Sandbox Persistence)**：引入 `localStorage` 配合 `useEffect` 与 `isMounted` (Hydration Safe) 机制，实现前端沙盒数据的跨刷新记忆，极大提升演示体验。
-    - **Hook 顺序维稳 (Rules of Hooks)**：严格避免在条件渲染块内调用 Hook，统一提取到组件顶层，杜绝 `Rendered more hooks...` 的致命渲染死循环。
-- **2026-03-22 指纹锁 (Fingerprint Locked)**：已执行 `Read` -> `Write` -> `GetDiagnostics` 闭环。
+    - **Tailwind 断点架构 (Breakpoints)**：全面引入 `md:` 断点进行多端分发，不再仅仅依赖硬编码的像素宽度。
+- **2026-03-22 指纹锁 (Fingerprint Locked)**：已执行全量响应式适配及 GitOps 自动部署至 Vercel (`fx-rapallo.vercel.app`)。
 - **物理红字 (Linter Redline)**：`0` (核心修改组件已完成校验)。
-- **Nexus Checkpoint**: `GX-P13.8-SYNC-Staff-Driven-Brush-v2.8.0`
+- **Nexus Checkpoint**: `GX-P13.9-Mobile-Responsive-V1.0`
 - **Mind Snapshot**:
-  - **核心进度**: 确立了双窗界面的终极交互形态。完成了左侧表单矩阵的彻底标准化（高度统一/动态推算/文本发光流）。实现了革命性的“人员印章涂色”服务分配逻辑，支持极其流畅的逆向重分配。
-  - **代码质量 (Elite Standard)**: 
-        - TypeScript 严格模式 0 警告，高度封装的 Tailwind 类名矩阵，UI/UX 逻辑紧凑闭环。
+  - **核心进度**: 确立并实装了 B 端排班日历在移动端的设计范式（二维矩阵保留+原生滑动+抽屉化降维）。系统已不再是一个只能在大屏上使用的“残疾”后台。
   - **下一步即刻动作**: 
-        - 完成右侧服务矩阵的“滚动锚点 (Scroll Spy)”联动功能（点击顶部 MANI，列表平滑滚动至对应区域）。
-        - 替换右侧的三个 PLACEHOLDER（会员雷达、迷你日历、赛博时钟拨盘），实装真正的 UI 组件。
+        - 观察 Vercel 线上环境在真实手机上的滚动性能。
+        - 开始处理“新建预约”流程中的核心表单逻辑与沙盒数据持久化。
 
 ---
 
