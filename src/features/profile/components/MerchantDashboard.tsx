@@ -9,13 +9,16 @@ import {
   Clock,
   CheckCircle2,
   Filter,
-  MoreVertical
+  MoreVertical,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { BookingDetails } from "@/features/booking/types";
 import { BookingService } from "@/features/booking/api/booking";
 import { MerchantBookingAdapter } from "@/features/booking/utils/adapter";
 import { cn } from "@/utils/cn";
+import Link from "next/link";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -92,6 +95,45 @@ export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
           icon={<Calendar className="w-5 h-5" />}
           color="gold"
         />
+      </div>
+
+      {/* 功能入口区 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link href="/calendar">
+          <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan group-hover:scale-110 transition-transform duration-500">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight">日历后台 / Calendar</h3>
+                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">Manage Bookings & Slots</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 transition-all" />
+            </div>
+          </GlassCard>
+        </Link>
+
+        <Link href="/nebula">
+          <GlassCard glowColor="purple" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gx-purple/5 blur-[60px] rounded-full group-hover:bg-gx-purple/10 transition-all duration-500" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple group-hover:scale-110 transition-transform duration-500">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight">星云入口 / Nebula</h3>
+                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">WebGL Visual Engine</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-gx-purple group-hover:translate-x-1 transition-all" />
+            </div>
+          </GlassCard>
+        </Link>
       </div>
 
       {/* 实时列表区域 */}

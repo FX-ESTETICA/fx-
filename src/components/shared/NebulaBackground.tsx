@@ -5,6 +5,8 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Points, PointMaterial, Float } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
+import { useBackground } from "@/hooks/useBackground";
+import Image from "next/image";
 
 // --- 降维组件：Mobile-Safe 2D Background ---
 function MobileNebulaFallback({ rotation }: { rotation: number }) {
@@ -129,6 +131,7 @@ function OrbitalSpheroids({ rotation }: { rotation: number }) {
 export function NebulaBackground({ rotation }: { rotation: number }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const { currentBg } = useBackground();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -136,14 +139,40 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
 
   if (!isLoaded) return <div className="fixed inset-0 bg-black z-0" />;
 
+  const isImageBg = currentBg !== 'starry';
+
   return (
     <div className="fixed inset-0 z-0 pointer-events-none bg-black">
+      {/* 动态背景图片层 (Layer 0) */}
+      <AnimatePresence>
+        {isImageBg && (
+          <motion.div
+            key={currentBg}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            className="absolute inset-0 z-0"
+          >
+            <Image 
+              src={currentBg} 
+              alt="Cyber Background" 
+              fill
+              quality={100}
+              priority
+              className="object-cover"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {hasError ? (
           <motion.div
             key="fallback"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="absolute inset-0 z-10"
           >
             <MobileNebulaFallback rotation={rotation} />
           </motion.div>
@@ -152,7 +181,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
             key="3d-nebula"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-full w-full"
+            className="absolute inset-0 h-full w-full z-10"
           >
             <Canvas
               camera={{ position: [0, 0, 20], fov: 60 }}
@@ -167,7 +196,9 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
               }}
               onError={() => setHasError(true)}
             >
-              <color attach="background" args={["#000000"]} />
+              {/* 如果是图片背景，则移除黑色背景填充，让 Canvas 变透明 */}
+              {!isImageBg && <color attach="background" args={["#000000"]} />}
+              
               <ambientLight intensity={0.8} />
               <pointLight position={[15, 15, 15]} intensity={2} color="#00f2ff" />
               <pointLight position={[-15, -15, -15]} intensity={1.5} color="#bc13fe" />
@@ -175,7 +206,8 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
               <NebulaParticles rotation={rotation} />
               <OrbitalSpheroids rotation={rotation} />
               
-              <fog attach="fog" args={["#000000", 25, 45]} />
+              {/* 仅在纯星空模式下添加黑色雾效，避免图片背景被雾效遮挡 */}
+              {!isImageBg && <fog attach="fog" args={["#000000", 25, 45]} />}
             </Canvas>
           </motion.div>
         )}

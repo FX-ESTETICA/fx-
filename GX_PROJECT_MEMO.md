@@ -39,6 +39,29 @@
 - **100% 本地路由锁定**：严禁任何指向非 `localhost:3000` 的线上 URL。所有 UI 交互必须在本地 Mock 环境下实现 100% 闭环，违者直接视为逻辑熔断。
 - **静态占位优先**：在 UI 开发阶段，所有 Service 层必须返回静态 Promise，严禁强制连接或同步 Supabase。
 - **环境不敏感**：UI 必须在无 `.env` 配置的情况下实现 100% 渲染成功，确保“审美降维”不被环境阻塞。
+- **极致去中心化 (Extreme Decentralization)**：
+            - **Header 极简化**：首屏 Header 仅保留搜索核心入口，移除所有元数据（Version, Node_Access）。
+            - **元数据下沉**：版本号与“商家入驻”入口同步移至页脚 (Footer)，以极低对比度 (`text-white/10`) 呈现。
+            - **生活流 UI (Lifestyle Flow)**：
+                - **功能性搜索栏**：三段式结构（左侧图标、中间占位符 `搜索商家、服务、景点`、右侧白色 `搜索` 按钮）。
+                - **地理位置锚点**：右上角实时显示当前位置 (`Rapallo, Italy`)，增强系统 LBS 属性。
+                - **核心品牌显示 (Core Brand Display)**：
+                    - `GX / SYNC` 以 `text-4xl` 大字号回归，采用 `font-black` 极粗字重，并应用 `leading-none` 消除行高干扰。
+                    - **扁平化视觉对齐**：所有标题组件（装饰条、主标、副标）处于同一级 `items-center` 容器，副标应用 `translate-y-[2px]` 执行视觉补偿。
+                    - **横向扁平化布局**：`预约调度管理系统` 以 `text-xs` 紧随其后，使用 `//` 分割，颜色为 `text-gx-cyan/40`。
+                - **极简降维 (Minimalist Reduction)**：已通过扁平化容器架构彻底解决大字号行高导致的对齐误差，实现与右侧搜索框的绝对中轴对齐。
+                - **单容器控制中枢 (Unified Command Center)**：标题、搜索框、快速预约按钮已合并至同一个 `flex items-center` 容器。
+                    - **视觉一致性**：所有元素共享物理中轴线，彻底消除垂直对齐误差。
+                    - **容器化封装**：应用 `bg-white/[0.02]` 与 `backdrop-blur-md` 材质，形成独立的控制模块感。
+                - **双端对齐架构 v2**：顶部采用单容器流式布局，取代原有的两端推开模式，视觉逻辑更连贯。
+                - **宽幅视觉**：搜索栏与选项卡容器不再硬性限制宽度，改为 `max-[1400px]` 宽幅布局，仅留极窄侧边距。
+                - **紧凑型布局 (Compact Spacing)**：
+                    - 顶部内边距由 `pt-8` 压缩至 `pt-6`。
+                    - 核心组件间距由 `space-y-8` 压缩至 `space-y-6`。
+                    - 搜索栏高度优化：减小输入框垂直内边距 (`py-5` -> `py-3`)，使整体视觉更轻量、更精致。
+                    - 搜索按钮同步减小内边距 (`px-8 py-3` -> `px-6 py-2`)，维持比例协调。
+                    - 移除了 Top Info Bar 内部的多余 `pt-4`，使品牌标题与搜索框的视觉联系更紧密。
+            - **视觉留白**：通过大幅度上部留白，将用户的注意力和操作力 100% 引导至搜索与分类。
 - **全景驾驶舱 (Panorama Cockpit) 3.0**：系统首页 (`/`) 已进化为 **星云驱动全景驾驶舱 (Nebula-Driven Cockpit)**。
     - **Nebula Soul**：接入 `Three.js + R3F`，背景由 WebGPU 驱动的动态星云粒子取代。
     - **Ortho-Spatial Logic**：3D 舞台采用“数学模拟圆环 + 锁定 rotateY:0”架构。严禁使用原生 CSS 3D 旋转导致透视畸变，确保所有卡片垂直正对屏幕平面。
@@ -78,18 +101,43 @@
 
 ## 3. 【任务指针 (Task Pointer)】 - **当前执行进度**
 
-### 当前状态：**Phase 10 - [DEPLOYED] 全量视觉对齐与 Vercel 生产环境交付**
-- **最后一次操作**：完成了 **[全量视觉对齐 (Full Visual Alignment)]**；移除了移动端 NebulaBackground 的降级逻辑，恢复了 GlassCard 的 `backdrop-blur` 特效，并优化了 WebGL 雾化参数以对齐手机端星星密度；解决了所有 TypeScript 编译错误。
-- **物理红字 (Linter Redline)**：`0` (已执行 `npm run build` 全量验证)。
-- **仓库信息 (Infrastructure Snapshot)**：
-  - **GitHub Repo**: `https://github.com/FX-ESTETICA/fx-.git`
-  - **Vercel Project**: `fx-rapallo.vercel.app`
-- **Nexus Checkpoint**: `GX-P10-VISUAL-ALIGN-v2.0.0`
+### 当前状态：**Phase 13.8 - [IN_PROGRESS] 双窗状态机与多维计费架构 (Dual-pane State Machine & Multi-tier Pricing)**
+- **目标**：重构双窗预约面板的底层交互逻辑，实现彻底的“预约与结账解耦”，并建立世界顶端的“焦点驱动”交互范式。
+- **核心变更**：
+    - **双窗焦点驱动机制 (Left-Focus Driven Right-Pane)**：
+        - 彻底废弃传统的“点击弹窗”模式。左侧表单作为永驻的“主控制台”，右侧面板作为“动态监视器”。
+        - **状态机流转**：当操作员点击左侧不同的输入框（服务内容 / 会员信息 / 预约日期 / 开始时间）时，右侧面板平滑切换为对应的辅助工具（服务矩阵 / 会员雷达 / 迷你日历 / 赛博时钟拨盘）。
+    - **人员主导印章涂色模型 (Staff-Driven Brush Mode)**：
+        - 彻底重构传统的“先选服务再选员工”流程，创新采用“印章涂色”隐喻。选中员工即作为全局“画笔”，随后点击服务项目直接赋予该员工标识与专属色彩。
+        - **快捷反向重分配 (Reverse Quick-Reassignment)**：员工指示器旁动态映射当前已挂载的服务标签，支持一键点击进入“重定向模式”，2-Click 极速更换责任员工。
+    - **微光文本流交互 (Glowing Text Stream)**：
+        - 废弃左侧传统笨重的胶囊块，改为高度融合的内联文本流。不同员工负责的项目呈现不同色彩的字体发光阴影。
+        - 尾部无缝拼接全透明自由输入框，实现数据呈现与自由录入的零割裂感。
+    - **赛博表单矩阵对齐 (Cyber Matrix Alignment)**：
+        - 左侧 6 大输入模块（服务内容、会员信息、预约日期、开始时间、服务时长、结束时间）强制统一高度 `h-[38px]`，统周边框 `border-gx-cyan/30`，内部强制横向平滑滚动 (`no-scrollbar`)。
+        - Label 标题统一使用亮白粗斜体 (`text-[10px] text-white font-bold italic font-mono tracking-widest uppercase`)，拉满高对比度与降噪体验。
+        - 自动基于服务累加时长与开始时间动态推算“服务时长”与“结束时间”。
+    - **服务矩阵瀑布流与多选拼接 (Waterfall Flat-List & Multi-select)**：
+        - 废弃了传统的顶部 Tab 切换逻辑。右侧服务矩阵重构为 **4 列 (grid-cols-4) 全局平铺瀑布流**。
+        - 顶部分类名称（如 MANI, PIEDI）仅作为页面内**快捷滚动锚点 (Anchor Links)**。
+    - **平行多级计费模型 (Parallel Multi-tier Pricing)**：
+        - 废弃了繁琐的“基础价+挂件(Add-ons)”叠加逻辑，重构为更符合线下收银直觉的“单项多价格档位”模型。
+        - **NLP 极速录入**：配置中心支持输入 `日式美甲 30/35/40 45`，系统智能解析为包含 3 个平级价格档位的服务项目。
+        - **结账与预约物理隔离**：预约双窗中彻底隐藏价格数字（仅展示服务名称和耗时），保持视觉降噪。结账 UI 被完全剥离为独立的、占据全屏（或大视窗）的工作流。
+- **技术规范 (Engine Specs)**：
+    - **React 渲染韧性 (Render Phase Safety)**：彻底解决 `Cannot update a component while rendering a different component` 的并发渲染报错。废弃带副作用的函数式状态更新，改用原生 Event-Driven 机制 (`window.dispatchEvent`) 实现跨组件的安全状态广播与同步更新。
+    - **UI 沙盒持久化 (Sandbox Persistence)**：引入 `localStorage` 配合 `useEffect` 与 `isMounted` (Hydration Safe) 机制，实现前端沙盒数据的跨刷新记忆，极大提升演示体验。
+    - **Hook 顺序维稳 (Rules of Hooks)**：严格避免在条件渲染块内调用 Hook，统一提取到组件顶层，杜绝 `Rendered more hooks...` 的致命渲染死循环。
+- **2026-03-22 指纹锁 (Fingerprint Locked)**：已执行 `Read` -> `Write` -> `GetDiagnostics` 闭环。
+- **物理红字 (Linter Redline)**：`0` (核心修改组件已完成校验)。
+- **Nexus Checkpoint**: `GX-P13.8-SYNC-Staff-Driven-Brush-v2.8.0`
 - **Mind Snapshot**:
-  - **核心进度**: 彻底消灭了手机端黑屏与视觉降级，实现了 PC 与 Mobile 端的 1:1 审美同步。
-  - **核心组件**: [page.tsx](file:///c:/Users/xu/Desktop/GX/src/app/page.tsx), [NebulaBackground.tsx](file:///c:/Users/xu/Desktop/GX/src/components/shared/NebulaBackground.tsx), [GlassCard.tsx](file:///c:/Users/xu/Desktop/GX/src/components/shared/GlassCard.tsx)
-  - **部署节点**: 成功通过 Vercel 自动化部署，验证了 UI-First Sandbox 协议在生产环境的稳定性。
-- **下一步即刻动作**: 准备开启 Phase 11 真实业务逻辑注入（Supabase 数据实时通讯）。
+  - **核心进度**: 确立了双窗界面的终极交互形态。完成了左侧表单矩阵的彻底标准化（高度统一/动态推算/文本发光流）。实现了革命性的“人员印章涂色”服务分配逻辑，支持极其流畅的逆向重分配。
+  - **代码质量 (Elite Standard)**: 
+        - TypeScript 严格模式 0 警告，高度封装的 Tailwind 类名矩阵，UI/UX 逻辑紧凑闭环。
+  - **下一步即刻动作**: 
+        - 完成右侧服务矩阵的“滚动锚点 (Scroll Spy)”联动功能（点击顶部 MANI，列表平滑滚动至对应区域）。
+        - 替换右侧的三个 PLACEHOLDER（会员雷达、迷你日历、赛博时钟拨盘），实装真正的 UI 组件。
 
 ---
 
@@ -163,3 +211,37 @@
 - **属性透传白名单**：基础组件（Button/Input 等）严禁直接透传所有 `props`。必须明确排除（Omit）可能引起冲突的事件（如 `onDrag`），从根源消灭组件间“看不见的冲突”。
 - **逻辑缓冲区 (Adapter Sandbox)**：建立 UI 数据适配层，所有外部数据（Supabase/API）严禁直接注入 UI。必须定义 `FeatureNameAdapter` 进行字段映射，确保后端字段变更不波及前端逻辑。
 - **优雅降级**：必须配置 Error Boundaries，确保局部故障不触发全站白屏崩盘。
+
+---
+
+## 9. 【协议优化 v2：快速稳态开发协议 (Fast-Stable Protocol)】
+
+### 9.1 增量诊断通行证 (Incremental Diagnostics Pass)
+- **文件级快速诊断**：进行局部修改时，允许先对“触达文件”执行 `GetDiagnostics(uri)`，以秒级反馈语法/类型问题。
+- **交付前全量兜底**：在任何“完成/合并/交付”前，必须执行一次全量 `GetDiagnostics` 扫描，红字为 0 方可报备完成。
+- **适用范围**：UI/样式/文案/轻逻辑修改均可走增量通行证；跨模块/公共类型/渲染引擎改动需直接进入全量审计。
+
+### 9.2 原子化组件拆分规范 (Atomic Componentization)
+- **复杂度上限**：单个 TSX 文件建议不超过 ~300 行或不超过 3 个一级容器。超出必须拆分为独立子组件（如：`Sidebar` / `HeaderHub` / `MatrixContainer`）。
+- **三层解耦**：`渲染层 (IndustryEngine)`、`矩阵层 (Elite*Matrix)`、`交互覆盖层 (Overlay)` 解耦，互不跨越职责边界。
+- **命名与导入**：遵循 Feature-First，严禁跨模块野生导入；类型与常量集中于 `src/features/<feature>/types` 与 `utils`。
+
+### 9.3 JSX 结构锚点 (Render Tree Anchors)
+- **三段式容器**：统一采用 `[SIDEBAR] / [MAIN CONTENT] / [PULSE BAR]` 的物理分区，减少标签闭合错误几率。
+- **动画包裹**：每个 `AnimatePresence` 必须由有效容器包裹；禁止出现“孤儿节点”与跨层级闭合。
+- **结构终检**：提交前执行“标签闭合清单”：顶层容器闭合、动画容器闭合、条件渲染括号成对、Map/Return 结构完整。
+
+### 9.4 Preflight 自检清单 (每次变更都需通过)
+- 已执行 `Read`（含关键文件上下文）。
+- 已执行文件级 `GetDiagnostics(uri)` 并清零红字。
+- UI 链路仅锚定 `localhost:3000`，未引入外部线上依赖。
+- 不依赖 `.env` 亦可 100% 渲染。
+- 提供“心智快照 (Mind Snapshot)”：变更意图、涉及文件、潜在影响边界。
+
+### 9.5 Nexus 收敛与报备
+- **报备模板**：在每轮对话末尾输出 [GX AI 极致清醒度看板]，同步指纹（Depth/Sync/Alignment）。
+- **阈值约束**：当对话深度>25 或综合清醒分<70%，应建议新开窗口；<60% 时禁止生产级变更。
+
+### 9.6 影子回退与溯源
+- **回退单元**：保证所有变更点可按“单文件”回滚，不与不相关模块绑定。
+- **溯源链路**：错误修复必须定位到根因（结构/类型/依赖），禁止用忽略指令掩盖问题。

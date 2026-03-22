@@ -63,6 +63,16 @@
   .text-gradient-cyan {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-gx-cyan to-gx-blue;
   }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 }
 
 /* 赛博朋克全局滚动条优化 */

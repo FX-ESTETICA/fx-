@@ -5,15 +5,19 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { useState } from "react";
-import { Chrome } from "lucide-react";
+import { Chrome, UserCircle } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { AuthService } from "../api/auth";
+import { useAuth } from "../hooks/useAuth";
+import { useRouter } from "next/navigation";
 
 /**
  * LoginForm - GX 核心登录组件
  * 采用极致赛博极简风格
  */
 export const LoginForm = () => {
+  const { setGuestMode } = useAuth();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -30,6 +34,7 @@ export const LoginForm = () => {
       authenticating: "身份验证中...",
       or: "或",
       google: "使用 Google 账号同步",
+      guest: "以游客身份进入 / GUEST ACCESS",
       reset: "重置密钥",
       register: "初始化新实体",
       security: "加密传输由边缘网络提供 // ID: GX-AUTH-v2.0",
@@ -44,6 +49,7 @@ export const LoginForm = () => {
       authenticating: "Authenticating...",
       or: "OR",
       google: "Sync with Google Account",
+      guest: "Guest Access",
       reset: "Reset Key",
       register: "Initialize New Entity",
       security: "Encrypted transfer by Edge Network // ID: GX-AUTH-v2.0",
@@ -58,6 +64,7 @@ export const LoginForm = () => {
       authenticating: "Autenticazione...",
       or: "OPPURE",
       google: "Sincronizza con Google",
+      guest: "Accesso Ospite",
       reset: "Resetta Chiave",
       register: "Inizializza Nuova Entità",
       security: "Trasferimento crittografato da Edge Network // ID: GX-AUTH-v2.0",
@@ -74,7 +81,7 @@ export const LoginForm = () => {
     
     try {
       await AuthService.signInWithEmail(email, password);
-      // 移除 router.push，由父组件或状态变更驱动 UI
+      router.push("/home");
     } catch (err: any) {
       console.error("Auth error:", err);
       setError(err.message || current.error);
@@ -92,6 +99,11 @@ export const LoginForm = () => {
       setError(err.message || current.error);
       setIsLoading(false);
     }
+  };
+
+  const handleGuestLogin = () => {
+    setGuestMode();
+    router.push("/home");
   };
 
   return (
@@ -147,8 +159,8 @@ export const LoginForm = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input 
             label={current.emailLabel} 
-            type="email" 
-            placeholder="identity@galaxy.gx"
+            type="text" 
+            placeholder="GX or identity@galaxy.gx"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -185,7 +197,7 @@ export const LoginForm = () => {
           </span>
         </div>
 
-        {/* OAuth */}
+        {/* OAuth & Guest */}
         <div className="space-y-3">
           <Button 
             variant="ghost" 
@@ -196,6 +208,17 @@ export const LoginForm = () => {
           >
             <Chrome className="w-4 h-4 text-gx-cyan" />
             <span>{current.google}</span>
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            type="button"
+            className="w-full h-11 space-x-3 text-xs uppercase tracking-widest border-white/5 hover:border-white/20"
+            onClick={handleGuestLogin}
+            disabled={isLoading}
+          >
+            <UserCircle className="w-4 h-4 text-white/40" />
+            <span>{current.guest}</span>
           </Button>
         </div>
 

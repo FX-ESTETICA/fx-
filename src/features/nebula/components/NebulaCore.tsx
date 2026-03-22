@@ -10,37 +10,38 @@ import { cn } from "@/utils/cn";
 // Mock Hierarchy Data
 const MOCK_NEBULA_DATA: NebulaNodeType = {
   id: "GX-CORE",
-  name: "银河核心 / Total",
+  name: "银河中枢 / Global Core",
   type: "total",
   value: "¥2.4M",
   children: [
     {
-      id: "BRANCH-SH",
-      name: "上海旗舰店 / SH Branch",
+      id: "IND-BEAUTY",
+      name: "美业连锁 / Beauty Chain",
       type: "branch",
-      value: "¥1.2M",
+      value: "2 店面",
       children: [
-        { id: "M-001", name: "张三 / Team A", type: "member", value: "88%" },
-        { id: "M-002", name: "李四 / Team B", type: "member", value: "92%" },
-        { id: "M-003", name: "王五 / Team C", type: "member", value: "75%" },
+        { id: "B-001", name: "静安店 / Jing'an", type: "member", value: "88% 预约率" },
+        { id: "B-002", name: "徐汇店 / Xuhui", type: "member", value: "92% 预约率" },
       ]
     },
     {
-      id: "BRANCH-BJ",
-      name: "北京分院 / BJ Branch",
+      id: "IND-DINING",
+      name: "餐饮板块 / Dining Group",
       type: "branch",
-      value: "¥800k",
+      value: "3 餐厅",
       children: [
-        { id: "M-101", name: "赵六 / Team X", type: "member", value: "99%" },
-        { id: "M-102", name: "钱七 / Team Y", type: "member", value: "85%" },
+        { id: "D-101", name: "川味馆 / Sichuan", type: "member", value: "¥45k/日" },
+        { id: "D-102", name: "星空吧 / Sky Bar", type: "member", value: "¥82k/日" },
       ]
     },
     {
-      id: "BRANCH-SZ",
-      name: "深圳实验室 / SZ Lab",
+      id: "IND-HOTEL",
+      name: "精品酒店 / Boutique Hotel",
       type: "branch",
-      value: "¥400k",
-      children: []
+      value: "¥400k/月",
+      children: [
+        { id: "H-201", name: "外滩店 / Bund", type: "member", value: "100% 入住" },
+      ]
     }
   ]
 };

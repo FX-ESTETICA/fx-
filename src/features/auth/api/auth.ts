@@ -13,6 +13,19 @@ export const AuthService = {
   async signInWithEmail(email: string, password: string) {
     if (isMockMode) {
       console.log("[GX-SANDBOX] Mocking signInWithEmail...");
+      
+      // 特权账户捕获: GX / GX
+      if (email === "GX" && password === "GX") {
+        return { 
+          user: { 
+            id: "boss-id", 
+            email: "boss@galaxy.gx",
+            user_metadata: { role: "boss", name: "GUANGXU ZHANG" }
+          }, 
+          session: null 
+        };
+      }
+
       return { user: { id: "mock-user-id", email }, session: null };
     }
     const { data, error } = await supabase.auth.signInWithPassword({

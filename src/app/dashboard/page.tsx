@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { ProfileHeader } from "@/features/profile/components/ProfileHeader";
 import { UserDashboard } from "@/features/profile/components/UserDashboard";
 import { MerchantDashboard } from "@/features/profile/components/MerchantDashboard";
@@ -9,9 +8,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/shared/Button";
 import { LayoutDashboard, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function DashboardPage() {
-  const [role, setRole] = useState<UserRole>("user");
+  const { activeRole, setActiveRole } = useAuth();
 
   // 模拟不同角色的数据
   const mockProfiles: Record<UserRole, UserProfile> = {
@@ -48,7 +48,7 @@ export default function DashboardPage() {
     }
   };
 
-  const currentProfile = mockProfiles[role];
+  const currentProfile = mockProfiles[activeRole as UserRole];
 
   return (
     <main className="min-h-screen bg-black text-white p-6 md:p-12 relative overflow-hidden">
@@ -72,9 +72,9 @@ export default function DashboardPage() {
               {(["user", "merchant", "boss"] as UserRole[]).map((r) => (
                 <button
                   key={r}
-                  onClick={() => setRole(r)}
+                  onClick={() => setActiveRole(r as any)}
                   className={`px-3 py-1 text-[10px] font-mono uppercase rounded-md transition-all ${
-                    role === r ? "bg-white/10 text-white" : "text-white/20 hover:text-white/40"
+                    activeRole === r ? "bg-white/10 text-white" : "text-white/20 hover:text-white/40"
                   }`}
                 >
                   {r}
@@ -97,13 +97,13 @@ export default function DashboardPage() {
         {/* Dashboard Content */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={role}
+            key={activeRole}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            {role === "user" ? (
+            {activeRole === "user" ? (
               <UserDashboard profile={currentProfile} />
             ) : (
               <MerchantDashboard merchantId={currentProfile.id} />
