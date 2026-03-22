@@ -81,7 +81,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
           className="flex-1 overflow-hidden relative pointer-events-none"
         >
           {liquidTimeSlots.map((slot, idx) => (
-            <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
+            <div key={slot.hour} className="h-20 flex items-start justify-center relative group pt-2">
               <span className={cn(
                 "text-sm font-mono transition-all duration-500",
                 slot.hour === currentHour ? "text-gx-cyan font-black scale-110" : "text-white font-bold group-hover:text-gx-cyan"
@@ -114,9 +114,9 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
             {liquidTimeSlots.map((slot) => (
               <div 
                 key={slot.hour} 
-                className="grid h-16 relative group/row"
+                className="grid h-20 relative group/row"
                 style={{
-                  gridTemplateColumns: `repeat(${resources.length}, minmax(200px, 1fr))`
+                  gridTemplateColumns: `repeat(${resources.length}, minmax(120px, 1fr))` // 同步 IndustryCalendar 表头的列宽
                 }}
               >
                 {resources.map((res: MatrixResource) => {
@@ -137,7 +137,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                           client={booking.client}
                           color={dna.themeColor}
                           accent={dna.accent}
-                          height={`h-[${Math.max(60, booking.durationHours * 64)}px]`} 
+                          height={`h-[${Math.max(60, booking.durationHours * 80)}px]`} 
                         />
                       )}
                     </div>

@@ -112,7 +112,7 @@ export const NebulaConfigHub = ({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0.5 }}
             transition={{ type: "spring", damping: 30, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-[480px] bg-black/80 backdrop-blur-3xl border-l border-white/10 z-[101] flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+            className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-black/95 md:bg-black/80 backdrop-blur-3xl md:border-l border-white/10 z-[101] flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
           >
             {/* 头部 */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">

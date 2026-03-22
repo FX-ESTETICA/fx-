@@ -180,20 +180,20 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative z-10 w-full max-w-[800px] flex flex-col items-center"
+            className="relative z-10 w-full max-w-[800px] flex flex-col items-center px-4 md:px-0"
           >
-            {/* 核心双窗容器 (Glassmorphism + Neon Border) */}
-            <main className="w-full h-[450px] flex rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
+            {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
+            <main className="w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
               {/* 右上角关闭按钮 */}
               <button 
                 onClick={onClose} 
-                className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
+                className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              {/* ===================== 左侧：控制台面板 ===================== */}
-              <section className="w-[50%] h-full p-5 pb-16 flex flex-col gap-4 relative z-10">
+              {/* ===================== 左侧/顶部：控制台面板 ===================== */}
+              <section className="w-full md:w-[50%] h-[50%] md:h-full p-5 md:pb-16 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0">
                 
                 {/* 表单录入区 */}
                 <div className="grid grid-cols-2 gap-4 mt-1">
@@ -323,8 +323,8 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                 </div>
               </section>
 
-              {/* ===================== 右侧：动态监视器区 ===================== */}
-              <section className="flex-1 h-full p-6 pb-20 relative z-10">
+              {/* ===================== 右侧/底部：动态监视器区 ===================== */}
+              <section className="flex-1 h-[50%] md:h-full p-4 md:p-6 pb-20 relative z-10 overflow-hidden">
                 {activePaneMode === 'service' && (
                   // 服务项目选择矩阵与人员分配
                   <div className="h-full flex flex-col">
@@ -347,8 +347,8 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                       )}
                     </div>
 
-                    {/* 服务项目矩阵 (4列) */}
-                    <div className="grid grid-cols-4 gap-3 flex-1 overflow-y-auto pr-2 custom-scrollbar content-start">
+                    {/* 服务项目矩阵 (移动端2列，大屏4列) */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1 overflow-y-auto pr-2 custom-scrollbar content-start">
                       {services
                         .filter(s => s.categoryId === activeCategory)
                         .map(service => {

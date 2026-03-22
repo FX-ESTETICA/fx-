@@ -16,7 +16,6 @@ import {
   LucideIcon
 } from "lucide-react";
 import { IndustryType, IndustryDNA, MatrixResource } from "../types";
-import { IndustryEngine } from "./IndustryEngine";
 
 // --- 矩阵子组件导入 ---
 import { EliteResourceMatrix } from "./matrices/EliteResourceMatrix";
@@ -122,6 +121,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       localStorage.setItem('gx_sandbox_services', JSON.stringify(services));
     }
   }, [services, isMounted]);
+
+  // 控制左侧边栏显示状态
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端默认关闭，大屏可通过断点或 useEffect 控制，此处为了演示先默认关闭
 
   // 实时时钟更新
   useEffect(() => {
@@ -320,9 +322,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   return (
     <div className="flex animate-in fade-in duration-700 h-full w-full bg-transparent overflow-hidden flex-col md:flex-row">
       {/* [SIDEBAR] 左侧控制中心 (Side Control Hub) - App Shell 固定宽度 */}
-      {isAdmin && (
-        <aside className="w-72 bg-transparent flex flex-col relative z-20 shrink-0">
-          {/* 品牌区 */}
+      <AnimatePresence initial={false}>
+        {isAdmin && isSidebarOpen && (
+          <motion.aside 
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 288, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="bg-transparent flex flex-col relative z-20 shrink-0 overflow-hidden whitespace-nowrap absolute md:relative top-0 left-0 h-full bg-black/90 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none"
+          >
+            <div className="w-72 h-full flex flex-col">
+              {/* 品牌区 */}
           <div className="p-8 bg-transparent flex items-center justify-between">
             <div 
               className="flex items-center gap-3 cursor-pointer group" 
@@ -404,8 +414,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               </div>
             )}
           </div>
-        </aside>
-      )}
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       {/* [MAIN CONTENT] 主内容区 */}
       <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden h-full">
@@ -423,12 +435,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               {/* [CONTAINER 2] 日期与视图控制栏 (Date & Navigation Bar) */}
               <div className="px-6 py-3 flex items-center justify-between bg-transparent">
                 <div className="flex items-center gap-6">
-                  <div className="flex items-baseline gap-3">
+                  <div 
+                    className="flex items-baseline gap-3 cursor-pointer group hover:opacity-80 transition-opacity"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    title="点击切换左侧边栏"
+                  >
                     <h3 className="text-3xl font-black tracking-tighter leading-none bg-gradient-to-br from-white via-white/90 to-white/20 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
                       {currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {currentDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase">
+                      <span className="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase group-hover:text-gx-cyan transition-colors">
                         {currentDate.getFullYear()}
                       </span>
                     </div>
@@ -491,38 +507,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   {/* 右侧滚动：员工卡片横向滚动区 (采用 CSS Grid 强制对齐) */}
                     <div 
                       ref={headerScrollRef}
-                      className="flex-1 overflow-x-auto overflow-y-hidden cursor-grab active:cursor-grabbing no-scrollbar"
+                      className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar"
                       onScroll={(e) => {
                         if (matrixScrollRef.current) {
                           matrixScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
                         }
                       }}
-                      onMouseDown={(e) => {
-                        const ele = headerScrollRef.current;
-                        if (!ele) return;
-                        let startX = e.pageX - ele.offsetLeft;
-                        let scrollLeft = ele.scrollLeft;
-                        
-                        const handleMouseMove = (e: MouseEvent) => {
-                          e.preventDefault();
-                          const x = e.pageX - ele.offsetLeft;
-                          const walk = (x - startX) * 2;
-                          ele.scrollLeft = scrollLeft - walk;
-                        };
-                        
-                        const handleMouseUp = () => {
-                          document.removeEventListener('mousemove', handleMouseMove);
-                          document.removeEventListener('mouseup', handleMouseUp);
-                        };
-                        
-                        document.addEventListener('mousemove', handleMouseMove);
-                        document.addEventListener('mouseup', handleMouseUp);
-                      }}
                     >
                     <div 
                       className="grid h-full"
                       style={{
-                        gridTemplateColumns: `repeat(${resources.length}, minmax(200px, 1fr))`
+                        gridTemplateColumns: `repeat(${resources.length}, minmax(120px, 1fr))` // 减小移动端列宽，通过 CSS 保证最小 120px，大屏可用更大的值或通过外层容器拉伸
                       }}
                     >
                       {resources.map(res => (
@@ -584,15 +579,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             transition={{ duration: 0.4 }}
             className="flex-1 relative overflow-hidden"
           >
-            {/* 动态矩阵渲染引擎 (Aurora Pivot Engine) */}
-            <div className="h-full relative overflow-hidden">
-              {/* 1. 高性能 GPU 渲染引擎 (R3F + WebGPU) */}
-              <div className="absolute inset-0 z-0">
-                <IndustryEngine />
-              </div>
-
-              {/* 2. 交互式 DOM 覆盖层 (Legacy/Interactions) */}
-              <div className="relative z-10 h-full">
+            {/* 交互式矩阵渲染层 */}
+            <div className="h-full relative overflow-hidden z-10">
                 {dna.pivot === "resource" && viewMode === "day" && (
                   <EliteResourceMatrix 
                     industry={industry} 
@@ -642,7 +630,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 {dna.pivot === "capacity" && (
                   <CapacityFlow />
                 )}
-              </div>
               
               {/* 非日视图且非资源类型时回退到网格 */}
               {viewMode !== "day" && dna.pivot !== "timeline" && dna.pivot !== "resource" && (
