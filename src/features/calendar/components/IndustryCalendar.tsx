@@ -449,25 +449,26 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               className="flex flex-col gap-0"
             >
               {/* [CONTAINER 2] 日期与视图控制栏 (Date & Navigation Bar) */}
-              <div className="px-6 py-3 flex items-center justify-between bg-transparent">
-                <div className="flex items-center gap-6">
+              <div className="px-4 md:px-6 py-3 flex items-center justify-between bg-transparent">
+                <div className="flex items-center gap-4 md:gap-6">
                   <div 
-                    className="flex items-baseline gap-4 cursor-pointer group hover:opacity-80 transition-opacity"
+                    className="flex items-baseline gap-3 md:gap-4 cursor-pointer group hover:opacity-80 transition-opacity"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     title="点击切换左侧边栏"
                   >
-                    <h3 className="text-4xl font-black tracking-[0.15em] leading-none bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent font-mono" style={{ textShadow: '0 0 20px rgba(0, 240, 255, 0.6)' }}>
+                    <h3 className="text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent font-mono" style={{ textShadow: '0 0 20px rgba(0, 240, 255, 0.6)' }}>
                       {currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {currentDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span className="text-sm font-mono text-cyan-400/80 tracking-[0.4em] uppercase group-hover:text-cyan-200 transition-colors">
+                      <span className="text-xs md:text-sm font-mono text-cyan-400/80 tracking-[0.2em] md:tracking-[0.4em] uppercase group-hover:text-cyan-200 transition-colors">
                         {currentDate.getFullYear()}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                {/* Desktop controls */}
+                <div className="hidden md:flex items-center gap-4">
                   <div className="flex bg-transparent rounded-xl p-1 border border-white/10">
                     <button
                       onClick={() => {
@@ -508,13 +509,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               {viewMode === 'day' && dna.pivot === 'resource' && (
                 <div className="flex bg-transparent h-14 overflow-hidden">
                   {/* 左侧固定：空位占位符，与下方时间轴对齐 */}
-                  <div className="w-24 shrink-0 flex items-center justify-center z-10 bg-transparent">
+                  <div className="w-20 md:w-24 shrink-0 flex items-center justify-center z-10 bg-transparent">
                   </div>
                   
                   {/* 右侧滚动：员工卡片横向滚动区 (采用 CSS Grid 强制对齐) */}
                     <div 
                       ref={headerScrollRef}
-                      className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar"
+                      className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory"
                       onScroll={(e) => {
                         if (matrixScrollRef.current) {
                           matrixScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
@@ -524,11 +525,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     <div 
                       className="grid h-full"
                       style={{
-                        gridTemplateColumns: `repeat(${resources.length}, minmax(120px, 1fr))` // 减小移动端列宽，通过 CSS 保证最小 120px，大屏可用更大的值或通过外层容器拉伸
+                        gridTemplateColumns: `repeat(${resources.length}, minmax(max(140px, 40vw), 1fr))` // 增大移动端列宽，通过 CSS 保证最小 140px
                       }}
                     >
                       {resources.map(res => (
-                        <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
+                        <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group snap-center", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
                           <div className="flex flex-col items-center justify-center leading-none bg-transparent">
                             <span className="text-[13px] font-bold tracking-[0.3em] text-cyan-100/70 group-hover:text-cyan-300 transition-all mix-blend-screen truncate uppercase" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}>
                               {res.name}
@@ -649,6 +650,43 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             </div>
           </motion.div>
         </AnimatePresence>
+
+        {/* 移动端专属：全息赛博控制胶囊 (Holographic Cyber Capsule) */}
+        <div className="md:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+          <div className="flex bg-transparent rounded-xl p-0.5 border border-white/10">
+            <button
+              onClick={() => {
+                const modes = ['day', 'week', 'month'] as const;
+                const currentIndex = modes.indexOf(viewMode);
+                setViewMode(modes[(currentIndex + 1) % modes.length]);
+              }}
+              className="px-4 py-1 text-[10px] font-black uppercase rounded-lg transition-all bg-gx-cyan text-black shadow-[0_0_15px_rgba(0,240,255,0.4)] w-16 text-center"
+            >
+              {viewMode}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => handleNavigate('prev')}
+              className="p-1.5 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setCurrentDate(new Date())}
+              className="px-3 py-1.5 text-[10px] font-black rounded-lg hover:bg-cyan-900/30 transition-all text-cyan-400/80 tracking-widest" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}
+            >
+              {getTodayLabel()}
+            </button>
+            <button 
+              onClick={() => handleNavigate('next')}
+              className="p-1.5 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 transition-all"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
         {/* 注入星云配置中枢抽屉 */}
         <NebulaConfigHub 

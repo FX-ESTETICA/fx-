@@ -75,7 +75,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   return (
     <div className="flex h-full overflow-hidden bg-transparent">
       {/* 纵向时间轴固定列 (带流动发光) */}
-      <div className="w-24 flex flex-col relative shrink-0">
+      <div className="w-20 md:w-24 flex flex-col relative shrink-0">
         <div 
           ref={timeColumnRef}
           className="flex-1 overflow-hidden relative pointer-events-none"
@@ -108,7 +108,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
       <div 
         ref={actualMatrixRef}
         onScroll={handleMatrixScroll}
-        className="flex-1 overflow-x-auto overflow-y-auto scroll-smooth relative no-scrollbar"
+        className="flex-1 overflow-x-auto overflow-y-auto scroll-smooth relative no-scrollbar snap-x snap-mandatory"
       >
         <div className="min-w-fit flex flex-col h-full">
           {/* 矩阵主体 (音轨背景) */}
@@ -118,7 +118,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                 key={slot.hour} 
                 className="grid h-20 relative group/row"
                 style={{
-                  gridTemplateColumns: `repeat(${resources.length}, minmax(120px, 1fr))` // 同步 IndustryCalendar 表头的列宽
+                  gridTemplateColumns: `repeat(${resources.length}, minmax(max(140px, 40vw), 1fr))` // 同步 IndustryCalendar 表头的列宽
                 }}
               >
                 {resources.map((res: MatrixResource) => {
@@ -128,7 +128,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                   return (
                     <div 
                       key={res.id} 
-                      className="w-full h-full group hover:bg-white/[0.01] transition-colors relative px-4 cursor-pointer"
+                      className="w-full h-full group hover:bg-white/[0.01] transition-colors relative px-4 cursor-pointer snap-center"
                       onClick={onGridClick}
                     >
                       {/* 渲染预约块 */}
