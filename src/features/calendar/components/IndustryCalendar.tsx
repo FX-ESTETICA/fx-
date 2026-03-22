@@ -462,18 +462,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
                 <div className="flex items-center gap-4">
                   <div className="flex bg-transparent rounded-xl p-1 border border-white/10">
-                    {(['day', 'week', 'month'] as const).map((v) => (
-                      <button
-                        key={v}
-                        onClick={() => setViewMode(v)}
-                        className={cn(
-                          "px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all",
-                          viewMode === v ? "bg-gx-cyan text-black shadow-lg" : "text-white hover:text-gx-cyan"
-                        )}
-                      >
-                        {v}
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => {
+                        const modes = ['day', 'week', 'month'] as const;
+                        const currentIndex = modes.indexOf(viewMode);
+                        setViewMode(modes[(currentIndex + 1) % modes.length]);
+                      }}
+                      className="px-6 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all bg-gx-cyan text-black shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:bg-white hover:shadow-[0_0_20px_rgba(255,255,255,0.5)] w-20 text-center"
+                    >
+                      {viewMode}
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-2">
