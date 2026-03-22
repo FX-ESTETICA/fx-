@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Sparkles, Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, Settings, Trash2, RotateCcw, User } from 'lucide-react';
 import { cn } from "@/utils/cn";
 
