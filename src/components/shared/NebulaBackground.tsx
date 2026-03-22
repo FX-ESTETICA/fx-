@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Points, PointMaterial, Float } from "@react-three/drei";
+import { Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBackground } from "@/hooks/useBackground";
@@ -89,7 +89,7 @@ function NebulaParticles({ rotation }: { rotation: number }) {
   );
 }
 
-function OrbitalSpheroids({ rotation }: { rotation: number }) {
+/* function OrbitalSpheroids({ rotation }: { rotation: number }) {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
@@ -125,7 +125,7 @@ function OrbitalSpheroids({ rotation }: { rotation: number }) {
       </Float>
     </group>
   );
-}
+} */
 
 // --- 主入口：3D 星云控制器 ---
 export function NebulaBackground({ rotation }: { rotation: number }) {
