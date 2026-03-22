@@ -5,7 +5,7 @@ import { Sparkles, Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, S
 import { cn } from "@/utils/cn";
 
 export default function BookingSandboxPro() {
-  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedService] = useState<string | null>(null);
 
   return (
     <div 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Calendar as CalendarIcon, Clock, Settings, User, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, X } from 'lucide-react';
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from 'framer-motion';
 

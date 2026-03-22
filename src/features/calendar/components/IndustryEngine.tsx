@@ -84,9 +84,9 @@ export const IndustryEngine = () => {
         <ambientLight intensity={0.2} />
         <pointLight position={[10, 10, 10]} intensity={1} color="#00f0ff" />
 
-        {/* <React.Suspense fallback={null}>
+        <React.Suspense fallback={null}>
           <EngineBackground />
-        </React.Suspense> */}
+        </React.Suspense>
 
         {/* 环境光效 */}
         <Environment preset="city" />
