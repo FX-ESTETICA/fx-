@@ -198,7 +198,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                 {/* 表单录入区 */}
                 <div className="grid grid-cols-2 gap-4 mt-1">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold italic font-mono tracking-widest uppercase">服务内容</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">服务内容</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 h-[38px] flex items-center cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] overflow-hidden",
@@ -247,7 +247,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold italic font-mono tracking-widest uppercase">会员信息</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">会员信息</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 h-[38px] flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)]",
@@ -270,7 +270,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                 {/* 时间与持续时间 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold italic font-mono tracking-widest uppercase">预约日期</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">预约日期</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] text-white",
@@ -283,7 +283,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold italic font-mono tracking-widest uppercase">开始时间</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">开始时间</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] text-white",
@@ -297,7 +297,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold italic font-mono tracking-widest uppercase">服务时长</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">服务时长</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)]",
@@ -312,7 +312,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold italic font-mono tracking-widest uppercase">结束时间</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">结束时间</label>
                     <div 
                       className="bg-black/40 border border-gx-cyan/30 rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] text-white/60 cursor-not-allowed"
                     >
@@ -324,18 +324,18 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
               </section>
 
               {/* ===================== 右侧/底部：动态监视器区 ===================== */}
-              <section className="flex-1 h-[50%] md:h-full p-4 md:p-6 pb-20 relative z-10 overflow-hidden">
+              <section className="flex-1 h-[50%] md:h-full p-4 md:p-6 relative z-10 overflow-hidden">
                 {activePaneMode === 'service' && (
                   // 服务项目选择矩阵与人员分配
-                  <div className="h-full flex flex-col">
+                  <div className="h-full flex flex-col overflow-y-auto custom-scrollbar">
                     {/* 分类标签导航 */}
-                    <div className="flex gap-4 border-b border-white/10 pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0">
+                    <div className="flex gap-[20px] border-b border-white/10 pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-md z-10">
                       {categories.map(cat => (
                         <button
                           key={cat.id}
                           onClick={() => setActiveCategory(cat.id)}
                           className={cn(
-                            "text-[10px] font-mono whitespace-nowrap transition-colors uppercase tracking-widest",
+                            "text-[15px] font-mono whitespace-nowrap transition-colors uppercase tracking-widest",
                             activeCategory === cat.id ? "text-gx-cyan font-bold" : "text-white/40 hover:text-white/80"
                           )}
                         >
@@ -347,8 +347,8 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                       )}
                     </div>
 
-                    {/* 服务项目矩阵 (移动端2列，大屏4列) */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1 overflow-y-auto pr-2 custom-scrollbar content-start">
+                    {/* 服务项目矩阵 (移动端2列，大屏5列) */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pr-2 content-start">
                       {services
                         .filter(s => s.categoryId === activeCategory)
                         .map(service => {
@@ -362,7 +362,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                               key={service.id}
                               onClick={() => handleToggleService(service)}
                               className={cn(
-                                "p-3 rounded-xl border transition-all text-left flex flex-col justify-between h-[80px] group relative overflow-hidden",
+                                "p-3 rounded-xl border transition-all text-left flex flex-col justify-center h-[60px] group relative overflow-hidden",
                                 isSelected 
                                   ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" 
                                   : "bg-black/40 border-white/5 hover:border-white/20 hover:bg-white/5"
@@ -381,24 +381,18 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                               )}>
                                 {service.name}
                               </span>
-                              <span className={cn(
-                                "text-[9px] font-mono",
-                                isSelected ? "text-gx-cyan/60" : "text-white/30"
-                              )}>
-                                {service.duration} MIN
-                              </span>
                             </button>
                           );
                         })}
                       {services.filter(s => s.categoryId === activeCategory).length === 0 && categories.length > 0 && (
-                        <div className="col-span-4 text-center text-[10px] text-white/20 font-mono mt-10">
+                        <div className="col-span-full text-center text-[10px] text-white/20 font-mono mt-10">
                           NO SERVICES IN THIS CATEGORY
                         </div>
                       )}
                     </div>
 
-                    {/* 当前印章/笔刷选择栏 (Brush/Stamp Selection) - 固定在底部，始终显示 */}
-                    <div className="border-t border-white/10 pt-3 mt-3 flex flex-col gap-3 shrink-0">
+                    {/* 当前印章/笔刷选择栏 (Brush/Stamp Selection) */}
+                    <div className="border-t border-white/10 pt-3 mt-3 flex flex-col gap-3 shrink-0 mb-4">
                       <div className="flex items-center justify-between">
                         {/* 左侧动态胶囊 (兼具指示器与重置按钮功能) 与已选项目快捷映射 */}
                         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar flex-1 pr-4">

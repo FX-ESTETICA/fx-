@@ -326,12 +326,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         {isAdmin && isSidebarOpen && (
           <motion.aside 
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 288, opacity: 1 }}
+            animate={{ width: 260, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
+            onPanEnd={(_e, info) => {
+              if (info.offset.x < -30 || info.velocity.x < -300) {
+                setIsSidebarOpen(false);
+              }
+            }}
             className="bg-transparent flex flex-col relative z-20 shrink-0 overflow-hidden whitespace-nowrap absolute md:relative top-0 left-0 h-full bg-black/90 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none"
           >
-            <div className="w-72 h-full flex flex-col">
+            <div className="w-[260px] h-full flex flex-col">
               {/* 品牌区 */}
           <div className="p-8 bg-transparent flex items-center justify-between">
             <div 
@@ -349,30 +354,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             </div>
           </div>
 
-          {/* 行业切换区 */}
+          {/* 行业切换区 (已移除，移至底部时钟下方) */}
           <div className="p-8 space-y-6 pt-0">
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={cycleIndustry}
-                className="group relative flex items-center justify-between w-full px-6 py-4 rounded-2xl bg-gx-cyan text-black text-xs font-black uppercase tracking-widest shadow-[0_0_30px_rgba(0,240,255,0.15)] hover:shadow-[0_0_40px_rgba(0,240,255,0.3)] transition-all overflow-hidden"
-              >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={industry}
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 20, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center gap-3"
-                  >
-                    {dna.iconComp && <dna.iconComp className="w-4 h-4" />}
-                    <span>{dna.label}</span>
-                  </motion.div>
-                </AnimatePresence>
-                <ChevronRight className="w-4 h-4 opacity-40 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
-
             {/* 核心统计 (Mock) */}
             <div className="grid grid-cols-1 gap-4 pt-8">
               {[
@@ -392,16 +375,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           </div>
 
           {/* 动态当前时间显示区 (居中置底) */}
-          <div className="mt-auto p-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity relative">
-            {/* 配置入口按钮 (移动至左下角) */}
-            <button 
-              onClick={() => setIsConfigOpen(true)}
-              className="absolute left-8 bottom-8 p-3 bg-black/40 hover:bg-gx-cyan/10 rounded-xl text-white/40 hover:text-gx-cyan transition-all border border-white/10 hover:border-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.05)] hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] backdrop-blur-md group"
-              title="全局运营配置 (Nebula Config Hub)"
-            >
-              <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
-            </button>
-
+          <div className="mt-auto p-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity relative w-full">
             {isMounted ? (
               <>
                 <div className="flex items-baseline gap-1">
@@ -416,6 +390,39 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/40 mt-3">
                   System Time (Local)
                 </span>
+                
+                {/* 底部功能按钮组 (全透明) */}
+                <div className="flex items-center gap-4 mt-8 w-full">
+                  {/* 行业切换按钮 */}
+                  <button
+                    onClick={cycleIndustry}
+                    className="group flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-transparent text-white/60 hover:text-white text-xs font-black uppercase tracking-widest transition-all"
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={industry}
+                        initial={{ x: -10, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 10, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex items-center gap-2"
+                      >
+                        {dna.iconComp && <dna.iconComp className="w-4 h-4" />}
+                        <span>{dna.label}</span>
+                      </motion.div>
+                    </AnimatePresence>
+                    <ChevronRight className="w-3 h-3 opacity-40 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  {/* 配置入口按钮 */}
+                  <button 
+                    onClick={() => setIsConfigOpen(true)}
+                    className="p-3 bg-transparent text-white/60 hover:text-white transition-all group shrink-0 flex items-center justify-center"
+                    title="全局运营配置 (Nebula Config Hub)"
+                  >
+                    <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+                  </button>
+                </div>
               </>
             ) : (
               <div className="h-[88px] flex items-center justify-center">
@@ -445,15 +452,15 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               <div className="px-6 py-3 flex items-center justify-between bg-transparent">
                 <div className="flex items-center gap-6">
                   <div 
-                    className="flex items-baseline gap-3 cursor-pointer group hover:opacity-80 transition-opacity"
+                    className="flex items-baseline gap-4 cursor-pointer group hover:opacity-80 transition-opacity"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     title="点击切换左侧边栏"
                   >
-                    <h3 className="text-3xl font-black tracking-tighter leading-none bg-gradient-to-br from-white via-white/90 to-white/20 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                    <h3 className="text-4xl font-black tracking-[0.15em] leading-none bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent font-mono" style={{ textShadow: '0 0 20px rgba(0, 240, 255, 0.6)' }}>
                       {currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {currentDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-mono text-white/40 tracking-[0.2em] uppercase group-hover:text-gx-cyan transition-colors">
+                      <span className="text-sm font-mono text-cyan-400/80 tracking-[0.4em] uppercase group-hover:text-cyan-200 transition-colors">
                         {currentDate.getFullYear()}
                       </span>
                     </div>
@@ -477,19 +484,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => handleNavigate('prev')}
-                      className="p-2 hover:bg-white/5 rounded-lg text-white hover:text-gx-cyan transition-all"
+                      className="p-2 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 hover:text-cyan-200 transition-all"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => setCurrentDate(new Date())}
-                      className="px-4 py-2 text-[10px] font-black rounded-lg hover:bg-white/5 transition-all text-white hover:text-gx-cyan tracking-widest"
+                      className="px-4 py-2 text-[10px] font-black rounded-lg hover:bg-cyan-900/30 transition-all text-cyan-400/60 hover:text-cyan-200 tracking-widest" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}
                     >
                       {getTodayLabel()}
                     </button>
                     <button 
                       onClick={() => handleNavigate('next')}
-                      className="p-2 hover:bg-white/5 rounded-lg text-white hover:text-gx-cyan transition-all"
+                      className="p-2 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 hover:text-cyan-200 transition-all"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -523,11 +530,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       {resources.map(res => (
                         <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
                           <div className="flex flex-col items-center justify-center leading-none bg-transparent">
-                            <span className="text-[13px] font-black text-white group-hover:text-gx-cyan transition-colors truncate">{res.name}</span>
+                            <span className="text-[13px] font-bold tracking-[0.3em] text-cyan-100/70 group-hover:text-cyan-300 transition-all mix-blend-screen truncate uppercase" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}>
+                              {res.name}
+                            </span>
                             <div className="flex items-center gap-1 mt-1.5">
-                              <span className="text-[9px] font-mono text-white/40 font-bold uppercase tracking-widest truncate">{res.role}</span>
+                              <span className="text-[9px] font-mono text-cyan-400/40 font-bold uppercase tracking-widest truncate group-hover:text-cyan-400/80 transition-colors">{res.role}</span>
                               {res.metadata?.originalStatus === 'on_leave' && (
-                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none">休假</span>
+                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)]">休假</span>
                               )}
                             </div>
                           </div>

@@ -83,9 +83,11 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
           {liquidTimeSlots.map((slot, idx) => (
             <div key={slot.hour} className="h-20 flex items-start justify-center relative group pt-2">
               <span className={cn(
-                "text-sm font-mono transition-all duration-500",
-                slot.hour === currentHour ? "text-gx-cyan font-black scale-110" : "text-white font-bold group-hover:text-gx-cyan"
-              )}>
+                "font-mono transition-all duration-500 text-[15px]",
+                slot.hour === currentHour 
+                  ? "font-black scale-110 bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] [text-shadow:0_0_15px_rgba(0,240,255,0.6)] mix-blend-screen" 
+                  : "font-bold tracking-widest bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent mix-blend-screen hover:scale-110"
+              )} style={slot.hour !== currentHour ? { textShadow: '0 0 15px rgba(0, 240, 255, 0.5)' } : {}}>
                 {slot.label}
               </span>
               {/* 如果是断点（例如 11点下一个是 15点），显示折叠提示 */}

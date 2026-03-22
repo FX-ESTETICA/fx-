@@ -113,9 +113,11 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
             {liquidTimeSlots.map((slot, idx) => (
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <span className={cn(
-                  "text-sm font-mono transition-all duration-500",
-                  slot.hour === currentHour ? "text-gx-cyan font-black scale-110" : "text-white font-bold"
-                )}>
+                  "font-mono transition-all duration-500 text-[15px]",
+                  slot.hour === currentHour 
+                    ? "text-gx-cyan font-black scale-110" 
+                    : "font-bold tracking-widest bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent mix-blend-screen hover:scale-110"
+                )} style={slot.hour !== currentHour ? { textShadow: '0 0 15px rgba(0, 240, 255, 0.5)' } : {}}>
                   {slot.label}
                 </span>
                 {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (

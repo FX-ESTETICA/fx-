@@ -204,7 +204,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
               <pointLight position={[-15, -15, -15]} intensity={1.5} color="#bc13fe" />
               
               <NebulaParticles rotation={rotation} />
-              <OrbitalSpheroids rotation={rotation} />
+              {/* <OrbitalSpheroids rotation={rotation} /> 移除不好看的双球 */}
               
               {/* 仅在纯星空模式下添加黑色雾效，避免图片背景被雾效遮挡 */}
               {!isImageBg && <fog attach="fog" args={["#000000", 25, 45]} />}
