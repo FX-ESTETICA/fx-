@@ -629,16 +629,16 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
             >
               {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
               <main className="w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
-              {/* 右上角关闭按钮 */}
-              <button 
-                onClick={onClose} 
-                className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                {/* 右上角关闭按钮 */}
+                <button 
+                  onClick={onClose} 
+                  className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
 
-              {/* ===================== 左侧/顶部：控制台面板 ===================== */}
-              <section className="w-full md:w-[50%] h-[50%] md:h-full p-5 md:pb-16 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0">
+                {/* ===================== 左侧/顶部：控制台面板 ===================== */}
+                <section className="w-full md:w-[50%] h-[50%] md:h-full p-5 md:pb-16 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0">
                 
                 {/* 表单录入区 */}
                 <div className="grid grid-cols-2 gap-4 mt-1">
