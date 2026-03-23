@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export type CyberThemeColor = 'cyan' | 'purple' | 'gold' | 'emerald' | 'rose' | 'silver' | 'platinum' | 'white';
+export type CyberThemeColor = 'cyan' | 'purple' | 'gold' | 'emerald' | 'rose' | 'silver' | 'platinum' | 'corelight' | 'white';
 
 export interface VisualSettings {
   showNebula: boolean;
@@ -59,6 +59,11 @@ export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string
     className: "bg-gradient-to-br from-white via-white to-slate-300 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)] text-transparent bg-clip-text",
     hex: "#f8fafc",
     label: "高亮铂金"
+  },
+  corelight: {
+    className: "text-white drop-shadow-[0_0_2px_rgba(255,255,255,1)] drop-shadow-[0_0_5px_rgba(200,240,255,0.8)] mix-blend-screen",
+    hex: "#ffffff",
+    label: "光源白"
   },
   white: {
     className: "bg-gradient-to-b from-white via-gray-100 to-gray-400/80 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] text-transparent bg-clip-text",
