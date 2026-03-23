@@ -16,8 +16,8 @@ export interface EliteWeekMatrixProps {
   currentDate: Date;
 }
 
-// 模拟数据
-const MOCK_BOOKINGS: any[] = [];
+// 模拟数据 (暂未使用，为后续真实数据接入留作占位)
+// const MOCK_BOOKINGS: any[] = [];
 
 const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
@@ -25,27 +25,17 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
 
-  // --- 核心算法：液态弹性时间轴 ---
+  // --- 核心算法：24小时连续时间轴 ---
   const liquidTimeSlots = useMemo(() => {
-    const timeSet = new Set<number>();
-    if (operatingHours && Array.isArray(operatingHours)) {
-      operatingHours.forEach(period => {
-        for (let i = period.start; i < period.end; i++) {
-          timeSet.add(i);
-        }
+    const slots = [];
+    for (let hour = 0; hour < 24; hour++) {
+      slots.push({
+        hour,
+        label: `${hour.toString().padStart(2, '0')}:00`,
+        isOvertime: !(operatingHours || []).some(p => hour >= p.start && hour < p.end)
       });
     }
-    MOCK_BOOKINGS.forEach(booking => {
-      const endHour = Math.ceil(booking.startHour + booking.durationHours);
-      for (let i = Math.floor(booking.startHour); i < endHour; i++) {
-        timeSet.add(i);
-      }
-    });
-    return Array.from(timeSet).sort((a, b) => a - b).map(hour => ({
-      hour,
-      label: `${hour.toString().padStart(2, '0')}:00`,
-      isOvertime: !(operatingHours || []).some(p => hour >= p.start && hour < p.end)
-    }));
+    return slots;
   }, [operatingHours]);
 
   // 过滤出选中的人员
@@ -121,7 +111,9 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                   {slot.label}
                 </span>
                 {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[8px] text-white/20 font-mono tracking-widest bg-black px-2 z-10">...</div>
+                  <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent via-gx-cyan/40 to-transparent flex items-center justify-center z-10">
+                    <div className="w-1 h-1 rounded-full bg-gx-cyan shadow-[0_0_5px_rgba(0,240,255,0.8)]" />
+                  </div>
                 )}
                 {slot.hour === currentHour && (
                   <div className="absolute left-0 right-0 top-3 h-px bg-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.5)] z-10" />

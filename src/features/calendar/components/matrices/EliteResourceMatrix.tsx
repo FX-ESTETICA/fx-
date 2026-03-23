@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
@@ -28,34 +28,19 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
 
-  // --- 核心算法：液态弹性时间轴 (Liquid Timeline Generator) ---
+  // --- 核心算法：24小时连续时间轴 (24h Continuous Timeline) ---
   const liquidTimeSlots = useMemo(() => {
-    const timeSet = new Set<number>();
-
-    // 1. 注入基础营业时间
-    if (operatingHours && Array.isArray(operatingHours)) {
-      operatingHours.forEach(period => {
-        for (let i = period.start; i < period.end; i++) {
-          timeSet.add(i);
-        }
+    // 强制渲染 0 到 23 小时
+    const slots = [];
+    for (let hour = 0; hour < 24; hour++) {
+      slots.push({
+        hour,
+        label: `${hour.toString().padStart(2, '0')}:00`,
+        // 标记是否在营业时间内，方便后续进行视觉区分（如非营业时间变暗）
+        isOvertime: !(operatingHours || []).some(p => hour >= p.start && hour < p.end)
       });
     }
-
-    // 2. 碰撞检测：扫描所有预约，如果预约跨越了非营业时间，强行撑开
-    MOCK_BOOKINGS.forEach(booking => {
-      const endHour = Math.ceil(booking.startHour + booking.durationHours);
-      for (let i = Math.floor(booking.startHour); i < endHour; i++) {
-        timeSet.add(i);
-      }
-    });
-
-    // 3. 排序并生成最终渲染槽
-    return Array.from(timeSet).sort((a, b) => a - b).map(hour => ({
-      hour,
-      label: `${hour.toString().padStart(2, '0')}:00`,
-      // 判断是否是“被强行撑开的休息时间”
-      isOvertime: !(operatingHours || []).some(p => hour >= p.start && hour < p.end)
-    }));
+    return slots;
   }, [operatingHours]);
 
   // 使用 ref 来同步左右两侧的垂直滚动
@@ -107,8 +92,8 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
               </span>
               {/* 如果是断点（例如 11点下一个是 15点），显示折叠提示 */}
               {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[8px] text-white/20 font-mono tracking-widest bg-black px-2 z-10">
-                  ...
+                <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent via-gx-cyan/40 to-transparent flex items-center justify-center z-10">
+                  <div className="w-1 h-1 rounded-full bg-gx-cyan shadow-[0_0_5px_rgba(0,240,255,0.8)]" />
                 </div>
               )}
               {slot.hour === currentHour && (
