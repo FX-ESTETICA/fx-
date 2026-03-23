@@ -1,10 +1,11 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon } from "lucide-react";
+import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { OperatingHour } from "./IndustryCalendar";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 export interface NebulaConfigHubProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const NebulaConfigHub = ({
   services,
   onServicesChange
 }: NebulaConfigHubProps) => {
-  const [activeTab, setActiveTab] = useState<"staff" | "services" | "hours">("hours");
+  const [activeTab, setActiveTab] = useState<"staff" | "services" | "hours" | "visual">("hours");
   
   // 本地暂存状态，点击保存时才同步到全局
   const [localHours, setLocalHours] = useState<OperatingHour[]>(operatingHours);
@@ -136,17 +137,18 @@ export const NebulaConfigHub = ({
             </div>
 
             {/* 导航 Tabs */}
-            <div className="flex p-4 gap-2 border-b border-white/5 shrink-0">
+            <div className="flex p-4 gap-2 border-b border-white/5 shrink-0 overflow-x-auto no-scrollbar">
               {[
                 { id: "hours", label: "营业时间", icon: Clock },
                 { id: "staff", label: "人员/资源", icon: Users },
                 { id: "services", label: "服务项目", icon: Scissors },
+                { id: "visual", label: "视觉层级", icon: MonitorPlay },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={cn(
-                    "flex-1 py-3 px-4 rounded-xl flex flex-col items-center gap-2 transition-all",
+                    "min-w-[80px] flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-2 transition-all",
                     activeTab === tab.id
                       ? "bg-white/10 text-white border border-white/10 shadow-inner"
                       : "text-white/40 hover:text-white/80 hover:bg-white/5"
@@ -191,6 +193,9 @@ export const NebulaConfigHub = ({
                       onServicesChange={setLocalServices}
                     />
                   )}
+                  {activeTab === "visual" && (
+                    <VisualSettingsConfig />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -230,7 +235,111 @@ export const NebulaConfigHub = ({
 
 // --- 子面板组件 ---
 
-const HoursConfig = ({ hours = [], onChange }: { hours: OperatingHour[], onChange: (h: OperatingHour[]) => void }) => {
+const VisualSettingsConfig = () => {
+  const { settings, updateSettings, isLoaded } = useVisualSettings();
+
+  if (!isLoaded) return null;
+
+  return (
+    <div className="space-y-6">
+      {/* 图层开关区 */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">背景层级控制 (Background Layers)</h3>
+        
+        {/* 星空开关 */}
+        <div 
+          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.05] transition-colors"
+          onClick={() => updateSettings({ showNebula: !settings.showNebula })}
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-white block">3D 星云动效 (Nebula Particles)</span>
+            <span className="text-[10px] text-white/40 font-mono">底层全息星空渲染，关闭可提升性能</span>
+          </div>
+          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showNebula ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
+            <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showNebula ? "bg-gx-cyan" : "bg-white/40")} />
+          </div>
+        </div>
+
+        {/* 壁纸开关 */}
+        <div 
+          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.05] transition-colors"
+          onClick={() => updateSettings({ showWallpaper: !settings.showWallpaper })}
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-white block">静态壁纸层 (Static Wallpaper)</span>
+            <span className="text-[10px] text-white/40 font-mono">显示您自定义或同步的背景图片</span>
+          </div>
+          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showWallpaper ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
+            <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showWallpaper ? "bg-gx-cyan" : "bg-white/40")} />
+          </div>
+        </div>
+      </div>
+
+      {/* 矩阵背板控制区 */}
+      <div className="space-y-4 pt-4 border-t border-white/10">
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">矩阵背板控制 (Matrix Shield)</h3>
+        
+        {/* 背板总开关 */}
+        <div 
+          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.05] transition-colors"
+          onClick={() => updateSettings({ enableGlassShield: !settings.enableGlassShield })}
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-white block">启用毛玻璃背板 (Enable Glass Shield)</span>
+            <span className="text-[10px] text-white/40 font-mono">在日历与背景之间添加视觉隔离层</span>
+          </div>
+          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.enableGlassShield ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
+            <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.enableGlassShield ? "bg-gx-cyan" : "bg-white/40")} />
+          </div>
+        </div>
+
+        {/* 透明度与模糊度滑块 (仅在背板开启时显示) */}
+        <AnimatePresence>
+          {settings.enableGlassShield && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-6 p-4 bg-white/[0.01] rounded-xl border border-white/5 overflow-hidden"
+            >
+              {/* 透明度滑块 */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">黑色遮罩浓度 (Opacity)</label>
+                  <span className="text-xs font-mono text-gx-cyan">{settings.shieldOpacity}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" max="100" step="5"
+                  value={settings.shieldOpacity}
+                  onChange={(e) => updateSettings({ shieldOpacity: parseInt(e.target.value) })}
+                  className="w-full accent-gx-cyan h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* 模糊度滑块 */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">毛玻璃模糊度 (Blur)</label>
+                  <span className="text-xs font-mono text-gx-cyan">{settings.shieldBlur}px</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" max="50" step="2"
+                  value={settings.shieldBlur}
+                  onChange={(e) => updateSettings({ shieldBlur: parseInt(e.target.value) })}
+                  className="w-full accent-gx-cyan h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h: OperatingHour[]) => void }) => {
   const handleAdd = () => {
     const newId = Math.random().toString(36).substr(2, 9);
     onChange([...hours, { id: newId, start: 9, end: 18 }]);

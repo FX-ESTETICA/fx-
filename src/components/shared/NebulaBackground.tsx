@@ -6,7 +6,7 @@ import { Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBackground } from "@/hooks/useBackground";
-import Image from "next/image";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 // --- 降维组件：Mobile-Safe 2D Background ---
 function MobileNebulaFallback({ rotation }: { rotation: number }) {
@@ -132,6 +132,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const { currentBg } = useBackground();
+  const { settings } = useVisualSettings();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -145,7 +146,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
     <div className="fixed inset-0 z-0 pointer-events-none bg-black">
       {/* 动态背景图片层 (Layer 0) */}
       <AnimatePresence>
-        {isImageBg && (
+        {isImageBg && settings.showWallpaper && (
           <motion.div
             key={currentBg}
             initial={{ opacity: 0 }}
@@ -153,20 +154,17 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 1 }}
             className="absolute inset-0 z-0"
-          >
-            <Image 
-              src={currentBg} 
-              alt="Cyber Background" 
-              fill
-              quality={100}
-              priority
-              className="object-cover"
-            />
-          </motion.div>
+            style={{
+              backgroundImage: `url('${currentBg}')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          />
         )}
       </AnimatePresence>
 
-      <AnimatePresence mode="wait">
+      {settings.showNebula && (
+        <AnimatePresence mode="wait">
         {hasError ? (
           <motion.div
             key="fallback"
@@ -212,6 +210,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
           </motion.div>
         )}
       </AnimatePresence>
+      )}
     </div>
   );
 }
