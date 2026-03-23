@@ -106,13 +106,16 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <div className={cn(
                   "transition-all duration-500 text-[15px] mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums",
-                  slot.hour === currentHour 
-                    ? "text-gx-cyan scale-110" 
-                    : cn("hover:scale-110", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)
+                  slot.hour === currentHour && "scale-110",
+                  slot.hour !== currentHour && "hover:scale-110"
                 )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
-                  <span>{slot.hour.toString().padStart(2, '0')}</span>
-                  <span className="text-[11px] opacity-40 mx-[3px] animate-pulse">:</span>
-                  <span className="opacity-80">00</span>
+                  <span className={cn(slot.hour === currentHour ? "text-gx-cyan" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                    {slot.hour.toString().padStart(2, '0')}
+                  </span>
+                  <span className={cn("text-[11px] mx-[3px] animate-pulse", slot.hour === currentHour ? "text-gx-cyan opacity-40" : `opacity-40 ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour ? CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex : undefined }}>:</span>
+                  <span className={cn("opacity-80", slot.hour === currentHour ? "text-gx-cyan" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                    00
+                  </span>
                 </div>
                 {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (
                   <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent via-gx-cyan/40 to-transparent flex items-center justify-center z-10">
