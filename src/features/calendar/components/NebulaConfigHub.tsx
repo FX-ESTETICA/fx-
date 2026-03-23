@@ -5,7 +5,7 @@ import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, C
 import { cn } from "@/utils/cn";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { OperatingHour } from "./IndustryCalendar";
-import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
 
 export interface NebulaConfigHubProps {
   isOpen: boolean;
@@ -334,6 +334,65 @@ const VisualSettingsConfig = () => {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* 赛博全息主题色控制区 */}
+      <div className="space-y-4 pt-4 border-t border-white/10">
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">全息主题色映射 (Hologram Theme)</h3>
+        
+        {/* 员工表头颜色 */}
+        <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">员工表头字体色</label>
+            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].className)}>
+              {CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].label}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, any][]).map(([key, config]) => (
+              <button
+                key={`staff-${key}`}
+                onClick={() => updateSettings({ staffNameColorTheme: key })}
+                className={cn(
+                  "w-8 h-8 rounded-full shrink-0 transition-all border-2 flex items-center justify-center",
+                  settings.staffNameColorTheme === key 
+                    ? "border-white scale-110 shadow-[0_0_15px_currentColor]" 
+                    : "border-transparent hover:scale-105 opacity-50 hover:opacity-100"
+                )}
+                style={{ color: config.hex, backgroundColor: `${config.hex}33` }}
+              >
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: config.hex }} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 时间轴颜色 */}
+        <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">时间轴字体色</label>
+            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].className)}>
+              {CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].label}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, any][]).map(([key, config]) => (
+              <button
+                key={`timeline-${key}`}
+                onClick={() => updateSettings({ timelineColorTheme: key })}
+                className={cn(
+                  "w-8 h-8 rounded-full shrink-0 transition-all border-2 flex items-center justify-center",
+                  settings.timelineColorTheme === key 
+                    ? "border-white scale-110 shadow-[0_0_15px_currentColor]" 
+                    : "border-transparent hover:scale-105 opacity-50 hover:opacity-100"
+                )}
+                style={{ color: config.hex, backgroundColor: `${config.hex}33` }}
+              >
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: config.hex }} />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

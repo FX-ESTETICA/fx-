@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
 import { OperatingHour } from "../IndustryCalendar";
+import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 
 export interface EliteResourceMatrixProps {
   industry: IndustryType;
@@ -27,6 +28,7 @@ const MOCK_BOOKINGS: any[] = [];
 export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, onGridClick, matrixScrollRef, onDateSwipe }: EliteResourceMatrixProps) => {
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
+  const { settings: visualSettings } = useVisualSettings();
 
   // --- 核心算法：24小时连续时间轴 (24h Continuous Timeline) ---
   const liquidTimeSlots = useMemo(() => {
@@ -83,11 +85,11 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
           {liquidTimeSlots.map((slot, idx) => (
             <div key={slot.hour} className="h-20 flex items-start justify-start pl-2.5 relative group pt-2">
               <span className={cn(
-                "font-mono transition-all duration-500 text-[13px]",
+                "font-mono transition-all duration-500 text-[13px] mix-blend-screen",
                 slot.hour === currentHour 
-                  ? "font-black scale-110 bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] [text-shadow:0_0_15px_rgba(0,240,255,0.6)] mix-blend-screen" 
-                  : "font-bold tracking-widest bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent mix-blend-screen hover:scale-110"
-              )} style={slot.hour !== currentHour ? { textShadow: '0 0 15px rgba(0, 240, 255, 0.5)' } : {}}>
+                  ? "font-black scale-110 bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] [text-shadow:0_0_15px_rgba(0,240,255,0.6)]" 
+                  : cn("font-bold tracking-widest hover:scale-110", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)
+              )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
                 {slot.label}
               </span>
               {/* 如果是断点（例如 11点下一个是 15点），显示折叠提示 */}

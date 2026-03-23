@@ -27,6 +27,7 @@ import { EliteMonthMatrix } from "./matrices/EliteMonthMatrix";
 import { NebulaConfigHub } from "./NebulaConfigHub";
 import { Settings, LogIn } from "lucide-react";
 import { useBackground } from "@/hooks/useBackground";
+import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { DualPaneBookingModal } from "@/features/booking/components/DualPaneBookingModal";
 
 export interface OperatingHour {
@@ -57,6 +58,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   
   // 新增背景控制 hook
   const { cycleBackground } = useBackground();
+  const { settings: visualSettings } = useVisualSettings();
   
   // 共享的全局配置状态
   const [operatingHours, setOperatingHours] = useState<OperatingHour[]>(DEFAULT_HOURS);
@@ -587,7 +589,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                               "text-[11px] md:text-[15px] font-black tracking-widest transition-all truncate uppercase w-full text-center mix-blend-screen",
                               res.metadata?.isNoShowColumn 
                                 ? "text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" 
-                                : "bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
+                                : CYBER_COLOR_DICTIONARY[visualSettings.staffNameColorTheme].className
                             )}>
                               {res.name}
                             </span>

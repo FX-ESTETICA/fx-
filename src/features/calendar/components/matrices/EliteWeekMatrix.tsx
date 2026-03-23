@@ -4,6 +4,7 @@ import { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { OperatingHour } from "../IndustryCalendar";
+import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 
 export interface EliteWeekMatrixProps {
   industry: IndustryType;
@@ -24,6 +25,7 @@ const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六"
 export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, onGridClick, onDateClick, currentDate }: EliteWeekMatrixProps) => {
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
+  const { settings: visualSettings } = useVisualSettings();
 
   // --- 核心算法：24小时连续时间轴 ---
   const liquidTimeSlots = useMemo(() => {
@@ -103,11 +105,11 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
             {liquidTimeSlots.map((slot, idx) => (
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <span className={cn(
-                  "font-mono transition-all duration-500 text-[15px]",
+                  "font-mono transition-all duration-500 text-[15px] mix-blend-screen",
                   slot.hour === currentHour 
                     ? "text-gx-cyan font-black scale-110" 
-                    : "font-bold tracking-widest bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent mix-blend-screen hover:scale-110"
-                )} style={slot.hour !== currentHour ? { textShadow: '0 0 15px rgba(0, 240, 255, 0.5)' } : {}}>
+                    : cn("font-bold tracking-widest hover:scale-110", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)
+                )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
                   {slot.label}
                 </span>
                 {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (
