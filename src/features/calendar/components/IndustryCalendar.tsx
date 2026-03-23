@@ -514,11 +514,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     title="点击切换左侧边栏"
                   >
-                    <h3 className="text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none bg-gradient-to-br from-white via-slate-200 to-slate-400 bg-clip-text text-transparent font-mono" style={{ textShadow: '0 0 15px rgba(255, 255, 255, 0.7)' }}>
+                    <h3 className={cn("text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none font-mono transition-all", CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className)} style={{ textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}b3` }}>
                       {currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {currentDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span className="text-xs md:text-sm font-mono tracking-[0.2em] md:tracking-[0.4em] uppercase transition-all bg-gradient-to-br from-white via-slate-300 to-slate-500 bg-clip-text text-transparent group-hover:via-white group-hover:to-slate-300" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.4)' }}>
+                      <span className={cn("text-xs md:text-sm font-mono tracking-[0.2em] md:tracking-[0.4em] uppercase transition-all", CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className)} style={{ textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}66` }}>
                         {currentDate.getFullYear()}
                       </span>
                     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export type CyberThemeColor = 'cyan' | 'purple' | 'gold' | 'emerald' | 'rose' | 'silver' | 'white';
+export type CyberThemeColor = 'cyan' | 'purple' | 'gold' | 'emerald' | 'rose' | 'silver' | 'platinum' | 'white';
 
 export interface VisualSettings {
   showNebula: boolean;
@@ -10,6 +10,7 @@ export interface VisualSettings {
   shieldBlur: number; // 0 to 50
   timelineColorTheme: CyberThemeColor;
   staffNameColorTheme: CyberThemeColor;
+  headerTitleColorTheme: CyberThemeColor;
 }
 
 const DEFAULT_SETTINGS: VisualSettings = {
@@ -20,6 +21,7 @@ const DEFAULT_SETTINGS: VisualSettings = {
   shieldBlur: 10,
   timelineColorTheme: 'cyan',
   staffNameColorTheme: 'cyan',
+  headerTitleColorTheme: 'platinum',
 };
 
 export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string; hex: string; label: string }> = {
@@ -52,6 +54,11 @@ export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string
     className: "bg-gradient-to-br from-white via-slate-200 to-slate-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.7)] text-transparent bg-clip-text",
     hex: "#e2e8f0",
     label: "液态银"
+  },
+  platinum: {
+    className: "bg-gradient-to-br from-white via-white to-slate-300 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)] text-transparent bg-clip-text",
+    hex: "#f8fafc",
+    label: "高亮铂金"
   },
   white: {
     className: "bg-gradient-to-b from-white via-gray-100 to-gray-400/80 drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] text-transparent bg-clip-text",
