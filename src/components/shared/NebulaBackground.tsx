@@ -211,6 +211,18 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
         )}
       </AnimatePresence>
       )}
+
+      {/* 顶层全局毛玻璃背板 (Global Glass Shield) */}
+      {settings.enableGlassShield && (
+        <div 
+          className="absolute inset-0 z-20 transition-all duration-300 pointer-events-none"
+          style={{
+            backgroundColor: `rgba(0, 0, 0, ${settings.shieldOpacity / 100})`,
+            backdropFilter: `blur(${settings.shieldBlur}px)`,
+            WebkitBackdropFilter: `blur(${settings.shieldBlur}px)`
+          }}
+        />
+      )}
     </div>
   );
 }

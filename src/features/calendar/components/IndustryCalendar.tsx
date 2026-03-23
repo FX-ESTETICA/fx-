@@ -27,7 +27,6 @@ import { EliteMonthMatrix } from "./matrices/EliteMonthMatrix";
 import { NebulaConfigHub } from "./NebulaConfigHub";
 import { Settings, LogIn } from "lucide-react";
 import { useBackground } from "@/hooks/useBackground";
-import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { DualPaneBookingModal } from "@/features/booking/components/DualPaneBookingModal";
 
 export interface OperatingHour {
@@ -58,7 +57,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   
   // 新增背景控制 hook
   const { cycleBackground } = useBackground();
-  const { settings: visualSettings } = useVisualSettings();
   
   // 共享的全局配置状态
   const [operatingHours, setOperatingHours] = useState<OperatingHour[]>(DEFAULT_HOURS);
@@ -649,18 +647,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             transition={{ duration: 0.4 }}
             className="flex-1 relative overflow-hidden"
           >
-            {/* 透明背板层 (Glass Matrix Shield) */}
-            {visualSettings.enableGlassShield && (
-              <div 
-                className="absolute inset-0 z-0 transition-all duration-300"
-                style={{
-                  backgroundColor: `rgba(0, 0, 0, ${visualSettings.shieldOpacity / 100})`,
-                  backdropFilter: `blur(${visualSettings.shieldBlur}px)`,
-                  WebkitBackdropFilter: `blur(${visualSettings.shieldBlur}px)`
-                }}
-              />
-            )}
-
             {/* 交互式矩阵渲染层 */}
             <div className="h-full relative overflow-hidden z-10">
                 {dna.pivot === "resource" && viewMode === "day" && (
