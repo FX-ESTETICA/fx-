@@ -514,11 +514,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     title="点击切换左侧边栏"
                   >
-                    <h3 className="text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent font-mono" style={{ textShadow: '0 0 20px rgba(0, 240, 255, 0.6)' }}>
+                    <h3 className="text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none bg-gradient-to-br from-white via-slate-200 to-slate-400 bg-clip-text text-transparent font-mono" style={{ textShadow: '0 0 15px rgba(255, 255, 255, 0.7)' }}>
                       {currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {currentDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span className="text-xs md:text-sm font-mono text-cyan-400/80 tracking-[0.2em] md:tracking-[0.4em] uppercase group-hover:text-cyan-200 transition-colors">
+                      <span className="text-xs md:text-sm font-mono text-slate-300 tracking-[0.2em] md:tracking-[0.4em] uppercase group-hover:text-white transition-colors" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.4)' }}>
                         {currentDate.getFullYear()}
                       </span>
                     </div>
