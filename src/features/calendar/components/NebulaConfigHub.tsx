@@ -325,9 +325,9 @@ const VisualSettingsConfig = () => {
                 </div>
                 <input 
                   type="range" 
-                  min="0" max="50" step="2"
+                  min="0" max="20" step="0.5"
                   value={settings.shieldBlur}
-                  onChange={(e) => updateSettings({ shieldBlur: parseInt(e.target.value) })}
+                  onChange={(e) => updateSettings({ shieldBlur: parseFloat(e.target.value) })}
                   className="w-full accent-gx-cyan h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
