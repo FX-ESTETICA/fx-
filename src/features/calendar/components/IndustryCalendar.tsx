@@ -518,7 +518,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       {currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {currentDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span className="text-xs md:text-sm font-mono text-slate-300 tracking-[0.2em] md:tracking-[0.4em] uppercase group-hover:text-white transition-colors" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.4)' }}>
+                      <span className="text-xs md:text-sm font-mono tracking-[0.2em] md:tracking-[0.4em] uppercase transition-all bg-gradient-to-br from-white via-slate-300 to-slate-500 bg-clip-text text-transparent group-hover:via-white group-hover:to-slate-300" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.4)' }}>
                         {currentDate.getFullYear()}
                       </span>
                     </div>
