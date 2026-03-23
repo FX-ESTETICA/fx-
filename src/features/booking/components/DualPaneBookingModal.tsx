@@ -8,9 +8,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface DualPaneBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialDate?: Date; // 接收当前日历的日期
+  initialTime?: string; // 接收战术准星传递的精确时间
+  initialResourceId?: string; // 接收战术准星传递的员工ID
+  editingBooking?: any; // 传入要编辑的预约数据
 }
 
-export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalProps) {
+export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime, initialResourceId, editingBooking }: DualPaneBookingModalProps) {
   // --- 状态机：右侧面板模式 ---
   type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
   const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>('service');
@@ -31,11 +35,22 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
   const [staffs, setStaffs] = useState<any[]>([]);
 
   // --- 会员信息状态 ---
-  const [memberInfo, setMemberInfo] = useState("");
+  // 原 memberInfo 废弃，改为多轨电话数组
+  const [phoneTracks, setPhoneTracks] = useState<string[]>(['']);
+  // 当前正在编辑的电话索引，null 代表静默态
+  const [editingPhoneIndex, setEditingPhoneIndex] = useState<number | null>(null);
+
+  // 核心：客户ID (例如 CO 0000001, GV 0001)
+  const [customerId, setCustomerId] = useState<string>("");
+  // 核心：新建会员时的分类 (GV/AD/AN/UM)，null代表散客
+  const [newCustomerType, setNewCustomerType] = useState<string | null>(null);
+  
+  // 新增：控制左侧会员信息栏是否处于“主动输入状态”
+  const [isMemberInputFocused, setIsMemberInputFocused] = useState(false);
 
   // --- 日期与时间状态 ---
-  const [selectedDate, setSelectedDate] = useState("2026/03/07");
-  const [selectedTime, setSelectedTime] = useState("09:15");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
 
   // --- 服务时长微调状态 ---
   const [durationOffset, setDurationOffset] = useState<number>(0);
@@ -53,7 +68,65 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
     setIsAM(hour < 12);
   }, [selectedTime]);
 
-  // 从 localStorage 加载配置数据
+  // 生成并分配下一个客户编号
+  const generateCustomerNumber = (type: string | null) => {
+    try {
+      // 1. 获取回收站
+      const recycledRaw = localStorage.getItem('gx_recycled_customer_ids');
+      const recycledIds: string[] = recycledRaw ? JSON.parse(recycledRaw) : [];
+      
+      // 2. 如果是散客 (type === null) 且回收站有 CO 编号，优先回收使用
+      if (type === null) {
+        const recycledCO = recycledIds.find(id => id.startsWith('CO'));
+        if (recycledCO) {
+          // 仅返回号码，暂时不从回收站删除，直到真正 confirm 预约时才正式消耗
+          return recycledCO;
+        }
+      }
+      
+      // 3. 正常递增逻辑
+      const countersRaw = localStorage.getItem('gx_customer_counters');
+      const counters = countersRaw ? JSON.parse(countersRaw) : {
+        CO: 1,
+        GV: 1,
+        AD: 3001,
+        AN: 6001,
+        UM: 9001
+      };
+
+      const prefix = type || 'CO';
+      const currentNum = counters[prefix] || 1;
+      
+      // 格式化：CO 为 7 位数字，其他为 4 位数字
+      const formattedNum = prefix === 'CO' 
+        ? currentNum.toString().padStart(7, '0')
+        : currentNum.toString().padStart(4, '0');
+        
+      return `${prefix} ${formattedNum}`;
+    } catch (e) {
+      console.error("Failed to generate customer number:", e);
+      return type ? `${type} 0001` : "CO 0000001";
+    }
+  };
+
+  // 监听输入和分类变化，动态生成客户 ID
+  useEffect(() => {
+    if (editingBooking) {
+      setCustomerId(editingBooking.customerId || "");
+      return;
+    }
+
+    // 沙盒模式演示：如果是特定的老客电话
+    if (phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") {
+      setCustomerId("GV 0015");
+      setNewCustomerType(null);
+    } else {
+      // 如果不是老客，根据当前选择的分类生成新号码
+      setCustomerId(generateCustomerNumber(newCustomerType));
+    }
+  }, [phoneTracks, newCustomerType, editingBooking]);
+
+  // 从 localStorage 加载配置数据及初始化时间
   useEffect(() => {
     if (isOpen) {
       try {
@@ -75,6 +148,55 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
         if (savedServices) {
           setServices(JSON.parse(savedServices));
         }
+
+        // 初始化表单数据
+        if (editingBooking) {
+          // 编辑模式：回显数据
+          setPhoneTracks(editingBooking.customerName && editingBooking.customerName !== "散客 Walk-in" ? editingBooking.customerName.split(',') : [""]);
+          setSelectedTime(editingBooking.startTime);
+          if (editingBooking.date) {
+            setSelectedDate(editingBooking.date.replace(/-/g, '/'));
+          }
+          
+          if (editingBooking.services && editingBooking.services.length > 0) {
+            // 修复：确保回显的服务项目带有正确的 assignedEmployeeId
+            const restoredServices = editingBooking.services.map((s: any) => ({
+              ...s,
+              assignedEmployeeId: editingBooking.originalUnassigned ? null : editingBooking.resourceId
+            }));
+            setSelectedServices(restoredServices);
+            
+            // 还原自定义文本
+            setCustomServiceText(editingBooking.customServiceText || "");
+            
+            // 还原时长微调
+            const baseD = editingBooking.services.reduce((acc: number, s: any) => acc + (s.duration || 0), 0);
+            setDurationOffset(editingBooking.duration - baseD);
+          }
+          
+          // 智能分发：点开旧预约时，右侧默认展开雷达面板以查看客人底细
+          setActivePaneMode('member');
+        } else {
+          // 新建模式：初始化日期和时间
+          const targetDate = initialDate || new Date();
+          const year = targetDate.getFullYear();
+          const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+          const day = targetDate.getDate().toString().padStart(2, '0');
+          setSelectedDate(`${year}/${month}/${day}`);
+
+          if (initialTime) {
+            setSelectedTime(initialTime);
+          } else {
+            const now = new Date();
+            const nextHour = (now.getHours() + 1) % 24;
+            setSelectedTime(`${nextHour.toString().padStart(2, '0')}:00`);
+          }
+
+          if (initialResourceId) {
+            setCurrentBrushEmployeeId(initialResourceId);
+          }
+        }
+
       } catch (e) {
         console.error('Failed to parse sandbox data in BookingModal:', e);
       }
@@ -85,7 +207,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
       setCurrentBrushEmployeeId(null);
       setRetargetingServiceId(null);
       setActivePaneMode('service');
-      setMemberInfo("");
+      setPhoneTracks(['']); // 修复：重置为初始的多轨电话状态
       setDurationOffset(0);
     }
   }, [isOpen]);
@@ -136,6 +258,183 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
   // 触发已选服务的重定向状态
   const handleRetargetService = (serviceId: string) => {
     setRetargetingServiceId(prev => prev === serviceId ? null : serviceId);
+  };
+
+  // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
+  const handleConfirmBooking = () => {
+    if (selectedServices.length === 0) {
+      alert("请至少选择一个服务项目");
+      return;
+    }
+
+    // 1. 按员工归组 (Group by Employee)
+    const groupedByEmployee = selectedServices.reduce((acc: any, service: any) => {
+      // 如果没有指定员工，我们这里可以默认分配给一个特定员工，或者作为“待分配”状态
+      // 为了沙盒演示，如果没有 assignedEmployeeId，我们将其分配给 default_unassigned
+      const empId = service.assignedEmployeeId || 'unassigned';
+      if (!acc[empId]) {
+        acc[empId] = [];
+      }
+      acc[empId].push(service);
+      return acc;
+    }, {});
+
+    // 2. 生成拆分后的预约卡片数据
+    const newBookings: any[] = [];
+    const customerName = phoneTracks.filter(t => t.trim() !== "").join(',') || "散客 Walk-in";
+    const baseDate = selectedDate.replace(/\//g, '-'); // 确保格式为 YYYY-MM-DD 以便解析
+    
+    // 生成一个主订单ID，把拆分出来的子卡片关联起来
+    const masterOrderId = `ORD-${Date.now()}`;
+
+    // --- 消耗/更新客户编号 (Consume Customer ID) ---
+    if (!editingBooking && customerId) {
+      try {
+        const recycledRaw = localStorage.getItem('gx_recycled_customer_ids');
+        let recycledIds: string[] = recycledRaw ? JSON.parse(recycledRaw) : [];
+        
+        // 检查当前使用的号码是否来自回收站
+        if (recycledIds.includes(customerId)) {
+          // 从回收站移除
+          recycledIds = recycledIds.filter(id => id !== customerId);
+          localStorage.setItem('gx_recycled_customer_ids', JSON.stringify(recycledIds));
+        } else {
+          // 如果不是回收站的，说明是新分配的，需要递增计数器
+          const prefix = customerId.split(' ')[0];
+          const countersRaw = localStorage.getItem('gx_customer_counters');
+          const counters = countersRaw ? JSON.parse(countersRaw) : { CO: 1, GV: 1, AD: 3001, AN: 6001, UM: 9001 };
+          
+          counters[prefix] = (counters[prefix] || 1) + 1;
+          localStorage.setItem('gx_customer_counters', JSON.stringify(counters));
+        }
+      } catch (e) {
+        console.error("Failed to consume customer ID:", e);
+      }
+    }
+
+    Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup]: [string, any]) => {
+      // 聚合该员工负责的这部分服务的名称和总时长
+      const groupDuration = servicesInGroup.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
+      const groupServiceNames = servicesInGroup.map((s: any) => s.name).join(' + ');
+
+      // 如果只有一个员工，时长微调 (durationOffset) 全算给他；如果有多个员工，微调比较复杂，这里简单处理，加在第一个员工头上，或者不加。
+      // 为了演示，如果员工数>1，暂时忽略微调；如果是单员工，应用微调
+      const finalDuration = Object.keys(groupedByEmployee).length === 1 
+        ? Math.max(1, groupDuration + durationOffset) 
+        : groupDuration;
+
+      // 默认并行：所有拆分卡片的 startTime 都是表单选择的开始时间
+      const [hours, minutes] = selectedTime.split(':');
+      const startDateTime = new Date(`${baseDate}T${hours}:${minutes}:00`);
+
+      const endDateTime = new Date(startDateTime);
+      endDateTime.setMinutes(endDateTime.getMinutes() + finalDuration);
+
+      newBookings.push({
+        id: editingBooking && Object.keys(groupedByEmployee).length === 1 ? editingBooking.id : `BKG-${Date.now()}-${empId}`, // 如果是单员工编辑，保留原ID；如果是重拆分，生成新ID
+        masterOrderId: editingBooking ? editingBooking.masterOrderId : masterOrderId,
+        resourceId: empId === 'unassigned' ? null : empId, // 临时设为 null，后面由前置派发逻辑处理
+        customerId: customerId, // 【核心】：注入智能编号
+        customerName: customerName,
+        serviceName: customServiceText ? `${groupServiceNames} (${customServiceText})` : groupServiceNames,
+        customServiceText: customServiceText, // 存入自定义文本以便下次编辑回显
+        date: baseDate, // 【核心修复】：注入丢失的 date 字段，打破渲染隐形诅咒
+        startTime: `${hours}:${minutes}`, // 简单的时间字符串，用于渲染定位
+        duration: finalDuration,
+        status: 'confirmed',
+        services: servicesInGroup, // 原始服务数据，备用
+        originalUnassigned: empId === 'unassigned' // 标记它原本是未指定的
+      });
+    });
+
+    // --- 全局动态重排逻辑 (Global Dynamic Spatial Reflow) ---
+    // 读取所有数据，进行“绝对路权锚定”与“无指定预约重新寻位”
+    try {
+      const existingBookingsStr = localStorage.getItem('gx_sandbox_bookings');
+      let allBookings = existingBookingsStr ? JSON.parse(existingBookingsStr) : [];
+      
+      // 1. 如果是编辑模式，先从现存列表中移除这笔被编辑的旧订单
+      if (editingBooking) {
+        allBookings = allBookings.filter((b: any) => b.id !== editingBooking.id);
+      }
+
+      // 2. 将当前操作产生的新订单加入全量列表
+      allBookings = [...allBookings, ...newBookings];
+
+      // 3. 过滤出今天的订单进行重排，非今天的订单保持不动
+      const todayBookings = allBookings.filter((b: any) => b.date === baseDate);
+      const otherDayBookings = allBookings.filter((b: any) => b.date !== baseDate);
+
+      // 将时间字符串(HH:MM)转化为当天的绝对分钟数，用于碰撞检测
+      const timeToMinutes = (timeStr: string) => {
+        const [h, m] = (timeStr || "00:00").split(':').map(Number);
+        return h * 60 + m;
+      };
+
+      // 4. 剥离并分类：指定预约（含NO）、无指定预约
+      const assignedBookings: any[] = [];
+      let unassignedBookings: any[] = [];
+
+      todayBookings.forEach((b: any) => {
+        // 如果它是无指定预约，且不是已经被锁定在爽约列的 NO
+        if (b.originalUnassigned && b.resourceId !== 'NO') {
+          // 【核心修复】：必须清空它之前的坑位记忆，让它变成纯粹的“无家可归”状态
+          // 否则它会携带着旧的 resourceId 参与碰撞检测，导致死锁或自我挤压
+          b.resourceId = null;
+          unassignedBookings.push(b);
+        } else {
+          // 真正的指定预约（拥有绝对路权）
+          assignedBookings.push(b);
+        }
+      });
+
+      // 5. 对无指定预约进行时间排序（先到先得），保证寻位稳定性
+      unassignedBookings.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+      // 6. 核心重排：从左到右依次为无指定预约寻找第一个无冲突的列
+      // 这里的已落位列表初始为所有“指定预约”
+      const placedBookings = [...assignedBookings];
+
+      unassignedBookings.forEach(unassignedBkg => {
+        const newStartMin = timeToMinutes(unassignedBkg.startTime);
+        const newEndMin = newStartMin + unassignedBkg.duration;
+        let foundStaffId = null;
+
+        // 严格从左到右扫描实体员工列
+        for (const staff of staffs) {
+          const hasConflict = placedBookings.some(placed => {
+            if (placed.resourceId !== staff.id) return false;
+            const pStartMin = timeToMinutes(placed.startTime);
+            const pEndMin = pStartMin + placed.duration;
+            // 绝对碰撞检测
+            return Math.max(newStartMin, pStartMin) < Math.min(newEndMin, pEndMin);
+          });
+
+          if (!hasConflict) {
+            foundStaffId = staff.id;
+            break; // 找到即落位
+          }
+        }
+
+        // 如果找到空位则落位，否则兜底放到第一个员工（允许视觉挤压）
+        unassignedBkg.resourceId = foundStaffId || (staffs.length > 0 ? staffs[0].id : null);
+        
+        // 落位后，加入 placedBookings 参与后续无指定预约的碰撞检测
+        placedBookings.push(unassignedBkg);
+      });
+
+      // 7. 合并重排后的今日订单与非今日订单，存盘
+      const finalUpdatedBookings = [...otherDayBookings, ...placedBookings];
+      localStorage.setItem('gx_sandbox_bookings', JSON.stringify(finalUpdatedBookings));
+      
+      // 触发全局自定义事件，通知矩阵刷新
+      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+      
+      // 关闭弹窗
+      onClose();
+    } catch (error) {
+      console.error("Failed to save bookings to sandbox:", error);
+    }
   };
 
   // Close on escape key
@@ -250,19 +549,45 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                     <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">会员信息</label>
                     <div 
                       className={cn(
-                        "bg-black/40 border rounded-lg p-2 h-[38px] flex items-center gap-2 cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)]",
+                        "bg-black/40 border rounded-lg p-2 h-[38px] flex items-center gap-2 cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] relative group",
                         activePaneMode === 'member' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
                       )}
-                      onClick={() => setActivePaneMode('member')}
+                      onClick={() => {
+                        setActivePaneMode('member');
+                        setIsMemberInputFocused(true); // 点击整个区域时触发输入模式
+                      }}
                     >
-                      <User className={cn("w-3 h-3", activePaneMode === 'member' ? "text-gx-cyan" : "text-gx-cyan/70")} />
-                      <input 
-                        type="text" 
-                        placeholder="姓名/卡号/电话" 
-                        className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white cursor-pointer"
-                        value={memberInfo}
-                        onChange={(e) => setMemberInfo(e.target.value)}
-                      />
+                      <User className={cn("w-3 h-3 shrink-0", activePaneMode === 'member' ? "text-gx-cyan" : "text-gx-cyan/70")} />
+                      
+                      {/* 终极极简交互：如果处于非输入状态，且有 customerId，则只展示纯净的徽章 */}
+                      {!isMemberInputFocused && customerId ? (
+                        <div className="flex-1 truncate flex items-center justify-center pr-5">
+                          <span className={cn(
+                            "text-[11px] font-bold font-mono tracking-widest leading-none -translate-y-[1px]",
+                            customerId.startsWith('CO') ? "text-white/40" : "text-gx-cyan"
+                          )}>
+                            {customerId}
+                          </span>
+                        </div>
+                      ) : (
+                        /* 输入模式：完全接管该区域，不显示任何前缀，只显示纯粹的输入框 */
+                        <div className="flex-1 w-full h-full flex items-center justify-center">
+                          <input 
+                            type="text" 
+                            placeholder="输入主电话..." 
+                            className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none -translate-y-[1px] text-center pr-5"
+                            value={phoneTracks[0] || ""}
+                            onChange={(e) => {
+                              const newTracks = [...phoneTracks];
+                              newTracks[0] = e.target.value;
+                              setPhoneTracks(newTracks);
+                              if (activePaneMode !== 'member') setActivePaneMode('member');
+                            }}
+                            onBlur={() => setIsMemberInputFocused(false)} // 失去焦点瞬间坍缩
+                            autoFocus={isMemberInputFocused} // 被唤醒时自动聚焦
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -488,10 +813,205 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                 )}
 
                 {activePaneMode === 'member' && (
-                  <div className="h-full flex flex-col items-center justify-center text-white/40 font-mono text-xs">
-                    <User className="w-8 h-8 mb-4 text-gx-cyan/50" />
-                    <span>MEMBER RADAR UI PLACEHOLDER</span>
-                  </div>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="h-full flex flex-col p-2 overflow-hidden relative"
+                  >
+                    {/* 1. 顶部：核心身份与消费概览 (降维排版与七彩流光材质) */}
+                    <div className="flex items-end justify-between border-b border-white/10 pb-4 mb-4 shrink-0 px-2">
+                      <div className="flex flex-col gap-1 w-[60%]">
+                        {/* 会员编号 (大字号) */}
+                        <div className={cn(
+                          "font-mono text-xl font-black tracking-[0.2em] shrink-0",
+                          customerId.startsWith('CO') 
+                            ? "text-gx-cyan" // 散客冷峻单色
+                            : "bg-gradient-to-r from-gx-cyan via-purple-400 to-pink-500 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]" // VIP 七彩流光
+                        )}>
+                          {customerId}
+                        </div>
+                        
+                        {/* 电话号码多轨流 (小字号换行) */}
+                        <div className="flex flex-col gap-1 mt-1">
+                          {phoneTracks.map((phone, index) => (
+                            <div key={index} className="flex items-center gap-2 group/phone">
+                              {editingPhoneIndex === index ? (
+                                <input 
+                                  type="text" 
+                                  placeholder="输入电话..." 
+                                  className="bg-transparent border-b border-gx-cyan/50 outline-none text-sm font-mono text-white placeholder:text-white/20 w-32"
+                                  value={phone}
+                                  onChange={(e) => {
+                                    const newTracks = [...phoneTracks];
+                                    newTracks[index] = e.target.value;
+                                    setPhoneTracks(newTracks);
+                                  }}
+                                  onBlur={() => setEditingPhoneIndex(null)}
+                                  autoFocus
+                                />
+                              ) : (
+                                <span 
+                                  className={cn(
+                                    "text-sm font-mono cursor-pointer hover:text-white transition-colors",
+                                    customerId.startsWith('CO') 
+                                      ? "text-white/60" 
+                                      : "bg-gradient-to-r from-gx-cyan/80 to-purple-400/80 bg-clip-text text-transparent font-bold"
+                                  )}
+                                  onClick={() => setEditingPhoneIndex(index)}
+                                >
+                                  {phone || "无电话记录"}
+                                </span>
+                              )}
+                              
+                              {/* 动态增减按钮 */}
+                              <div className="opacity-0 group-hover/phone:opacity-100 transition-opacity flex items-center gap-1">
+                                {index === phoneTracks.length - 1 && (
+                                  <button 
+                                    onClick={() => setPhoneTracks([...phoneTracks, ''])}
+                                    className="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center text-white/40 hover:text-white hover:border-white hover:bg-white/10 transition-all text-xs"
+                                  >
+                                    +
+                                  </button>
+                                )}
+                                {phoneTracks.length > 1 && (
+                                  <button 
+                                    onClick={() => {
+                                      const newTracks = phoneTracks.filter((_, i) => i !== index);
+                                      setPhoneTracks(newTracks);
+                                    }}
+                                    className="w-4 h-4 rounded-full border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all text-xs"
+                                  >
+                                    -
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* 右上角总金额 */}
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest mb-1">Total Spent</span>
+                        <span className="text-xl font-black text-white tracking-wider font-mono">
+                          {phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" ? "¥ 12,800" : "¥ 0"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. 中间：过往消费记录卡片 (可滚动区) / 散客游离态联系方式 */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 mb-4 px-2">
+                      {phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" ? (
+                        <>
+                          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] block mb-3">History Data Stream</span>
+                          
+                          {/* 历史卡片 1 (最新，带间隔天数) */}
+                          <div className="relative group cursor-pointer">
+                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-gx-cyan rounded-r-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-gx-cyan/30 rounded-xl p-4 transition-all">
+                              <div className="flex items-center gap-6 w-[60%]">
+                                <span className="text-sm font-mono text-white/60 group-hover:text-white transition-colors">02.28</span>
+                                <span className="text-sm font-bold text-white truncate">高级染发 + 护理</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-xs font-mono text-gx-cyan font-bold">¥ 880</span>
+                                {/* 间隔天数提醒 */}
+                                <span className="text-[10px] font-mono bg-gx-cyan/10 text-gx-cyan px-2 py-1 rounded border border-gx-cyan/20 whitespace-nowrap">
+                                  距今 25 天
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 历史卡片 2 (爽约记录) */}
+                          <div className="relative group cursor-pointer">
+                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-red-500 rounded-r-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-red-500/30 rounded-xl p-4 transition-all opacity-70 hover:opacity-100">
+                              <div className="flex items-center gap-6 w-[60%]">
+                                <span className="text-sm font-mono text-white/40">01.15</span>
+                                <span className="text-sm font-bold text-white/40 line-through">洗剪吹</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-xs font-mono text-white/20">--</span>
+                                {/* 爽约印记 */}
+                                <span className="text-[10px] font-black bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/30 whitespace-nowrap uppercase tracking-widest">
+                                  爽约
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 历史卡片 3 */}
+                          <div className="relative group cursor-pointer">
+                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/20 rounded-r-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-white/20 rounded-xl p-4 transition-all">
+                              <div className="flex items-center gap-6 w-[60%]">
+                                <span className="text-sm font-mono text-white/60">12.01</span>
+                                <span className="text-sm font-bold text-white">洗剪吹</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-xs font-mono text-white/80">¥ 120</span>
+                                <span className="text-[10px] opacity-0 px-2 py-1">占位</span> {/* 保持对齐 */}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center relative">
+                          {/* 散客游离态 (输入了内容但未分配分类) */}
+                          {phoneTracks[0] && !newCustomerType ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] mb-2">Temporary Contact</span>
+                              <div className="px-6 py-3 rounded-2xl border border-white/10 bg-white/[0.02] text-white/80 font-mono text-lg tracking-widest shadow-[0_0_20px_rgba(255,255,255,0.02)]">
+                                {phoneTracks[0]}
+                              </div>
+                              <span className="text-[9px] font-mono text-white/20 mt-2 max-w-[200px] text-center leading-relaxed">
+                                Unregistered walk-in guest. Select a category below to archive as member.
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-mono text-white/20 uppercase tracking-widest">No History / 新客建档</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. 底部：新客分类按钮 & 单行备注 */}
+                    <div className="shrink-0 space-y-4 px-2">
+                      {/* 分类选项 (仅在新客且未匹配到会员时显示) */}
+                      {phoneTracks[0] !== "6667767" && phoneTracks[0] !== "3758376" && (
+                        <div className="flex gap-3">
+                          {['GV', 'AD', 'AN', 'UM'].map(type => (
+                            <button 
+                              key={type}
+                              onClick={() => setNewCustomerType(type)}
+                              className={cn(
+                                "flex-1 py-2 rounded-lg border transition-all text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center",
+                                newCustomerType === type 
+                                  ? "bg-gx-cyan/20 border-gx-cyan text-white shadow-[0_0_15px_rgba(0,240,255,0.3)]" 
+                                  : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-gx-cyan/50 text-gx-cyan hover:text-white"
+                              )}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 单行备注 */}
+                      <div className="relative">
+                        <textarea 
+                          placeholder="添加客户偏好备注 (如：喜欢安静、对染发剂过敏)..."
+                          className="w-full bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 resize-none h-8 leading-8 px-1 custom-scrollbar overflow-x-hidden whitespace-nowrap"
+                          rows={1}
+                          style={{ whiteSpace: 'nowrap' }} // 强制单行横向滚动
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-gx-cyan/50 via-white/10 to-transparent" />
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
 
                 {activePaneMode === 'duration' && (
@@ -502,7 +1022,7 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
                         key={totalDuration}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className="text-[64px] font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-br from-white via-white/90 to-white/40 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] font-mono leading-none"
+                        className="text-[64px] font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-br from-white via-white/90 to-white/40 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] font-mono leading-none whitespace-nowrap"
                       >
                         {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
                       </motion.span>
@@ -888,8 +1408,11 @@ export function DualPaneBookingModal({ isOpen, onClose }: DualPaneBookingModalPr
 
             {/* 底部悬浮按钮栏 (内部居中跨越双窗) */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50 pointer-events-auto">
-              <button className="w-48 py-3 rounded-xl bg-gx-cyan text-black text-xs font-black tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(0,255,255,0.4)]">
-                确认预约 / CONFIRM
+              <button 
+                onClick={handleConfirmBooking}
+                className="w-48 py-3 rounded-xl bg-gx-cyan text-black text-xs font-black tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(0,255,255,0.4)]"
+              >
+                {editingBooking ? "更新预约 / UPDATE" : "确认预约 / CONFIRM"}
               </button>
               <button 
                 onClick={onClose}

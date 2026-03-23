@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, UIEvent } from "react";
+import React, { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { OperatingHour } from "../IndustryCalendar";
@@ -27,18 +27,62 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
   const currentHour = currentTime.getHours();
   const { settings: visualSettings } = useVisualSettings();
 
-  // --- 核心算法：24小时连续时间轴 ---
+  // 新增：从 localStorage 读取沙盒预约数据 (为了支持被动撑开逻辑)
+  const [sandboxBookings, setSandboxBookings] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const loadBookings = () => {
+      try {
+        const stored = localStorage.getItem('gx_sandbox_bookings');
+        if (stored) {
+          setSandboxBookings(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error("Failed to load sandbox bookings:", e);
+      }
+    };
+    loadBookings();
+    window.addEventListener('gx-sandbox-bookings-updated', loadBookings);
+    return () => window.removeEventListener('gx-sandbox-bookings-updated', loadBookings);
+  }, []);
+
+  // --- 核心算法：智能折叠与被动撑开的时间轴 (Smart Folding Timeline) ---
   const liquidTimeSlots = useMemo(() => {
-    const slots = [];
-    for (let hour = 0; hour < 24; hour++) {
-      slots.push({
-        hour,
-        label: `${hour.toString().padStart(2, '0')}:00`,
-        isOvertime: !(operatingHours || []).some(p => hour >= p.start && hour < p.end)
+    const activeHours = new Set<number>();
+
+    if (operatingHours && operatingHours.length > 0) {
+      operatingHours.forEach(period => {
+        for (let h = period.start; h < period.end; h++) {
+          activeHours.add(h);
+        }
       });
+    } else {
+      for (let h = 9; h < 18; h++) activeHours.add(h);
     }
-    return slots;
-  }, [operatingHours]);
+
+    // 周视图需要检查这一周内所有的订单是否跨界
+    sandboxBookings.forEach(booking => {
+      // 周视图简化处理：只要有订单，就把它占用的时间段撑开（不严格过滤具体是哪一天，保证整个星期的 Y 轴坐标系统一）
+      if (booking.startTime && booking.duration) {
+        const [startHour, startMin] = booking.startTime.split(':').map(Number);
+        const totalMinutes = startMin + booking.duration;
+        const spanHours = Math.floor((totalMinutes > 0 ? totalMinutes - 1 : 0) / 60);
+        
+        for (let i = 0; i <= spanHours; i++) {
+          const h = startHour + i;
+          if (h < 24) activeHours.add(h);
+        }
+      }
+    });
+
+    const sortedHours = Array.from(activeHours).sort((a, b) => a - b);
+    
+    return sortedHours.map(hour => ({
+      hour,
+      label: `${hour.toString().padStart(2, '0')}:00`,
+      isOvertime: !operatingHours.some(p => hour >= p.start && hour < p.end)
+    }));
+  }, [operatingHours, sandboxBookings]);
 
   // 过滤出选中的人员
   const filteredResources = useMemo(() => {
@@ -102,7 +146,9 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
         {/* 纵向时间轴 */}
         <div className="w-24 flex flex-col relative shrink-0 bg-transparent">
           <div ref={timeColumnRef} className="flex-1 overflow-hidden relative pointer-events-none">
-            {liquidTimeSlots.map((slot, idx) => (
+            {/* 修改周视图的底部留白，原网格高度是 h-16 (64px)，所以改为 pb-16 */}
+            <div className="relative pb-16">
+              {liquidTimeSlots.map((slot, idx) => (
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <div className={cn(
                   "transition-all duration-500 text-[15px] mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums",
@@ -127,6 +173,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                 )}
               </div>
             ))}
+            </div>
           </div>
         </div>
 
@@ -136,7 +183,8 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
           className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth relative no-scrollbar"
         >
           <div className="min-w-fit flex flex-col h-full">
-            <div className="relative pb-24">
+            {/* 矩阵主体同步修改底部留白为 pb-16 */}
+            <div className="relative pb-16">
               {liquidTimeSlots.map((slot) => (
                 <div 
                   key={slot.hour} 

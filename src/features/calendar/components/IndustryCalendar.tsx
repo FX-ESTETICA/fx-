@@ -25,7 +25,7 @@ import { CapacityFlow } from "./matrices/CapacityFlow";
 import { EliteWeekMatrix } from "./matrices/EliteWeekMatrix";
 import { EliteMonthMatrix } from "./matrices/EliteMonthMatrix";
 import { NebulaConfigHub } from "./NebulaConfigHub";
-import { Settings, LogIn } from "lucide-react";
+import { Settings, LogIn, Trash2 } from "lucide-react";
 import { useBackground } from "@/hooks/useBackground";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { DualPaneBookingModal } from "@/features/booking/components/DualPaneBookingModal";
@@ -40,6 +40,15 @@ export interface OperatingHour {
 const DEFAULT_HOURS: OperatingHour[] = [
   { id: '1', start: 9, end: 12 },
   { id: '2', start: 15, end: 20 }
+];
+
+// 默认员工配置 (A, B, C, D, E)
+const DEFAULT_STAFFS = [
+  { id: 'A', name: 'A', role: '资深技师', color: '#00f0ff', status: 'active', commissionRate: 50 },
+  { id: 'B', name: 'B', role: '资深技师', color: '#a855f7', status: 'active', commissionRate: 50 },
+  { id: 'C', name: 'C', role: '高级技师', color: '#10b981', status: 'active', commissionRate: 40 },
+  { id: 'D', name: 'D', role: '高级技师', color: '#f59e0b', status: 'active', commissionRate: 40 },
+  { id: 'E', name: 'E', role: '见习技师', color: '#ec4899', status: 'active', commissionRate: 30 }
 ];
 
 interface AuroraSchedulerProps {
@@ -64,7 +73,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const [operatingHours, setOperatingHours] = useState<OperatingHour[]>(DEFAULT_HOURS);
   
   // 共享的人员列表状态
-  const [staffs, setStaffs] = useState<any[]>([]);
+  const [staffs, setStaffs] = useState<any[]>(DEFAULT_STAFFS);
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
   // 共享的服务项目状态
@@ -76,11 +85,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     setIsMounted(true);
     try {
       const savedStaffs = localStorage.getItem('gx_sandbox_staffs');
-      if (savedStaffs) {
+      if (savedStaffs && JSON.parse(savedStaffs).length > 0) {
         const parsed = JSON.parse(savedStaffs);
         setStaffs(parsed);
         // 默认全选所有在职员工
         setSelectedStaffIds(parsed.filter((s: any) => s.status !== 'resigned').map((s: any) => s.id));
+      } else {
+        // 如果没有保存的员工，默认选中默认的 A-E
+        setSelectedStaffIds(DEFAULT_STAFFS.map(s => s.id));
       }
       const savedHours = localStorage.getItem('gx_sandbox_hours');
       if (savedHours) {
@@ -138,6 +150,25 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // --- 预约编辑状态 ---
+  const [editingBooking, setEditingBooking] = useState<any>(null);
+  
+  // 新增：战术准星传来的精确时间和人员
+  const [crosshairTime, setCrosshairTime] = useState<string | undefined>();
+  const [crosshairResourceId, setCrosshairResourceId] = useState<string | undefined>();
+
+  const handleBookingClick = (booking: any) => {
+    setEditingBooking(booking);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleGridClick = (resourceId?: string, time?: string) => {
+    setEditingBooking(null);
+    setCrosshairTime(time);
+    setCrosshairResourceId(resourceId);
+    setIsBookingModalOpen(true);
+  };
 
   // 用于同步表头与矩阵的横向滚动
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -332,26 +363,36 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     const paginatedResources = baseResources.slice(startIndex, startIndex + STAFFS_PER_PAGE);
 
     // 动态 No-Show 爽约列逻辑：
-    // 在实际业务中，你应该去查询这一页的这几个员工，在今天是否有被标记为 no-show 的预约。
-    // 这里我们作为沙盒演示，随机模拟如果有某个员工有爽约，就在末尾追加一列
-    const hasNoShowInThisPage = paginatedResources.some(_res => Math.random() > 0.8); // 20% 概率触发爽约列
-    
-    if (hasNoShowInThisPage) {
-      paginatedResources.push({
-        id: 'NO_SHOW_COL',
-        name: 'NO',
-        role: '爽约名单',
-        themeColor: '#ef4444', // 红色预警
-        status: 'busy',
-        metadata: {
-          isNoShowColumn: true,
-          originalStatus: 'busy'
+    // 查询 localStorage 中的沙盒预约数据，如果今天存在 resourceId 为 'NO' 的订单，则在末尾挂载 NO 列
+    try {
+      const stored = localStorage.getItem('gx_sandbox_bookings');
+      if (stored) {
+        const bookings = JSON.parse(stored);
+        const currentDateStr = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        
+        // 检查是否有今天的 NO 订单
+        const hasNoShowToday = bookings.some((b: any) => b.date === currentDateStr && b.resourceId === 'NO');
+        
+        if (hasNoShowToday) {
+          paginatedResources.push({
+            id: 'NO',
+            name: 'NO',
+            role: '爽约名单',
+            themeColor: '#ef4444', // 红色预警
+            status: 'busy',
+            metadata: {
+              isNoShowColumn: true,
+              originalStatus: 'busy'
+            }
+          });
         }
-      });
+      }
+    } catch (e) {
+      console.error("Failed to check NO show bookings:", e);
     }
 
     return paginatedResources;
-  }, [industry, staffs, isMounted, currentStaffPage]);
+  }, [industry, staffs, isMounted, currentStaffPage, currentDate]);
 
   // 表头翻页手势处理
   const handleHeaderPanEnd = (_e: any, info: any) => {
@@ -470,6 +511,20 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       </motion.div>
                     </AnimatePresence>
                     <ChevronRight className="w-3 h-3 opacity-40 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  {/* 清除预约数据按钮 */}
+                  <button 
+                    onClick={() => {
+                      if (confirm('确定要清除所有本地沙盒预约数据吗？此操作不可恢复。')) {
+                        localStorage.removeItem('gx_sandbox_bookings');
+                        window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                      }
+                    }}
+                    className="p-3 bg-transparent text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all group shrink-0 flex items-center justify-center"
+                    title="清除所有预约数据 (Clear Bookings)"
+                  >
+                    <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" />
                   </button>
 
                   {/* 配置入口按钮 */}
@@ -669,9 +724,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     dna={dna} 
                     resources={resources} 
                     operatingHours={operatingHours} 
+                    currentDate={currentDate}
                     onHorizontalScroll={handleMatrixHorizontalScroll}
                     matrixScrollRef={matrixScrollRef}
-                    onGridClick={() => setIsBookingModalOpen(true)}
+                    onGridClick={handleGridClick}
+                    onBookingClick={handleBookingClick}
                     onDateSwipe={(direction) => handleNavigate(direction)}
                   />
                 )}
@@ -683,7 +740,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     selectedStaffIds={selectedStaffIds}
                     operatingHours={operatingHours} 
                     currentDate={currentDate}
-                    onGridClick={() => setIsBookingModalOpen(true)}
+                    onGridClick={handleGridClick}
                     onDateClick={(date) => {
                       setCurrentDate(date);
                       setViewMode("day");
@@ -697,7 +754,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     resources={resources}
                     selectedStaffIds={selectedStaffIds}
                     currentDate={currentDate}
-                    onGridClick={() => setIsBookingModalOpen(true)}
+                    onGridClick={handleGridClick}
                     onDateClick={(date) => {
                       setCurrentDate(date);
                       setViewMode("day");
@@ -791,7 +848,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       {/* 注入极致双窗预约界面 (必须在结界之外，以保持清晰呈现) */}
       <DualPaneBookingModal 
         isOpen={isBookingModalOpen} 
-        onClose={() => setIsBookingModalOpen(false)} 
+        onClose={() => setIsBookingModalOpen(false)}
+        initialDate={currentDate}
+        initialTime={crosshairTime}
+        initialResourceId={crosshairResourceId}
+        editingBooking={editingBooking}
       />
     </div>
   );

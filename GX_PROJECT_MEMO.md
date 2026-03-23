@@ -101,30 +101,29 @@
 
 ## 3. 【任务指针 (Task Pointer)】 - **当前执行进度**
 
-### 当前状态：**Phase 13.9 - [COMPLETED] 移动端降维打击与响应式重构 (Mobile Paradigm Shift & Responsive Mastery)**
-- **目标**：彻底解决移动端界面的挤压问题，将 B 端管理员的“大屏排班矩阵”优雅降维至手机屏幕，实现真正的原生丝滑滑动。
-- **核心变更**：
-    - **触控封印解除与原生滑动 (Touch-Action Unsealed)**：
-        - 移除了大屏矩阵中用于支持盲操的 `touch-action: none` 和鼠标事件拦截，恢复了移动端原生的 `overflow-x-auto` 动量滚动，手感极其丝滑。
-    - **移动端列宽自适应 (Responsive Column Width)**：
-        - 将员工列宽从固定的 `200px` 压缩至 `120px`，确保在手机窄屏（如 iPhone）上能同屏呈现至少 3 个员工的排班情况。
-    - **空间剥离与组件降维 (Space Stripping & Downgrading)**：
-        - **侧边栏 (Sidebar)**：由物理挤压改为绝对定位的毛玻璃浮层 (`absolute bg-black/90 backdrop-blur-xl`)，并在移动端默认折叠，通过点击顶部大字号日期唤出。
-        - **全局配置中心 (Nebula Config Hub)**：在移动端废弃了右侧滑出逻辑，重构为**从底部升起的全屏面板 (BottomSheet)**，占据 `90vh` 高度并带有顶部抓手。
-        - **双窗预约界面 (DualPane Booking)**：利用 `flex-col md:flex-row` 将原本的左右分屏在手机上强制降级为**上下垂直堆叠**结构，彻底释放横向空间。
-    - **极简视图切换器 (Minimalist View Cycler)**：
-        - 将顶部的 `DAY / WEEK / MONTH` 三个按钮重构为**单体循环按钮**，点击即可循环切换视图，节约顶部空间并强化极简赛博感。
-        - 将“设置”齿轮按钮下沉至左侧边栏的左下角，保持主日历界面的绝对纯净。
-- **技术规范 (Engine Specs)**：
-    - **Tailwind 断点架构 (Breakpoints)**：全面引入 `md:` 断点进行多端分发，不再仅仅依赖硬编码的像素宽度。
-- **2026-03-22 指纹锁 (Fingerprint Locked)**：已执行全量响应式适配及 GitOps 自动部署至 Vercel (`fx-rapallo.vercel.app`)。
-- **物理红字 (Linter Redline)**：`0` (核心修改组件已完成校验)。
-- **Nexus Checkpoint**: `GX-P13.9-Mobile-Responsive-V1.0`
+### 当前状态：**Phase 13.11 - [IN PROGRESS] 极致赛博美学与全息动效优化 (Cyber Aesthetics & Holographic Polishing)**
+- **目标**：持续打磨日历排班矩阵与预约表单的双窗交互，追求极致的“清透感”与“盲操”体验，解决高密度数据下的视觉拥挤与渲染冲突。
+- **核心变更 (Recent Updates)**：
+    - **玻璃矩阵护盾 (Glass Matrix Shield)**：全局引入可调节透明度与模糊度的 `backdrop-blur` 遮罩，解决底层星空壁纸与前景排班数据的视觉干扰。
+    - **HUD 级排版与 Stacking Context 修复**：
+        - 时间轴废弃粗体，引入 `tabular-nums`，打造精密仪器的数字流感。
+        - 彻底解决 Stacking Context 导致的 `bg-clip-text` 文本丢失 Bug（将渐变类名下发至子 `span` 节点）。
+    - **员工初始化配置与动态 NO 列 (Dynamic NO-Show Column)**：
+        - 在沙盒模式下，默认注入 **A, B, C, D, E** 5 位实体员工，满足“开箱即用”体验。
+        - 坚守 **《动态异常状态收口列准则》**：**"NO" (爽约列)** 不作为实体员工常驻，维持其动态虚拟列的底层逻辑，仅在有废弃数据时按需生成。
+        - **无限堆叠收容所 (Infinite Stacking Bin)**：NO 列免疫物理碰撞法则。当同一时间段出现多个爽约订单时，NO 列内部将启用 `flex-row` 容器进行**并排等分切割渲染**，以最高效的“红柱子”视觉呈现异常数量。
+    - **多服务连单拆分与智能派单 (Auto-Dispatch & Split Booking)**：
+        - **连单拆分**：提交包含多个服务的订单时，系统按员工归组，底层拆分为多个独立的预约卡片，默认在同一开始时间并行排布。
+        - **未指定订单的智能寻位 (Absolute Collision Detection)**：若订单状态为“未指定 (unassigned)”，系统在提交瞬间（前置）执行基于绝对分钟数区间的交集碰撞检测 `Math.max(startA, startB) < Math.min(endA, endB)`，自动将其挂载至第一个无冲突的实体列，并渲染为专属的“系统蓝色”。
+        - **数据回显与无损更新 (Data Restoring & Lossless Update)**：修复了编辑预约时员工 ID 丢失的 Bug。更新订单时采用“先删后写”的策略，确保状态机与 UI 矩阵精准同步。
+- **2026-03-23 指纹锁 (Fingerprint Locked)**：已执行绝对碰撞算法重构、NO 列并排等分渲染、常规列 CSS 物理宽度修复，以及双窗预约表单“会员信息”模块的像素级绝对居中调优（运用 `pr-5` 横向补偿与 `-translate-y-[1px]` 垂直基线修正）。
+- **物理红字 (Linter Redline)**：`0`。
+- **Nexus Checkpoint**: `GX-P13.11-Aesthetics-V1.1`
 - **Mind Snapshot**:
-  - **核心进度**: 确立并实装了 B 端排班日历在移动端的设计范式（二维矩阵保留+原生滑动+抽屉化降维）。系统已不再是一个只能在大屏上使用的“残疾”后台。
+  - **核心进度**: 彻底打通了“双窗预约表单 -> 数据拆分/派单算法 -> 矩阵精准渲染”的全链路闭环。解决了复杂的同时间多重叠冲突与 CSS 渲染坍缩问题。并完成了表单控件内部极其严苛的物理视觉对齐。
   - **下一步即刻动作**: 
-        - 观察 Vercel 线上环境在真实手机上的滚动性能。
-        - 开始处理“新建预约”流程中的核心表单逻辑与沙盒数据持久化。
+        - 观察数据流转在各种极限操作下的稳定性。
+        - 准备推进服务项目配置中心的沙盒数据持久化与交互逻辑。
 
 ---
 
