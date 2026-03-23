@@ -91,7 +91,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                   : cn("hover:scale-110", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)
               )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
                 <span>{slot.hour.toString().padStart(2, '0')}</span>
-                <span className="text-[10px] opacity-40 mx-1 animate-pulse">:</span>
+                <span className="text-[10px] opacity-40 mx-0.5 animate-pulse">:</span>
                 <span className="opacity-80">00</span>
               </div>
               {/* 如果是断点（例如 11点下一个是 15点），显示折叠提示 */}
