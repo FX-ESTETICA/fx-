@@ -527,14 +527,18 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
                 {/* Desktop controls */}
                 <div className="hidden md:flex items-center gap-4">
-                  <div className="flex bg-transparent rounded-xl p-1 border border-white/10">
+                  <div className="flex bg-transparent rounded-xl p-1 border border-white/10 transition-colors" style={{ borderColor: `${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}40` }}>
                     <button
                       onClick={() => {
                         const modes = ['day', 'week', 'month'] as const;
                         const currentIndex = modes.indexOf(viewMode);
                         setViewMode(modes[(currentIndex + 1) % modes.length]);
                       }}
-                      className="px-6 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all bg-gx-cyan text-black shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:bg-white hover:shadow-[0_0_20px_rgba(255,255,255,0.5)] w-20 text-center"
+                      className="px-6 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all text-black w-20 text-center"
+                      style={{ 
+                        backgroundColor: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
+                        boxShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80`
+                      }}
                     >
                       {viewMode}
                     </button>
@@ -543,19 +547,25 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => handleNavigate('prev')}
-                      className="p-2 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 hover:text-cyan-200 transition-all"
+                      className="p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
+                      style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={() => setCurrentDate(new Date())}
-                      className="px-4 py-2 text-[10px] font-black rounded-lg hover:bg-cyan-900/30 transition-all text-cyan-400/60 hover:text-cyan-200 tracking-widest" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}
+                      className="px-4 py-2 text-[10px] font-black rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100"
+                      style={{ 
+                        color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
+                        textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80` 
+                      }}
                     >
                       {getTodayLabel()}
                     </button>
                     <button 
                       onClick={() => handleNavigate('next')}
-                      className="p-2 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 hover:text-cyan-200 transition-all"
+                      className="p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
+                      style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -718,33 +728,43 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         <div className="md:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
           <div className="flex bg-transparent rounded-xl p-0.5 border border-white/10">
             <button
-              onClick={() => {
-                const modes = ['day', 'week', 'month'] as const;
-                const currentIndex = modes.indexOf(viewMode);
-                setViewMode(modes[(currentIndex + 1) % modes.length]);
-              }}
-              className="px-4 py-1 text-[10px] font-black uppercase rounded-lg transition-all bg-gx-cyan text-black shadow-[0_0_15px_rgba(0,240,255,0.4)] w-16 text-center"
-            >
-              {viewMode}
-            </button>
+                onClick={() => {
+                  const modes = ['day', 'week', 'month'] as const;
+                  const currentIndex = modes.indexOf(viewMode);
+                  setViewMode(modes[(currentIndex + 1) % modes.length]);
+                }}
+                className="px-4 py-1 text-[10px] font-black uppercase rounded-lg transition-all text-black w-16 text-center"
+                style={{ 
+                  backgroundColor: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
+                  boxShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80`
+                }}
+              >
+                {viewMode}
+              </button>
           </div>
 
           <div className="flex items-center gap-1">
             <button 
               onClick={() => handleNavigate('prev')}
-              className="p-1.5 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 transition-all"
+              className="p-1.5 rounded-lg transition-all opacity-60 hover:opacity-100"
+              style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1.5 text-[10px] font-black rounded-lg hover:bg-cyan-900/30 transition-all text-cyan-400/80 tracking-widest" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}
+              className="px-3 py-1.5 text-[10px] font-black rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100"
+              style={{ 
+                color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
+                textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80` 
+              }}
             >
               {getTodayLabel()}
             </button>
             <button 
               onClick={() => handleNavigate('next')}
-              className="p-1.5 hover:bg-cyan-900/30 rounded-lg text-cyan-400/60 transition-all"
+              className="p-1.5 rounded-lg transition-all opacity-60 hover:opacity-100"
+              style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
