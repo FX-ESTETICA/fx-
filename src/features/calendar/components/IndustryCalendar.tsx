@@ -419,6 +419,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           pointerEvents: isBookingModalOpen ? 'none' : 'auto'
         }}
         transition={{ duration: 0.5, ease: "easeInOut" }}
+        // 将手势监听提升至最外层遮罩，使得在任意区域左滑都能收起侧边栏
+        onPanEnd={(_e, info) => {
+          // 如果侧边栏是打开的，并且检测到向左滑动
+          if (isSidebarOpen && (info.offset.x < -30 || info.velocity.x < -300)) {
+            setIsSidebarOpen(false);
+            return; // 修复：一旦触发了关闭侧边栏的操作，直接 return，不让事件冒泡或触发其他层级的切换日期逻辑
+          }
+        }}
       >
       {/* [SIDEBAR] 左侧控制中心 (Side Control Hub) - App Shell 固定宽度 */}
       <AnimatePresence initial={false}>
@@ -428,11 +436,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             animate={{ width: 260, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            onPanEnd={(_e, info) => {
-              if (info.offset.x < -30 || info.velocity.x < -300) {
-                setIsSidebarOpen(false);
-              }
-            }}
             className="bg-transparent flex flex-col relative z-20 shrink-0 overflow-hidden whitespace-nowrap absolute md:relative top-0 left-0 h-full bg-black/90 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none"
           >
             <div className="w-[260px] h-full flex flex-col">

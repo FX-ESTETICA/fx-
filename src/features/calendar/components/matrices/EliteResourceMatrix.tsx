@@ -291,9 +291,15 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   };
 
   // 矩阵区的手势接管：滑动切换日期
-  const handleMatrixPanEnd = (_e: any, info: any) => {
+  const handleMatrixPanEnd = (e: any, info: any) => {
     // 防止纵向滚动误触横向翻页
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) return;
+
+    // 修复：如果事件是由外层遮罩（侧边栏滑动手势）触发或已经处理过，则停止执行日期切换
+    // 通过判断 e.target 是否在矩阵容器内部来过滤
+    if (actualMatrixRef.current && !actualMatrixRef.current.contains(e.target as Node)) {
+      return;
+    }
 
     const swipeThreshold = 50;
     if (info.offset.x < -swipeThreshold) {
@@ -323,7 +329,11 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                   <span className={cn(slot.hour === currentHour ? "bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                     {slot.hour.toString().padStart(2, '0')}
                   </span>
-                  <span className={cn("text-[10px] mx-[3px] animate-pulse", slot.hour === currentHour ? "text-gx-cyan opacity-40" : `opacity-40 ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour ? CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex : undefined }}>:</span>
+                  {/* 修复时间轴竖杠的样式冲突，移除强制内联颜色，统一使用透明度控制 */}
+                  <span className={cn(
+                    "text-[10px] mx-[3px] animate-pulse", 
+                    slot.hour === currentHour ? "text-gx-cyan opacity-40" : "text-white/30"
+                  )}>:</span>
                   <span className={cn("opacity-80", slot.hour === currentHour ? "bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                     00
                   </span>
@@ -354,16 +364,26 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
           {/* 矩阵主体同步修改底部留白为 pb-20 */}
           <div 
             ref={matrixContainerRef}
-            // 动态控制 touch-action：未激活时允许 pan-y，激活时设为 none 以彻底独占手势，防止被浏览器滚动劫持触发 cancel
-            className={cn("relative pb-20 pt-4 w-full cursor-crosshair select-none", crosshair.active ? "touch-none" : "")}
+            // 移除导致浏览器劫持滑动的 touch-none
+            className={cn("relative pb-20 pt-4 w-full cursor-crosshair select-none")}
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onContextMenu={(e) => e.preventDefault()}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
+            // 彻底废弃长按唤醒准星，改为纯粹的极速点击建单
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              // 忽略在已有预约块上的点击
+              if (target.closest('.pointer-events-auto')) return;
+              
+              const rect = matrixContainerRef.current?.getBoundingClientRect();
+              if (rect) {
+                const { timeStr, resourceId } = calculateCrosshair(e.clientY, e.clientX, rect);
+                if (onGridClick) {
+                  onGridClick(resourceId || undefined, timeStr);
+                }
+              }
+            }}
           >
-            {/* 战术准星光束 */}
+            {/* 废弃长按后，战术准星不再由拖拽触发，您可以选择保留作为调试用，或者彻底隐藏 */}
             {crosshair.active && (
               <div 
                 className="absolute left-0 right-0 z-50 pointer-events-none flex items-center"
@@ -436,13 +456,13 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                   return (
                     <div 
                       key={res.id} 
-                      className="w-full h-full relative px-4 snap-center"
+                      className="w-full h-full relative px-0.5 md:px-2 snap-center"
                     >
                       {/* 分叉渲染逻辑：NO 列使用 Flex 等分，常规列使用全宽绝对定位 */}
                       {cellBookings.length > 0 && (
                         res.id === 'NO' ? (
                           // NO 列：使用 flex-row 等分并排显示多个爽约订单
-                          <div className="absolute inset-x-4 top-0 h-full z-10 flex flex-row gap-1 pointer-events-none">
+                          <div className="absolute inset-x-0.5 md:inset-x-2 top-0 h-full z-10 flex flex-row gap-1 pointer-events-none">
                             {cellBookings.map((booking: any) => {
                               const [, bMin] = (booking.startTime || "00:00").split(':').map(Number);
                               const topOffset = (bMin / 60) * 80;
@@ -472,7 +492,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                           </div>
                         ) : (
                           // 常规列：坚守物理碰撞法则，全宽渲染（取第一个订单，虽然底层已经做了防重叠）
-                          // 修复：移除多余的绝对定位外壳，直接利用 left: 16, right: 16 相对于父级相对定位格子进行拉伸
+                          // 修复：移除多余的绝对定位外壳，直接利用 left: 2, right: 2 (移动端) 相对于父级相对定位格子进行拉伸
                           <>
                             {cellBookings.slice(0, 1).map((booking: any) => {
                               const [, bMin] = (booking.startTime || "00:00").split(':').map(Number);
@@ -490,8 +510,8 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                                   style={{ 
                                     position: 'absolute', 
                                     top: topOffset, 
-                                    left: 16, 
-                                    right: 16, 
+                                    left: '2px', 
+                                    right: '2px', 
                                     height: Math.max(40, heightPx - 4),
                                     zIndex: 10
                                   }}
