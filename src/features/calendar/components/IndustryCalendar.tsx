@@ -125,6 +125,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 控制左侧边栏显示状态
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端默认关闭，大屏可通过断点或 useEffect 控制，此处为了演示先默认关闭
 
+  // 翻页逻辑：每页 5 个员工
+  const [currentStaffPage, setCurrentStaffPage] = useState(0);
+  const STAFFS_PER_PAGE = 5;
+
   // 实时时钟更新
   useEffect(() => {
     const timer = setInterval(() => {
@@ -295,32 +299,84 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     // 确保在客户端挂载前返回空，避免服务端渲染不一致
     if (!isMounted) return [];
 
+    let baseResources: MatrixResource[] = [];
+
     if (industry === 'medical' || industry === 'expert') {
-      return [
+      baseResources = [
         { id: '1', name: '张医生', role: '主任医师', avatar: '👨‍⚕️', themeColor: '#3b82f6' },
         { id: '2', name: '李医生', role: '副主任', avatar: '👩‍⚕️', themeColor: '#10b981' },
         { id: '3', name: '王专家', role: '资深专家', avatar: '👨‍🔬', themeColor: '#8b5cf6' },
         { id: '4', name: '赵医生', role: '主治医师', avatar: '👩‍🔬', themeColor: '#f59e0b' },
       ];
+    } else {
+      // 使用全局 staffs 状态，过滤掉离职员工
+      baseResources = staffs
+        .filter(s => s.status !== 'resigned')
+        .map(s => ({
+          id: s.id,
+          name: s.name,
+          role: s.role,
+          avatar: s.frontendId ? '🔗' : '✂️',
+          themeColor: s.color,
+          status: (s.status === 'on_leave' ? 'away' : 'available') as "away" | "available" | "busy",
+          metadata: {
+            originalStatus: s.status
+          }
+        }));
     }
-    // 使用全局 staffs 状态，过滤掉离职员工
-    return staffs
-      .filter(s => s.status !== 'resigned')
-      .map(s => ({
-        id: s.id,
-        name: s.name,
-        role: s.role,
-        avatar: s.frontendId ? '🔗' : '✂️',
-        themeColor: s.color,
-        status: s.status === 'on_leave' ? 'away' : 'available',
+
+    // 分页截取逻辑 (Pagination)
+    const startIndex = currentStaffPage * STAFFS_PER_PAGE;
+    const paginatedResources = baseResources.slice(startIndex, startIndex + STAFFS_PER_PAGE);
+
+    // 动态 No-Show 爽约列逻辑：
+    // 在实际业务中，你应该去查询这一页的这几个员工，在今天是否有被标记为 no-show 的预约。
+    // 这里我们作为沙盒演示，随机模拟如果有某个员工有爽约，就在末尾追加一列
+    const hasNoShowInThisPage = paginatedResources.some(_res => Math.random() > 0.8); // 20% 概率触发爽约列
+    
+    if (hasNoShowInThisPage) {
+      paginatedResources.push({
+        id: 'NO_SHOW_COL',
+        name: 'NO',
+        role: '爽约名单',
+        themeColor: '#ef4444', // 红色预警
+        status: 'busy',
         metadata: {
-          originalStatus: s.status
+          isNoShowColumn: true,
+          originalStatus: 'busy'
         }
-      }));
-  }, [industry, staffs]);
+      });
+    }
+
+    return paginatedResources;
+  }, [industry, staffs, isMounted, currentStaffPage]);
+
+  // 表头翻页手势处理
+  const handleHeaderPanEnd = (_e: any, info: any) => {
+    const swipeThreshold = 50;
+    if (info.offset.x < -swipeThreshold) {
+      // 向左滑，下一页
+      setCurrentStaffPage(prev => prev + 1);
+    } else if (info.offset.x > swipeThreshold) {
+      // 向右滑，上一页
+      setCurrentStaffPage(prev => Math.max(0, prev - 1));
+    }
+  };
 
   return (
-    <div className="flex animate-in fade-in duration-700 h-full w-full bg-transparent overflow-hidden flex-col md:flex-row">
+    <div className="flex h-full w-full bg-transparent overflow-hidden">
+      {/* 幽灵隐匿结界 (Phantom Fade Protocol) */}
+      <motion.div 
+        className="flex h-full w-full flex-col md:flex-row absolute inset-0"
+        initial={false}
+        animate={{ 
+          opacity: isBookingModalOpen ? 0 : 1,
+          scale: isBookingModalOpen ? 0.95 : 1,
+          filter: isBookingModalOpen ? 'blur(10px)' : 'blur(0px)',
+          pointerEvents: isBookingModalOpen ? 'none' : 'auto'
+        }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+      >
       {/* [SIDEBAR] 左侧控制中心 (Side Control Hub) - App Shell 固定宽度 */}
       <AnimatePresence initial={false}>
         {isAdmin && isSidebarOpen && (
@@ -509,42 +565,44 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               {viewMode === 'day' && dna.pivot === 'resource' && (
                 <div className="flex bg-transparent h-14 overflow-hidden">
                   {/* 左侧固定：空位占位符，与下方时间轴对齐 */}
-                  <div className="w-20 md:w-24 shrink-0 flex items-center justify-center z-10 bg-transparent">
+                  <div className="w-[60px] md:w-20 shrink-0 flex items-center justify-center z-10 bg-transparent">
                   </div>
                   
                   {/* 右侧滚动：员工卡片横向滚动区 (采用 CSS Grid 强制对齐) */}
-                    <div 
+                    <motion.div 
                       ref={headerScrollRef}
-                      className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar snap-x snap-mandatory"
-                      onScroll={(e) => {
-                        if (matrixScrollRef.current) {
-                          matrixScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
-                        }
-                      }}
+                      className="flex-1 overflow-hidden no-scrollbar touch-none"
+                      onPanEnd={handleHeaderPanEnd}
                     >
                     <div 
-                      className="grid h-full"
+                      className="grid h-full w-full"
                       style={{
-                        gridTemplateColumns: `repeat(${resources.length}, minmax(max(140px, 40vw), 1fr))` // 增大移动端列宽，通过 CSS 保证最小 140px
+                        gridTemplateColumns: `repeat(${resources.length}, minmax(0, 1fr))` // 极度压缩，平分屏幕
                       }}
                     >
                       {resources.map(res => (
-                        <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group snap-center", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
-                          <div className="flex flex-col items-center justify-center leading-none bg-transparent">
-                            <span className="text-[13px] font-bold tracking-[0.3em] text-cyan-100/70 group-hover:text-cyan-300 transition-all mix-blend-screen truncate uppercase" style={{ textShadow: '0 0 10px rgba(0, 240, 255, 0.4)' }}>
+                        <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
+                          <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1">
+                            <span className={cn(
+                              "text-[11px] md:text-[13px] font-bold tracking-widest transition-all mix-blend-screen truncate uppercase w-full text-center",
+                              res.metadata?.isNoShowColumn ? "text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" : "text-cyan-100/70 group-hover:text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
+                            )}>
                               {res.name}
                             </span>
-                            <div className="flex items-center gap-1 mt-1.5">
-                              <span className="text-[9px] font-mono text-cyan-400/40 font-bold uppercase tracking-widest truncate group-hover:text-cyan-400/80 transition-colors">{res.role}</span>
+                            <div className="flex items-center gap-1 mt-1.5 justify-center w-full">
+                              <span className={cn(
+                                "text-[8px] md:text-[9px] font-mono font-bold uppercase tracking-widest truncate transition-colors",
+                                res.metadata?.isNoShowColumn ? "text-red-400/60" : "text-cyan-400/40 group-hover:text-cyan-400/80"
+                              )}>{res.role}</span>
                               {res.metadata?.originalStatus === 'on_leave' && (
-                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)]">休假</span>
+                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">休假</span>
                               )}
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 </div>
               )}
               {viewMode !== 'day' && dna.pivot === 'resource' && (
@@ -600,6 +658,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     onHorizontalScroll={handleMatrixHorizontalScroll}
                     matrixScrollRef={matrixScrollRef}
                     onGridClick={() => setIsBookingModalOpen(true)}
+                    onDateSwipe={(direction) => handleNavigate(direction)}
                   />
                 )}
                 {dna.pivot === "resource" && viewMode === "week" && (
@@ -686,29 +745,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+          </div>
         </div>
+      </motion.div>
 
-        {/* 注入星云配置中枢抽屉 */}
-        <NebulaConfigHub 
-          isOpen={isConfigOpen} 
-          onClose={() => setIsConfigOpen(false)}
-          industryLabel={industryDNAs[industry].label}
-          operatingHours={operatingHours}
-          onOperatingHoursChange={setOperatingHours}
-          staffs={staffs}
-          onStaffsChange={setStaffs}
-          categories={categories}
-          onCategoriesChange={setCategories}
-          services={services}
-          onServicesChange={setServices}
-        />
+      {/* 注入星云配置中枢抽屉 (需在结界之外，不受透明度影响) */}
+      <NebulaConfigHub 
+        isOpen={isConfigOpen} 
+        onClose={() => setIsConfigOpen(false)}
+        industryLabel={industryDNAs[industry].label}
+        operatingHours={operatingHours}
+        onOperatingHoursChange={setOperatingHours}
+        staffs={staffs}
+        onStaffsChange={setStaffs}
+        categories={categories}
+        onCategoriesChange={setCategories}
+        services={services}
+        onServicesChange={setServices}
+      />
 
-        {/* 注入极致双窗预约界面 */}
-        <DualPaneBookingModal 
-          isOpen={isBookingModalOpen} 
-          onClose={() => setIsBookingModalOpen(false)} 
-        />
-      </div>
+      {/* 注入极致双窗预约界面 (必须在结界之外，以保持清晰呈现) */}
+      <DualPaneBookingModal 
+        isOpen={isBookingModalOpen} 
+        onClose={() => setIsBookingModalOpen(false)} 
+      />
     </div>
   );
 };

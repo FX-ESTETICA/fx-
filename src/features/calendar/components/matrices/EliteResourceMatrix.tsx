@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, UIEvent } from "react";
+import { useMemo, useRef, UIEvent, useEffect } from "react";
 import { cn } from "@/utils/cn";
+import { motion } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
 import { OperatingHour } from "../IndustryCalendar";
@@ -14,6 +15,7 @@ export interface EliteResourceMatrixProps {
   onHorizontalScroll?: (scrollLeft: number) => void;
   onGridClick?: () => void;
   matrixScrollRef?: React.Ref<HTMLDivElement>;
+  onDateSwipe?: (direction: 'prev' | 'next') => void; // 传递日期切换事件
 }
 
 // 模拟数据：暂时清空以支持真实配置
@@ -22,7 +24,7 @@ const MOCK_BOOKINGS: any[] = [];
 /**
  * EliteResourceMatrix (专家音轨矩阵) - 引入液态时间轴算法
  */
-export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, onHorizontalScroll, onGridClick, matrixScrollRef }: EliteResourceMatrixProps) => {
+export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, onHorizontalScroll, onGridClick, matrixScrollRef, onDateSwipe }: EliteResourceMatrixProps) => {
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
 
@@ -66,24 +68,37 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
     if (timeColumnRef.current) {
       timeColumnRef.current.scrollTop = e.currentTarget.scrollTop;
     }
-    // 横向同步顶部员工列表
-    if (onHorizontalScroll) {
-      onHorizontalScroll(e.currentTarget.scrollLeft);
+    // 横向同步顶部员工列表 (已废弃，表头不再接受被动滚动，改为翻页)
+    // if (onHorizontalScroll) {
+    //   onHorizontalScroll(e.currentTarget.scrollLeft);
+    // }
+  };
+
+  // 矩阵区的手势接管：滑动切换日期
+  const handleMatrixPanEnd = (_e: any, info: any) => {
+    // 防止纵向滚动误触横向翻页
+    if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) return;
+
+    const swipeThreshold = 50;
+    if (info.offset.x < -swipeThreshold) {
+      onDateSwipe?.('next');
+    } else if (info.offset.x > swipeThreshold) {
+      onDateSwipe?.('prev');
     }
   };
 
   return (
     <div className="flex h-full overflow-hidden bg-transparent">
       {/* 纵向时间轴固定列 (带流动发光) */}
-      <div className="w-20 md:w-24 flex flex-col relative shrink-0">
+      <div className="w-[60px] md:w-20 flex flex-col relative shrink-0">
         <div 
           ref={timeColumnRef}
           className="flex-1 overflow-hidden relative pointer-events-none"
         >
           {liquidTimeSlots.map((slot, idx) => (
-            <div key={slot.hour} className="h-20 flex items-start justify-center relative group pt-2">
+            <div key={slot.hour} className="h-20 flex items-start justify-start pl-2.5 relative group pt-2">
               <span className={cn(
-                "font-mono transition-all duration-500 text-[15px]",
+                "font-mono transition-all duration-500 text-[13px]",
                 slot.hour === currentHour 
                   ? "font-black scale-110 bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] [text-shadow:0_0_15px_rgba(0,240,255,0.6)] mix-blend-screen" 
                   : "font-bold tracking-widest bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent mix-blend-screen hover:scale-110"
@@ -105,20 +120,22 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
       </div>
 
       {/* 横向专家音轨矩阵 */}
-      <div 
+      <motion.div 
         ref={actualMatrixRef}
         onScroll={handleMatrixScroll}
-        className="flex-1 overflow-x-auto overflow-y-auto scroll-smooth relative no-scrollbar snap-x snap-mandatory"
+        onPanEnd={handleMatrixPanEnd}
+        className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth relative no-scrollbar touch-pan-y"
       >
-        <div className="min-w-fit flex flex-col h-full">
+        <div className="min-w-fit flex flex-col h-full w-full">
           {/* 矩阵主体 (音轨背景) */}
-          <div className="relative pb-24">
+          <div className="relative pb-24 w-full">
             {liquidTimeSlots.map((slot) => (
               <div 
                 key={slot.hour} 
-                className="grid h-20 relative group/row"
+                className="grid h-20 relative group/row w-full"
                 style={{
-                  gridTemplateColumns: `repeat(${resources.length}, minmax(max(140px, 40vw), 1fr))` // 同步 IndustryCalendar 表头的列宽
+                  gridTemplateColumns: `repeat(${resources.length}, minmax(0, 1fr))`, // 彻底放弃固定宽度，强制平分屏幕
+                  width: '100%'
                 }}
               >
                 {resources.map((res: MatrixResource) => {
@@ -137,8 +154,8 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                           title={industry === 'medical' && booking.title.includes('套餐') ? '常规诊疗' : booking.title}
                           time={`${booking.startHour}:00 - ${booking.startHour + booking.durationHours}:00`}
                           client={booking.client}
-                          color={dna.themeColor}
-                          accent={dna.accent}
+                          color={res.metadata?.isNoShowColumn ? 'text-red-500' : dna.themeColor}
+                          accent={res.metadata?.isNoShowColumn ? 'red' : dna.accent}
                           height={`h-[${Math.max(60, booking.durationHours * 80)}px]`} 
                         />
                       )}
@@ -149,7 +166,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
