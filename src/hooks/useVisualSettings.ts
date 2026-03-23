@@ -37,7 +37,10 @@ export function useVisualSettings() {
     const handleSettingsChange = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail) {
-        setSettings(customEvent.detail);
+        // 使用 setTimeout 将 setState 移出当前的 render 循环，防止跨组件更新冲突
+        setTimeout(() => {
+          setSettings(customEvent.detail);
+        }, 0);
       }
     };
 
