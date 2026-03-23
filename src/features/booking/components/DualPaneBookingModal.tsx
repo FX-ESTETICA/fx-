@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft, ArrowRight, Fingerprint } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft, Fingerprint } from 'lucide-react';
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -17,7 +17,7 @@ interface DualPaneBookingModalProps {
 export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime, initialResourceId, editingBooking }: DualPaneBookingModalProps) {
   // --- 结账模式状态 (Neon Core Checkout) ---
   const [isCheckoutMode, setIsCheckoutMode] = useState(false);
-  const [checkoutProgress, setCheckoutProgress] = useState(0); // 用于滑动结账的进度
+  // const [checkoutProgress, setCheckoutProgress] = useState(0); // 用于滑动结账的进度
 
   // --- 状态机：右侧面板模式 ---
   type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
@@ -155,7 +155,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     } else {
       setIsCheckoutMode(false);
     }
-    setCheckoutProgress(0); // 重置结账滑块进度
+    // setCheckoutProgress(0); // 重置结账滑块进度
   }, [isOpen, editingBooking]);
 
   // 从 localStorage 加载配置数据及初始化时间
@@ -293,7 +293,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   };
 
   // 处理手势：向右滑动进入结账，向左滑动退回表单
-  const handlePanEnd = (e: any, info: any) => {
+  const handlePanEnd = (_e: any, info: any) => {
     if (editingBooking) {
       if (!isCheckoutMode && info.offset.x > 80) {
         setIsCheckoutMode(true);
@@ -1569,7 +1569,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
             </div>
 
             {/* Global styles for custom scrollbar */}
-            <style jsx global>{`
+            <style dangerouslySetInnerHTML={{__html: `
               .custom-scrollbar::-webkit-scrollbar {
                 width: 4px;
                 height: 0px; /* Hide horizontal scrollbar */
@@ -1585,8 +1585,9 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
               .custom-scrollbar::-webkit-scrollbar-thumb:hover {
                 background: rgba(6, 182, 212, 0.5);
               }
-            `}</style>
+            `}} />
           </motion.div>
+          )}
         </div>
       )}
     </AnimatePresence>

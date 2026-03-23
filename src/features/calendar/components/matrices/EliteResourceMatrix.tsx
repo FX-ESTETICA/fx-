@@ -107,15 +107,16 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   }, [operatingHours, sandboxBookings, currentDate]);
 
   // --- 战术准星交互 (Tactical Crosshair) ---
-  const [crosshair, setCrosshair] = React.useState<{ active: boolean, y: number, time: string, resourceId: string | null }>({
+  const [crosshair, _setCrosshair] = React.useState<{ active: boolean, y: number, time: string, resourceId: string | null }>({
     active: false,
     y: 0,
     time: '00:00',
     resourceId: null
   });
   const matrixContainerRef = useRef<HTMLDivElement>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null); // 新增：长按计时器
-  const startPointerRef = useRef<{ x: number, y: number } | null>(null); // 新增：记录按下时的初始位置
+  // --- 彻底废弃极其脆弱的长按微调，改为极速点击建单 ---
+  // const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // const startPointerRef = useRef<{ x: number, y: number } | null>(null);
 
   const calculateCrosshair = (clientY: number, clientX: number, rect: DOMRect) => {
     let y = clientY - rect.top - 16; // 16px is pt-4
@@ -153,126 +154,11 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
     return { exactY, timeStr, resourceId };
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    // 忽略在已有预约块上的点击
-    if ((e.target as HTMLElement).closest('.pointer-events-auto')) return;
-    
-    const rect = matrixContainerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    // 记录初始按下位置
-    const clientX = e.clientX;
-    const clientY = e.clientY;
-    const pointerId = e.pointerId;
-    const target = e.currentTarget as HTMLElement;
-    
-    startPointerRef.current = { x: clientX, y: clientY };
-
-    // 设置 300ms 长按判定
-    longPressTimerRef.current = setTimeout(() => {
-      try {
-        target.setPointerCapture(pointerId);
-      } catch (err) {
-        console.warn("setPointerCapture failed", err);
-      }
-      
-      const { exactY, timeStr, resourceId } = calculateCrosshair(clientY, clientX, rect);
-      setCrosshair({ active: true, y: exactY, time: timeStr, resourceId });
-      
-      // 触发触觉反馈 (如果设备支持)
-      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(50);
-      }
-    }, 300);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    // 如果还没激活，检查是否滑动过大，若是则取消长按
-    if (!crosshair.active) {
-      if (startPointerRef.current) {
-        const dx = e.clientX - startPointerRef.current.x;
-        const dy = e.clientY - startPointerRef.current.y;
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-          if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-          }
-        }
-      }
-      return;
-    }
-
-    const rect = matrixContainerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const { exactY, timeStr, resourceId } = calculateCrosshair(e.clientY, e.clientX, rect);
-    setCrosshair(prev => ({ ...prev, y: exactY, time: timeStr, resourceId }));
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    const wasTimerActive = longPressTimerRef.current !== null;
-    const startPos = startPointerRef.current;
-
-    // 无论是否激活，都清除计时器和初始位置
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    startPointerRef.current = null;
-
-    if (crosshair.active) {
-      // --- 场景 2：长按拖拽结束 ---
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch (err) {
-        console.warn("releasePointerCapture failed", err);
-      }
-      
-      const finalTime = crosshair.time;
-      const finalRes = crosshair.resourceId;
-      
-      setCrosshair(prev => ({ ...prev, active: false }));
-      
-      if (onGridClick) {
-        onGridClick(finalRes || undefined, finalTime);
-      }
-    } else {
-      // --- 场景 1：短按极速建单 ---
-      // 如果 timer 还在（说明没有因为滑动超过 10px 而被 move 事件清除）
-      if (wasTimerActive && startPos) {
-        const dx = e.clientX - startPos.x;
-        const dy = e.clientY - startPos.y;
-        // 再次安全校验：抬起位置和按下位置偏差极小（小于10px）
-        if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
-          const rect = matrixContainerRef.current?.getBoundingClientRect();
-          if (rect) {
-            const { timeStr, resourceId } = calculateCrosshair(e.clientY, e.clientX, rect);
-            if (onGridClick) {
-              onGridClick(resourceId || undefined, timeStr);
-            }
-          }
-        }
-      }
-    }
-  };
-
-  // --- 场景 3 & 意外中断：取消事件 (不触发创建) ---
-  const handlePointerCancel = (e: React.PointerEvent) => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    startPointerRef.current = null;
-    
-    if (crosshair.active) {
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch (err) {
-        console.warn("releasePointerCapture failed", err);
-      }
-      setCrosshair(prev => ({ ...prev, active: false }));
-    }
-  };
+  // --- 以下废弃的长按事件处理函数 ---
+  // const handlePointerDown = (e: React.PointerEvent) => { ... }
+  // const handlePointerMove = (e: React.PointerEvent) => { ... }
+  // const handlePointerUp = (e: React.PointerEvent) => { ... }
+  // const handlePointerCancel = () => { ... }
 
   // 使用 ref 来同步左右两侧的垂直滚动
   const timeColumnRef = useRef<HTMLDivElement>(null);
@@ -291,7 +177,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   };
 
   // 矩阵区的手势接管：滑动切换日期
-  const handleMatrixPanEnd = (e: any, info: any) => {
+  const handleMatrixPanEnd = (_e: any, info: any) => {
     // 防止纵向滚动误触横向翻页
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) return;
 
