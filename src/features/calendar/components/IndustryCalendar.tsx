@@ -584,8 +584,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
                           <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1">
                             <span className={cn(
-                              "text-[11px] md:text-[13px] font-bold tracking-widest transition-all mix-blend-screen truncate uppercase w-full text-center",
-                              res.metadata?.isNoShowColumn ? "text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" : "text-cyan-100/70 group-hover:text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
+                              "text-[11px] md:text-[15px] font-black tracking-widest transition-all truncate uppercase w-full text-center mix-blend-screen",
+                              res.metadata?.isNoShowColumn 
+                                ? "text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" 
+                                : "bg-gradient-to-b from-white via-cyan-200 to-cyan-600/80 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
                             )}>
                               {res.name}
                             </span>
