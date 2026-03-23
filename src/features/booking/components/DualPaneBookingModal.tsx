@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, User, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft, ArrowRight, Fingerprint } from 'lucide-react';
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -15,6 +15,10 @@ interface DualPaneBookingModalProps {
 }
 
 export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime, initialResourceId, editingBooking }: DualPaneBookingModalProps) {
+  // --- 结账模式状态 (Neon Core Checkout) ---
+  const [isCheckoutMode, setIsCheckoutMode] = useState(false);
+  const [checkoutProgress, setCheckoutProgress] = useState(0); // 用于滑动结账的进度
+
   // --- 状态机：右侧面板模式 ---
   type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
   const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>('service');
@@ -125,6 +129,34 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
       setCustomerId(generateCustomerNumber(newCustomerType));
     }
   }, [phoneTracks, newCustomerType, editingBooking]);
+
+  // 智能结账预判：如果打开已有订单且时间过半，自动进入结账舱
+  useEffect(() => {
+    if (isOpen && editingBooking) {
+      try {
+        const [year, month, day] = editingBooking.date.split(/[-/]/).map(Number);
+        const [hours, minutes] = (editingBooking.startTime || "00:00").split(':').map(Number);
+        
+        // 我们用系统真实时间与订单时间对比
+        const now = new Date();
+        const start = new Date(year, month - 1, day, hours, minutes);
+        const durationMs = (editingBooking.duration || 60) * 60 * 1000;
+        const elapsedMs = now.getTime() - start.getTime();
+
+        // 服务时间过半，或者已经结束
+        if (elapsedMs >= durationMs / 2) {
+          setIsCheckoutMode(true);
+        } else {
+          setIsCheckoutMode(false);
+        }
+      } catch (e) {
+        setIsCheckoutMode(false);
+      }
+    } else {
+      setIsCheckoutMode(false);
+    }
+    setCheckoutProgress(0); // 重置结账滑块进度
+  }, [isOpen, editingBooking]);
 
   // 从 localStorage 加载配置数据及初始化时间
   useEffect(() => {
@@ -258,6 +290,24 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   // 触发已选服务的重定向状态
   const handleRetargetService = (serviceId: string) => {
     setRetargetingServiceId(prev => prev === serviceId ? null : serviceId);
+  };
+
+  // 处理手势：向右滑动进入结账，向左滑动退回表单
+  const handlePanEnd = (e: any, info: any) => {
+    if (editingBooking) {
+      if (!isCheckoutMode && info.offset.x > 80) {
+        setIsCheckoutMode(true);
+      } else if (isCheckoutMode && info.offset.x < -80) {
+        setIsCheckoutMode(false);
+      }
+    }
+  };
+
+  // 处理滑轨结账
+  const handleCheckoutComplete = () => {
+    // 这里可以加入更复杂的结账存盘逻辑，目前仅演示关闭
+    alert('结账成功！');
+    onClose();
   };
 
   // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
@@ -470,19 +520,115 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0"
+            className={cn("absolute inset-0 transition-colors duration-700", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/40 backdrop-blur-sm")}
             onClick={onClose}
           />
           
-          <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative z-10 w-full max-w-[800px] flex flex-col items-center px-4 md:px-0"
-          >
-            {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
-            <main className="w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
+          {isCheckoutMode ? (
+            /* ===================== Neon Core 结账舱 ===================== */
+            <motion.div 
+              key="checkout-pane"
+              initial={{ scale: 0.95, opacity: 0, x: -50 }}
+              animate={{ scale: 1, opacity: 1, x: 0 }}
+              exit={{ scale: 0.95, opacity: 0, x: 50 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onPanEnd={handlePanEnd}
+              className="relative z-10 w-full max-w-[500px] h-[80vh] md:h-[600px] flex flex-col justify-between p-8 border border-[#39FF14]/30 rounded-3xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 overflow-hidden"
+            >
+              {/* 顶角关闭 / 返回按钮 */}
+              <button 
+                onClick={() => setIsCheckoutMode(false)} 
+                className="absolute top-6 left-6 text-white/40 hover:text-[#39FF14] transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={onClose} 
+                className="absolute top-6 right-6 text-white/40 hover:text-red-400 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Top Anchor: VIP 身份图腾 */}
+              <div className="mt-12 flex flex-col items-center text-center space-y-2">
+                <span className="text-[#39FF14]/50 text-[10px] font-mono uppercase tracking-widest">Target Entity</span>
+                <h1 className={cn(
+                  "text-5xl font-black font-mono tracking-[0.2em] uppercase",
+                  customerId.startsWith('CO') ? "text-white/60" : "bg-gradient-to-r from-[#39FF14] via-cyan-400 to-[#39FF14] bg-clip-text text-transparent animate-[gradient_3s_linear_infinite] bg-[length:200%_auto]"
+                )}>
+                  [{customerId || "CO 0001"}]
+                </h1>
+              </div>
+
+              {/* Middle Matrix: 极简三维消费流 */}
+              <div className="flex-1 w-full mt-16 flex flex-col gap-6 overflow-y-auto no-scrollbar px-4">
+                {selectedServices.map((service, idx) => {
+                  const staff = staffs.find(st => st.id === service.assignedEmployeeId);
+                  const mockPrice = service.price || ((idx + 1) * 280); // 沙盒模拟价格
+                  return (
+                    <div key={idx} className="flex items-center justify-between font-mono w-full">
+                      <span className="text-white/40 text-sm w-16 truncate">[{staff ? staff.name : 'UN'}]</span>
+                      <span className="text-white font-bold text-base flex-1 px-4 truncate">{service.name}</span>
+                      <span className="text-[#39FF14] font-bold text-lg text-right">¥ {mockPrice}</span>
+                    </div>
+                  );
+                })}
+                {/* 如果有自定义备注，作为附加流显示 */}
+                {customServiceText && (
+                  <div className="flex items-center justify-between font-mono w-full opacity-60">
+                    <span className="text-white/40 text-sm w-16 truncate">[EXT]</span>
+                    <span className="text-white text-sm flex-1 px-4 truncate">{customServiceText}</span>
+                    <span className="text-[#39FF14] text-sm text-right">--</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Core: 总金额的绝对中心 */}
+              <div className="mb-10 flex flex-col items-center relative">
+                <div className="flex items-center gap-4 mb-6">
+                  {['微信', '支付宝', '会员卡扣款'].map(method => (
+                    <span key={method} className={cn(
+                      "text-[10px] font-mono tracking-widest px-2 py-1 rounded transition-colors",
+                      method === '会员卡扣款' && !customerId.startsWith('CO') 
+                        ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/50" 
+                        : "text-white/30 border border-transparent"
+                    )}>
+                      [{method}]
+                    </span>
+                  ))}
+                </div>
+                <div className="text-[10px] text-[#39FF14]/50 tracking-[0.3em] uppercase mb-2">Total Amount</div>
+                <div className="text-6xl font-black tabular-nums text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)] tracking-tighter">
+                  ¥ {selectedServices.reduce((sum, s, idx) => sum + (s.price || ((idx + 1) * 280)), 0)}.00
+                </div>
+              </div>
+              
+              {/* 隐藏的滑轨提示 */}
+              <div 
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[80%] h-12 bg-white/5 rounded-full border border-white/10 flex items-center p-1 overflow-hidden group cursor-pointer"
+                onClick={handleCheckoutComplete}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#39FF14] flex items-center justify-center text-black shadow-[0_0_15px_rgba(57,255,20,0.6)] group-hover:translate-x-[calc(100vw*0.8-48px)] md:group-hover:translate-x-[344px] transition-transform duration-700 ease-in-out">
+                  <Fingerprint className="w-5 h-5" />
+                </div>
+                <span className="absolute left-1/2 -translate-x-1/2 text-[10px] font-mono text-white/40 uppercase tracking-widest pointer-events-none group-hover:opacity-0 transition-opacity">
+                  &gt;&gt; Swipe to Finalize &gt;&gt;
+                </span>
+              </div>
+            </motion.div>
+          ) : (
+            /* ===================== 常规双窗预约表单 ===================== */
+            <motion.div 
+              key="form-pane"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onPanEnd={handlePanEnd}
+              className="relative z-10 w-full max-w-[800px] flex flex-col items-center px-4 md:px-0"
+            >
+              {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
+              <main className="w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
               {/* 右上角关闭按钮 */}
               <button 
                 onClick={onClose} 
