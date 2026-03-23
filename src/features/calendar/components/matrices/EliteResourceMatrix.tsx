@@ -295,12 +295,6 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
     // 防止纵向滚动误触横向翻页
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) return;
 
-    // 修复：如果事件是由外层遮罩（侧边栏滑动手势）触发或已经处理过，则停止执行日期切换
-    // 通过判断 e.target 是否在矩阵容器内部来过滤
-    if (actualMatrixRef.current && !actualMatrixRef.current.contains(e.target as Node)) {
-      return;
-    }
-
     const swipeThreshold = 50;
     if (info.offset.x < -swipeThreshold) {
       onDateSwipe?.('next');

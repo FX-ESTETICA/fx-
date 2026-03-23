@@ -419,13 +419,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           pointerEvents: isBookingModalOpen ? 'none' : 'auto'
         }}
         transition={{ duration: 0.5, ease: "easeInOut" }}
-        // 将手势监听提升至最外层遮罩，使得在任意区域左滑都能收起侧边栏
-        onPanEnd={(_e, info) => {
-          // 如果侧边栏是打开的，并且检测到向左滑动
-          if (isSidebarOpen && (info.offset.x < -30 || info.velocity.x < -300)) {
-            setIsSidebarOpen(false);
-            return; // 修复：一旦触发了关闭侧边栏的操作，直接 return，不让事件冒泡或触发其他层级的切换日期逻辑
-          }
+        // 撤销最外层遮罩的手势监听，点击遮罩关闭的逻辑通过 onClick 实现
+        onClick={() => {
+          if (isSidebarOpen) setIsSidebarOpen(false);
         }}
       >
       {/* [SIDEBAR] 左侧控制中心 (Side Control Hub) - App Shell 固定宽度 */}
@@ -436,7 +432,15 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             animate={{ width: 260, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="bg-transparent flex flex-col relative z-20 shrink-0 overflow-hidden whitespace-nowrap absolute md:relative top-0 left-0 h-full bg-black/90 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none"
+            // 恢复并将手势监听绑定在侧边栏容器本身，且设置 touch-none 确保手势不被内部元素或浏览器吞噬
+            onPanEnd={(_e, info) => {
+              if (info.offset.x < -30 || info.velocity.x < -300) {
+                setIsSidebarOpen(false);
+              }
+            }}
+            // onClick 阻止冒泡，防止点击侧边栏内部时触发外层遮罩的关闭
+            onClick={(e) => e.stopPropagation()}
+            className="bg-transparent flex flex-col relative z-20 shrink-0 overflow-hidden whitespace-nowrap absolute md:relative top-0 left-0 h-full md:bg-transparent backdrop-blur-xl md:backdrop-blur-none touch-none"
           >
             <div className="w-[260px] h-full flex flex-col">
               {/* 品牌区 */}
@@ -459,13 +463,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           {/* 行业切换区 (已移除，移至底部时钟下方) */}
           <div className="p-8 space-y-6 pt-0">
             {/* 核心统计 (Mock) */}
-            <div className="grid grid-cols-1 gap-4 pt-8">
+            <div className="grid grid-cols-1 gap-4 pt-8 pointer-events-none">
               {[
                 { label: '今日预约', value: '24', trend: '+12%', color: 'text-gx-cyan' },
                 { label: '待处理', value: '08', trend: 'Critical', color: 'text-red-500' },
                 { label: '资源负荷', value: '85%', trend: 'High', color: 'text-orange-500' }
               ].map(stat => (
-                <div key={stat.label} className="p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] transition-all">
+                <div key={stat.label} className="p-4 rounded-2xl bg-transparent transition-all">
                   <span className="text-[9px] font-mono text-white font-bold uppercase tracking-widest">{stat.label}</span>
                   <div className="flex items-end justify-between mt-1">
                     <span className={cn("text-2xl font-black tracking-tighter", stat.color)}>{stat.value}</span>
