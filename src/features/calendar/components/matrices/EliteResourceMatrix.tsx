@@ -85,13 +85,13 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
           {liquidTimeSlots.map((slot, idx) => (
             <div key={slot.hour} className="h-20 flex items-start justify-start pl-2.5 relative group pt-2">
               <div className={cn(
-                "transition-all duration-500 text-[13px] mix-blend-screen flex items-center justify-center font-normal tracking-tighter tabular-nums",
+                "transition-all duration-500 text-[13px] mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums",
                 slot.hour === currentHour 
                   ? "scale-110 bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] [text-shadow:0_0_15px_rgba(0,240,255,0.6)]" 
                   : cn("hover:scale-110", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)
               )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
                 <span>{slot.hour.toString().padStart(2, '0')}</span>
-                <span className="text-[10px] opacity-40 mx-[1px] animate-pulse">:</span>
+                <span className="text-[10px] opacity-40 mx-1 animate-pulse">:</span>
                 <span className="opacity-80">00</span>
               </div>
               {/* 如果是断点（例如 11点下一个是 15点），显示折叠提示 */}

@@ -105,13 +105,13 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
             {liquidTimeSlots.map((slot, idx) => (
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <div className={cn(
-                  "transition-all duration-500 text-[15px] mix-blend-screen flex items-center justify-center font-normal tracking-tighter tabular-nums",
+                  "transition-all duration-500 text-[15px] mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums",
                   slot.hour === currentHour 
                     ? "text-gx-cyan scale-110" 
                     : cn("hover:scale-110", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)
                 )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
                   <span>{slot.hour.toString().padStart(2, '0')}</span>
-                  <span className="text-[11px] opacity-40 mx-[1px] animate-pulse">:</span>
+                  <span className="text-[11px] opacity-40 mx-1 animate-pulse">:</span>
                   <span className="opacity-80">00</span>
                 </div>
                 {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (
