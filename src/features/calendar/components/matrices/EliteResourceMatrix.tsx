@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useRef, UIEvent, useEffect } from "react";
+import { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
@@ -24,7 +24,7 @@ const MOCK_BOOKINGS: any[] = [];
 /**
  * EliteResourceMatrix (专家音轨矩阵) - 引入液态时间轴算法
  */
-export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, onHorizontalScroll, onGridClick, matrixScrollRef, onDateSwipe }: EliteResourceMatrixProps) => {
+export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, onGridClick, matrixScrollRef, onDateSwipe }: EliteResourceMatrixProps) => {
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
 
