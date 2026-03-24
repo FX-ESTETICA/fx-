@@ -19,20 +19,44 @@ import { BookingService } from "@/features/booking/api/booking";
 import { MerchantBookingAdapter } from "@/features/booking/utils/adapter";
 import { cn } from "@/utils/cn";
 import Link from "next/link";
+import { Input } from "@/components/shared/Input";
+import { Users, Filter, LayoutDashboard } from "lucide-react";
+import { GlassCard } from "@/components/shared/GlassCard";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/shared/Button";
 
 interface MerchantDashboardProps {
   merchantId: string;
+  shopId?: string;
+  industry?: string | null;
+  onIndustrySet?: (industry: string) => void;
 }
+
+// 模拟的订单组件和标签组件
+const BookingItem = ({ booking }: { booking: any }) => <div className="p-4 border-b border-white/10">{booking.id}</div>;
+const TabButton = ({ active, onClick, children }: any) => <button onClick={onClick} className={active ? "text-white" : "text-white/50"}>{children}</button>;
 
 /**
  * MerchantDashboard - 商家端管理看板
  * 采用 Admin Red (#FF2D55) 视觉规范
  */
-export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
+export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet }: MerchantDashboardProps) => {
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed" | "all">("pending");
+  const [bindUserId, setBindUserId] = useState("");
+  const [isBinding, setIsBinding] = useState(false);
+  const [bindMessage, setBindMessage] = useState("");
+  const [showIndustryModal, setShowIndustryModal] = useState(false);
+  const [isSavingIndustry, setIsSavingIndustry] = useState(false);
 
   // 1. 初始化数据加载
+  useEffect(() => {
+    // 强制行业选择 Onboarding
+    if (!industry) {
+      setShowIndustryModal(true);
+    } else {
+      setShowIndustryModal(false);
+    }
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -68,13 +92,101 @@ export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
     };
   }, []);
 
+  const handleBindUser = async () => {
+    if (!bindUserId.trim() || !shopId) return;
+    setIsBinding(true);
+    setBindMessage("");
+    try {
+      const res = await fetch("/api/sandbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_bindings",
+          payload: { userId: bindUserId.trim(), shopId }
+        })
+      });
+      if (res.ok) {
+        setBindMessage("绑定成功 / Bound successfully!");
+        setBindUserId("");
+      } else {
+        setBindMessage("绑定失败 / Binding failed");
+      }
+    } catch (e) {
+      setBindMessage("网络错误 / Network error");
+    } finally {
+      setIsBinding(false);
+    }
+  };
+
+  const handleSetIndustry = async (selectedIndustry: string) => {
+    if (!shopId) return;
+    setIsSavingIndustry(true);
+    try {
+      const res = await fetch("/api/sandbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_shop_config",
+          payload: { shopId, industry: selectedIndustry }
+        })
+      });
+      if (res.ok) {
+        setShowIndustryModal(false);
+        if (onIndustrySet) onIndustrySet(selectedIndustry);
+      }
+    } catch (e) {
+      console.error("Failed to set industry:", e);
+    } finally {
+      setIsSavingIndustry(false);
+    }
+  };
+
   const filteredBookings = bookings.filter(b => {
     if (activeTab === "all") return true;
     return b.status === activeTab;
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700 relative">
+      
+      {/* 行业选择强制弹窗 (Onboarding) */}
+      <AnimatePresence>
+        {showIndustryModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-3xl"
+          >
+            <GlassCard className="p-8 max-w-md w-full border-gx-admin-red/30 shadow-[0_0_50px_rgba(255,45,85,0.2)]">
+              <h2 className="text-2xl font-bold mb-2 tracking-tighter">请选择您的经营行业</h2>
+              <p className="text-white/40 text-xs mb-8">Select your industry. This will determine your calendar features.</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Button 
+                  variant="ghost" 
+                  className="h-24 flex flex-col items-center justify-center gap-2 border border-white/10 hover:border-gx-cyan/50 hover:bg-gx-cyan/10"
+                  onClick={() => handleSetIndustry('beauty')}
+                  disabled={isSavingIndustry}
+                >
+                  <span className="text-xl">💅</span>
+                  <span className="text-xs tracking-widest uppercase">美业 / Beauty</span>
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  className="h-24 flex flex-col items-center justify-center gap-2 border border-white/10 hover:border-gx-purple/50 hover:bg-gx-purple/10"
+                  onClick={() => handleSetIndustry('expert')}
+                  disabled={isSavingIndustry}
+                >
+                  <span className="text-xl">💆</span>
+                  <span className="text-xs tracking-widest uppercase">专家 / Expert</span>
+                </Button>
+              </div>
+            </GlassCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 顶部统计卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard 
@@ -99,7 +211,7 @@ export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
 
       {/* 功能入口区 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link href="/calendar">
+        <Link href={`/calendar/${industry || 'beauty'}?shopId=${shopId || 'default'}`}>
           <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500" />
             <div className="relative z-10 flex items-center justify-between">
@@ -176,6 +288,47 @@ export const MerchantDashboard = ({ merchantId }: MerchantDashboardProps) => {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+      </GlassCard>
+
+      {/* 员工绑定管理区 */}
+      <GlassCard className="p-6 border-gx-cyan/20">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold tracking-tighter uppercase">人员绑定 / Staff Binding</h2>
+            <p className="text-white/40 text-[10px] font-mono">DYNAMIC_AUTH_SYSTEM</p>
+          </div>
+        </div>
+        
+        <div className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <label className="text-xs text-white/60 uppercase font-mono">前端绑定 ID / Frontend ID</label>
+            <Input 
+              placeholder="例如: GX_USR_1001" 
+              value={bindUserId}
+              onChange={(e) => setBindUserId(e.target.value)}
+              className="font-mono"
+            />
+            <p className="text-[10px] text-white/40">绑定后该用户可直接在其「我的」界面进入专属管理日历。</p>
+          </div>
+          
+          <Button 
+            variant="cyan" 
+            onClick={handleBindUser} 
+            disabled={isBinding || !bindUserId.trim()}
+            className="w-full md:w-auto"
+          >
+            {isBinding ? "绑定中..." : "建立系统关联 / Link"}
+          </Button>
+          
+          {bindMessage && (
+            <p className={cn("text-xs font-mono mt-2", bindMessage.includes("成功") ? "text-gx-cyan" : "text-gx-admin-red")}>
+              {bindMessage}
+            </p>
+          )}
         </div>
       </GlassCard>
     </div>

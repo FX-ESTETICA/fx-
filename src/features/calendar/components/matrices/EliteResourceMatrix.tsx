@@ -7,6 +7,7 @@ import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
 import { OperatingHour } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
+import { useSearchParams } from "next/navigation";
 
 export interface EliteResourceMatrixProps {
   industry: IndustryType;
@@ -31,16 +32,24 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
   const { settings: visualSettings } = useVisualSettings();
+  const searchParams = useSearchParams();
+  const shopId = searchParams.get('shopId');
   
-  // 新增：从 localStorage 读取沙盒预约数据
+  // 新增：从 Vercel KV 模拟读取沙盒预约数据
   const [sandboxBookings, setSandboxBookings] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    const loadBookings = () => {
+    const loadBookings = async () => {
       try {
-        const stored = localStorage.getItem('gx_sandbox_bookings');
-        if (stored) {
-          setSandboxBookings(JSON.parse(stored));
+        const res = await fetch('/api/sandbox');
+        const db = await res.json();
+        const allBookings = db.bookings || [];
+        
+        // 如果有 shopId，则按 shopId 隔离订单
+        if (shopId) {
+          setSandboxBookings(allBookings.filter((b: any) => b.shopId === shopId));
+        } else {
+          setSandboxBookings(allBookings);
         }
       } catch (e) {
         console.error("Failed to load sandbox bookings:", e);
@@ -53,7 +62,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
     // 监听自定义事件以实现跨组件刷新
     window.addEventListener('gx-sandbox-bookings-updated', loadBookings);
     return () => window.removeEventListener('gx-sandbox-bookings-updated', loadBookings);
-  }, []);
+  }, [shopId]);
 
   // --- 核心算法：智能折叠与被动撑开的时间轴 (Smart Folding Timeline) ---
   const liquidTimeSlots = useMemo(() => {

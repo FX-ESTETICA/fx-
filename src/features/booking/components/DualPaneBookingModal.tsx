@@ -192,10 +192,28 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
           
           if (editingBooking.services && editingBooking.services.length > 0) {
             // 修复：确保回显的服务项目带有正确的 assignedEmployeeId
-            const restoredServices = editingBooking.services.map((s: any) => ({
-              ...s,
-              assignedEmployeeId: editingBooking.originalUnassigned ? null : editingBooking.resourceId
-            }));
+            // 如果是 SuperBooking (跨块连单)，我们需要追溯每个 service 到底属于哪个子订单 (resourceId)
+            let restoredServices = [];
+            
+            if (editingBooking.isSuperBooking && editingBooking.relatedBookings) {
+              // 遍历所有子订单，提取它们各自的 services，并强制打上该子订单的 resourceId 印章
+              editingBooking.relatedBookings.forEach((b: any) => {
+                if (b.services) {
+                  const bServices = b.services.map((s: any) => ({
+                    ...s,
+                    assignedEmployeeId: b.originalUnassigned ? null : b.resourceId
+                  }));
+                  restoredServices.push(...bServices);
+                }
+              });
+            } else {
+              // 单块订单逻辑
+              restoredServices = editingBooking.services.map((s: any) => ({
+                ...s,
+                assignedEmployeeId: editingBooking.originalUnassigned ? null : editingBooking.resourceId
+              }));
+            }
+            
             setSelectedServices(restoredServices);
             
             // 还原自定义文本
@@ -293,8 +311,11 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   };
 
   // 处理手势：向右滑动进入结账，向左滑动退回表单
+  // 加入严格的防误触判定：只响应纯粹的横向滑动，忽略上下滚动时的轻微横向偏移
   const handlePanEnd = (_e: any, info: any) => {
-    if (editingBooking) {
+    const isHorizontalSwipe = Math.abs(info.offset.x) > 80 && Math.abs(info.offset.y) < 50;
+    
+    if (isHorizontalSwipe) {
       if (!isCheckoutMode && info.offset.x > 80) {
         setIsCheckoutMode(true);
       } else if (isCheckoutMode && info.offset.x < -80) {
@@ -311,7 +332,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   };
 
   // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
     if (selectedServices.length === 0) {
       alert("请至少选择一个服务项目");
       return;
@@ -334,8 +355,8 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     const customerName = phoneTracks.filter(t => t.trim() !== "").join(',') || "散客 Walk-in";
     const baseDate = selectedDate.replace(/\//g, '-'); // 确保格式为 YYYY-MM-DD 以便解析
     
-    // 生成一个主订单ID，把拆分出来的子卡片关联起来
-    const masterOrderId = `ORD-${Date.now()}`;
+    // 如果编辑的是连单，复用其 masterOrderId；否则生成新的
+    const masterOrderId = editingBooking?.masterOrderId || `ORD-${Date.now()}`;
 
     // --- 消耗/更新客户编号 (Consume Customer ID) ---
     if (!editingBooking && customerId) {
@@ -393,19 +414,27 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
         duration: finalDuration,
         status: 'confirmed',
         services: servicesInGroup, // 原始服务数据，备用
-        originalUnassigned: empId === 'unassigned' // 标记它原本是未指定的
+        originalUnassigned: empId === 'unassigned', // 标记它原本是未指定的
+        shopId: new URLSearchParams(window.location.search).get('shopId') || 'default' // 从URL动态获取当前门店ID
       });
     });
 
     // --- 全局动态重排逻辑 (Global Dynamic Spatial Reflow) ---
     // 读取所有数据，进行“绝对路权锚定”与“无指定预约重新寻位”
     try {
-      const existingBookingsStr = localStorage.getItem('gx_sandbox_bookings');
-      let allBookings = existingBookingsStr ? JSON.parse(existingBookingsStr) : [];
+      // 这里的逻辑改成从 Vercel KV 异步读取
+      const res = await fetch('/api/sandbox');
+      const db = await res.json();
+      let allBookings = db.bookings || [];
       
-      // 1. 如果是编辑模式，先从现存列表中移除这笔被编辑的旧订单
+      // 1. 如果是编辑模式，先从现存列表中移除这笔被编辑的旧订单（或所有关联子订单）
       if (editingBooking) {
-        allBookings = allBookings.filter((b: any) => b.id !== editingBooking.id);
+        if (editingBooking.isSuperBooking && editingBooking.relatedBookings) {
+          const idsToRemove = editingBooking.relatedBookings.map((b: any) => b.id);
+          allBookings = allBookings.filter((b: any) => !idsToRemove.includes(b.id));
+        } else {
+          allBookings = allBookings.filter((b: any) => b.id !== editingBooking.id);
+        }
       }
 
       // 2. 将当前操作产生的新订单加入全量列表
@@ -454,6 +483,9 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
         for (const staff of staffs) {
           const hasConflict = placedBookings.some(placed => {
             if (placed.resourceId !== staff.id) return false;
+            // 如果 shopId 不同，则不会产生物理碰撞 (虽然通常在一个日历视图下都是同 shopId)
+            if (placed.shopId && unassignedBkg.shopId && placed.shopId !== unassignedBkg.shopId) return false;
+
             const pStartMin = timeToMinutes(placed.startTime);
             const pEndMin = pStartMin + placed.duration;
             // 绝对碰撞检测
@@ -475,7 +507,16 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
 
       // 7. 合并重排后的今日订单与非今日订单，存盘
       const finalUpdatedBookings = [...otherDayBookings, ...placedBookings];
-      localStorage.setItem('gx_sandbox_bookings', JSON.stringify(finalUpdatedBookings));
+      
+      // 异步保存到 Vercel KV
+      await fetch('/api/sandbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_bookings',
+          payload: finalUpdatedBookings
+        })
+      });
       
       // 触发全局自定义事件，通知矩阵刷新
       window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
@@ -509,12 +550,67 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     return date.toTimeString().substring(0, 5);
   };
 
+  const formatDisplayId = (rawId: string) => {
+    if (!rawId) return "CO 001";
+    const parts = rawId.split(' ');
+    if (parts.length !== 2) return rawId;
+    const prefix = parts[0];
+    const numStr = parts[1];
+    const num = parseInt(numStr, 10);
+    
+    if (['CO', 'NO'].includes(prefix)) {
+      let paddedNum = num.toString();
+      if (num < 1000) {
+        paddedNum = num.toString().padStart(3, '0');
+      } else if (num < 10000) {
+        paddedNum = num.toString().padStart(4, '0');
+      }
+      return `${prefix} ${paddedNum}`;
+    } else {
+      // 修复：确保会员编号能返回正确的格式，如果剥离前缀后导致不可见，我们在这里补充一个统一的前缀，或者直接返回原始编号以保证高亮显示
+      return rawId; 
+    }
+  };
+
+  // --- Checkout Data Transformer ---
+  // 将选中的服务按员工进行分组，用于结账舱渲染
+  const groupedCheckoutServices = selectedServices.reduce((acc: any, service: any) => {
+    // 关键修复：如果在编辑模式下（特别是连单模式），传进来的 service 可能没有 assignedEmployeeId，
+    // 但是它所归属的 booking (或者它自己) 带有 resourceId。我们需要尽量去挖掘它属于哪个员工。
+    // 因为在跨块连单组装时，我们是从不同的 block 里提取的 service。
+    let empId = service.assignedEmployeeId;
+    
+    if (!empId) {
+      // 尝试从外部 editingBooking 的相关订单中寻找（因为我们把它们压平了）
+      if (editingBooking?.isSuperBooking && editingBooking.relatedBookings) {
+        // 找一找哪个子订单包含了这个服务
+        const parentBooking = editingBooking.relatedBookings.find((b: any) => 
+          b.services?.some((s: any) => s.id === service.id)
+        );
+        if (parentBooking && parentBooking.resourceId) {
+          empId = parentBooking.resourceId;
+        }
+      }
+    }
+    
+    empId = empId || 'unassigned';
+
+    if (!acc[empId]) {
+      acc[empId] = [];
+    }
+    acc[empId].push(service);
+    return acc;
+  }, {});
+
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white">
+        <motion.div 
+          className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-pan-y"
+          onPanEnd={handlePanEnd}
+        >
           {/* 背景暗场遮罩，带有毛玻璃效果 */}
           <motion.div 
             initial={{ opacity: 0 }}
@@ -532,88 +628,127 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
               animate={{ scale: 1, opacity: 1, x: 0 }}
               exit={{ scale: 0.95, opacity: 0, x: 50 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onPanEnd={handlePanEnd}
-              className="relative z-10 w-full max-w-[500px] h-[80vh] md:h-[600px] flex flex-col justify-between p-8 border border-[#39FF14]/30 rounded-3xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 overflow-hidden"
+              className="relative z-10 w-full max-w-[800px] h-[80vh] md:h-[450px] flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 overflow-hidden"
             >
               {/* 顶角关闭 / 返回按钮 */}
               <button 
                 onClick={() => setIsCheckoutMode(false)} 
-                className="absolute top-6 left-6 text-white/40 hover:text-[#39FF14] transition-colors"
+                className="absolute top-4 left-4 text-white/40 hover:text-[#39FF14] transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <button 
                 onClick={onClose} 
-                className="absolute top-6 right-6 text-white/40 hover:text-red-400 transition-colors"
+                className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Top Anchor: VIP 身份图腾 */}
-              <div className="mt-12 flex flex-col items-center text-center space-y-2">
+              <div className="mt-4 flex flex-col items-center text-center space-y-1">
                 <span className="text-[#39FF14]/50 text-[10px] font-mono uppercase tracking-widest">Target Entity</span>
                 <h1 className={cn(
-                  "text-5xl font-black font-mono tracking-[0.2em] uppercase",
-                  customerId.startsWith('CO') ? "text-white/60" : "bg-gradient-to-r from-[#39FF14] via-cyan-400 to-[#39FF14] bg-clip-text text-transparent animate-[gradient_3s_linear_infinite] bg-[length:200%_auto]"
+                  "text-4xl md:text-5xl font-black font-mono tracking-[0.2em] uppercase",
+                  customerId.startsWith('CO') 
+                    ? "text-white/60" 
+                    : "bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(250,204,21,0.3)]"
                 )}>
-                  [{customerId || "CO 0001"}]
+                  [{formatDisplayId(customerId)}]
                 </h1>
               </div>
 
               {/* Middle Matrix: 极简三维消费流 */}
-              <div className="flex-1 w-full mt-16 flex flex-col gap-6 overflow-y-auto no-scrollbar px-4">
-                {selectedServices.map((service, idx) => {
-                  const staff = staffs.find(st => st.id === service.assignedEmployeeId);
-                  const mockPrice = service.price || ((idx + 1) * 280); // 沙盒模拟价格
+              <div className="flex-1 w-full mt-6 flex flex-col gap-4 overflow-y-auto no-scrollbar px-8 md:px-24">
+                {Object.entries(groupedCheckoutServices).map(([empId, services]: [string, any]) => {
+                  // 这里解决渲染匹配问题：如果在沙盒模式下 assignedEmployeeId 是 null 或者 'unassigned'，它可能找不到 staff
+                  // 但是在跨块连单传入时，booking 本身可能带有 resourceId。
+                  // 我们在上面 transformer 中已经用 service.assignedEmployeeId 进行分组了。
+                  const staff = staffs.find(st => st.id === empId);
+                  // 如果找不到员工（比如是旧数据或者跨块连单导致 empId 对不上），我们尝试用 empId 作为名字兜底显示，或者显示 UN
+                  const staffName = staff ? staff.name : (empId !== 'unassigned' && empId !== 'null' ? empId : 'UN');
+                  
                   return (
-                    <div key={idx} className="flex items-center justify-between font-mono w-full">
-                      <span className="text-white/40 text-sm w-16 truncate">[{staff ? staff.name : 'UN'}]</span>
-                      <span className="text-white font-bold text-base flex-1 px-4 truncate">{service.name}</span>
-                      <span className="text-[#39FF14] font-bold text-lg text-right">¥ {mockPrice}</span>
+                    <div key={empId} className="flex flex-col gap-4">
+                      {services.map((service: any, idx: number) => {
+                        // 修复价格累加 bug：由于我们之前改成了按组遍历，这里的 idx 是组内索引！
+                        // 而在旧版本（或者计算总价时），idx 是全局索引。
+                        // 为了让沙盒模拟价格和总价对得上，我们需要在 `selectedServices` 中找到它的全局真实索引，或者干脆统一价格逻辑。
+                        const globalIdx = selectedServices.findIndex(s => s.id === service.id);
+                        const mockPrice = (service.prices && service.prices[0]) || service.price || ((globalIdx > -1 ? globalIdx + 1 : idx + 1) * 280); // 优先读取多级标签价格模型的第一项，沙盒模拟兜底
+                        
+                        return (
+                          <div key={service.id || idx} className="flex items-center w-full gap-6">
+                            {/* 员工签名栏：仅在该员工的第一个项目显示，后续项目留白以维持网格对齐 */}
+                            <div className="w-24 shrink-0 text-left">
+                              {idx === 0 ? (
+                                <span className="text-lg font-bold tracking-widest text-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] uppercase">
+                                  {staffName}
+                                </span>
+                              ) : (
+                                <span className="text-lg font-bold tracking-widest text-transparent uppercase select-none">
+                                  {staffName}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* 高对比度项目名称 */}
+                            <span className="text-white font-bold text-lg tracking-wider shrink-0 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                              {service.name}
+                            </span>
+                            
+                            {/* 动态赛博引线 (Leader) */}
+                            <div className="flex-1 h-px border-b border-dashed border-white/20 opacity-60 mx-2" />
+                            
+                            {/* 价格 */}
+                            <span className="text-white font-bold text-lg tracking-wider shrink-0">
+                              ¥ {mockPrice}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
                 {/* 如果有自定义备注，作为附加流显示 */}
                 {customServiceText && (
-                  <div className="flex items-center justify-between font-mono w-full opacity-60">
-                    <span className="text-white/40 text-sm w-16 truncate">[EXT]</span>
-                    <span className="text-white text-sm flex-1 px-4 truncate">{customServiceText}</span>
-                    <span className="text-[#39FF14] text-sm text-right">--</span>
+                  <div className="flex items-center w-full gap-6 opacity-50 mt-2">
+                    <div className="w-24 shrink-0 text-left">
+                      <span className="text-sm font-mono tracking-widest text-white/40 uppercase">
+                        [EXT]
+                      </span>
+                    </div>
+                    <span className="text-white/80 font-bold text-lg tracking-widest shrink-0">
+                      {customServiceText}
+                    </span>
+                    <div className="flex-1 h-px border-b border-dashed border-white/10 mx-2" />
+                    <span className="text-white/50 font-bold text-lg tracking-wider shrink-0">
+                      --
+                    </span>
                   </div>
                 )}
               </div>
 
               {/* Bottom Core: 总金额的绝对中心 */}
-              <div className="mb-10 flex flex-col items-center relative">
-                <div className="flex items-center gap-4 mb-6">
-                  {['微信', '支付宝', '会员卡扣款'].map(method => (
+              <div className="mb-8 flex flex-col items-center relative">
+                <div className="flex flex-wrap justify-center items-center gap-3 mb-4">
+                  {['微信', '支付宝', '现金', '银行卡', '会员卡扣款'].map(method => (
                     <span key={method} className={cn(
-                      "text-[10px] font-mono tracking-widest px-2 py-1 rounded transition-colors",
+                      "text-[10px] font-mono tracking-widest px-3 py-1.5 rounded transition-colors whitespace-nowrap",
                       method === '会员卡扣款' && !customerId.startsWith('CO') 
                         ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/50" 
-                        : "text-white/30 border border-transparent"
+                        : "text-white/30 border border-white/10 hover:border-white/30 hover:text-white/60 cursor-pointer"
                     )}>
                       [{method}]
                     </span>
                   ))}
                 </div>
-                <div className="text-[10px] text-[#39FF14]/50 tracking-[0.3em] uppercase mb-2">Total Amount</div>
-                <div className="text-6xl font-black tabular-nums text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)] tracking-tighter">
-                  ¥ {selectedServices.reduce((sum, s, idx) => sum + (s.price || ((idx + 1) * 280)), 0)}.00
+                <div className="text-[10px] text-[#39FF14]/50 tracking-[0.3em] uppercase mb-1">Total Amount</div>
+                <div className="text-5xl font-black tabular-nums text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)] tracking-tighter">
+                  ¥ {selectedServices.reduce((sum, s, idx) => {
+                    const mockPrice = (s.prices && s.prices[0]) || s.price || ((idx + 1) * 280);
+                    return sum + mockPrice;
+                  }, 0)}.00
                 </div>
-              </div>
-              
-              {/* 隐藏的滑轨提示 */}
-              <div 
-                className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[80%] h-12 bg-white/5 rounded-full border border-white/10 flex items-center p-1 overflow-hidden group cursor-pointer"
-                onClick={handleCheckoutComplete}
-              >
-                <div className="w-10 h-10 rounded-full bg-[#39FF14] flex items-center justify-center text-black shadow-[0_0_15px_rgba(57,255,20,0.6)] group-hover:translate-x-[calc(100vw*0.8-48px)] md:group-hover:translate-x-[344px] transition-transform duration-700 ease-in-out">
-                  <Fingerprint className="w-5 h-5" />
-                </div>
-                <span className="absolute left-1/2 -translate-x-1/2 text-[10px] font-mono text-white/40 uppercase tracking-widest pointer-events-none group-hover:opacity-0 transition-opacity">
-                  &gt;&gt; Swipe to Finalize &gt;&gt;
-                </span>
               </div>
             </motion.div>
           ) : (
@@ -624,7 +759,6 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onPanEnd={handlePanEnd}
               className="relative z-10 w-full max-w-[800px] flex flex-col items-center px-4 md:px-0"
             >
               {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
@@ -712,7 +846,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                             "text-[11px] font-bold font-mono tracking-widest leading-none -translate-y-[1px]",
                             customerId.startsWith('CO') ? "text-white/40" : "text-gx-cyan"
                           )}>
-                            {customerId}
+                            {formatDisplayId(customerId)}
                           </span>
                         </div>
                       ) : (
@@ -1588,7 +1722,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
             `}} />
           </motion.div>
           )}
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

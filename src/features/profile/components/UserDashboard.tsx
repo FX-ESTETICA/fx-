@@ -8,10 +8,13 @@ import { UserProfile } from "../types";
 
 interface UserDashboardProps {
   profile: UserProfile;
+  boundShopId?: string | null;
+  industry?: string | null;
 }
 
-export const UserDashboard = ({ profile }: UserDashboardProps) => {
+export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardProps) => {
   const hasPrivilege = profile.privileges?.includes("calendar_access");
+  const calendarUrl = boundShopId ? `/calendar/${industry || 'beauty'}?shopId=${boundShopId}` : "/calendar/beauty";
 
   return (
     <div className="space-y-12">
@@ -31,7 +34,7 @@ export const UserDashboard = ({ profile }: UserDashboardProps) => {
                   您的老板已授权您访问专属日程系统。查看、管理与同步您的任务节点。
                 </p>
                 <div className="pt-4">
-                  <Link href="/calendar">
+                  <Link href={calendarUrl}>
                     <Button variant="cyan" size="sm" className="uppercase tracking-widest text-[10px]">
                       立即进入 / Access Now
                     </Button>

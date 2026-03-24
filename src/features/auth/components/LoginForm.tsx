@@ -8,15 +8,27 @@ import { useState } from "react";
 import { Chrome, UserCircle } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { AuthService } from "../api/auth";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth, SandboxUser } from "../hooks/useAuth";
 import { useRouter } from "next/navigation";
+
+// --- 沙盒 Mock 账号库 ---
+const MOCK_ACCOUNTS: Record<string, SandboxUser> = {
+  "admin@gx.com": { id: "admin", gxId: "GX_ADM_0001", email: "admin@gx.com", role: "boss", name: "系统创始人 / Creator", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "boss_f@gx.com": { id: "boss_f", gxId: "GX_MCH_0092", email: "boss_f@gx.com", role: "merchant", name: "陈老板 / Mr. Chen", shopId: "shop_f", shopName: "星河美甲沙龙", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "boss_g@gx.com": { id: "boss_g", gxId: "GX_MCH_0093", email: "boss_g@gx.com", role: "merchant", name: "王老板 / Mr. Wang", shopId: "shop_g", shopName: "赛博按摩馆", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_a@gx.com": { id: "user_a", gxId: "GX_USR_1001", email: "user_a@gx.com", role: "user", name: "林晓明 / Xiao Ming", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_b@gx.com": { id: "user_b", gxId: "GX_USR_1002", email: "user_b@gx.com", role: "user", name: "张伟 / Zhang Wei", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_c@gx.com": { id: "user_c", gxId: "GX_USR_1003", email: "user_c@gx.com", role: "user", name: "李娜 / Li Na", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_d@gx.com": { id: "user_d", gxId: "GX_USR_1004", email: "user_d@gx.com", role: "user", name: "王强 / Wang Qiang", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_e@gx.com": { id: "user_e", gxId: "GX_USR_1005", email: "user_e@gx.com", role: "user", name: "赵敏 / Zhao Min", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+};
 
 /**
  * LoginForm - GX 核心登录组件
  * 采用极致赛博极简风格
  */
 export const LoginForm = () => {
-  const { setGuestMode } = useAuth();
+  const { setGuestMode, sandboxLogin } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +92,16 @@ export const LoginForm = () => {
     setError(null);
     
     try {
+      // --- 沙盒模式拦截逻辑 ---
+      if (password === "123456" && MOCK_ACCOUNTS[email]) {
+        sandboxLogin(MOCK_ACCOUNTS[email]);
+        router.push("/dashboard");
+        return;
+      }
+      
+      // 真实 Supabase 逻辑
       await AuthService.signInWithEmail(email, password);
-      router.push("/home");
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("Auth error:", err);
       setError(err.message || current.error);

@@ -79,6 +79,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 共享的服务项目状态
   const [categories, setCategories] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [globalBookings, setGlobalBookings] = useState<any[]>([]);
 
   // 初始化：从 localStorage 读取沙盒数据
   useEffect(() => {
@@ -98,17 +99,32 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       if (savedHours) {
         setOperatingHours(JSON.parse(savedHours));
       }
-      const savedCategories = localStorage.getItem('gx_sandbox_categories');
-      if (savedCategories) {
-        setCategories(JSON.parse(savedCategories));
-      }
-      const savedServices = localStorage.getItem('gx_sandbox_services');
-      if (savedServices) {
-        setServices(JSON.parse(savedServices));
-      }
+        const savedCategories = localStorage.getItem('gx_sandbox_categories');
+        if (savedCategories) {
+          setCategories(JSON.parse(savedCategories));
+        }
+        const savedServices = localStorage.getItem('gx_sandbox_services');
+        if (savedServices) {
+          setServices(JSON.parse(savedServices));
+        }
     } catch (e) {
       console.error('Failed to parse sandbox data:', e);
     }
+
+    // 异步加载云端订单
+    const loadCloudBookings = async () => {
+      try {
+        const res = await fetch('/api/sandbox');
+        const db = await res.json();
+        setGlobalBookings(db.bookings || []);
+      } catch (e) {
+        console.error("Failed to load cloud bookings:", e);
+      }
+    };
+    loadCloudBookings();
+    
+    window.addEventListener('gx-sandbox-bookings-updated', loadCloudBookings);
+    return () => window.removeEventListener('gx-sandbox-bookings-updated', loadCloudBookings);
   }, []);
 
   // 持久化：当数据变化时写入 localStorage
@@ -159,6 +175,36 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const [crosshairResourceId, setCrosshairResourceId] = useState<string | undefined>();
 
   const handleBookingClick = (booking: any) => {
+    // 智能拦截：如果点击的订单属于某个 masterOrderId (连单)，则把相关的订单全部捞出来，作为“联合订单”传入
+    if (booking.masterOrderId) {
+      try {
+        if (globalBookings && globalBookings.length > 0) {
+          const allBookings = globalBookings;
+          const relatedBookings = allBookings.filter((b: any) => b.masterOrderId === booking.masterOrderId);
+          
+          if (relatedBookings.length > 1) {
+            // 将多个子订单聚合成一个“超级订单”传入 Modal
+            // 取第一个订单的基础信息，合并 services 和 duration
+            const superBooking = {
+              ...booking,
+              isSuperBooking: true, // 标记这是一个连单集合
+              relatedBookings: relatedBookings,
+              // 将所有子订单的 services 压平合并
+              services: relatedBookings.reduce((acc: any[], b: any) => [...acc, ...(b.services || [])], []),
+              // 聚合总时长（这里只是为了展示，真实业务可能需要计算跨度）
+              duration: relatedBookings.reduce((sum: number, b: any) => sum + (b.duration || 0), 0),
+            };
+            setEditingBooking(superBooking);
+            setIsBookingModalOpen(true);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse related bookings", e);
+      }
+    }
+    
+    // 如果没有 masterOrderId 或只有一个订单，正常传入
     setEditingBooking(booking);
     setIsBookingModalOpen(true);
   };
@@ -363,15 +409,18 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     const paginatedResources = baseResources.slice(startIndex, startIndex + STAFFS_PER_PAGE);
 
     // 动态 No-Show 爽约列逻辑：
-    // 查询 localStorage 中的沙盒预约数据，如果今天存在 resourceId 为 'NO' 的订单，则在末尾挂载 NO 列
+    // 查询云端数据，如果今天存在 resourceId 为 'NO' 的订单，则在末尾挂载 NO 列
     try {
-      const stored = localStorage.getItem('gx_sandbox_bookings');
-      if (stored) {
-        const bookings = JSON.parse(stored);
+      if (globalBookings && globalBookings.length > 0) {
         const currentDateStr = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
         
-        // 检查是否有今天的 NO 订单
-        const hasNoShowToday = bookings.some((b: any) => b.date === currentDateStr && b.resourceId === 'NO');
+        // 检查是否有今天的 NO 订单 (也需要过滤 shopId)
+        const shopId = new URLSearchParams(window.location.search).get('shopId');
+        const hasNoShowToday = globalBookings.some((b: any) => 
+          b.date === currentDateStr && 
+          b.resourceId === 'NO' && 
+          (!shopId || b.shopId === shopId)
+        );
         
         if (hasNoShowToday) {
           paginatedResources.push({
@@ -392,7 +441,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     }
 
     return paginatedResources;
-  }, [industry, staffs, isMounted, currentStaffPage, currentDate]);
+  }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings]);
 
   // 表头翻页手势处理
   const handleHeaderPanEnd = (_e: any, info: any) => {
@@ -524,7 +573,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <button 
                     onClick={() => {
                       if (confirm('确定要清除所有本地沙盒预约数据吗？此操作不可恢复。')) {
-                        localStorage.removeItem('gx_sandbox_bookings');
+                        fetch('/api/sandbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_bookings', payload: [] }) }).then(() => { window.dispatchEvent(new Event('gx-sandbox-bookings-updated')); });
                         window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
                       }
                     }}

@@ -5,6 +5,7 @@ import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { OperatingHour } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
+import { useSearchParams } from "next/navigation";
 
 export interface EliteWeekMatrixProps {
   industry: IndustryType;
@@ -12,7 +13,7 @@ export interface EliteWeekMatrixProps {
   resources: MatrixResource[];
   selectedStaffIds: string[];
   operatingHours: OperatingHour[];
-  onGridClick?: () => void;
+  onGridClick?: (resourceId?: string, time?: string) => void;
   onDateClick?: (date: Date) => void;
   currentDate: Date;
 }
@@ -26,16 +27,23 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
   const currentTime = new Date();
   const currentHour = currentTime.getHours();
   const { settings: visualSettings } = useVisualSettings();
+  const searchParams = useSearchParams();
+  const shopId = searchParams.get('shopId');
 
-  // 新增：从 localStorage 读取沙盒预约数据 (为了支持被动撑开逻辑)
+  // 新增：从云端读取沙盒预约数据 (为了支持被动撑开逻辑)
   const [sandboxBookings, setSandboxBookings] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    const loadBookings = () => {
+    const loadBookings = async () => {
       try {
-        const stored = localStorage.getItem('gx_sandbox_bookings');
-        if (stored) {
-          setSandboxBookings(JSON.parse(stored));
+        const res = await fetch('/api/sandbox');
+        const db = await res.json();
+        const allBookings = db.bookings || [];
+        
+        if (shopId) {
+          setSandboxBookings(allBookings.filter((b: any) => b.shopId === shopId));
+        } else {
+          setSandboxBookings(allBookings);
         }
       } catch (e) {
         console.error("Failed to load sandbox bookings:", e);
@@ -44,7 +52,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
     loadBookings();
     window.addEventListener('gx-sandbox-bookings-updated', loadBookings);
     return () => window.removeEventListener('gx-sandbox-bookings-updated', loadBookings);
-  }, []);
+  }, [shopId]);
 
   // --- 核心算法：智能折叠与被动撑开的时间轴 (Smart Folding Timeline) ---
   const liquidTimeSlots = useMemo(() => {
