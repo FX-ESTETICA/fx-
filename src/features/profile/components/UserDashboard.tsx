@@ -13,7 +13,8 @@ interface UserDashboardProps {
 }
 
 export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardProps) => {
-  const hasPrivilege = profile.privileges?.includes("calendar_access");
+  // 如果绑定的商户 industry 为 'none'，则认为该用户没有日历权限
+  const hasPrivilege = profile.privileges?.includes("calendar_access") && industry !== 'none';
   const calendarUrl = boundShopId ? `/calendar/${industry || 'beauty'}?shopId=${boundShopId}` : "/calendar/beauty";
 
   return (

@@ -19,6 +19,7 @@ import { BookingService } from "@/features/booking/api/booking";
 import { MerchantBookingAdapter } from "@/features/booking/utils/adapter";
 import { cn } from "@/utils/cn";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/shared/Input";
 import { Users } from "lucide-react";
 
@@ -40,7 +41,8 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
   const [isBinding, setIsBinding] = useState(false);
   const [bindMessage, setBindMessage] = useState("");
   const [showIndustryModal, setShowIndustryModal] = useState(false);
-  const [isSavingIndustry, setIsSavingIndustry] = useState(false);
+
+  const router = useRouter();
 
   // 1. 初始化数据加载
   useEffect(() => {
@@ -115,24 +117,31 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
 
   const handleSetIndustry = async (selectedIndustry: string) => {
     if (!shopId) return;
-    setIsSavingIndustry(true);
-    try {
-      const res = await fetch("/api/sandbox", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update_shop_config",
-          payload: { shopId, industry: selectedIndustry }
-        })
-      });
-      if (res.ok) {
-        setShowIndustryModal(false);
-        if (onIndustrySet) onIndustrySet(selectedIndustry);
+    
+    // Optimistic UI: 瞬间改变本地状态，隐藏弹窗，准备跳转
+    setShowIndustryModal(false);
+    
+    // 后台静默发送保存请求
+    fetch("/api/sandbox", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_shop_config",
+        payload: { shopId, industry: selectedIndustry }
+      })
+    }).then(res => {
+      if (res.ok && onIndustrySet) {
+        onIndustrySet(selectedIndustry);
       }
-    } catch (e) {
-      console.error("Failed to set industry:", e);
-    } finally {
-      setIsSavingIndustry(false);
+    }).catch(e => console.error("Failed to set industry silently:", e));
+
+    // 如果选了"不需要"，留在当前页；否则微小延迟后极速切入日历
+    if (selectedIndustry !== 'none') {
+      setTimeout(() => {
+        router.push(`/calendar/${selectedIndustry}?shopId=${shopId}`);
+      }, 100);
+    } else {
+      if (onIndustrySet) onIndustrySet('none');
     }
   };
 
@@ -152,30 +161,33 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
             animate={{ opacity: 1 }}
             className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-3xl"
           >
-            <GlassCard className="p-8 max-w-md w-full border-gx-admin-red/30 shadow-[0_0_50px_rgba(255,45,85,0.2)]">
-              <h2 className="text-2xl font-bold mb-2 tracking-tighter">请选择您的经营行业</h2>
-              <p className="text-white/40 text-xs mb-8">Select your industry. This will determine your calendar features.</p>
+            <GlassCard className="p-8 max-w-2xl w-full border-gx-cyan/30 shadow-[0_0_50px_rgba(0,240,255,0.15)]">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold mb-2 tracking-tighter uppercase">配置您的行业内核引擎</h2>
+                <p className="text-white/40 text-xs font-mono tracking-widest uppercase">Select Your Core Industry Engine</p>
+              </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  variant="ghost" 
-                  className="h-24 flex flex-col items-center justify-center gap-2 border border-white/10 hover:border-gx-cyan/50 hover:bg-gx-cyan/10"
-                  onClick={() => handleSetIndustry('beauty')}
-                  disabled={isSavingIndustry}
-                >
-                  <span className="text-xl">💅</span>
-                  <span className="text-xs tracking-widest uppercase">美业 / Beauty</span>
-                </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  className="h-24 flex flex-col items-center justify-center gap-2 border border-white/10 hover:border-gx-purple/50 hover:bg-gx-purple/10"
-                  onClick={() => handleSetIndustry('expert')}
-                  disabled={isSavingIndustry}
-                >
-                  <span className="text-xl">💆</span>
-                  <span className="text-xs tracking-widest uppercase">专家 / Expert</span>
-                </Button>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { id: 'beauty', icon: '💅', label: '美业 / BEAUTY' },
+                  { id: 'expert', icon: '💆', label: '专家 / EXPERT' },
+                  { id: 'medical', icon: '🏥', label: '医疗 / MEDICAL' },
+                  { id: 'dining', icon: '🍽️', label: '餐饮 / DINING' },
+                  { id: 'hotel', icon: '🏨', label: '酒店 / HOTEL' },
+                  { id: 'fitness', icon: '🏋️', label: '健身 / FITNESS' },
+                  { id: 'other', icon: '📅', label: '通用 / OTHER' },
+                  { id: 'none', icon: '🚫', label: '不需要系统日历' },
+                ].map((item) => (
+                  <Button 
+                    key={item.id}
+                    variant="ghost" 
+                    className="h-28 flex flex-col items-center justify-center gap-3 border border-white/5 hover:border-gx-cyan/50 hover:bg-gx-cyan/10 transition-all duration-300"
+                    onClick={() => handleSetIndustry(item.id)}
+                  >
+                    <span className="text-2xl">{item.icon}</span>
+                    <span className="text-[10px] tracking-widest uppercase text-white/80">{item.label}</span>
+                  </Button>
+                ))}
               </div>
             </GlassCard>
           </motion.div>
@@ -206,23 +218,25 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
 
       {/* 功能入口区 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Link href={`/calendar/${industry || 'beauty'}?shopId=${shopId || 'default'}`}>
-          <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500" />
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan group-hover:scale-110 transition-transform duration-500">
-                  <Calendar className="w-6 h-6" />
+        {industry !== 'none' && (
+          <Link href={`/calendar/${industry || 'beauty'}?shopId=${shopId || 'default'}`}>
+            <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500" />
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan group-hover:scale-110 transition-transform duration-500">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold tracking-tight">日历后台 / Calendar</h3>
+                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">Manage Bookings & Slots</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight">日历后台 / Calendar</h3>
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">Manage Bookings & Slots</p>
-                </div>
+                <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 transition-all" />
               </div>
-              <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 transition-all" />
-            </div>
-          </GlassCard>
-        </Link>
+            </GlassCard>
+          </Link>
+        )}
 
         <Link href="/nebula">
           <GlassCard glowColor="purple" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
