@@ -7,6 +7,7 @@ import { MerchantDashboard } from "@/features/profile/components/MerchantDashboa
 import { UserRole, UserProfile } from "@/features/profile/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/shared/Button";
+import { GlassCard } from "@/components/shared/GlassCard";
 import { LayoutDashboard, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useAuth, SandboxUser } from "@/features/auth/hooks/useAuth";
@@ -71,14 +72,7 @@ export default function DashboardPage() {
     stats: []
   };
 
-  // 给 UserDashboard 传递绑定的 shopId (如果有)
-  const isUser = activeRole === "user";
-  const userShopId = boundShopId || "default";
-  const merchantShopId = sUser?.shopId || "default";
-  const targetCalendarPath = isUser 
-    ? (boundShopId ? `/calendar/beauty?shopId=${boundShopId}` : "#") 
-    : `/calendar/beauty?shopId=${merchantShopId}`;
-
+  // 决定可用角色切换
   return (
     <main className="min-h-screen bg-black text-white p-6 md:p-12 relative overflow-hidden">
       {/* 背景光效 */}

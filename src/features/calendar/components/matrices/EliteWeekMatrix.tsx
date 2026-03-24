@@ -203,7 +203,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                     <div 
                       key={dayIdx} 
                       className="w-full h-full group hover:bg-white/[0.02] transition-colors relative p-1 flex flex-col gap-1 cursor-pointer"
-                      onClick={onGridClick}
+                      onClick={() => onGridClick && onGridClick(undefined, `${String(slot.hour).padStart(2, '0')}:00`)}
                     >
                       {/* 渲染当前格子内所有被选中员工的预约 (模拟数据) */}
                       {filteredResources.map((res) => {

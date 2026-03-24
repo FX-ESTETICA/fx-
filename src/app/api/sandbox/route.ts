@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
-// 初始化 Redis 客户端
-const redis = Redis.fromEnv();
+// 初始化 Redis 客户端 (需要防范构建时的空环境变量)
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || 'https://mock.url',
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || 'mock_token',
+});
 
 // 存储在 Redis 中的 Key
 const DB_KEY = 'gx_sandbox_db';

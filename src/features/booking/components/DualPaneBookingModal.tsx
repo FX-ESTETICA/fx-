@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft, Fingerprint } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft } from 'lucide-react';
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -325,11 +325,11 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   };
 
   // 处理滑轨结账
-  const handleCheckoutComplete = () => {
-    // 这里可以加入更复杂的结账存盘逻辑，目前仅演示关闭
-    alert('结账成功！');
-    onClose();
-  };
+  // const handleCheckoutComplete = () => {
+  //   // 这里可以加入更复杂的结账存盘逻辑，目前仅演示关闭
+  //   alert('结账成功！');
+  //   onClose();
+  // };
 
   // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
   const handleConfirmBooking = async () => {

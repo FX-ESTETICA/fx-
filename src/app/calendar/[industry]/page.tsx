@@ -2,7 +2,7 @@
 
 import { IndustryCalendar } from "@/features/calendar/components/IndustryCalendar";
 import { IndustryType } from "@/features/calendar/types";
-import { use } from "react";
+import { use, Suspense } from "react";
 
 export default function ImmersiveCalendarPage({ 
   params 
@@ -25,7 +25,9 @@ export default function ImmersiveCalendarPage({
       <div className="w-full h-screen flex flex-col relative z-10">
         {/* 核心日历组件 (Immersive Mode) */}
         <div className="flex-1 overflow-hidden">
-          <IndustryCalendar initialIndustry={currentIndustry} mode="immersive" />
+          <Suspense fallback={<div className="h-screen w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+            <IndustryCalendar initialIndustry={currentIndustry} mode="immersive" />
+          </Suspense>
         </div>
 
         {/* 极简底部 - 仅管理员可见的返回入口(Mock) */}

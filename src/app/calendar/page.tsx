@@ -1,6 +1,7 @@
 "use client";
 
 import { IndustryCalendar } from "@/features/calendar/components/IndustryCalendar";
+import { Suspense } from "react";
 
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
 
@@ -11,7 +12,9 @@ export default function CalendarPage() {
       
       {/* 核心日历组件 App Shell 容器 */}
       <div className="flex-1 w-full relative z-10 overflow-hidden">
-        <IndustryCalendar initialIndustry="beauty" mode="admin" />
+        <Suspense fallback={<div className="h-screen w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+          <IndustryCalendar initialIndustry="beauty" mode="admin" />
+        </Suspense>
       </div>
     </main>
   );

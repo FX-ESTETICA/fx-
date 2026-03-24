@@ -20,10 +20,7 @@ import { MerchantBookingAdapter } from "@/features/booking/utils/adapter";
 import { cn } from "@/utils/cn";
 import Link from "next/link";
 import { Input } from "@/components/shared/Input";
-import { Users, Filter, LayoutDashboard } from "lucide-react";
-import { GlassCard } from "@/components/shared/GlassCard";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/shared/Button";
+import { Users } from "lucide-react";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -31,10 +28,6 @@ interface MerchantDashboardProps {
   industry?: string | null;
   onIndustrySet?: (industry: string) => void;
 }
-
-// 模拟的订单组件和标签组件
-const BookingItem = ({ booking }: { booking: any }) => <div className="p-4 border-b border-white/10">{booking.id}</div>;
-const TabButton = ({ active, onClick, children }: any) => <button onClick={onClick} className={active ? "text-white" : "text-white/50"}>{children}</button>;
 
 /**
  * MerchantDashboard - 商家端管理看板
@@ -57,6 +50,8 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
     } else {
       setShowIndustryModal(false);
     }
+  }, [industry]);
+
   useEffect(() => {
     const fetchBookings = async () => {
       try {
