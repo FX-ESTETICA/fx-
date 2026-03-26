@@ -9,14 +9,14 @@ export type UserRole = "user" | "merchant" | "boss";
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "499755740@qq.com";
 
 // --- 沙盒扩展：Mock 用户数据结构 ---
-export interface SandboxUser extends User {
+export interface SandboxUser extends Omit<User, 'created_at'> {
   gxId: string;
   name: string;
   role: UserRole;
   shopId?: string;
   shopName?: string;
   avatar?: string;
-  created_at?: string;
+  created_at: string;
 }
 
 interface AuthContextType {
@@ -175,7 +175,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sessionStorage.setItem("gx_active_role", role);
   };
 
-  const sandboxLogin = (mockUser: SandboxUser) => {
+  const sandboxLogin = (_mockUser: SandboxUser) => {
     // 已经废弃：不再使用沙盒登录，避免干扰真实状态
     console.warn("sandboxLogin is deprecated. Using real Supabase auth now.");
   };

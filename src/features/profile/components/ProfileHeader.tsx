@@ -13,7 +13,7 @@ interface ProfileHeaderProps {
 }
 
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
-  const { user, sandboxLogin } = useAuth();
+  const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);

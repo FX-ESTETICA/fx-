@@ -87,7 +87,7 @@ export function useVisualSettings() {
     }
     return DEFAULT_SETTINGS;
   });
-  const [isLoaded, setIsLoaded] = useState<boolean>(typeof window !== 'undefined');
+  const [isLoaded, _setIsLoaded] = useState<boolean>(typeof window !== 'undefined');
 
   useEffect(() => {
     const handleSettingsChange = (e: Event) => {

@@ -8,7 +8,7 @@ import { UserRole, UserProfile } from "@/features/profile/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/shared/Button";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { LayoutDashboard, LogOut, Mail, Key, Eye, EyeOff, Image as ImageIcon } from "lucide-react";
+import { LayoutDashboard, Mail, Key, Eye, EyeOff, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useAuth, SandboxUser } from "@/features/auth/hooks/useAuth";
 import { BookingService } from "@/features/booking/api/booking";

@@ -20,7 +20,6 @@ import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
 
-const CDN_BASE = process.env.NEXT_PUBLIC_CDN_BASE || "";
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
 
 // ==========================================
@@ -249,7 +248,7 @@ export default function DiscoveryPage() {
                   </h3>
                   
                   <div className="flex flex-wrap gap-2">
-                    {post.tags.map(tag => (
+                    {post.tags.map((tag: string) => (
                       <span key={tag} className="text-[9px] font-mono text-gx-cyan/60 uppercase tracking-widest">
                         {tag}
                       </span>

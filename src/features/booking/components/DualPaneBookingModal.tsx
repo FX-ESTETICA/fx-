@@ -55,7 +55,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
 
   // --- C端匹配状态 (Cross-Domain Match) ---
   const [matchedProfile, setMatchedProfile] = useState<any | null>(null);
-  const [isMatchingProfile, setIsMatchingProfile] = useState(false);
+  const [_isMatchingProfile, setIsMatchingProfile] = useState(false);
 
   // --- 日期与时间状态 ---
   const [selectedDate, setSelectedDate] = useState("");

@@ -1,14 +1,63 @@
 "use client";
 
+import { Suspense } from 'react';
 import { LoginForm } from "@/features/auth/components/LoginForm";
+import { GlassCard } from "@/components/shared/GlassCard";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
+import { Fingerprint } from "lucide-react";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen relative overflow-hidden">
+    <main className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <NebulaBackground rotation={0} />
-      <div className="relative z-10 w-full flex items-center justify-center p-6">
-        <LoginForm />
+      
+      {/* 顶部 Brand Identity */}
+      <div className="absolute top-8 w-full flex justify-center z-10 pointer-events-none">
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-4xl font-bold tracking-tighter">
+              GX<span className="align-super text-2xl text-gx-cyan">⁺</span>
+            </span>
+            <span className="text-3xl font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">私人管家</span>
+          </div>
+          <p className="text-[10px] font-mono tracking-[0.2em] text-white/40">SUPREME LIFE CONCIERGE</p>
+        </div>
+      </div>
+      
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 mt-8">
+        <GlassCard className="py-8 px-4 shadow-2xl sm:rounded-3xl sm:px-10 border border-white/5 bg-black/40 backdrop-blur-2xl">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative group">
+              <div className="absolute inset-0 rounded-full border border-gx-cyan/30 scale-110 opacity-0 group-hover:opacity-100 group-hover:scale-150 transition-all duration-700" />
+              <Fingerprint className="w-8 h-8 text-gx-cyan opacity-80" />
+            </div>
+            <h2 className="text-center text-xl font-bold tracking-tight uppercase">
+              身份验证与协议签署
+            </h2>
+            <p className="mt-2 text-center text-[11px] text-white/40 font-mono">
+              IDENTITY VERIFICATION & PROTOCOL
+            </p>
+          </div>
+          
+          <Suspense fallback={<div className="text-center text-white/50 text-sm font-mono">Loading authentication module...</div>}>
+            <LoginForm />
+          </Suspense>
+          
+        </GlassCard>
+      </div>
+
+      {/* 底部 Footer */}
+      <div className="absolute bottom-8 w-full flex flex-col items-center gap-3 z-10">
+        <div className="flex gap-4 text-[10px] text-white/30 font-mono tracking-widest">
+          <a href="#" className="hover:text-gx-cyan transition-colors">PRIVACY</a>
+          <span>/</span>
+          <a href="#" className="hover:text-gx-cyan transition-colors">TERMS</a>
+          <span>/</span>
+          <a href="#" className="hover:text-gx-cyan transition-colors">CONTACT</a>
+        </div>
+        <p className="text-[9px] text-white/20 font-mono">
+          © 2026 GX CONCIERGE. ALL RIGHTS RESERVED.
+        </p>
       </div>
     </main>
   );

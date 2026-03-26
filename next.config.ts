@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
-      ...(bunnyHost ? [{ protocol: "https", hostname: bunnyHost, pathname: "/**" }] : []),
+      ...(bunnyHost ? [{ protocol: "https" as const, hostname: bunnyHost, pathname: "/**" }] : []),
     ],
     formats: ["image/avif", "image/webp"],
   },
