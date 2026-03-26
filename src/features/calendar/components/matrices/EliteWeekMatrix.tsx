@@ -6,6 +6,7 @@ import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { OperatingHour } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { useSearchParams } from "next/navigation";
+import { BookingService } from "@/features/booking/api/booking";
 
 export interface EliteWeekMatrixProps {
   industry: IndustryType;
@@ -24,8 +25,9 @@ export interface EliteWeekMatrixProps {
 const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
 export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, onGridClick, onDateClick, currentDate }: EliteWeekMatrixProps) => {
-  const currentTime = new Date();
-  const currentHour = currentTime.getHours();
+  const [isMounted, setIsMounted] = React.useState(false);
+  React.useEffect(() => setIsMounted(true), []);
+  const currentHour = isMounted ? new Date().getHours() : -1;
   const { settings: visualSettings } = useVisualSettings();
   const searchParams = useSearchParams();
   const shopId = searchParams.get('shopId');
@@ -36,22 +38,26 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
   React.useEffect(() => {
     const loadBookings = async () => {
       try {
-        const res = await fetch('/api/sandbox');
-        const db = await res.json();
-        const allBookings = db.bookings || [];
-        
-        if (shopId) {
-          setSandboxBookings(allBookings.filter((b: any) => b.shopId === shopId));
-        } else {
-          setSandboxBookings(allBookings);
-        }
+        const currentShopId = shopId || 'default';
+        const { data: bookingsData } = await BookingService.getBookings(currentShopId);
+        const allBookings = bookingsData || [];
+        setSandboxBookings(allBookings);
       } catch (e) {
         console.error("Failed to load sandbox bookings:", e);
       }
     };
     loadBookings();
-    window.addEventListener('gx-sandbox-bookings-updated', loadBookings);
-    return () => window.removeEventListener('gx-sandbox-bookings-updated', loadBookings);
+    
+    // 监听实时更新引擎而不是本地事件
+    const realtimeChannel = BookingService.subscribeToAllBookings(() => {
+      loadBookings();
+    });
+
+    return () => {
+      if (realtimeChannel) {
+        BookingService.unsubscribe(realtimeChannel);
+      }
+    };
   }, [shopId]);
 
   // --- 核心算法：智能折叠与被动撑开的时间轴 (Smart Folding Timeline) ---
@@ -129,7 +135,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
         </div>
         <div className="flex-1 grid grid-cols-7 h-full">
           {weekDates.map((date, idx) => {
-            const isToday = date.toDateString() === new Date().toDateString();
+            const isToday = isMounted ? date.toDateString() === new Date().toDateString() : false;
             return (
               <div 
                 key={idx} 

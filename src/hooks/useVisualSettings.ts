@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 
 export type CyberThemeColor = 'cyan' | 'purple' | 'gold' | 'emerald' | 'rose' | 'silver' | 'platinum' | 'corelight' | 'white';
 
@@ -73,30 +73,29 @@ export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string
 };
 
 export function useVisualSettings() {
-  const [settings, setSettings] = useState<VisualSettings>(DEFAULT_SETTINGS);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    // 读取本地存储
-    const saved = localStorage.getItem('gx_visual_settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      } catch (e) {
-        console.error("Failed to parse visual settings", e);
+  const [settings, setSettings] = useState<VisualSettings>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gx_visual_settings');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          return { ...DEFAULT_SETTINGS, ...parsed };
+        } catch {
+          return DEFAULT_SETTINGS;
+        }
       }
     }
-    setIsLoaded(true);
+    return DEFAULT_SETTINGS;
+  });
+  const [isLoaded, setIsLoaded] = useState<boolean>(typeof window !== 'undefined');
 
-    // 监听跨组件的设置更新事件
+  useEffect(() => {
     const handleSettingsChange = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail) {
-        // 使用 setTimeout 将 setState 移出当前的 render 循环，防止跨组件更新冲突
-        setTimeout(() => {
-          setSettings(customEvent.detail);
-        }, 0);
+        startTransition(() => {
+          setSettings(customEvent.detail as VisualSettings);
+        });
       }
     };
 

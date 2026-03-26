@@ -8,38 +8,46 @@ import { UserRole, UserProfile } from "@/features/profile/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/shared/Button";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { LayoutDashboard, LogOut } from "lucide-react";
+import { LayoutDashboard, LogOut, Mail, Key, Eye, EyeOff, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useAuth, SandboxUser } from "@/features/auth/hooks/useAuth";
+import { BookingService } from "@/features/booking/api/booking";
+import { useRouter } from "next/navigation";
+import { useBackground } from "@/hooks/useBackground";
+import { NebulaBackground } from "@/components/shared/NebulaBackground";
 
 export default function DashboardPage() {
   const { user, activeRole, setActiveRole, signOut } = useAuth();
-  const [boundShopId, setBoundShopId] = useState<string | null>(null);
+  const { cycleBackground } = useBackground();
+  const [boundShopId] = useState<string | null>(null);
   const [shopIndustry, setShopIndustry] = useState<string | null>(null);
+  const [showAdminPwd, setShowAdminPwd] = useState(false);
+  const router = useRouter();
 
   // 挂载时检查云端绑定关系和门店行业配置
   useEffect(() => {
     const checkCloudData = async () => {
       try {
-        const res = await fetch('/api/sandbox');
-        const data = await res.json();
-        
         // 如果是 SandboxUser
         const sUser = user as SandboxUser;
         if (!sUser) return;
 
         // 获取该用户的归属门店
         let userAssignedShopId = null;
-        if (sUser.role === 'user' && data.bindings && data.bindings[sUser.gxId]) {
-          userAssignedShopId = data.bindings[sUser.gxId];
-          setBoundShopId(userAssignedShopId);
+        if (sUser.role === 'user') {
+          // 由于原先基于全量 bindings 读取，现在改为调用服务查询 (需要后端支持按用户查绑定的 shop，暂时我们从 user 对象或本地缓存的归属中推断，或假设已经绑定好)
+          // 作为沙盒降级，如果普通员工没有带 shopId，暂时忽略
+          userAssignedShopId = null; // 真实环境需要查询 bindings 表
         } else if (sUser.role === 'merchant') {
           userAssignedShopId = sUser.shopId;
         }
 
         // 如果有关联门店，拉取该门店的行业配置
-        if (userAssignedShopId && data.shop_configs) {
-          setShopIndustry(data.shop_configs[userAssignedShopId] || null);
+        if (userAssignedShopId) {
+          const { data: config } = await BookingService.getConfigs(userAssignedShopId);
+          if (config && config.industry) {
+            setShopIndustry(config.industry);
+          }
         }
       } catch (e) {
         console.error("Failed to check cloud data:", e);
@@ -59,44 +67,48 @@ export default function DashboardPage() {
     availableRoles.push('user', 'merchant', 'boss');
   } else if (sUser?.role === 'merchant') {
     availableRoles.push('user', 'merchant');
-  } else {
-    // user 没有任何切换按钮
   }
 
+  // (为了测试新 ID 渲染，临时注入 mock ID)
+  const getMockIdForRole = (role: UserRole) => {
+    if (role === 'boss') return 'GX88888888';
+    if (role === 'merchant') return 'GX-MC-000015';
+    return 'GX-NE-000001';
+  };
+
+  // 严格映射当前角色与头像
   const currentProfile: UserProfile = {
-    id: sUser?.gxId || "GX-GUEST-0000",
-    name: sUser?.name || "未知实体 / Unknown",
+    id: (sUser && 'gxId' in sUser && sUser.gxId) ? sUser.gxId : getMockIdForRole(activeRole as UserRole),
+    name: (sUser && 'name' in sUser && sUser.name) ? sUser.name : "未知实体 / Unknown",
     email: sUser?.email || "unknown@gx.com",
+    phone: (sUser && 'phone' in sUser) ? sUser.phone : undefined,
     role: activeRole as UserRole,
+    avatar: sUser?.avatar || undefined, // 修复：确保直接读取全局 user.avatar
+    createdAt: sUser?.created_at || "2024-01-01T00:00:00Z",
     privileges: boundShopId || sUser?.role === 'boss' ? ["calendar_access"] : [], 
     stats: []
   };
+  const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "";
 
   // 决定可用角色切换
   return (
-    <main className="min-h-screen bg-black text-white p-6 md:p-12 relative overflow-hidden">
+    <main className="min-h-screen bg-black text-white px-6 py-6 md:px-12 md:pt-8 md:pb-12 relative overflow-hidden">
+      <NebulaBackground rotation={0} />
+      
       {/* 背景光效 */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto space-y-12 relative z-10">
-        {/* Top Nav */}
-        <nav className="flex items-center justify-between pb-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="w-5 h-5 text-gx-cyan" />
-            <span className="font-mono text-xs uppercase tracking-[0.4em] text-white/40">
-              Identity Dashboard // 身份仪表盘
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* 动态角色切换器 */}
-            {availableRoles.length > 0 && (
+      <div className="max-w-6xl mx-auto relative z-10">
+        {/* 动态角色切换器 */}
+        {availableRoles.length > 0 && (
+          <nav className="flex items-center justify-end mb-6">
+            <div className="flex items-center gap-3">
               <div className="hidden md:flex bg-white/5 p-1 rounded-lg border border-white/5">
                 {availableRoles.map((r) => (
                   <button
                     key={r}
-                    onClick={() => setActiveRole(r as any)}
+                    onClick={() => setActiveRole(r)}
                     className={`px-3 py-1 text-[10px] font-mono uppercase rounded-md transition-all ${
                       activeRole === r ? "bg-white/10 text-white" : "text-white/20 hover:text-white/40"
                     }`}
@@ -105,21 +117,17 @@ export default function DashboardPage() {
                   </button>
                 ))}
               </div>
-            )}
-            
-            <Button variant="ghost" size="sm" className="gap-2 text-[10px]" onClick={signOut}>
-              <LogOut className="w-3 h-3" />
-              退出系统 / Exit
-            </Button>
-          </div>
-        </nav>
+            </div>
+          </nav>
+        )}
 
         {/* Profile Header */}
         <ProfileHeader profile={currentProfile} />
 
         {/* Dashboard Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
+        <div className="mt-8">
+          <AnimatePresence mode="wait">
+            <motion.div
             key={activeRole}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -144,14 +152,107 @@ export default function DashboardPage() {
                     </div>
                   </GlassCard>
                 </Link>
-                {/* 可以附加其他全站管理功能 */}
+
+                <GlassCard className="p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-white/50" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold">登录邮箱</div>
+                      <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{currentProfile.email}</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase tracking-widest"
+                    onClick={() => navigator.clipboard?.writeText(currentProfile.email || "")}
+                  >
+                    复制
+                  </Button>
+                </GlassCard>
+
+                <GlassCard className="p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                      <Key className="w-5 h-5 text-white/50" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold">初始化登录密码</div>
+                      <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                        {showAdminPwd ? adminPassword : "•".repeat(Math.max(8, adminPassword.length || 8))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[10px] uppercase tracking-widest"
+                      onClick={() => setShowAdminPwd(v => !v)}
+                    >
+                      {showAdminPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showAdminPwd ? "隐藏" : "显示"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[10px] uppercase tracking-widest"
+                      onClick={() => navigator.clipboard?.writeText(adminPassword || "")}
+                      disabled={!adminPassword}
+                    >
+                      复制
+                    </Button>
+                  </div>
+                </GlassCard>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase tracking-widest flex items-center gap-1 text-gx-cyan hover:text-gx-cyan/80"
+                    onClick={cycleBackground}
+                  >
+                    <ImageIcon className="w-3 h-3" />
+                    切换全局背景
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase tracking-widest"
+                    onClick={() => setActiveRole("merchant")}
+                  >
+                    切换为商户视图
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] uppercase tracking-widest"
+                    onClick={() => setActiveRole("user")}
+                  >
+                    切换为用户视图
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="text-[10px] uppercase tracking-widest"
+                    onClick={async () => {
+                      await signOut();
+                      router.replace("/login");
+                    }}
+                  >
+                    退出系统
+                  </Button>
+                </div>
               </div>
             )}
           </motion.div>
         </AnimatePresence>
+        </div>
 
         {/* System Version Footer */}
-        <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
+        <footer className="mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
           <span>GX_CORE_DASHBOARD // 2026</span>
           <div className="flex gap-4">
             <span>Secured Identity</span>

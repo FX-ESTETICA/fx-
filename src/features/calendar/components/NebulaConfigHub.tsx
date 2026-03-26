@@ -6,6 +6,26 @@ import { cn } from "@/utils/cn";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { OperatingHour } from "./IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
+import { BookingService } from "@/features/booking/api/booking";
+
+export interface CategoryItem { id: string; name: string }
+export interface ServiceItem { id: string; categoryId: string; name: string; prices?: number[]; price?: number; duration: number }
+export interface StaffItem {
+  id: string;
+  name: string;
+  role: string;
+  color?: string;
+  status: string;
+  frontendId?: string;
+  phone?: string;
+  baseSalary?: number;
+  commissionRate?: number;
+  calendarView: string;
+  nebulaAccess: boolean;
+  operationRights: string;
+  financialVisibility: string;
+  services: string[];
+}
 
 export interface NebulaConfigHubProps {
   isOpen: boolean;
@@ -13,12 +33,12 @@ export interface NebulaConfigHubProps {
   industryLabel?: string;
   operatingHours: OperatingHour[];
   onOperatingHoursChange: (hours: OperatingHour[]) => void;
-  staffs: any[];
-  onStaffsChange: (staffs: any[]) => void;
-  categories: any[];
-  onCategoriesChange: (categories: any[]) => void;
-  services: any[];
-  onServicesChange: (services: any[]) => void;
+  staffs: StaffItem[];
+  onStaffsChange: (staffs: StaffItem[]) => void;
+  categories: CategoryItem[];
+  onCategoriesChange: (categories: CategoryItem[]) => void;
+  services: ServiceItem[];
+  onServicesChange: (services: ServiceItem[]) => void;
 }
 
 /**
@@ -38,13 +58,15 @@ export const NebulaConfigHub = ({
   services,
   onServicesChange
 }: NebulaConfigHubProps) => {
-  const [activeTab, setActiveTab] = useState<"staff" | "services" | "hours" | "visual">("hours");
+  type MainTab = "staff" | "services" | "hours" | "visual";
+  const [activeTab, setActiveTab] = useState<MainTab>("hours");
+  const panelKey = `panel-${isOpen ? 'open' : 'closed'}-${operatingHours.length}-${staffs.length}-${categories.length}-${services.length}`;
   
   // 本地暂存状态，点击保存时才同步到全局
   const [localHours, setLocalHours] = useState<OperatingHour[]>(operatingHours);
-  const [localStaffs, setLocalStaffs] = useState<any[]>(staffs);
-  const [localCategories, setLocalCategories] = useState<any[]>(categories);
-  const [localServices, setLocalServices] = useState<any[]>(services);
+  const [localStaffs, setLocalStaffs] = useState<StaffItem[]>(staffs);
+  const [localCategories, setLocalCategories] = useState<CategoryItem[]>(categories);
+  const [localServices, setLocalServices] = useState<ServiceItem[]>(services);
 
   // 状态机：感知当前是否有子表单正在编辑
   const [editingContext, setEditingContext] = useState<{
@@ -62,16 +84,6 @@ export const NebulaConfigHub = ({
     });
   }, []);
 
-  // 每次打开抽屉时，重置为最新的全局状态
-  useEffect(() => {
-    if (isOpen) {
-      setLocalHours(operatingHours);
-      setLocalStaffs(staffs);
-      setLocalCategories(categories);
-      setLocalServices(services);
-      setEditingContext({ type: null, saveAction: null, cancelAction: null }); // 重置编辑状态
-    }
-  }, [isOpen, operatingHours, staffs, categories, services]);
 
   const handleGlobalSave = () => {
     onOperatingHoursChange(localHours);
@@ -109,6 +121,7 @@ export const NebulaConfigHub = ({
 
           {/* 抽屉主体 */}
           <motion.div
+            key={panelKey}
             initial={{ x: "100%", opacity: 0.5 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0.5 }}
@@ -124,7 +137,7 @@ export const NebulaConfigHub = ({
                 <div>
                   <h2 className="text-sm font-black text-white uppercase tracking-widest">全局运营配置</h2>
                   <p className="text-[10px] font-mono text-white/40 uppercase mt-1">
-                    {industryLabel} // CONFIG HUB
+                    {industryLabel}
                   </p>
                 </div>
               </div>
@@ -146,7 +159,7 @@ export const NebulaConfigHub = ({
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id as MainTab)}
                   className={cn(
                     "min-w-[80px] flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-2 transition-all",
                     activeTab === tab.id
@@ -349,7 +362,7 @@ const VisualSettingsConfig = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, any][]).map(([key, config]) => (
+            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
               <button
                 key={`header-${key}`}
                 onClick={() => updateSettings({ headerTitleColorTheme: key })}
@@ -376,7 +389,7 @@ const VisualSettingsConfig = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, any][]).map(([key, config]) => (
+            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
               <button
                 key={`staff-${key}`}
                 onClick={() => updateSettings({ staffNameColorTheme: key })}
@@ -403,7 +416,7 @@ const VisualSettingsConfig = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, any][]).map(([key, config]) => (
+            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
               <button
                 key={`timeline-${key}`}
                 onClick={() => updateSettings({ timelineColorTheme: key })}
@@ -426,8 +439,10 @@ const VisualSettingsConfig = () => {
 };
 
 const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h: OperatingHour[]) => void }) => {
+  const idSeed = useRef(0);
   const handleAdd = () => {
-    const newId = Math.random().toString(36).substr(2, 9);
+    idSeed.current += 1;
+    const newId = `hour_${idSeed.current}`;
     onChange([...hours, { id: newId, start: 9, end: 18 }]);
   };
 
@@ -497,8 +512,9 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
   );
 };
 
-const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { staffs: any[], onChange: (s: any[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: any[] }) => {
-  const [editingStaff, setEditingStaff] = useState<any>(null);
+const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[] }) => {
+  const [editingStaff, setEditingStaff] = useState<StaffItem | null>(null);
+  const staffIdSeed = useRef(0);
 
   // 监听编辑状态变化，同步到外层状态机
   useEffect(() => {
@@ -524,8 +540,26 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
           if (data.id) {
             onChange(staffs.map(s => s.id === data.id ? { ...s, ...data } : s));
           } else {
-            onChange([...staffs, { ...data, id: Math.random().toString(36).substr(2, 9) }]);
+            staffIdSeed.current += 1;
+            onChange([...staffs, { ...data, id: `staff_${staffIdSeed.current}` }]);
           }
+          
+          // 如果填写了 Frontend ID，触发云端绑定授权，让员工端可以显示日历入口
+          if (data.frontendId && data.frontendId.trim() !== '') {
+            const currentUserStr = typeof window !== 'undefined' ? localStorage.getItem('gx_sandbox_session') : null;
+            if (currentUserStr) {
+              const currentUser = JSON.parse(currentUserStr);
+              const activeShopId = currentUser.shopId;
+              
+              if (activeShopId) {
+                BookingService.bindUserToShop(data.frontendId.trim(), activeShopId)
+                .then(() => {
+                  console.log(`[NebulaConfigHub] Successfully linked ${data.frontendId} to shop ${activeShopId}`);
+                }).catch((e: unknown) => console.error("Failed to link frontend ID to shop:", e));
+              }
+            }
+          }
+          
           setEditingStaff(null);
         }} 
         registerActions={handleRegisterActions}
@@ -537,7 +571,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
   return (
     <div className="space-y-4">
       <button 
-        onClick={() => setEditingStaff({ status: "active", calendarView: "self", nebulaAccess: false, operationRights: "view", financialVisibility: "self", services: [] })}
+        onClick={() => setEditingStaff({ id: "", name: "", role: "", status: "active", calendarView: "self", nebulaAccess: false, operationRights: "view", financialVisibility: "self", services: [] })}
         className="w-full py-3 rounded-xl border border-dashed border-white/20 text-white/60 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 text-[11px] font-black tracking-widest"
       >
         <Plus className="w-4 h-4" /> 新增人员/资源
@@ -575,8 +609,9 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
   );
 };
 
-const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [] }: { staff: any, onBack: () => void, onSave: (data: any) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: any[] }) => {
-  const [activeTab, setActiveTab] = useState<"basic" | "finance" | "access">("basic");
+const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [] }: { staff: StaffItem, onBack: () => void, onSave: (data: StaffItem) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: ServiceItem[] }) => {
+  type StaffTab = "basic" | "finance" | "access";
+  const [activeTab, setActiveTab] = useState<StaffTab>("basic");
   const [formData, setFormData] = useState({
     name: staff.name || "",
     role: staff.role || "",
@@ -659,7 +694,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id as StaffTab)}
             className={cn(
               "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[10px] font-bold transition-all",
               activeTab === tab.id ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
@@ -929,12 +964,14 @@ const ServicesConfig = ({
   onCategoriesChange, 
   onServicesChange 
 }: { 
-  categories: any[], 
-  services: any[], 
-  onCategoriesChange: (c: any[]) => void, 
-  onServicesChange: (s: any[]) => void 
+  categories: CategoryItem[], 
+  services: ServiceItem[], 
+  onCategoriesChange: (c: CategoryItem[]) => void, 
+  onServicesChange: (s: ServiceItem[]) => void 
 }) => {
   const [ghostInputs, setGhostInputs] = useState<Record<string, string>>({});
+  const categoryIdSeed = useRef(0);
+  const serviceIdSeed = useRef(0);
 
   const handleNLPInput = (categoryId: string, value: string) => {
     if (!value.trim()) return;
@@ -944,11 +981,10 @@ const ServicesConfig = ({
     if (value.startsWith('#')) {
       const newCategoryName = value.substring(1).trim();
       if (newCategoryName) {
-        const newCatId = Math.random().toString(36).substr(2, 9);
+        categoryIdSeed.current += 1;
+        const newCatId = `cat_${categoryIdSeed.current}`;
         const newCategories = [...categories, { id: newCatId, name: newCategoryName }];
         onCategoriesChange(newCategories);
-        // 自动保存
-        localStorage.setItem('gx_sandbox_categories', JSON.stringify(newCategories));
       }
       return;
     }
@@ -982,7 +1018,7 @@ const ServicesConfig = ({
     }
 
     const newItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `svc_${++serviceIdSeed.current}`,
       categoryId,
       name,
       prices, // 使用数组存储价格档位
@@ -991,8 +1027,7 @@ const ServicesConfig = ({
 
     const newServices = [...services, newItem];
     onServicesChange(newServices);
-    // 自动保存
-    localStorage.setItem('gx_sandbox_services', JSON.stringify(newServices));
+    // 自动保存至云端，移除 localStorage
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, categoryId: string) => {
@@ -1006,19 +1041,19 @@ const ServicesConfig = ({
   const handleRemoveService = (id: string) => {
     const newServices = services.filter(s => s.id !== id);
     onServicesChange(newServices);
-    localStorage.setItem('gx_sandbox_services', JSON.stringify(newServices));
+    // 自动保存至云端，移除 localStorage
   };
 
   const handleRemoveCategory = (id: string) => {
     const newCategories = categories.filter((c) => c.id !== id);
     onCategoriesChange(newCategories);
-    localStorage.setItem('gx_sandbox_categories', JSON.stringify(newCategories));
+    // 自动保存至云端，移除 localStorage
   };
 
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
 
-  const handleStartEdit = (service: any) => {
+  const handleStartEdit = (service: ServiceItem) => {
     setEditingServiceId(service.id);
     const priceStr = service.prices ? service.prices.join('/') : service.price;
     setEditInput(`${service.name} ${priceStr} ${service.duration}`);
@@ -1074,7 +1109,7 @@ const ServicesConfig = ({
     });
 
     onServicesChange(newServices);
-    localStorage.setItem('gx_sandbox_services', JSON.stringify(newServices));
+    // 移除 localStorage
     setEditingServiceId(null);
   };
 
@@ -1222,7 +1257,8 @@ const ServicesConfig = ({
               let catName = ghostInputs['new_category'].trim();
               if (catName.startsWith('#')) catName = catName.substring(1).trim();
               if (catName) {
-                const newCatId = Math.random().toString(36).substr(2, 9);
+                categoryIdSeed.current += 1;
+                const newCatId = `cat_${categoryIdSeed.current}`;
                 onCategoriesChange([...categories, { id: newCatId, name: catName }]);
                 setGhostInputs({ ...ghostInputs, 'new_category': '' });
               }

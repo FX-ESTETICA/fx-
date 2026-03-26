@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
+const bunnyHost = process.env.NEXT_PUBLIC_CDN_HOST || "";
+
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
+      ...(bunnyHost ? [{ protocol: "https", hostname: bunnyHost, pathname: "/**" }] : []),
+    ],
+    formats: ["image/avif", "image/webp"],
+  },
   async rewrites() {
     return [
       { source: '/1', destination: '/' },

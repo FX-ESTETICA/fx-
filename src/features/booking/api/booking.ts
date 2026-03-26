@@ -8,6 +8,44 @@ import { BookingAdapter } from "../utils/adapter";
  */
 export const BookingService = {
   /**
+   * 通过手机号查询 C 端用户档案 (用于日历右侧双轨 ID 面板匹配)
+   */
+  async getProfileByPhone(phone: string) {
+    if (isMockMode) {
+      console.log("[BookingService] isMockMode=true, skipping real DB call");
+      if (phone === "6667767" || phone === "3758376") {
+        return {
+          data: {
+            gx_id: "GX-UR-100024",
+            name: "赛博浪客 (Mock)",
+            avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=gx-vip",
+            role: "user"
+          }
+        };
+      }
+      return { data: null };
+    }
+
+    if (!phone) return { data: null };
+
+    console.log("[BookingService] Querying real DB for phone:", phone);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('gx_id, name, avatar_url, role')
+      .eq('phone', phone)
+      .maybeSingle();
+
+    console.log("[BookingService] DB Response:", data, error);
+
+    if (error) {
+      console.error("[BookingService] getProfileByPhone Error:", error);
+      return { data: null };
+    }
+
+    return { data };
+  },
+
+  /**
    * 提交新预约
    */
   async createBooking(details: BookingDetails): Promise<BookingDetails> {
@@ -62,23 +100,172 @@ export const BookingService = {
     return channel;
   },
 
-  /**
-   * 订阅全量预约变更（商家端看板）
-   */
-  subscribeToAllBookings(onEvent: (payload: any) => void) {
+  // --- 零束缚架构扩展方法 ---
+
+  async getConfigs(shopId: string) {
+    if (isMockMode) return { data: null };
+    
+    // 如果没有传入合法的 shopId（比如 default），则不查询直接返回，避免触发 UUID 格式错误
+    if (!shopId || shopId === 'default') {
+      return { data: null };
+    }
+    
+    const { data, error } = await supabase
+      .from('shops')
+      .select('config')
+      .eq('id', shopId)
+      .maybeSingle(); // 使用 maybeSingle 避免 0 行数据时抛出报错
+      
+    if (error) {
+      console.error("[BookingService] getConfigs Error:", error);
+      return { data: null };
+    }
+    
+    return { data: data?.config };
+  },
+
+  async updateConfigs(shopId: string, key: string, payload: any) {
+    if (isMockMode) return;
+    
+    if (!shopId || shopId === 'default') {
+      console.warn("[BookingService] 试图更新 default shop 的配置，已拦截");
+      return;
+    }
+    
+    // 获取当前 config
+    const { data: shopData } = await supabase
+      .from('shops')
+      .select('config')
+      .eq('id', shopId)
+      .maybeSingle();
+      
+    const currentConfig = shopData?.config || {};
+    currentConfig[key] = payload;
+
+    const { error } = await supabase
+      .from('shops')
+      .update({ config: currentConfig })
+      .eq('id', shopId);
+
+    if (error) {
+      console.error("[BookingService] updateConfigs Error:", error);
+      throw error;
+    }
+  },
+
+  async bindUserToShop(userId: string, shopId: string) {
+    if (isMockMode) return;
+    
+    if (!userId || !shopId || shopId === 'default') {
+       console.warn("[BookingService] 绑定的 userId 或 shopId 不合法");
+       return;
+    }
+    
+    const { error } = await supabase
+      .from('bindings')
+      .upsert({ principal_id: userId, shop_id: shopId, role: 'STAFF' }, { onConflict: 'principal_id, shop_id' });
+      
+    if (error) {
+      console.error("[BookingService] bindUserToShop Error:", error);
+      throw error;
+    }
+  },
+
+  async getBookings(shopId: string) {
+    if (isMockMode) return { data: [] };
+    
+    if (!shopId || shopId === 'default') {
+       return { data: [] };
+    }
+    
+    const { data, error } = await supabase
+      .from('v_bookings')
+      .select('*')
+      .eq('shop_id', shopId);
+      
+    if (error) {
+      console.error("[BookingService] getBookings Error:", error);
+      return { data: [] };
+    }
+    
+    // 铺平 JSONB
+    const formatted = (data || []).map(b => ({
+      id: b.id,
+      shopId: b.shop_id,
+      date: b.date,
+      startTime: b.start_time,
+      duration: b.duration_min,
+      resourceId: b.resource_id,
+      status: b.status,
+      ...(b.data || {})
+    }));
+    
+    return { data: formatted };
+  },
+
+  async upsertBookings(bookings: any[]) {
+    if (isMockMode) return;
+    
+    const bookingsToUpsert = bookings.map(b => {
+      const {
+        id, shopId, date, startTime, duration, resourceId, status, ...restData
+      } = b;
+
+      const isDbId = id && String(id).includes('-');
+
+      return {
+        ...(isDbId ? { id } : {}),
+        shop_id: shopId || 'default',
+        date: date,
+        start_time: startTime,
+        duration_min: duration || 60,
+        resource_id: resourceId,
+        status: status || 'PENDING',
+        data: {
+          ...restData,
+          original_frontend_id: id
+        }
+      };
+    });
+
+    const { error } = await supabase
+      .from('bookings')
+      .upsert(bookingsToUpsert, { onConflict: 'id' });
+
+    if (error) {
+      console.error("[BookingService] upsertBookings Error:", error);
+      throw error;
+    }
+  },
+
+  async clearAllBookings(shopId: string) {
+    if (isMockMode) return;
+    
+    if (!shopId || shopId === 'default') {
+       return;
+    }
+    
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('shop_id', shopId);
+      
+    if (error) {
+      console.error("[BookingService] clearAllBookings Error:", error);
+      throw error;
+    }
+  },
+
+  subscribeToAllBookings(onUpdate: (payload: any) => void) {
     if (isMockMode) return null;
 
     const channel = supabase
-      .channel('merchant-realtime')
+      .channel('public:bookings')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bookings'
-        },
+        { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
-          onEvent(payload);
+          onUpdate(payload);
         }
       )
       .subscribe();
@@ -86,11 +273,9 @@ export const BookingService = {
     return channel;
   },
 
-  /**
-   * 取消订阅
-   */
-  async unsubscribe(channel: any) {
-    if (isMockMode || !channel) return;
-    await supabase.removeChannel(channel);
+  unsubscribe(channel: any) {
+    if (channel) {
+      supabase.removeChannel(channel);
+    }
   }
 };

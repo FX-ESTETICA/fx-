@@ -1,70 +1,42 @@
-import { NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
+import { NextResponse } from "next/server";
 
-// 初始化 Redis 客户端 (需要防范构建时的空环境变量)
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || 'https://mock.url',
-  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || 'mock_token',
-});
-
-// 存储在 Redis 中的 Key
-const DB_KEY = 'gx_sandbox_db';
-// 数据防爆阈值：最大保存 2000 条预约记录 (约 1MB)
-const MAX_BOOKINGS = 2000;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    // 从云端拉取数据，如果没有则返回默认结构 (新增 shop_configs)
-    const db = await redis.get(DB_KEY) || { bookings: [], bindings: {}, shop_configs: {} };
-    return NextResponse.json(db);
-  } catch (error) {
-    console.error('Failed to read from Redis:', error);
-    return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const { action, payload } = await request.json();
-    
-    // 先获取当前数据
-    const currentDb: any = await redis.get(DB_KEY) || { bookings: [], bindings: {}, shop_configs: {} };
-
-    if (action === 'update_bookings') {
-      // LRU 数据防爆策略：如果超过 2000 条，剔除最旧的数据
-      let newBookings = payload;
-      if (Array.isArray(newBookings) && newBookings.length > MAX_BOOKINGS) {
-        const overflow = newBookings.length - MAX_BOOKINGS;
-        newBookings = newBookings.slice(overflow);
-      }
-      currentDb.bookings = newBookings;
-    } else if (action === 'update_bindings') {
-      if (!currentDb.bindings) currentDb.bindings = {};
-      currentDb.bindings[payload.userId] = payload.shopId;
-    } else if (action === 'clear_bindings') {
-       if (!currentDb.bindings) currentDb.bindings = {};
-       delete currentDb.bindings[payload.userId];
-    } else if (action === 'update_shop_config') {
-       // payload: { shopId: 'shop_f', industry: 'beauty' }
-       if (!currentDb.shop_configs) currentDb.shop_configs = {};
-       currentDb.shop_configs[payload.shopId] = payload.industry;
-    } else {
-      // 兼容旧的全量覆盖逻辑 (带防爆)
-      if (payload && Array.isArray(payload)) {
-        let newBookings = payload;
-        if (newBookings.length > MAX_BOOKINGS) {
-          newBookings = newBookings.slice(newBookings.length - MAX_BOOKINGS);
-        }
-        currentDb.bookings = newBookings;
-      }
+  const configs: Record<string, any> = {
+    default: {
+      hours: [
+        { id: "1", start: 9, end: 12 },
+        { id: "2", start: 15, end: 20 }
+      ],
+      staffs: [
+        { id: "A", name: "A", role: "资深技师", color: "#00f0ff", status: "active", commissionRate: 50 },
+        { id: "B", name: "B", role: "资深技师", color: "#a855f7", status: "active", commissionRate: 50 },
+        { id: "C", name: "C", role: "高级技师", color: "#10b981", status: "active", commissionRate: 40 },
+        { id: "D", name: "D", role: "高级技师", color: "#f59e0b", status: "active", commissionRate: 40 },
+        { id: "E", name: "E", role: "见习技师", color: "#ec4899", status: "active", commissionRate: 30 }
+      ],
+      categories: [
+        { id: "MANI", name: "MANI" },
+        { id: "PEDI", name: "PEDI" }
+      ],
+      services: [
+        { id: "S1", name: "Basic Mani", duration: 60, prices: [198, 258], assignedEmployeeId: "A" },
+        { id: "S2", name: "Spa Pedi", duration: 90, prices: [298, 358], assignedEmployeeId: "B" }
+      ]
     }
-    
-    // 将更新后的数据写回云端 Redis 桶
-    await redis.set(DB_KEY, currentDb);
-    
-    return NextResponse.json({ success: true, db: currentDb });
-  } catch (error) {
-    console.error('Failed to write to Redis:', error);
-    return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
-  }
+  };
+
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const dateStr = `${year}-${month}-${day}`;
+
+  const bookings = [
+    { id: "BKG-1", shopId: "default", date: dateStr, startTime: "10:00", duration: 60, resourceId: "A", customerId: "GV 0015", services: [{ id: "S1", name: "Basic Mani", prices: [198], duration: 60 }] },
+    { id: "BKG-2", shopId: "default", date: dateStr, startTime: "11:30", duration: 90, resourceId: "B", customerId: "AD 3001", services: [{ id: "S2", name: "Spa Pedi", prices: [298], duration: 90 }] }
+  ];
+
+  return NextResponse.json({ bookings, configs });
 }

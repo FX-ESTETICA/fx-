@@ -157,7 +157,8 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
             style={{
               backgroundImage: `url('${currentBg}')`,
               backgroundSize: 'cover',
-              backgroundPosition: 'center'
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
             }}
           />
         )}

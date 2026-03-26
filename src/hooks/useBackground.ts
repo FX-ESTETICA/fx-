@@ -1,31 +1,35 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 
 export const BACKGROUND_IMAGES = [
   'starry', // 默认纯星空
-  '/images/backgrounds/ChatGPT Image 2026年3月22日 21_25_49.png'
+  '/images/backgrounds/ChatGPT Image 2026年3月25日 00_06_27.png',
+  '/images/backgrounds/p1.jpg'
 ];
 
 export function useBackground() {
-  const [bgIndex, setBgIndex] = useState<number>(0);
-
-  useEffect(() => {
-    // 读取本地存储
-    const saved = localStorage.getItem('gx_theme_bg_index');
-    if (saved !== null) {
-      const parsedIndex = parseInt(saved, 10);
-      if (parsedIndex >= 0 && parsedIndex < BACKGROUND_IMAGES.length) {
-        setBgIndex(parsedIndex);
-      } else {
-        setBgIndex(0);
-        localStorage.setItem('gx_theme_bg_index', '0');
+  const [bgIndex, setBgIndex] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gx_theme_bg_index');
+      if (saved !== null) {
+        const parsedIndex = parseInt(saved, 10);
+        if (parsedIndex >= 0 && parsedIndex < BACKGROUND_IMAGES.length) {
+          return parsedIndex;
+        } else {
+          localStorage.setItem('gx_theme_bg_index', '1');
+          return 1;
+        }
       }
     }
+    return 1;
+  });
 
-    // 监听其他组件触发的切换事件
+  useEffect(() => {
     const handleBgChange = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail !== undefined) {
-        setBgIndex(customEvent.detail);
+        startTransition(() => {
+          setBgIndex(customEvent.detail as number);
+        });
       }
     };
 

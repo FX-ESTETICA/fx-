@@ -41,18 +41,46 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
   const [isBinding, setIsBinding] = useState(false);
   const [bindMessage, setBindMessage] = useState("");
   const [showIndustryModal, setShowIndustryModal] = useState(false);
-
   const router = useRouter();
 
-  // 1. 初始化数据加载
   useEffect(() => {
-    // 强制行业选择 Onboarding
-    if (!industry) {
-      setShowIndustryModal(true);
-    } else {
-      setShowIndustryModal(false);
-    }
-  }, [industry]);
+    // 强制行业选择 Onboarding：多租户沙盒严格校验
+    const checkLocalIndustry = async () => {
+      try {
+        // 1. 获取当前真实登录的老板身份
+        const sessionStr = localStorage.getItem('gx_sandbox_session');
+        if (!sessionStr) {
+          setShowIndustryModal(true);
+          return;
+        }
+        
+        const session = JSON.parse(sessionStr);
+        // 如果传入的 shopId 为空，优先使用 session 里的 shopId
+        const activeShopId = shopId || session.shopId;
+        
+        if (!activeShopId) {
+          setShowIndustryModal(true);
+          return;
+        }
+
+        // 2. 去云端查这个特定 shopId 的配置
+        const { data: configs } = await BookingService.getConfigs(activeShopId);
+        const config = configs;
+        
+        // 3. 严格比对：只有当云端有配置，且属于当前登录老板的店，且有行业数据时，才放行
+        if (config && config.industry) {
+          setShowIndustryModal(false);
+          if (onIndustrySet) onIndustrySet(config.industry);
+        } else if (!industry) {
+          // 如果云端没查到，且当前没有 prop 传入，则弹窗让其选择
+          setShowIndustryModal(true);
+        }
+      } catch (e) {
+        if (!industry) setShowIndustryModal(true);
+      }
+    };
+    checkLocalIndustry();
+  }, [industry, shopId, onIndustrySet]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -94,22 +122,11 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
     setIsBinding(true);
     setBindMessage("");
     try {
-      const res = await fetch("/api/sandbox", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "update_bindings",
-          payload: { userId: bindUserId.trim(), shopId }
-        })
-      });
-      if (res.ok) {
-        setBindMessage("绑定成功 / Bound successfully!");
-        setBindUserId("");
-      } else {
-        setBindMessage("绑定失败 / Binding failed");
-      }
+      await BookingService.bindUserToShop(bindUserId.trim(), shopId);
+      setBindMessage("绑定成功 / Bound successfully!");
+      setBindUserId("");
     } catch (e) {
-      setBindMessage("网络错误 / Network error");
+      setBindMessage("绑定失败 / Binding failed");
     } finally {
       setIsBinding(false);
     }
@@ -122,18 +139,13 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
     setShowIndustryModal(false);
     
     // 后台静默发送保存请求
-    fetch("/api/sandbox", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "update_shop_config",
-        payload: { shopId, industry: selectedIndustry }
+    BookingService.updateConfigs(shopId, 'industry', selectedIndustry)
+      .then(() => {
+        if (onIndustrySet) {
+          onIndustrySet(selectedIndustry);
+        }
       })
-    }).then(res => {
-      if (res.ok && onIndustrySet) {
-        onIndustrySet(selectedIndustry);
-      }
-    }).catch(e => console.error("Failed to set industry silently:", e));
+      .catch(e => console.error("Failed to set industry silently:", e));
 
     // 如果选了"不需要"，留在当前页；否则微小延迟后极速切入日历
     if (selectedIndustry !== 'none') {

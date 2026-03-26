@@ -2,12 +2,12 @@
 
 import React, { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
-import { motion } from "framer-motion";
+import { motion, PanInfo } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
 import { OperatingHour } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
-import { useSearchParams } from "next/navigation";
+ 
 
 export interface EliteResourceMatrixProps {
   industry: IndustryType;
@@ -15,54 +15,54 @@ export interface EliteResourceMatrixProps {
   resources: MatrixResource[];
   operatingHours: OperatingHour[];
   currentDate?: Date; // 新增：接收父组件传来的当前日期
+  bookings?: MatrixBooking[];
   onHorizontalScroll?: (scrollLeft: number) => void;
   onGridClick?: (resourceId?: string, time?: string) => void;
-  onBookingClick?: (booking: any) => void; // 新增：点击预约块的回调
+  onBookingClick?: (booking: MatrixBooking) => void; // 新增：点击预约块的回调
   matrixScrollRef?: React.Ref<HTMLDivElement>;
   onDateSwipe?: (direction: 'prev' | 'next') => void; // 传递日期切换事件
 }
 
+type MatrixService = {
+  id: string;
+  name: string;
+  prices?: number[];
+  duration?: number;
+  assignedEmployeeId?: string | null;
+};
+
+type MatrixBooking = {
+  id: string;
+  shopId?: string;
+  date: string;
+  startTime: string;
+  duration: number;
+  resourceId: string | null;
+  customerId?: string;
+  customerName?: string;
+  serviceName?: string;
+  originalUnassigned?: boolean;
+  masterOrderId?: string;
+  services?: MatrixService[];
+  status?: string;
+};
+
 // 模拟数据：暂时清空以支持真实配置
 // const MOCK_BOOKINGS: any[] = [];
 
-/**
- * EliteResourceMatrix (专家音轨矩阵) - 引入液态时间轴算法
- */
-export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, currentDate, onGridClick, onBookingClick, matrixScrollRef, onDateSwipe }: EliteResourceMatrixProps) => {
-  const currentTime = new Date();
-  const currentHour = currentTime.getHours();
+export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, matrixScrollRef, onDateSwipe }: EliteResourceMatrixProps) => {
+  const [isMounted, setIsMounted] = React.useState(false);
+  React.useEffect(() => setIsMounted(true), []);
+  const currentHour = isMounted ? new Date().getHours() : -1;
   const { settings: visualSettings } = useVisualSettings();
-  const searchParams = useSearchParams();
-  const shopId = searchParams.get('shopId');
-  
-  // 新增：从 Vercel KV 模拟读取沙盒预约数据
-  const [sandboxBookings, setSandboxBookings] = React.useState<any[]>([]);
-
-  React.useEffect(() => {
-    const loadBookings = async () => {
-      try {
-        const res = await fetch('/api/sandbox');
-        const db = await res.json();
-        const allBookings = db.bookings || [];
-        
-        // 如果有 shopId，则按 shopId 隔离订单
-        if (shopId) {
-          setSandboxBookings(allBookings.filter((b: any) => b.shopId === shopId));
-        } else {
-          setSandboxBookings(allBookings);
-        }
-      } catch (e) {
-        console.error("Failed to load sandbox bookings:", e);
-      }
-    };
-
-    // 初始加载
-    loadBookings();
-
-    // 监听自定义事件以实现跨组件刷新
-    window.addEventListener('gx-sandbox-bookings-updated', loadBookings);
-    return () => window.removeEventListener('gx-sandbox-bookings-updated', loadBookings);
-  }, [shopId]);
+  const matrixContainerRef = useRef<HTMLDivElement>(null);
+  const timeColumnRef = useRef<HTMLDivElement>(null);
+  const internalMatrixRef = useRef<HTMLDivElement>(null);
+  const actualMatrixRef = matrixScrollRef || internalMatrixRef;
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const startPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerDownAtRef = useRef<number | null>(null);
+  const containerRectRef = useRef<DOMRect | null>(null);
 
   // --- 核心算法：智能折叠与被动撑开的时间轴 (Smart Folding Timeline) ---
   const liquidTimeSlots = useMemo(() => {
@@ -87,7 +87,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
     const day = targetDate.getDate().toString().padStart(2, '0');
     const currentDateStr = `${year}-${month}-${day}`;
 
-    sandboxBookings.forEach(booking => {
+    bookings.forEach(booking => {
       // 仅检查当天的订单
       if (booking.date === currentDateStr && booking.startTime && booking.duration) {
         const [startHour, startMin] = booking.startTime.split(':').map(Number);
@@ -113,19 +113,14 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
       // 虽然已经折叠，但为了可能保留的视觉状态（如非营业时间段被撑开时显示不同背景），我们依然标记 isOvertime
       isOvertime: !operatingHours.some(p => hour >= p.start && hour < p.end)
     }));
-  }, [operatingHours, sandboxBookings, currentDate]);
+  }, [operatingHours, bookings, currentDate]);
 
-  // --- 战术准星交互 (Tactical Crosshair) ---
   const [crosshair, _setCrosshair] = React.useState<{ active: boolean, y: number, time: string, resourceId: string | null }>({
     active: false,
     y: 0,
     time: '00:00',
     resourceId: null
   });
-  const matrixContainerRef = useRef<HTMLDivElement>(null);
-  // --- 彻底废弃极其脆弱的长按微调，改为极速点击建单 ---
-  // const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // const startPointerRef = useRef<{ x: number, y: number } | null>(null);
 
   const calculateCrosshair = (clientY: number, clientX: number, rect: DOMRect) => {
     let y = clientY - rect.top - 16; // 16px is pt-4
@@ -163,16 +158,87 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
     return { exactY, timeStr, resourceId };
   };
 
-  // --- 以下废弃的长按事件处理函数 ---
-  // const handlePointerDown = (e: React.PointerEvent) => { ... }
-  // const handlePointerMove = (e: React.PointerEvent) => { ... }
-  // const handlePointerUp = (e: React.PointerEvent) => { ... }
-  // const handlePointerCancel = () => { ... }
+  const activateCrosshair = (clientY: number, clientX: number) => {
+    const rect = containerRectRef.current;
+    if (!rect) return;
+    const { exactY, timeStr, resourceId } = calculateCrosshair(clientY, clientX, rect);
+    _setCrosshair({ active: true, y: exactY, time: timeStr, resourceId });
+    if (typeof navigator !== 'undefined') {
+      const nav = navigator as unknown as { vibrate?: (pattern: number | number[]) => boolean };
+      try { nav.vibrate?.(20); } catch {}
+    }
+  };
 
-  // 使用 ref 来同步左右两侧的垂直滚动
-  const timeColumnRef = useRef<HTMLDivElement>(null);
-  const internalMatrixRef = useRef<HTMLDivElement>(null);
-  const actualMatrixRef = matrixScrollRef || internalMatrixRef;
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.pointer-events-auto')) return;
+    startPointerRef.current = { x: e.clientX, y: e.clientY };
+    pointerDownAtRef.current = Date.now();
+    containerRectRef.current = matrixContainerRef.current?.getBoundingClientRect() || null;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      activateCrosshair(e.clientY, e.clientX);
+    }, 300);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const start = startPointerRef.current;
+    if (!start) return;
+    const dx = Math.abs(e.clientX - start.x);
+    const dy = Math.abs(e.clientY - start.y);
+    if (!crosshair.active && (dx > 10 || dy > 10)) {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      return;
+    }
+    if (crosshair.active) {
+      const rect = containerRectRef.current;
+      if (!rect) return;
+      const { exactY, timeStr, resourceId } = calculateCrosshair(e.clientY, e.clientX, rect);
+      _setCrosshair({ active: true, y: exactY, time: timeStr, resourceId });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const start = startPointerRef.current;
+    const downAt = pointerDownAtRef.current;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    startPointerRef.current = null;
+    pointerDownAtRef.current = null;
+    if (crosshair.active) {
+      const { resourceId, time } = crosshair;
+      _setCrosshair({ active: false, y: 0, time: '00:00', resourceId: null });
+      if (onGridClick) onGridClick(resourceId || undefined, time);
+      return;
+    }
+    if (start && downAt) {
+      const dt = Date.now() - downAt;
+      const dx = Math.abs(e.clientX - start.x);
+      const dy = Math.abs(e.clientY - start.y);
+      if (dt <= 300 && dx <= 10 && dy <= 10) {
+        const rect = matrixContainerRef.current?.getBoundingClientRect();
+        if (rect) {
+          const { timeStr, resourceId } = calculateCrosshair(e.clientY, e.clientX, rect);
+          if (onGridClick) onGridClick(resourceId || undefined, timeStr);
+        }
+      }
+    }
+  };
+
+  const handlePointerCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    _setCrosshair({ active: false, y: 0, time: '00:00', resourceId: null });
+    startPointerRef.current = null;
+    pointerDownAtRef.current = null;
+  };
 
   const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
     // 垂直同步时间轴
@@ -186,7 +252,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
   };
 
   // 矩阵区的手势接管：滑动切换日期
-  const handleMatrixPanEnd = (_e: any, info: any) => {
+  const handleMatrixPanEnd = (_e: unknown, info: PanInfo) => {
     // 防止纵向滚动误触横向翻页
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x)) return;
 
@@ -253,26 +319,14 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
           {/* 矩阵主体同步修改底部留白为 pb-20 */}
           <div 
             ref={matrixContainerRef}
-            // 移除导致浏览器劫持滑动的 touch-none
-            className={cn("relative pb-20 pt-4 w-full cursor-crosshair select-none")}
+            className={cn("relative pb-20 pt-4 w-full cursor-crosshair select-none", crosshair.active ? "touch-none" : "")}
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             onContextMenu={(e) => e.preventDefault()}
-            // 彻底废弃长按唤醒准星，改为纯粹的极速点击建单
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              // 忽略在已有预约块上的点击
-              if (target.closest('.pointer-events-auto')) return;
-              
-              const rect = matrixContainerRef.current?.getBoundingClientRect();
-              if (rect) {
-                const { timeStr, resourceId } = calculateCrosshair(e.clientY, e.clientX, rect);
-                if (onGridClick) {
-                  onGridClick(resourceId || undefined, timeStr);
-                }
-              }
-            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
           >
-            {/* 废弃长按后，战术准星不再由拖拽触发，您可以选择保留作为调试用，或者彻底隐藏 */}
             {crosshair.active && (
               <div 
                 className="absolute left-0 right-0 z-50 pointer-events-none flex items-center"
@@ -307,7 +361,7 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                   const currentDateStr = `${year}-${month}-${day}`;
                   
                   // 使用 filter 替代 find，以支持单个格子内的多重渲染（主要用于 NO 爽约列的无限堆叠）
-                  const cellBookings = sandboxBookings.filter(b => {
+                  const cellBookings = bookings.filter(b => {
                     const [bHour] = (b.startTime || "00:00").split(':').map(Number);
                     return bHour === slot.hour && b.resourceId === res.id && b.date === currentDateStr;
                   });
@@ -352,12 +406,12 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                         res.id === 'NO' ? (
                           // NO 列：使用 flex-row 等分并排显示多个爽约订单
                           <div className="absolute inset-x-0.5 md:inset-x-2 top-0 h-full z-10 flex flex-row gap-1 pointer-events-none">
-                            {cellBookings.map((booking: any) => {
+                            {cellBookings.map((booking: MatrixBooking) => {
                               const [, bMin] = (booking.startTime || "00:00").split(':').map(Number);
                               const topOffset = (bMin / 60) * 80;
                               const heightPx = (booking.duration / 60) * 80;
                               const isTiny = booking.duration <= 45; // 前置静态高度判定：小于等于 45 分钟视为极矮卡片
-
+                              const serviceTitle = booking.serviceName ? (industry === 'medical' && booking.serviceName.includes('套餐') ? '常规诊疗' : booking.serviceName) : '';
                               return (
                                 <div key={booking.id} className="flex-1 relative pointer-events-auto">
                                   <div style={{ position: 'absolute', top: topOffset, left: 0, right: 0, height: Math.max(40, heightPx - 4) }}>
@@ -366,9 +420,9 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                                         e.stopPropagation();
                                         if (onBookingClick) onBookingClick(booking);
                                       }}
-                                      title={industry === 'medical' && booking.serviceName.includes('套餐') ? '常规诊疗' : booking.serviceName}
+                                      title={serviceTitle}
                                       time={`${booking.startTime} (${booking.duration}m)`}
-                                      client={formatMinimalId(booking.customerId || booking.customerName)}
+                                      client={formatMinimalId((booking.customerId || booking.customerName) || "")}
                                       color="#ef4444"
                                       accent="red"
                                       height="100%" 
@@ -383,12 +437,12 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                           // 常规列：坚守物理碰撞法则，全宽渲染（取第一个订单，虽然底层已经做了防重叠）
                           // 修复：移除多余的绝对定位外壳，直接利用 left: 2, right: 2 (移动端) 相对于父级相对定位格子进行拉伸
                           <>
-                            {cellBookings.slice(0, 1).map((booking: any) => {
+                            {cellBookings.slice(0, 1).map((booking: MatrixBooking) => {
                               const [, bMin] = (booking.startTime || "00:00").split(':').map(Number);
                               const topOffset = (bMin / 60) * 80;
                               const heightPx = (booking.duration / 60) * 80;
                               const isTiny = booking.duration <= 45; // 前置静态高度判定
-
+                              const serviceTitle = booking.serviceName ? (industry === 'medical' && booking.serviceName.includes('套餐') ? '常规诊疗' : booking.serviceName) : '';
                               const isUnassigned = booking?.originalUnassigned === true;
                               const blockColor = isUnassigned ? '#00f0ff' : (res.themeColor || dna.themeColor);
 
@@ -410,9 +464,9 @@ export const EliteResourceMatrix = ({ industry, dna, resources, operatingHours, 
                                       e.stopPropagation();
                                       if (onBookingClick) onBookingClick(booking);
                                     }}
-                                    title={industry === 'medical' && booking.serviceName.includes('套餐') ? '常规诊疗' : booking.serviceName}
+                                    title={serviceTitle}
                                     time={`${booking.startTime} (${booking.duration}m)`}
-                                    client={formatMinimalId(booking.customerId || booking.customerName)}
+                                    client={formatMinimalId((booking.customerId || booking.customerName) || "")}
                                     color={blockColor}
                                     accent={isUnassigned ? 'cyan' : dna.accent}
                                     height="100%" 

@@ -2,9 +2,11 @@
 
 import { useEffect, useState, createContext, useContext, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { AuthService } from "../api/auth";
+import { supabase } from "@/lib/supabase";
 
 export type UserRole = "user" | "merchant" | "boss";
+
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "499755740@qq.com";
 
 // --- 沙盒扩展：Mock 用户数据结构 ---
 export interface SandboxUser extends User {
@@ -13,6 +15,8 @@ export interface SandboxUser extends User {
   role: UserRole;
   shopId?: string;
   shopName?: string;
+  avatar?: string;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -53,29 +57,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setActiveRoleState(savedRole);
     }
 
-    // 检查沙盒模式账号
-    const sandboxSession = localStorage.getItem("gx_sandbox_session");
-    if (sandboxSession) {
-      try {
-        const mockUser = JSON.parse(sandboxSession);
-        setUser(mockUser);
-        setActiveRoleState(mockUser.role);
-        setIsLoading(false);
-        return; // 沙盒模式下拦截真实 Supabase 初始化
-      } catch (e) {
-        console.error("Sandbox session error", e);
-      }
-    }
-
     // 1. 获取初始 Session (Supabase 真实环境)
     const initAuth = async () => {
       try {
-        const initialSession = await AuthService.getSession();
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.warn("[AuthProvider] Session Error (e.g. Invalid Refresh Token), clearing session...", sessionError);
+          await supabase.auth.signOut(); // 自动清除损坏的 token
+          setSession(null);
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
         setSession(initialSession);
-        setUser(initialSession?.user ?? null);
+        
         if (initialSession?.user) {
           setIsGuest(false);
           localStorage.removeItem("gx_guest_mode");
+          
+          // 从 public.profiles 表中读取扩展信息 (gx_id, role, avatar, phone)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', initialSession.user.id)
+            .single();
+
+          if (profile) {
+            const extendedUser = {
+              ...initialSession.user,
+              gxId: profile.gx_id,
+              role: profile.role,
+              avatar: profile.avatar_url,
+              phone: profile.phone,
+              name: profile.name
+            } as SandboxUser;
+            
+            setUser(extendedUser);
+            setActiveRoleState(profile.role as UserRole);
+          } else {
+            // Fallback 
+            setUser(initialSession.user);
+            if (initialSession.user.email === ADMIN_EMAIL) {
+              setActiveRoleState("boss");
+            }
+          }
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error("[AuthProvider] Init Error:", error);
@@ -87,14 +116,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
 
     // 2. 订阅状态变更
-    const subscription = AuthService.onAuthStateChange((_event, currentSession) => {
-      if (localStorage.getItem("gx_sandbox_session")) return; // 沙盒模式忽略变更
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       console.log("[AuthProvider] Auth State Changed:", _event);
       setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+      
       if (currentSession?.user) {
         setIsGuest(false);
         localStorage.removeItem("gx_guest_mode");
+        
+        // 同样从 profiles 表中拉取数据
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single();
+
+          if (profile) {
+            const extendedUser = {
+              ...currentSession.user,
+              gxId: profile.gx_id,
+              role: profile.role,
+              avatar: profile.avatar_url,
+              phone: profile.phone,
+              name: profile.name
+            } as SandboxUser;
+            
+            setUser(extendedUser);
+            setActiveRoleState(profile.role as UserRole);
+          } else {
+            setUser(currentSession.user);
+            if (currentSession.user.email === ADMIN_EMAIL) {
+              setActiveRoleState("boss");
+            }
+          }
+        } catch (e) {
+          console.error("Fetch profile on auth change error", e);
+          setUser(currentSession.user);
+        }
+      } else {
+        setUser(null);
       }
       setIsLoading(false);
     });
@@ -115,19 +176,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const sandboxLogin = (mockUser: SandboxUser) => {
-    setUser(mockUser);
-    setActiveRoleState(mockUser.role);
-    localStorage.setItem("gx_sandbox_session", JSON.stringify(mockUser));
+    // 已经废弃：不再使用沙盒登录，避免干扰真实状态
+    console.warn("sandboxLogin is deprecated. Using real Supabase auth now.");
   };
 
   const handleSignOut = async () => {
-    const isSandbox = !!localStorage.getItem("gx_sandbox_session");
-    if (isSandbox) {
-      localStorage.removeItem("gx_sandbox_session");
-      setUser(null);
-    } else {
-      await AuthService.signOut();
-    }
+    // 彻底清除所有历史遗留的沙盒缓存
+    localStorage.removeItem("gx_sandbox_session");
+    
+    await supabase.auth.signOut();
+    setUser(null);
     setIsGuest(false);
     localStorage.removeItem("gx_guest_mode");
     sessionStorage.removeItem("gx_active_role");
