@@ -283,7 +283,7 @@ export const BookingService = {
   
   _pendingApplicationQuery: null as Promise<any> | null,
 
-  async getMerchantApplicationStatus(userId: string) {
+  async getMerchantApplicationStatus(userId: string): Promise<{ data: any | null }> {
     if (isMockMode || !userId) return { data: null };
 
     // 如果已经有请求在飞，直接返回它（单例锁机制）
