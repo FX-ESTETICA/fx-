@@ -195,7 +195,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
                 alpha: true,
                 powerPreference: "high-performance" 
               }}
-              onCreated={({ gl, clock }) => {
+              onCreated={({ gl }) => {
                 // 仅在 Canvas 渲染失败（极其罕见）时，静默回退
                 if (!gl) setHasError(true);
                 // 拦截 R3F 内部 Clock 的警告机制
