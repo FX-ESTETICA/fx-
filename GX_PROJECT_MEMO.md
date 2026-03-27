@@ -125,12 +125,17 @@
     - **边缘图片缓存 (Edge Photo Proxy)**：新增 `/api/photo` 代理路由，拦截 Google Places Photo API，通过 Vercel Edge Cache 实现合法且低成本的 30 天性能缓存 (`s-maxage=2592000`)。
     - **卡片微轮播 (Micro-Carousel)**：首页商家封面升级为横向滑动容器，末尾幻灯片植入“UGC 照片上传”触点，收敛交互并保持首页纯净。
     - **极致清透图片融合与“彩色特权”**：废弃生硬的黑色遮罩与生化危机青色滤镜。将 Google 真实图片设为半透明 (`opacity-40`) 直接叠加在星云背景之上，实现物理级光学融合；文字采用纯黑发光阴影确保可读性。提出 **“彩色特权 (Color Privilege)”** 商业法则：仅有用户实拍(UGC)或商家认领的图片才拥有 100% 饱和度的全彩展示权，其余皆受星云环境光压制。
+- **2026-03-27 Firebase Auth 风控突围与 Vercel 线上闭环 (Firebase Anti-Ban & Vercel Pipeline)**：
+    - **防爆架构重构**：彻底废弃容易触发 Google 风控的“幽灵 DOM 游离黑洞”方案。全面改用“显式 reCAPTCHA (Normal Mode)”配合“常驻 DOM 节点 + CSS 控制显隐”的绝对稳定结构，彻底终结 `auth/invalid-app-credential` 与 `argument-error` 竞态报错。
+    - **单行全透明胶囊 (Single-line Transparent Capsule)**：手机号绑定 UI 迎来终极升维。粉碎了响应式上下堆叠的妥协设计，在任何移动设备上强制执行“区号-输入框-按钮”单行连体，配合 `border-white/20` 与 `bg-transparent` 实现顶级科技仪器的清透质感。
+    - **Vercel 严格模式镇压**：使用本地 `npm run build` 同级排雷，修复了 `PromiseLike` 返回值 `.catch` 类型推断丢失（彻底改写为原生 async/await）、清除了无用变量（如 `THREE.Clock` 的遗留定义），并通过在 `tsconfig.json` 中配置 `exclude: ["supabase/functions/**/*"]` 解决了 Deno 边缘函数与 Next.js Node 环境的编译冲突。
+    - **安全环境穿越**：确立了“本地 IP 必遭拦截，必须依赖 Vercel 线上环境 + Firebase Authorized Domains 白名单”的硬核风控突破路径，并将 Google reCAPTCHA CSP 的 `frame-ancestors 'self'` 警告明确列为无需理会的 report-only 虚假警报。
 - **物理红字 (Linter Redline)**：`0`。
-- **Nexus Checkpoint**: `GX-P13.11-Aesthetics-V1.4`
+- **Nexus Checkpoint**: `GX-P13.14-Auth-Vercel-V1.0`
 - **Mind Snapshot**:
-  - **核心进度**: 完成了首页 LBS 真实周边聚合的全面重构。从底层 API 排序、到中层图片防盗刷边缘缓存、再到表层的微轮播与极致透明材质融合，打通了兼顾合规、成本与顶级审美的商业化内容呈现链路。
+  - **核心进度**: 经历了 8 小时的风控对抗，最终成功打通了 Firebase Phone Auth 的真实短信发送链路。彻底扫除了 Vercel 部署环境中的严格类型地雷，并实现了全透明单行控制舱的绝美 UI。
   - **下一步即刻动作**: 
-        - 推进服务项目配置中心 (Nebula Config Hub) 的沙盒数据持久化。
+        - 推进服务项目配置中心 (Nebula Config Hub) 的沙盒数据持久化；或者推进老板视角 (Boss Dashboard / `/spatial`) 的开发。
 
 ### 当前状态：**Phase 13.12 - [COMPLETED] 全息状态同步与底层警告物理清除 (Holographic State Sync & Zero Warning Protocol)**
 - **目标**：实现用户身份数据的多端毫秒级同步，彻底解决第三方 3D 渲染框架底层引起的控制台废弃警告，贯彻“顶级图书馆整洁度”的零红/黄字最高宪法。
