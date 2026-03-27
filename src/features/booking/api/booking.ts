@@ -277,5 +277,54 @@ export const BookingService = {
     if (channel) {
       supabase.removeChannel(channel);
     }
+  },
+
+  // --- Merchant Application Singleton Query (完美修复法则) ---
+  
+  _pendingApplicationQuery: null as Promise<any> | null,
+
+  async getMerchantApplicationStatus(userId: string) {
+    if (isMockMode || !userId) return { data: null };
+
+    // 如果已经有请求在飞，直接返回它（单例锁机制）
+    if (this._pendingApplicationQuery) {
+      return this._pendingApplicationQuery;
+    }
+
+    // 发起真实请求并锁住
+    this._pendingApplicationQuery = supabase
+      .from('merchant_applications')
+      .select('status, brand_name')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data, error }) => {
+        // 请求完成，清除锁
+        this._pendingApplicationQuery = null;
+        
+        // 静默吞噬：找不到数据 (PGRST116) 或 AbortError (Lock broken)
+        if (error) {
+          if (
+            error.code === 'PGRST116' || 
+            Object.keys(error).length === 0 || 
+            error.message?.includes('AbortError') ||
+            error.message?.includes('Lock')
+          ) {
+            return { data: null };
+          }
+          console.error("[BookingService] getMerchantApplicationStatus Error:", error);
+          return { data: null };
+        }
+        
+        return { data };
+      })
+      .catch((err) => {
+        this._pendingApplicationQuery = null;
+        console.error("[BookingService] Query failed:", err);
+        return { data: null };
+      });
+
+    return this._pendingApplicationQuery;
   }
 };

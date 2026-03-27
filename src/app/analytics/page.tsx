@@ -75,7 +75,7 @@ export default function AnalyticsPage() {
 
         {/* 底部导航 */}
         <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
-          <Link href="/dashboard" className="hover:text-gx-cyan transition-colors flex items-center gap-2">
+          <Link href="/dashboard" className="hover:text-gx-cyan transition-colors flex items-center gap-2" prefetch={false}>
             <LayoutGrid className="w-3 h-3" />
             返回仪表盘 / Dashboard
           </Link>

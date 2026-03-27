@@ -139,7 +139,7 @@ export default function DashboardPage() {
             {activeRole === "boss" && (
               <div className="grid grid-cols-1 gap-6">
                  {/* Admin专属驾驶舱入口 */}
-                 <Link href="/spatial">
+                 <Link href="/spatial" prefetch={false}>
                   <GlassCard glowColor="purple" className="p-8 group cursor-pointer relative overflow-hidden transition-all duration-500 hover:scale-[1.01]">
                     <div className="flex items-center gap-6">
                       <div className="w-16 h-16 rounded-2xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple">

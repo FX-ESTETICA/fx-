@@ -4,8 +4,10 @@ const bunnyHost = process.env.NEXT_PUBLIC_CDN_HOST || "";
 
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowSVG: true,
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
+      { protocol: "https", hostname: "places.googleapis.com", pathname: "/**" },
       ...(bunnyHost ? [{ protocol: "https" as const, hostname: bunnyHost, pathname: "/**" }] : []),
     ],
     formats: ["image/avif", "image/webp"],

@@ -85,17 +85,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .single();
 
           if (profile) {
+            // 权限与信息兜底法则 (Admin Immunity & Metadata Fallback)
+            const isBoss = initialSession.user.email === ADMIN_EMAIL;
+            const actualRole = isBoss ? "boss" : profile.role;
+            const actualName = profile.name || initialSession.user.user_metadata?.full_name;
+            const actualAvatar = profile.avatar_url || initialSession.user.user_metadata?.avatar_url;
+            const actualId = isBoss ? "GX88888888" : profile.gx_id;
+
             const extendedUser = {
               ...initialSession.user,
-              gxId: profile.gx_id,
-              role: profile.role,
-              avatar: profile.avatar_url,
+              gxId: actualId,
+              role: actualRole,
+              avatar: actualAvatar,
               phone: profile.phone,
-              name: profile.name
+              name: actualName
             } as SandboxUser;
             
             setUser(extendedUser);
-            setActiveRoleState(profile.role as UserRole);
+            setActiveRoleState(actualRole as UserRole);
           } else {
             // Fallback 
             setUser(initialSession.user);
@@ -133,17 +140,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .single();
 
           if (profile) {
+            // 权限与信息兜底法则 (Admin Immunity & Metadata Fallback)
+            const isBoss = currentSession.user.email === ADMIN_EMAIL;
+            const actualRole = isBoss ? "boss" : profile.role;
+            const actualName = profile.name || currentSession.user.user_metadata?.full_name;
+            const actualAvatar = profile.avatar_url || currentSession.user.user_metadata?.avatar_url;
+            const actualId = isBoss ? "GX88888888" : profile.gx_id;
+
             const extendedUser = {
               ...currentSession.user,
-              gxId: profile.gx_id,
-              role: profile.role,
-              avatar: profile.avatar_url,
+              gxId: actualId,
+              role: actualRole,
+              avatar: actualAvatar,
               phone: profile.phone,
-              name: profile.name
+              name: actualName
             } as SandboxUser;
             
             setUser(extendedUser);
-            setActiveRoleState(profile.role as UserRole);
+            setActiveRoleState(actualRole as UserRole);
           } else {
             setUser(currentSession.user);
             if (currentSession.user.email === ADMIN_EMAIL) {
@@ -164,6 +178,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // 3. 独立监听当前用户的 profiles 表实时变更 (多端同步)
+  useEffect(() => {
+    if (!user || !user.id) return;
+
+    console.log(`[AuthProvider] Subscribing to profiles realtime for user: ${user.id}`);
+    
+    const profileChannel = supabase
+      .channel(`public:profiles:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('[AuthProvider] Profile Realtime Update Received:', payload);
+          const updatedProfile = payload.new;
+          
+          setUser(prev => {
+            if (!prev) return prev;
+            
+            // 实时同步时同样保持特权兜底
+            const isBoss = prev.email === ADMIN_EMAIL;
+            const actualRole = isBoss ? "boss" : (updatedProfile.role || prev.role);
+            const actualId = isBoss ? "GX88888888" : (updatedProfile.gx_id || prev.gxId);
+
+            return {
+              ...prev,
+              gxId: actualId,
+              role: actualRole,
+              avatar: updatedProfile.avatar_url || prev.avatar,
+              phone: updatedProfile.phone || prev.phone,
+              name: updatedProfile.name || prev.name
+            } as SandboxUser;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+    };
+  }, [user?.id]); // 仅当 user.id 变化时重新订阅
 
   const setGuestMode = () => {
     setIsGuest(true);

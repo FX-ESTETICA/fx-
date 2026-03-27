@@ -8,7 +8,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
  * [UI-First Sandbox Protocol]
  * 如果环境变量缺失，将自动降级为 Mock 模式，确保 UI 渲染不中断。
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // 禁用锁机制，解决开发环境下 React 严格模式或多标签页导致的 "NavigatorLockAcquireTimeoutError"
+    lock: false,
+  }
+});
 
 // 导出环境检查标识，供 Service 层决定是否启用 Mock 数据
 export const isMockMode = !process.env.NEXT_PUBLIC_SUPABASE_URL;

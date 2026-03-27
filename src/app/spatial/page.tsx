@@ -227,6 +227,7 @@ function CardItem({ link, index, total, springRotation, isActive, isMobile }: an
         <Link 
            href={link.path} 
            className={`${isActive ? "pointer-events-auto cursor-pointer" : "pointer-events-none"} block h-full w-full`}
+           prefetch={false}
          >
           <GlassCard 
             glowColor={link.glow as any} 

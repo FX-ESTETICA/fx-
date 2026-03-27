@@ -101,6 +101,7 @@ export default function OnboardingPage() {
             <Link 
               href="/login?role=merchant" 
               className="w-full md:w-auto px-12 py-5 bg-gx-cyan text-black font-bold uppercase tracking-widest rounded-2xl hover:shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:scale-105 transition-all duration-500 flex items-center justify-center gap-3"
+              prefetch={false}
             >
               立即入驻 / JOIN NOW
               <ArrowRight className="w-5 h-5" />

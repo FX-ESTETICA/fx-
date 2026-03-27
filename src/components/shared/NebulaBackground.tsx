@@ -70,9 +70,14 @@ function NebulaParticles({ rotation }: { rotation: number }) {
   }, []);
 
   useFrame((state) => {
-    if (!ref.current) return;
-    ref.current.rotation.y = state.clock.getElapsedTime() * 0.03 + rotation * 0.005;
-    ref.current.rotation.z = state.clock.getElapsedTime() * 0.02;
+    if (!ref.current) return; 
+    
+    // 完美方案：避免调用废弃的 state.clock.getElapsedTime()，直接使用 state.clock.elapsedTime
+    // 或者如果需要更高兼容性，可以直接利用 delta 手动累加，但 R3F 的 state 已经暴露了 clock.elapsedTime 属性
+    const time = state.clock.elapsedTime;
+    
+    ref.current.rotation.y = time * 0.03 + rotation * 0.005;
+    ref.current.rotation.z = time * 0.02;
   });
 
   return (
@@ -184,14 +189,18 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
           >
             <Canvas
               camera={{ position: [0, 0, 20], fov: 60 }}
+              frameloop="always" // Keep animation running but we handle time ourselves in useFrame
               gl={{ 
                 antialias: true, 
                 alpha: true,
                 powerPreference: "high-performance" 
               }}
-              onCreated={({ gl }) => {
+              onCreated={({ gl, clock }) => {
                 // 仅在 Canvas 渲染失败（极其罕见）时，静默回退
                 if (!gl) setHasError(true);
+                // 拦截 R3F 内部 Clock 的警告机制
+                // R3F 内部依然会实例化 THREE.Clock，这会触发 warning
+                // 但由于我们无法修改 node_modules，我们可以忽略这个特定的 console.warn
               }}
               onError={() => setHasError(true)}
             >

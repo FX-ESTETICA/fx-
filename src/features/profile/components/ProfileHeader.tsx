@@ -6,7 +6,7 @@ import { UserProfile } from "../types";
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AvatarCropModal } from "./AvatarCropModal";
-import { supabase } from "@/lib/supabase";
+import { supabase, isMockMode } from "@/lib/supabase";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -52,6 +52,14 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const handleUploadCroppedFile = async (file: File) => {
     setIsUploading(true);
     try {
+      if (isMockMode) {
+        console.log("[GX-SANDBOX] Mocking avatar upload...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const mockUrl = URL.createObjectURL(file);
+        setLocalAvatar(mockUrl);
+        return;
+      }
+
       // 1. 生成唯一文件名 (这里使用 profile.id 可以实现同名覆盖，或者加时间戳避免缓存)
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
@@ -83,8 +91,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
           
         if (updateError) throw updateError;
         
-        // 真实环境下也实现“秒换”
-        setLocalAvatar(urlWithTimestamp);
+        // 注意：无需手动 setLocalAvatar，因为 useAuth 的 Realtime 订阅会自动推送到全局状态并引发重绘
       } else {
         // Fallback for visual test if somehow neither matched
         setLocalAvatar(urlWithTimestamp);

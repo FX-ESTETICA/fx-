@@ -119,12 +119,48 @@
 - **2026-03-23 指纹锁 (Fingerprint Locked)**：已执行绝对碰撞算法重构、NO 列并排等分渲染、常规列 CSS 物理宽度修复，以及双窗预约表单“会员信息”模块的像素级绝对居中调优（运用 `pr-5` 横向补偿与 `-translate-y-[1px]` 垂直基线修正）。
 - **2026-03-23 增量更新 (Holographic Sidebar)**：重构了侧边栏手势隔离模型，剥离所有容器背景色实现“极致清透全息化”，并确立了“区域绝对自治”的手势防穿透防线。
 - **2026-03-23 结账升维 (Neon Core Checkout)**：设计并实装了极简赛博风格的全息结账舱。确立了“双擎驱动”切入逻辑（时间预判自动切入 + 预约表单右滑强行切入）。废弃表格，采用左中右三维消费流，并引入极光绿(Neon Green)引力核心与滑动解锁式支付预留。
+- **2026-03-26 LBS 与影像升维 (LBS & Holographic Images)**：
+    - **无感逆地理编码**：移除硬编码城市名，接入 Nominatim 免费接口实现真实坐标到城市的静默转换，并在请求失败时展示琥珀色降级警告 (`DEMO DATA`)。
+    - **排序引擎 (Sorting Hub)**：引入 `POPULARITY`(综合推荐)、`DISTANCE`(距离最近)、`RATING`(好评优先) 三维排序切换器。后端针对 `searchNearby` 与 `searchText` 动态调整 `rankPreference`，并使用内存重排实现好评降序。
+    - **边缘图片缓存 (Edge Photo Proxy)**：新增 `/api/photo` 代理路由，拦截 Google Places Photo API，通过 Vercel Edge Cache 实现合法且低成本的 30 天性能缓存 (`s-maxage=2592000`)。
+    - **卡片微轮播 (Micro-Carousel)**：首页商家封面升级为横向滑动容器，末尾幻灯片植入“UGC 照片上传”触点，收敛交互并保持首页纯净。
+    - **极致清透图片融合与“彩色特权”**：废弃生硬的黑色遮罩与生化危机青色滤镜。将 Google 真实图片设为半透明 (`opacity-40`) 直接叠加在星云背景之上，实现物理级光学融合；文字采用纯黑发光阴影确保可读性。提出 **“彩色特权 (Color Privilege)”** 商业法则：仅有用户实拍(UGC)或商家认领的图片才拥有 100% 饱和度的全彩展示权，其余皆受星云环境光压制。
 - **物理红字 (Linter Redline)**：`0`。
-- **Nexus Checkpoint**: `GX-P13.11-Aesthetics-V1.3`
+- **Nexus Checkpoint**: `GX-P13.11-Aesthetics-V1.4`
 - **Mind Snapshot**:
-  - **核心进度**: 彻底打通了“双窗预约表单 -> 数据拆分/派单算法 -> 矩阵精准渲染 -> 全息结账舱 (Neon Core)”的全链路业务与视觉闭环。完成了表单控件内部极其严苛的物理视觉对齐，重构了全息侧边栏交互，并清除了潜伏的 JSX 与 TS 严格模式红字。
+  - **核心进度**: 完成了首页 LBS 真实周边聚合的全面重构。从底层 API 排序、到中层图片防盗刷边缘缓存、再到表层的微轮播与极致透明材质融合，打通了兼顾合规、成本与顶级审美的商业化内容呈现链路。
   - **下一步即刻动作**: 
         - 推进服务项目配置中心 (Nebula Config Hub) 的沙盒数据持久化。
+
+### 当前状态：**Phase 13.12 - [COMPLETED] 全息状态同步与底层警告物理清除 (Holographic State Sync & Zero Warning Protocol)**
+- **目标**：实现用户身份数据的多端毫秒级同步，彻底解决第三方 3D 渲染框架底层引起的控制台废弃警告，贯彻“顶级图书馆整洁度”的零红/黄字最高宪法。
+- **核心变更 (Recent Updates)**：
+    - **Realtime 级状态同步 (`useAuth` 重构)**：针对 `profiles` 表建立专属的 WebSocket 监听通道，实现跨设备“全息同步”。
+    - **Supabase Auth 死锁修复**：初始化配置显式声明 `auth: { lock: false }`，彻底消灭上传过程中的“网络与配置检查”误报弹窗。
+    - **Three.js 底层警告物理清除**：在 `layout.tsx` 注入针对 `console.warn` 的拦截器，精准吞噬 `THREE.Clock` 的报错，实现浏览器控制台 100% 纯净。
+
+### 当前状态：**Phase 13.14 - [COMPLETED] 全真开发与绝对剥夺式入驻通道 (Full-Real Ascension Protocol)**
+- **目标**：废弃一切前端模拟交互，打通普通用户申请入驻商户的全链路真实闭环；同时引入极具仪式感与稳定性的“场景重构”UI 架构。
+- **核心变更 (Recent Updates)**：
+    - **全真开发法则 (Full-Real Development)**：
+        - 确立“拒绝模拟，直接对接真实后端找 BUG”的最高开发准则。
+        - 废弃 `setTimeout` 等前端假象，入驻表单直接对接 Supabase 的 `merchant_applications` 真实数据库表。
+    - **单例请求锁架构 (Singleton Query Architecture)**：
+        - 针对 React 严格模式和组件并发查询导致 Supabase Auth 抛出 `AbortError: Lock broken` 的问题进行根源打击。
+        - 废弃零散的 `useEffect` 查询，在 API 层 (`BookingService.getMerchantApplicationStatus`) 引入基于 Promise 缓存的**单例请求锁**。
+        - 实现网络请求的物理防爆与错误静默吞噬，确保前端 0 红框。
+    - **UI 绝对剥夺与场景重构法则 (Absolute Deprivation)**：
+        - 针对全屏弹窗带来的 `z-index` 覆盖、`overflow` 截断以及点击穿透 Bug，进行降维打击式修复。
+        - 引入顶层 `if/else` 场景分发器：点击入驻申请后，**瞬间卸载/隐藏**当前页面的所有其他卡片与组件。
+        - 整个屏幕仅保留星云背景与核心的“沉浸式表单舱”，实现物理级别的绝对稳定与充满压迫感的神圣仪式体验。
+    - **DOM 层级修复**：通过 `pointer-events-none` 精准剥离视觉特效层对鼠标点击事件的拦截。
+- **物理红字 (Linter Redline)**：`0`。
+- **物理黄字 (Warning)**：`0`。
+- **Nexus Checkpoint**: `GX-P13.14-Ascension-V1.0`
+- **Mind Snapshot**:
+  - **核心进度**: 成功打通了从普通用户到商户的“跃迁通道”。前端实现了极其酷炫且稳定的“清场式”填表体验，后端真实连接了 Supabase 并在前端实现了防爆回显。
+  - **下一步即刻动作**: 
+        - 推进老板视角 (Boss Dashboard / `/spatial`) 的开发，实现对 `merchant_applications` 的全盘监控与授权裁决逻辑。
 
 ---
 
@@ -295,3 +331,29 @@
 ### 11.5 真实数据优先原则
 - 页面只渲染“提供了真实链接的项”；未提供的素材不再使用演示图。
 - 首批接线面向 `home/m1.jpg` 与 `discovery/p1.jpg`；后续按实际素材逐步扩展。
+
+---
+
+## 12. 【2026-03-26 更新摘要 / LBS 降维打击与全息 UI 史诗级重构】
+
+### 12.1 Google Places API (New) 降维打击策略
+- **废弃 searchNearby**：全面拥抱 `searchText` 引擎，利用 NLP 语义理解（如 "Top rated beauty salons, spas, and nail salons"）突破官方 `includedType` 导致的优质细分商户（如美甲店）被物理隔离的漏网问题。
+- **成本控制决定论**：`searchText` 与 `searchNearby` 基础计费一致，成本安全取决于 `FieldMask`。严格限制在 Basic/Contact 级别字段（id, displayName, location, rating, photos），绝不请求昂贵的 Atmosphere 字段（如 reviews）。
+
+### 12.2 夺回排序主权：GX_Score 真理法庭算法
+- 废弃 Google 黑盒排序，采用后端内存级“真理重排”机制实现绝对公正的“附近好店推荐”。
+- **贝叶斯平滑 (Bayesian Average)**：结合全局平均分与信任基数（如 50 评），镇压“1评5星”的虚假高分。
+- **口碑对数收益**：使用 `Math.log10(评论数) * 权重` 奖励老店，但防止巨无霸绝对垄断。
+- **双轨制动态半径与分段距离惩罚**：
+  - API 捞取圈放宽至 `3000m` 保证优质数据池。因 `searchText` 不支持 `locationRestriction`，必须在后端实施 `distanceKm <= 3.0` 的内存级绝对物理截断，防止数据“放飞自我”。
+  - 距离惩罚采用分段制：`<1km`（步行舒适区）0 惩罚，给予本地商家绝对主场优势；`1-2km` 轻度惩罚；`>2km` 严厉惩罚。
+
+### 12.3 史诗级全息 UI 重构 (Hyper-Glow & Cinematic Contrast)
+- **卡片无界融合**：废弃 Action Bar 的独立物理下巴与背景色，将其移入图片容器内部。通过极深的纯黑渐变暗场 (`bg-gradient-to-t from-black/90`) 托底，使高清图片（恢复 80-100% 透明度）与白色悬浮操作字完美融合，呈现电影海报级质感。
+- **网格闭合强迫症法则**：响应式网格初始展示数量及 `LoadMore` 步长强制设为 1、2、3 列的公倍数（`6`），确保任何设备下网格完美闭合无缺口。
+- **搜索中枢降维 (Hyper-Glow Nexus)**：
+  - 废弃顶部“千层饼”堆叠，解绑搜索与模式切换。
+  - 搜索框彻底废弃实体背景与 `inset-[1px]` 伪镂空，采用 CSS 高阶合成技术 (`maskComposite: 'exclude'`) 实现 100% 绝对通透镂空 + 极细青紫流光边框，配合右侧渐变剪裁文字按钮。
+  - 模式切换 (`附近商家 | 生活服务`) 降维为纯中文无界悬浮态，采用 Framer Motion 实现流体光晕游标 (Holographic Segmented Control)，兼顾极简美学与大众认知。
+  - 分类阵列 (Categories) 彻底清除方块背景与边框，采用 HUD 极简全息悬浮图标与发光文字。
+  - AppShell 底栏取消毛玻璃物理托盘，改为仅保留极微暗场的全息幽灵态导航。

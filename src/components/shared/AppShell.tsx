@@ -26,9 +26,19 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
         {children}
       </div>
       {showBottomTabs && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <div className="mx-auto max-w-[900px] px-4 pb-[env(safe-area-inset-bottom)]">
-            <div className="flex items-center justify-around rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-2">
+        <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+          {/* 
+            【返璞归真法则】: 彻底移除 transformZ 和 mixBlendMode。
+            使用最原始的 rgba 线性渐变，防止任何移动端浏览器或 WebKit 内核触发底层的“模糊/重绘”Bug。
+            这确保了在所有设备上都是绝对通透的“无界幽灵”状态。
+          */}
+          <div 
+            className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" 
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0, 0.9) 0%, rgba(0,0,0, 0) 100%)' }} 
+          />
+          <div className="mx-auto max-w-[900px] px-4 pb-[env(safe-area-inset-bottom)] relative pointer-events-auto">
+            {/* 彻底去除背景与边框，实现幽灵态全息悬浮 */}
+            <div className="flex items-center justify-around p-2 bg-transparent">
               {tabRoutes.map(({ href, label, icon: Icon }) => {
                 const active = pathname === href;
                 return (
@@ -40,8 +50,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
                       active ? "text-gx-cyan" : "text-white/40 hover:text-white/70"
                     )}
                   >
-                    <Icon className={cn("w-5 h-5", active ? "drop-shadow-[0_0_12px_rgba(0,240,255,0.35)]" : "")} />
-                    <span className="text-[10px] font-mono uppercase tracking-widest">{label}</span>
+                    <Icon className={cn("w-5 h-5", active ? "drop-shadow-[0_0_12px_rgba(0,240,255,0.5)]" : "drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]")} />
+                    <span className="text-[10px] font-mono uppercase tracking-widest drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">{label}</span>
                   </button>
                 );
               })}

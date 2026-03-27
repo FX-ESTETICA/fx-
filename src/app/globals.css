@@ -85,6 +85,18 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-nebula {
+    background: radial-gradient(circle at 50% 50%, rgba(10, 10, 15, 1) 0%, rgba(0, 0, 0, 1) 100%);
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
 /* 赛博朋克全局滚动条优化 */

@@ -11,7 +11,13 @@ import {
   Filter,
   MoreVertical,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Settings,
+  Scissors,
+  Wand2,
+  Droplets,
+  Zap,
+  Power
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { BookingDetails } from "@/features/booking/types";
@@ -41,6 +47,25 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
   const [isBinding, setIsBinding] = useState(false);
   const [bindMessage, setBindMessage] = useState("");
   const [showIndustryModal, setShowIndustryModal] = useState(false);
+  
+  // 营业时间无极滑轨状态 (HUD 风格)
+  const [openTime, setOpenTime] = useState(8); // 8:00
+  const [closeTime, setCloseTime] = useState(22); // 22:00
+  
+  // 幽灵标签阵列状态 (Ghost Tags)
+  const [activeServices, setActiveServices] = useState<string[]>(['haircut', 'color', 'spa']);
+  const availableServices = [
+    { id: 'haircut', label: '精密裁剪', icon: <Scissors className="w-3 h-3" /> },
+    { id: 'color', label: '全息染色', icon: <Wand2 className="w-3 h-3" /> },
+    { id: 'spa', label: '深层护理', icon: <Droplets className="w-3 h-3" /> },
+    { id: 'perm', label: '结构重塑', icon: <Zap className="w-3 h-3" /> },
+  ];
+
+  const toggleService = (id: string) => {
+    setActiveServices(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
   const router = useRouter();
 
   useEffect(() => {
@@ -228,10 +253,99 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
         />
       </div>
 
+      {/* 核心控制台 (全息驾驶舱风格) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 营业时间矩阵 (HUD 无极滑轨) */}
+        <GlassCard className="p-6 border-white/5 relative overflow-hidden bg-transparent">
+          {/* 绝对清透，无背景色，通过极细镂空流光边框界定 (这里用简单的发光代替复杂 mask) */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-8">
+              <Clock className="w-4 h-4 text-white/40" />
+              <h3 className="text-xs font-bold tracking-widest uppercase">时间矩阵 / Time Matrix</h3>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex justify-between items-end">
+                <div className="text-3xl font-mono tracking-tighter text-gx-cyan mix-blend-screen text-shadow-sm">
+                  {openTime.toString().padStart(2, '0')}:00
+                </div>
+                <div className="text-[10px] text-white/20 uppercase tracking-widest pb-1">TO</div>
+                <div className="text-3xl font-mono tracking-tighter text-gx-cyan mix-blend-screen text-shadow-sm">
+                  {closeTime.toString().padStart(2, '0')}:00
+                </div>
+              </div>
+              
+              {/* 原生无极滑轨模拟 (此处为了快速验证，使用两个原生 range input 叠加) */}
+              <div className="relative h-2 bg-white/5 rounded-full">
+                <div 
+                  className="absolute h-full bg-gx-cyan/30 rounded-full"
+                  style={{ 
+                    left: `${(openTime / 24) * 100}%`, 
+                    right: `${100 - (closeTime / 24) * 100}%` 
+                  }}
+                />
+                <input 
+                  type="range" 
+                  min="0" max="24" 
+                  value={openTime} 
+                  onChange={(e) => setOpenTime(Math.min(Number(e.target.value), closeTime - 1))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <input 
+                  type="range" 
+                  min="0" max="24" 
+                  value={closeTime} 
+                  onChange={(e) => setCloseTime(Math.max(Number(e.target.value), openTime + 1))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                {/* 发光节点指示器 */}
+                <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gx-cyan rounded-full shadow-[0_0_10px_#00F0FF] pointer-events-none" style={{ left: `calc(${(openTime / 24) * 100}% - 6px)` }} />
+                <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gx-cyan rounded-full shadow-[0_0_10px_#00F0FF] pointer-events-none" style={{ left: `calc(${(closeTime / 24) * 100}% - 6px)` }} />
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* 服务节点阵列 (Ghost Tags) */}
+        <GlassCard className="p-6 border-white/5 relative overflow-hidden bg-transparent">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+          
+          <div className="relative z-10 h-full flex flex-col">
+            <div className="flex items-center gap-3 mb-6">
+              <Settings className="w-4 h-4 text-white/40" />
+              <h3 className="text-xs font-bold tracking-widest uppercase">服务节点 / Service Nodes</h3>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 flex-1 content-start">
+              {availableServices.map((service) => {
+                const isActive = activeServices.includes(service.id);
+                return (
+                  <button
+                    key={service.id}
+                    onClick={() => toggleService(service.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-mono tracking-widest transition-all duration-300 border",
+                      isActive 
+                        ? "bg-gx-cyan/10 border-gx-cyan/30 text-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
+                        : "bg-transparent border-white/5 text-white/20 hover:border-white/20 hover:text-white/40"
+                    )}
+                  >
+                    {isActive ? <Power className="w-3 h-3 animate-pulse" /> : service.icon}
+                    {service.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </GlassCard>
+      </div>
+
       {/* 功能入口区 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {industry !== 'none' && (
-          <Link href={`/calendar/${industry || 'beauty'}?shopId=${shopId || 'default'}`}>
+          <Link href={`/calendar/${industry || 'beauty'}?shopId=${shopId || 'default'}`} prefetch={false}>
             <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500" />
               <div className="relative z-10 flex items-center justify-between">
@@ -250,7 +364,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
           </Link>
         )}
 
-        <Link href="/nebula">
+        <Link href="/nebula" prefetch={false}>
           <GlassCard glowColor="purple" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gx-purple/5 blur-[60px] rounded-full group-hover:bg-gx-purple/10 transition-all duration-500" />
             <div className="relative z-10 flex items-center justify-between">

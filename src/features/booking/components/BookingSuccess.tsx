@@ -89,7 +89,7 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
             >
               完成并返回 / Done
             </Button>
-            <Link href="/dashboard" className="flex-1">
+            <Link href="/dashboard" className="flex-1" prefetch={false}>
               <Button
                 variant="ghost"
                 className="w-full border-white/10 gap-2"

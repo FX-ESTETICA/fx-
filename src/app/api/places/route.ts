@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { lat, lng, category, subCategory = "all", radius = 5000 } = await req.json();
+    const { lat, lng, category, subCategory = "all", sortBy = "POPULARITY" } = await req.json();
 
     if (!lat || !lng || !category) {
       return NextResponse.json(
@@ -23,47 +23,55 @@ export async function POST(req: Request) {
     // 引擎选择器与参数构建
     let url = "";
     let requestBody: any = {};
-    const fieldMask = "places.id,places.displayName,places.rating,places.userRatingCount,places.businessStatus,places.location";
+    const fieldMask = "places.id,places.displayName,places.rating,places.userRatingCount,places.businessStatus,places.location,places.photos";
 
-    // 1. 如果是“全部”或者没有特定二级分类，使用基础的 searchNearby 引擎
-    if (subCategory === "all") {
-      let includedTypes = ["restaurant", "cafe", "food"]; // default
-      if (category === "beauty") includedTypes = ["beauty_salon", "hair_care", "spa"];
-      else if (category === "hotel") includedTypes = ["lodging"];
-      else if (category === "nightlife") includedTypes = ["bar", "night_club"];
-      else if (category === "fitness") includedTypes = ["gym", "spa"];
-      else if (category === "all") includedTypes = ["restaurant", "beauty_salon", "lodging", "bar", "gym"];
+    // 全量启用 searchText 引擎，进行语义化高精度检索
+    url = "https://places.googleapis.com/v1/places:searchText";
 
-      url = "https://places.googleapis.com/v1/places:searchNearby";
-      requestBody = {
-        includedTypes: includedTypes,
-        maxResultCount: 20,
-        locationRestriction: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: radius
-          }
-        }
+    // 智能查询词构建 (Dynamic Query Formulation)
+    let textQuery = "";
+
+    // 构建核心意图词
+    if (subCategory !== "all") {
+      textQuery = `Best ${subCategory}`;
+    } else {
+      // 映射大类意图 - 放开 includedType 限制，完全拥抱语义搜索以避免误杀
+      const categoryMap: Record<string, { query: string }> = {
+        dining: { query: "Top rated restaurants, cafes, bakeries, and fine dining" },
+        beauty: { query: "Top rated beauty salons, spas, hair care, and nail salons" },
+        hotel: { query: "Best luxury hotels, resorts, and high-quality lodging" },
+        nightlife: { query: "Top rated bars, nightclubs, and nightlife venues" },
+        fitness: { query: "Best gyms, fitness centers, and yoga studios" },
+        all: { query: "Top rated popular places and experiences" }
       };
-    } 
-    // 2. 如果存在二级分类，启用高级的 searchText 引擎 (支持语义和细分品类)
-    else {
-      url = "https://places.googleapis.com/v1/places:searchText";
       
-      // 构建精准的文本查询，例如 "Sushi near [Lat, Lng]" 或直接传品类词让 Google NLP 解析
-      // 我们直接传英文搜索词以确保最高命中率，Google 会自动根据坐标进行本地化搜索
-      let textQuery = subCategory; 
-      
-      requestBody = {
-        textQuery: textQuery,
-        maxResultCount: 20,
-        locationBias: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: radius
-          }
+      const mapped = categoryMap[category] || categoryMap.all;
+      textQuery = mapped.query;
+      // 移除 includedType 的刚性绑定，让 Google NLP 自己去理解并召回所有相关品类
+    }
+
+    // 组装 Payload
+    // 回退到 locationBias 以兼容 searchText 引擎，避免 400 报错
+    requestBody = {
+      textQuery: textQuery,
+      maxResultCount: 20,
+      minRating: 4.0, // 黄金漏斗：斩杀线，只返回 4.0 分以上的优质店铺
+      locationBias: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius: 3000 // 双轨制策略：扩大物理捞取圈至 3000 米，保证优质基数池
         }
-      };
+      }
+    };
+
+    // 彻底废弃 includedType 限制，解决 "nail_salon" 等子类无法在大类中出现的物理隔离问题
+    // if (includedType && subCategory === "all") { ... }
+
+    // searchText 的排序策略
+    if (sortBy === "DISTANCE") {
+      requestBody.rankPreference = "DISTANCE";
+    } else {
+      requestBody.rankPreference = "RELEVANCE"; // RELEVANCE 综合考虑了评分、距离和语义匹配度
     }
 
     const response = await fetch(url, {
@@ -80,11 +88,14 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
       console.error(`Google Places API Error (${subCategory === "all" ? "Nearby" : "Text"}):`, data.error?.message || response.statusText);
-      throw new Error(`Google API returned status: ${response.status}`);
+      return NextResponse.json(
+        { error: data.error?.message || "Google API request failed" },
+        { status: response.status }
+      );
     }
 
     // Process and filter the results
-    const places = (data.places || []).map((place: any) => ({
+    let places = (data.places || []).map((place: any) => ({
       id: place.id,
       name: place.displayName?.text || "Unknown Place",
       rating: place.rating || 0,
@@ -92,10 +103,71 @@ export async function POST(req: Request) {
       status: place.businessStatus === "OPERATIONAL" ? "OPEN" : "CLOSED",
       category: category,
       lat: place.location?.latitude,
-      lng: place.location?.longitude
+      lng: place.location?.longitude,
+      photoName: place.photos?.[0]?.name || null
     }));
 
-    return NextResponse.json({ places });
+    // 突破 Google 黑盒：构建自主可控的真实好店综合排名算法
+    // 计算两点之间距离的辅助函数 (Haversine)
+    const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+      const R = 6371; 
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // 为每个 place 计算真理法庭 GX_Score 并执行内存级物理截断
+    const GLOBAL_AVERAGE_RATING = 4.3;
+    const CONFIDENCE_PRIOR = 50; // 信任基数：50 个评论
+    
+    // 1. 先计算距离并执行物理截断 (过滤掉 > 3000 米的放飞自我数据)
+    let processedPlaces = places.map((p: any) => {
+      const distanceKm = getDistanceKm(lat, lng, p.lat, p.lng);
+      return { ...p, distanceKm };
+    }).filter((p: any) => p.distanceKm <= 3.0); // 绝对物理栅栏：只留 3km 内的
+
+    // 2. 对留下来的“本地真实数据”进行真理法庭算分
+    processedPlaces = processedPlaces.map((p: any) => {
+      const R = p.rating;
+      const v = p.user_ratings_total;
+      
+      // 贝叶斯平滑评分
+      const bayesianRating = (v * R + CONFIDENCE_PRIOR * GLOBAL_AVERAGE_RATING) / (v + CONFIDENCE_PRIOR);
+      
+      // 口碑基数对数收益
+      const popularityBonus = v > 0 ? Math.log10(v) * 0.2 : 0;
+      
+      // 距离惩罚：双轨制分段惩罚
+      const distanceKm = p.distanceKm;
+      let distancePenalty = 0;
+      if (distanceKm > 2.0) {
+        distancePenalty = 0.5 + (distanceKm - 2.0) * 1.0; 
+      } else if (distanceKm > 1.0) {
+        distancePenalty = (distanceKm - 1.0) * 0.5;
+      } else {
+        distancePenalty = 0;
+      }
+      
+      const gxScore = bayesianRating + popularityBonus - distancePenalty;
+      
+      return { ...p, gxScore };
+    });
+
+    // 排序路由拦截
+    if (sortBy === "RATING") {
+      processedPlaces.sort((a: any, b: any) => b.gxScore - a.gxScore);
+    } else if (sortBy === "DISTANCE") {
+      processedPlaces.sort((a: any, b: any) => a.distanceKm - b.distanceKm);
+    } else {
+      processedPlaces.sort((a: any, b: any) => b.gxScore - a.gxScore);
+    }
+
+    return NextResponse.json({ places: processedPlaces });
   } catch (error: any) {
     console.error("Error fetching places:", error);
     return NextResponse.json(

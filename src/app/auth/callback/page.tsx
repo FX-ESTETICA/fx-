@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from 'react';
-import { AuthCallbackClient } from './AuthCallbackClient';
+import { AuthCallbackClient } from './client';
 
 export default function AuthCallback() {
   return (

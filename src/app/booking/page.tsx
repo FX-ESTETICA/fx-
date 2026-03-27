@@ -167,7 +167,7 @@ export default function BookingPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link href="/calendar">
+              <Link href="/calendar" prefetch={false}>
                 <button className="flex items-center gap-2 text-[10px] font-mono text-white/40 hover:text-white transition-colors uppercase tracking-widest">
                   <ArrowLeft className="w-3 h-3" />
                   返回日历 / Back to Calendar
