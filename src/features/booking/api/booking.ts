@@ -292,18 +292,19 @@ export const BookingService = {
     }
 
     // 发起真实请求并锁住
-    this._pendingApplicationQuery = supabase
-      .from('merchant_applications')
-      .select('status, brand_name')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-      .then(({ data, error }) => {
-        // 请求完成，清除锁
+    // 这里不再直接链式调用 .then().catch()，而是使用 async/await，彻底解决 Supabase PromiseLike 类型的 catch 缺失问题
+    this._pendingApplicationQuery = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('merchant_applications')
+          .select('status, brand_name')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
         this._pendingApplicationQuery = null;
         
-        // 静默吞噬：找不到数据 (PGRST116) 或 AbortError (Lock broken)
         if (error) {
           if (
             error.code === 'PGRST116' || 
@@ -318,12 +319,12 @@ export const BookingService = {
         }
         
         return { data };
-      })
-      .catch((err) => {
+      } catch (err) {
         this._pendingApplicationQuery = null;
         console.error("[BookingService] Query failed:", err);
         return { data: null };
-      });
+      }
+    })();
 
     return this._pendingApplicationQuery;
   }
