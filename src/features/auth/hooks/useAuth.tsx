@@ -204,16 +204,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             // 实时同步时同样保持特权兜底
             const isBoss = prev.email === ADMIN_EMAIL;
-            const actualRole = isBoss ? "boss" : (updatedProfile.role || prev.role);
-            const actualId = isBoss ? "GX88888888" : (updatedProfile.gx_id || prev.gxId);
+            const actualRole = isBoss ? "boss" : (updatedProfile.role || ('role' in prev ? prev.role : 'user'));
+            const actualId = isBoss ? "GX88888888" : (updatedProfile.gx_id || ('gxId' in prev ? prev.gxId : ''));
 
             return {
               ...prev,
               gxId: actualId,
               role: actualRole,
-              avatar: updatedProfile.avatar_url || prev.avatar,
-              phone: updatedProfile.phone || prev.phone,
-              name: updatedProfile.name || prev.name
+              avatar: updatedProfile.avatar_url || ('avatar' in prev ? prev.avatar : ''),
+              phone: updatedProfile.phone || ('phone' in prev ? prev.phone : ''),
+              name: updatedProfile.name || ('name' in prev ? prev.name : '')
             } as SandboxUser;
           });
         }
