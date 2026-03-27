@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export type CyberThemeColor = 'cyan' | 'purple' | 'gold' | 'emerald' | 'rose' | 'silver' | 'platinum' | 'corelight' | 'white';
 

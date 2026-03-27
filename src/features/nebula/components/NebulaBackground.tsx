@@ -19,9 +19,7 @@ export const NebulaBackground = () => {
     const particles: { x: number; y: number; size: number; speed: number; opacity: number }[] = [];
     const particleCount = 150;
 
-    // Use performance.now() directly to avoid any three.js clock deprecation warnings
-    let startTime = performance.now();
-    let lastTime = startTime;
+    // Remove unused variables to pass TypeScript build check
 
     const init = () => {
       width = window.innerWidth;

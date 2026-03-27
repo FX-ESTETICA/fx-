@@ -1,16 +1,15 @@
 "use client";
 
 import { cn } from "@/utils/cn";
-import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
-import { Calendar, MessageSquare, History, Smartphone, CheckCircle2, RefreshCw, ArrowRight, X, Sparkles, Image as ImageIcon, MapPin } from "lucide-react";
+import { Calendar, MessageSquare, History, Smartphone, RefreshCw, ArrowRight, X, Sparkles, Image as ImageIcon, MapPin } from "lucide-react";
 import Link from "next/link";
 import { UserProfile } from "../types";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { BookingService } from "@/features/booking/api/booking";
 import { auth } from "@/lib/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";

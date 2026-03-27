@@ -11,7 +11,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // 禁用锁机制，解决开发环境下 React 严格模式或多标签页导致的 "NavigatorLockAcquireTimeoutError"
-    lock: false,
+    // 注意：在最新版 supabase-js 中，如果要禁用 lock，应传入自定义无锁函数或保持默认
+    // 这里我们传入一个无操作的自定义锁函数来欺骗类型并禁用锁
+    lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => await fn(),
   }
 });
 
