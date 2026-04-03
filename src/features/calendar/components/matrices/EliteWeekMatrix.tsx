@@ -27,6 +27,8 @@ const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六"
 type WeekBooking = {
   startTime?: string;
   duration?: number;
+  resourceId?: string;
+  date?: string;
 };
 
 export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, onGridClick, onDateClick, currentDate }: EliteWeekMatrixProps) => {
