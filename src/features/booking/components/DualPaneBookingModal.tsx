@@ -140,6 +140,14 @@ export function DualPaneBookingModal({
   // --- C端匹配状态 (Cross-Domain Match) ---
   const [matchedProfile, setMatchedProfile] = useState<MatchedProfile | null>(null);
 
+  // --- 动态日历状态 ---
+  const [calendarViewDate, setCalendarViewDate] = useState(() => {
+    const targetDate = editingBooking?.date 
+      ? new Date(editingBooking.date.replace(/-/g, '/'))
+      : (initialDate || new Date());
+    return new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+  });
+
   // --- 日期与时间状态 ---
   const [selectedDate, setSelectedDate] = useState(() => {
     if (editingBooking?.date) return editingBooking.date.replace(/-/g, '/');
@@ -1591,13 +1599,27 @@ export function DualPaneBookingModal({
                   <div className="h-full flex flex-col pt-2 pb-10 overflow-y-auto custom-scrollbar pr-2">
                     {/* Header: Month and Year with glowing text */}
                     <div className="flex items-center justify-between mb-6 px-4 shrink-0">
-                      <button className="text-white/40 hover:text-gx-cyan transition-colors">
+                      <button 
+                        onClick={() => {
+                          const newDate = new Date(calendarViewDate);
+                          newDate.setMonth(newDate.getMonth() - 1);
+                          setCalendarViewDate(newDate);
+                        }}
+                        className="text-white/40 hover:text-gx-cyan transition-colors px-2 py-1"
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                       </button>
                       <span className="text-lg font-black tracking-[0.2em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/50">
-                        MARCH 2026
+                        {calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                       </span>
-                      <button className="text-white/40 hover:text-gx-cyan transition-colors">
+                      <button 
+                        onClick={() => {
+                          const newDate = new Date(calendarViewDate);
+                          newDate.setMonth(newDate.getMonth() + 1);
+                          setCalendarViewDate(newDate);
+                        }}
+                        className="text-white/40 hover:text-gx-cyan transition-colors px-2 py-1"
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
                     </div>
@@ -1615,46 +1637,49 @@ export function DualPaneBookingModal({
 
                       {/* Days */}
                       <div className="grid grid-cols-7 gap-y-4 gap-x-2">
-                        {/* Actual days (1-31) */}
-                        {[...Array(31)].map((_, i) => {
-                          const day = i + 1;
-                          const formattedDay = day.toString().padStart(2, '0');
-                          const dateString = `2026/03/${formattedDay}`;
-                          const isSelected = selectedDate === dateString;
-                          const isToday = day === 7; // Mocking today
-                          
-                          return (
-                            <button
-                              key={day}
-                              onClick={() => setSelectedDate(dateString)}
-                              className={cn(
-                                "relative h-10 flex flex-col items-center justify-center font-mono text-sm transition-all rounded-lg group",
-                                isSelected 
-                                  ? "text-gx-cyan border border-gx-cyan/50 shadow-[0_0_10px_rgba(0,255,255,0.2)] bg-gx-cyan/5" 
-                                  : "text-white/90 hover:bg-white/5 border border-transparent"
-                              )}
-                            >
-                              {formattedDay}
-                              {/* Today pulse indicator */}
-                              {isToday && !isSelected && (
-                                <div className="absolute bottom-1 w-[3px] h-[3px] rounded-full bg-gx-cyan animate-pulse shadow-[0_0_4px_rgba(0,255,255,0.8)]" />
-                              )}
-                              {/* Saturation dots (Optional Business Logic Visual Indicator) */}
-                              {!isSelected && day % 5 === 0 && (
-                                <div className="absolute bottom-1 w-[3px] h-[3px] rounded-full bg-white/20" />
-                              )}
-                              {!isSelected && day % 12 === 0 && (
-                                <div className="absolute bottom-1 w-[3px] h-[3px] rounded-full bg-red-500/50 shadow-[0_0_4px_rgba(255,0,0,0.5)]" />
-                              )}
-                            </button>
-                          );
-                        })}
-                        {/* Next month days filler */}
-                        {[...Array(4)].map((_, i) => (
-                          <div key={`next-${i}`} className="h-10 flex items-center justify-center font-mono text-sm text-white/20">
-                            {(i + 1).toString().padStart(2, '0')}
-                          </div>
-                        ))}
+                        {(() => {
+                          const year = calendarViewDate.getFullYear();
+                          const month = calendarViewDate.getMonth();
+                          const firstDayOfMonth = new Date(year, month, 1).getDay();
+                          const daysInMonth = new Date(year, month + 1, 0).getDate();
+                          const today = new Date();
+                          const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+                          const days = [];
+                          // 填充上个月的空白
+                          for (let i = 0; i < firstDayOfMonth; i++) {
+                            days.push(<div key={`empty-${i}`} className="h-10" />);
+                          }
+
+                          // 渲染当月天数
+                          for (let i = 1; i <= daysInMonth; i++) {
+                            const formattedMonth = (month + 1).toString().padStart(2, '0');
+                            const formattedDay = i.toString().padStart(2, '0');
+                            const dateString = `${year}/${formattedMonth}/${formattedDay}`;
+                            const isSelected = selectedDate === dateString;
+                            const isToday = isCurrentMonth && today.getDate() === i;
+
+                            days.push(
+                              <button
+                                key={`day-${i}`}
+                                onClick={() => setSelectedDate(dateString)}
+                                className={cn(
+                                  "relative h-10 flex flex-col items-center justify-center font-mono text-sm transition-all rounded-lg group",
+                                  isSelected 
+                                    ? "text-gx-cyan border border-gx-cyan/50 shadow-[0_0_10px_rgba(0,255,255,0.2)] bg-gx-cyan/5" 
+                                    : "text-white/90 hover:bg-white/5 border border-transparent"
+                                )}
+                              >
+                                {formattedDay}
+                                {/* Today pulse indicator */}
+                                {isToday && !isSelected && (
+                                  <div className="absolute bottom-1 w-[3px] h-[3px] rounded-full bg-gx-cyan animate-pulse shadow-[0_0_4px_rgba(0,255,255,0.8)]" />
+                                )}
+                              </button>
+                            );
+                          }
+                          return days;
+                        })()}
                       </div>
                     </div>
                   </div>
