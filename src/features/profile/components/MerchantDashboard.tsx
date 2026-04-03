@@ -19,15 +19,17 @@ import {
   Zap,
   Power
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { BookingDetails } from "@/features/booking/types";
 import { BookingService } from "@/features/booking/api/booking";
-import { MerchantBookingAdapter } from "@/features/booking/utils/adapter";
 import { cn } from "@/utils/cn";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Input } from "@/components/shared/Input";
 import { Users } from "lucide-react";
+import { PhoneAuthBar } from "./PhoneAuthBar";
+import { IndustryType } from "@/features/calendar/types";
+
+import { useShop } from "@/features/shop/ShopContext";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -36,18 +38,85 @@ interface MerchantDashboardProps {
   onIndustrySet?: (industry: string) => void;
 }
 
+type ServiceInfo = {
+  id?: string;
+  name?: string;
+};
+
+type BookingRecord = {
+  id: string;
+  date: string;
+  startTime: string;
+  duration: number;
+  status?: string;
+  services?: ServiceInfo[];
+  customServiceText?: string;
+  customer_name?: string;
+  customerName?: string;
+  customer_phone?: string;
+  customerPhone?: string;
+};
+
+type ShopBookingPayload = {
+  eventType: string;
+  new?: {
+    id: string;
+    date: string;
+    start_time: string;
+    duration_min: number;
+    status?: string;
+    data?: {
+      services?: ServiceInfo[];
+      customServiceText?: string;
+      customer_name?: string;
+      customerName?: string;
+      customer_phone?: string;
+      customerPhone?: string;
+    };
+  };
+  old?: { id?: string };
+};
+
+type StatsCardProps = {
+  label: string;
+  value: number | string;
+  icon: ReactNode;
+  color: "red" | "cyan" | "gold";
+};
+
+type TabButtonProps = {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+};
+
+const resolveIndustry = (value?: string | null): IndustryType => {
+  const allowed: IndustryType[] = ["beauty", "dining", "hotel", "medical", "expert", "fitness", "other"];
+  return allowed.includes(value as IndustryType) ? (value as IndustryType) : "beauty";
+};
+
+const normalizeStatus = (value?: string): BookingDetails["status"] => {
+  const lower = (value || "pending").toLowerCase();
+  return lower === "confirmed" || lower === "cancelled" || lower === "completed"
+    ? (lower as BookingDetails["status"])
+    : "pending";
+};
+
 /**
  * MerchantDashboard - 商家端管理看板
  * 采用 Admin Red (#FF2D55) 视觉规范
  */
-export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet }: MerchantDashboardProps) => {
+export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDashboardProps) => {
+  const { activeShopId } = useShop();
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed" | "all">("pending");
   const [bindUserId, setBindUserId] = useState("");
   const [isBinding, setIsBinding] = useState(false);
   const [bindMessage, setBindMessage] = useState("");
-  const [showIndustryModal, setShowIndustryModal] = useState(false);
+
   
+
+
   // 营业时间无极滑轨状态 (HUD 风格)
   const [openTime, setOpenTime] = useState(8); // 8:00
   const [closeTime, setCloseTime] = useState(22); // 22:00
@@ -66,81 +135,82 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
   };
-  const router = useRouter();
 
-  useEffect(() => {
-    // 强制行业选择 Onboarding：多租户沙盒严格校验
-    const checkLocalIndustry = async () => {
-      try {
-        // 1. 获取当前真实登录的老板身份
-        const sessionStr = localStorage.getItem('gx_sandbox_session');
-        if (!sessionStr) {
-          setShowIndustryModal(true);
-          return;
-        }
-        
-        const session = JSON.parse(sessionStr);
-        // 如果传入的 shopId 为空，优先使用 session 里的 shopId
-        const activeShopId = shopId || session.shopId;
-        
-        if (!activeShopId) {
-          setShowIndustryModal(true);
-          return;
-        }
-
-        // 2. 去云端查这个特定 shopId 的配置
-        const { data: configs } = await BookingService.getConfigs(activeShopId);
-        const config = configs;
-        
-        // 3. 严格比对：只有当云端有配置，且属于当前登录老板的店，且有行业数据时，才放行
-        if (config && config.industry) {
-          setShowIndustryModal(false);
-          if (onIndustrySet) onIndustrySet(config.industry);
-        } else if (!industry) {
-          // 如果云端没查到，且当前没有 prop 传入，则弹窗让其选择
-          setShowIndustryModal(true);
-        }
-      } catch (e) {
-        if (!industry) setShowIndustryModal(true);
-      }
-    };
-    checkLocalIndustry();
-  }, [industry, shopId, onIndustrySet]);
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        // 此处在实际项目中应调用针对商家的 API，目前暂用全量订阅模拟
-        // TODO: 替换为具体的商家订单查询 API
-        console.log(`[MerchantDashboard] Initializing for merchant: ${merchantId}`);
+        if (!shopId) return;
+        console.log(`[MerchantDashboard] Fetching bookings for shop: ${shopId}`);
+        const { data } = await BookingService.getBookings(shopId);
+        
+        // Convert from flat DB format to UI format
+        const resolvedIndustry = resolveIndustry(industry);
+        const uiBookings = (data as BookingRecord[]).map((b) => ({
+          id: b.id,
+          industry: resolvedIndustry,
+          serviceId: b.services?.[0]?.id || "unknown",
+          serviceName: b.services?.map((s) => s.name).join(', ') || b.customServiceText || "未知服务",
+          date: b.date,
+          timeSlot: `${b.startTime} - ${b.duration}min`,
+          customerName: b.customer_name || b.customerName || "散客",
+          customerPhone: b.customer_phone || b.customerPhone || "无",
+          status: normalizeStatus(b.status),
+        }));
+        
+        setBookings(uiBookings);
       } catch (error) {
         console.error("Failed to fetch merchant bookings:", error);
       }
     };
 
     fetchBookings();
-  }, [merchantId]);
+  }, [merchantId, shopId, industry]);
 
-  // 2. 实时状态监听
+  // 2. 实时状态监听 (物理隔离)
   useEffect(() => {
-    // 订阅所有预约变更（模拟商家端实时看板）
-    const channel = BookingService.subscribeToAllBookings((payload: any) => {
-      console.log("[MerchantDashboard] New event received:", payload);
+    if (!shopId) return;
+    
+    // 订阅当前门店的所有预约变更
+    const channel = BookingService.subscribeToShopBookings(shopId, (payload: unknown) => {
+      const typedPayload = payload as ShopBookingPayload;
+      console.log(`[MerchantDashboard] New event received for shop ${shopId}:`, typedPayload);
       
-      if (payload.eventType === "INSERT") {
-        const newBooking = MerchantBookingAdapter.fromDBList([payload.new])[0];
-        setBookings(prev => [newBooking, ...prev]);
-        // 触发一个全局通知（逻辑占位）
-      } else if (payload.eventType === "UPDATE") {
-        const updatedBooking = MerchantBookingAdapter.fromDBList([payload.new])[0];
-        setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+      if (typedPayload.eventType === "DELETE") {
+        const deletedId = typedPayload.old?.id;
+        if (deletedId) {
+          setBookings(prev => prev.filter(item => item.id !== deletedId));
+        }
+        return;
+      }
+      
+      const b = typedPayload.new;
+      if (!b) return;
+      const resolvedIndustry = resolveIndustry(industry);
+
+      const mappedBooking: BookingDetails = {
+        id: b.id,
+        industry: resolvedIndustry,
+        serviceId: b.data?.services?.[0]?.id || "unknown",
+        serviceName: b.data?.services?.map((s: { name?: string }) => s.name || '').filter(Boolean).join(', ') || b.data?.customServiceText || "未知服务",
+        date: b.date,
+        timeSlot: `${b.start_time} - ${b.duration_min}min`,
+        customerName: b.data?.customer_name || b.data?.customerName || "散客",
+        customerPhone: b.data?.customer_phone || b.data?.customerPhone || "无",
+        status: normalizeStatus(b.status),
+      };
+      
+      if (typedPayload.eventType === "INSERT") {
+        setBookings(prev => [mappedBooking, ...prev]);
+      } else if (typedPayload.eventType === "UPDATE") {
+        setBookings(prev => prev.map(item => item.id === mappedBooking.id ? mappedBooking : item));
       }
     });
 
     return () => {
       if (channel) BookingService.unsubscribe(channel);
     };
-  }, []);
+  }, [shopId, industry]);
 
   const handleBindUser = async () => {
     if (!bindUserId.trim() || !shopId) return;
@@ -150,37 +220,16 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
       await BookingService.bindUserToShop(bindUserId.trim(), shopId);
       setBindMessage("绑定成功 / Bound successfully!");
       setBindUserId("");
-    } catch (e) {
+    } catch {
       setBindMessage("绑定失败 / Binding failed");
     } finally {
       setIsBinding(false);
     }
   };
 
-  const handleSetIndustry = async (selectedIndustry: string) => {
-    if (!shopId) return;
-    
-    // Optimistic UI: 瞬间改变本地状态，隐藏弹窗，准备跳转
-    setShowIndustryModal(false);
-    
-    // 后台静默发送保存请求
-    BookingService.updateConfigs(shopId, 'industry', selectedIndustry)
-      .then(() => {
-        if (onIndustrySet) {
-          onIndustrySet(selectedIndustry);
-        }
-      })
-      .catch(e => console.error("Failed to set industry silently:", e));
 
-    // 如果选了"不需要"，留在当前页；否则微小延迟后极速切入日历
-    if (selectedIndustry !== 'none') {
-      setTimeout(() => {
-        router.push(`/calendar/${selectedIndustry}?shopId=${shopId}`);
-      }, 100);
-    } else {
-      if (onIndustrySet) onIndustrySet('none');
-    }
-  };
+
+
 
   const filteredBookings = bookings.filter(b => {
     if (activeTab === "all") return true;
@@ -190,67 +239,32 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 relative">
       
-      {/* 行业选择强制弹窗 (Onboarding) */}
-      <AnimatePresence>
-        {showIndustryModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-3xl"
-          >
-            <GlassCard className="p-8 max-w-2xl w-full border-gx-cyan/30 shadow-[0_0_50px_rgba(0,240,255,0.15)]">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2 tracking-tighter uppercase">配置您的行业内核引擎</h2>
-                <p className="text-white/40 text-xs font-mono tracking-widest uppercase">Select Your Core Industry Engine</p>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { id: 'beauty', icon: '💅', label: '美业 / BEAUTY' },
-                  { id: 'expert', icon: '💆', label: '专家 / EXPERT' },
-                  { id: 'medical', icon: '🏥', label: '医疗 / MEDICAL' },
-                  { id: 'dining', icon: '🍽️', label: '餐饮 / DINING' },
-                  { id: 'hotel', icon: '🏨', label: '酒店 / HOTEL' },
-                  { id: 'fitness', icon: '🏋️', label: '健身 / FITNESS' },
-                  { id: 'other', icon: '📅', label: '通用 / OTHER' },
-                  { id: 'none', icon: '🚫', label: '不需要系统日历' },
-                ].map((item) => (
-                  <Button 
-                    key={item.id}
-                    variant="ghost" 
-                    className="h-28 flex flex-col items-center justify-center gap-3 border border-white/5 hover:border-gx-cyan/50 hover:bg-gx-cyan/10 transition-all duration-300"
-                    onClick={() => handleSetIndustry(item.id)}
-                  >
-                    <span className="text-2xl">{item.icon}</span>
-                    <span className="text-[10px] tracking-widest uppercase text-white/80">{item.label}</span>
-                  </Button>
-                ))}
-              </div>
-            </GlassCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* 顶部统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatsCard 
-          label="待处理 / Pending" 
-          value={bookings.filter(b => b.status === "pending").length} 
-          icon={<Clock className="w-5 h-5" />}
-          color="red"
-        />
-        <StatsCard 
-          label="已确认 / Confirmed" 
-          value={bookings.filter(b => b.status === "confirmed").length} 
-          icon={<CheckCircle2 className="w-5 h-5" />}
-          color="cyan"
-        />
-        <StatsCard 
-          label="今日预约 / Today" 
-          value={0} 
-          icon={<Calendar className="w-5 h-5" />}
-          color="gold"
-        />
+
+      {/* 顶部统计卡片与联邦集结舱 */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatsCard 
+            label="待处理 / Pending" 
+            value={bookings.filter(b => b.status === "pending").length} 
+            icon={<Clock className="w-5 h-5" />}
+            color="red"
+          />
+          <StatsCard 
+            label="已确认 / Confirmed" 
+            value={bookings.filter(b => b.status === "confirmed").length} 
+            icon={<CheckCircle2 className="w-5 h-5" />}
+            color="cyan"
+          />
+          <StatsCard 
+            label="今日预约 / Today" 
+            value={0} 
+            icon={<Calendar className="w-5 h-5" />}
+            color="gold"
+          />
+        </div>
+
+
       </div>
 
       {/* 核心控制台 (全息驾驶舱风格) */}
@@ -345,8 +359,8 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
       {/* 功能入口区 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {industry !== 'none' && (
-          <Link href={`/calendar/${industry || 'beauty'}?shopId=${shopId || 'default'}`} prefetch={false}>
-            <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
+          <Link href={`/calendar/${industry || 'beauty'}?shopId=${activeShopId || shopId || 'default'}`} prefetch={false}>
+            <GlassCard glowColor="cyan" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden h-full">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500" />
               <div className="relative z-10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -365,7 +379,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
         )}
 
         <Link href="/nebula" prefetch={false}>
-          <GlassCard glowColor="purple" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden">
+          <GlassCard glowColor="purple" className="p-6 group cursor-pointer hover:bg-white/5 transition-all relative overflow-hidden h-full">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gx-purple/5 blur-[60px] rounded-full group-hover:bg-gx-purple/10 transition-all duration-500" />
             <div className="relative z-10 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -382,6 +396,9 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
           </GlassCard>
         </Link>
       </div>
+
+      {/* 手机号绑定区域 */}
+      <PhoneAuthBar className="w-full" />
 
       {/* 实时列表区域 */}
       <GlassCard className="p-6 border-gx-admin-red/20">
@@ -472,7 +489,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, onIndustrySet 
 
 // --- 子组件 ---
 
-const StatsCard = ({ label, value, icon, color }: any) => (
+const StatsCard = ({ label, value, icon, color }: StatsCardProps) => (
   <GlassCard 
     glowColor={color === "red" ? "danger" : color === "cyan" ? "cyan" : "purple"}
     className="p-6 group hover:bg-white/5 transition-all"
@@ -494,7 +511,7 @@ const StatsCard = ({ label, value, icon, color }: any) => (
   </GlassCard>
 );
 
-const TabButton = ({ active, children, onClick }: any) => (
+const TabButton = ({ active, children, onClick }: TabButtonProps) => (
   <button 
     onClick={onClick}
     className={cn(

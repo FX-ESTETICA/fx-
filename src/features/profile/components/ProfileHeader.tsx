@@ -1,12 +1,14 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { User, ShieldCheck, RefreshCw } from "lucide-react";
+import { User, ShieldCheck, RefreshCw, Copy, Check } from "lucide-react";
 import { UserProfile } from "../types";
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { supabase, isMockMode } from "@/lib/supabase";
+import Image from "next/image";
+import { cn } from "@/utils/cn";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -15,13 +17,17 @@ interface ProfileHeaderProps {
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
   const [localAvatar, setLocalAvatar] = useState<string | undefined>(profile.avatar);
+  const isLocalAvatar = localAvatar?.startsWith("data:") || localAvatar?.startsWith("blob:");
 
   // 当外部 profile 变化时，同步本地 avatar
   useEffect(() => {
     setLocalAvatar(profile.avatar);
+    // 重置加载状态，除非没有头像
+    setImageLoaded(!profile.avatar);
   }, [profile.avatar]);
   
   const roleLabels = {
@@ -31,6 +37,22 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   };
 
   const currentRole = roleLabels[profile.role];
+  const profileGxId = (profile as UserProfile & { gx_id?: string; gxId?: string }).gx_id
+    ?? (profile as UserProfile & { gx_id?: string; gxId?: string }).gxId;
+
+  // 复制 ID 状态机
+  const [copyState, setCopyState] = useState<"idle" | "hover" | "copied">("idle");
+  const handleCopyId = () => {
+    const rawId = profileGxId || profile.id;
+    if (rawId === "GX-GUEST-0000") return;
+    
+    navigator.clipboard.writeText(rawId).then(() => {
+      setCopyState("copied");
+      setTimeout(() => {
+        setCopyState("idle");
+      }, 2000);
+    });
+  };
 
   // 根据注册时间计算普通用户等级
   const userLevelInfo = useMemo(() => {
@@ -116,7 +138,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
       {/* 2. 深层星云光晕 */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-gx-cyan/10 via-transparent to-gx-purple/10 blur-[80px] rounded-full animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute inset-0 bg-gradient-to-br from-gx-cyan/10 via-transparent to-gx-purple/10 blur-[80px] rounded-full animate-pulse transform-gpu" style={{ animationDuration: '8s', willChange: 'opacity' }} />
       </div>
 
       {/* 前景内容区 (提升 z-index 确保在光效之上) */}
@@ -136,7 +158,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             />
           </div>
 
-          {/* 动态角色头像框 */}
+          {/* 动态角色头像框 (移除额外的进场动画，仅保留 hover 放大和本身样式) */}
           <div 
             className={`w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-xl transition-transform duration-500 relative cursor-pointer group-hover:scale-105 ${
               profile.role === "boss" 
@@ -167,10 +189,33 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             }}
           >
             
-            {/* 内部图标 */}
+            {/* 内部图标与图片渲染 */}
             <div className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
+              {/* 骨架屏占位符 (全息脉冲环) - 在真实图片加载完成前显示 */}
+              {localAvatar && !imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <motion.div 
+                    animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.3, 0.8, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-10 h-10 rounded-full border-2 border-dashed border-gx-cyan/50"
+                  />
+                </div>
+              )}
+
               {localAvatar ? (
-                <img src={localAvatar} alt="avatar" className="w-full h-full object-cover" />
+                <Image
+                  src={localAvatar}
+                  alt="avatar"
+                  fill
+                  sizes="96px"
+                  className={cn(
+                    "w-full h-full object-cover transition-opacity duration-1000",
+                    imageLoaded ? "opacity-100" : "opacity-0"
+                  )}
+                  unoptimized={isLocalAvatar}
+                  priority={false} // 撤销最高优先级，让位于 3D 星空渲染
+                  onLoad={() => setImageLoaded(true)}
+                />
               ) : profile.role === "boss" ? (
                 <ShieldCheck className="w-12 h-12 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
               ) : profile.role === "merchant" ? (
@@ -194,7 +239,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               )}
             </AnimatePresence>
 
-            {/* 附加特效层 */}
+            {/* 附加特效层 (仅保留持续旋转动画，无进场动画) */}
             {profile.role === "boss" && (
               <motion.div 
                 animate={{ rotate: 360 }}
@@ -209,13 +254,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
         </div>
         
         <div className="space-y-1 text-left">
-          <motion.h1 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-          >
+          <h1 className="text-2xl font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
             {profile.name}
-          </motion.h1>
+          </h1>
           <div className="flex flex-wrap items-center justify-start gap-2 mt-2">
             <span className={`text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 ${currentRole.color}`}>
               {currentRole.icon}
@@ -223,24 +264,59 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             </span>
             <span className="text-white/10">|</span>
             
-            {/* 赛博钢印 ID 渲染 */}
-            <div className="flex items-center text-[10px] font-mono tracking-widest">
-              <span className="text-white/40 mr-1">ID:</span>
-              {profile.id === "GX-GUEST-0000" ? (
-                <span className="text-white/40">{profile.id}</span>
-              ) : profile.role === "boss" ? (
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-600 font-bold drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">
-                  {profile.id}
-                </span>
-              ) : (
-                <div className="flex items-center">
-                  <span className="text-white font-bold">{profile.id.split('-')[0]}</span>
-                  <span className="text-white/20 mx-1">·</span>
-                  <span className="text-white/80 font-bold">{profile.id.split('-')[1]}</span>
-                  <span className="text-white/20 mx-1">·</span>
-                  <span className="text-white/60">{profile.id.split('-')[2]}</span>
-                </div>
+            {/* 赛博钢印 ID 渲染 与 复制交互 */}
+            <div 
+              className={cn(
+                "flex items-center text-[10px] font-mono tracking-widest relative overflow-hidden rounded px-1 -mx-1 transition-colors cursor-pointer group",
+                profile.id !== "GX-GUEST-0000" && "hover:bg-white/10"
               )}
+              onMouseEnter={() => copyState === "idle" && setCopyState("hover")}
+              onMouseLeave={() => copyState === "hover" && setCopyState("idle")}
+              onClick={handleCopyId}
+            >
+              <span className="text-white/40 mr-1">ID:</span>
+              
+              <div className="relative w-full h-full flex items-center">
+                {/* 原始 ID 渲染 (在 copied 状态下隐藏) */}
+                <div className={cn(
+                  "flex items-center transition-opacity duration-200",
+                  copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative"
+                )}>
+                  {profile.id === "GX-GUEST-0000" ? (
+                    <span className="text-white/40">{profile.id}</span>
+                  ) : profile.role === "boss" ? (
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-600 font-bold drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">
+                      {profile.id}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-white font-bold">{profile.id.split('-')[0]}</span>
+                      <span className="text-white/20 mx-1">·</span>
+                      <span className="text-white/80 font-bold">{profile.id.split('-')[1]}</span>
+                      <span className="text-white/20 mx-1">·</span>
+                      <span className="text-white/60">{profile.id.split('-')[2]}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* 悬浮提示 (Hover) */}
+                <div className={cn(
+                  "absolute inset-0 flex items-center gap-1 text-gx-cyan transition-all duration-200 bg-black/80",
+                  copyState === "hover" && profile.id !== "GX-GUEST-0000" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+                )}>
+                  <Copy className="w-3 h-3" />
+                  <span>COPY ID</span>
+                </div>
+
+                {/* 复制成功 (Copied) */}
+                <div className={cn(
+                  "flex items-center gap-1 text-green-400 font-bold transition-all duration-200",
+                  copyState === "copied" ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute pointer-events-none"
+                )}>
+                  <Check className="w-3 h-3" />
+                  <span>COPIED</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -248,17 +324,14 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
       {profile.stats && profile.stats.length > 0 && (
         <div className="relative z-10 flex flex-wrap justify-center gap-3">
-          {profile.stats.map((stat, idx) => (
-            <motion.div
+          {profile.stats.map((stat) => (
+            <div
               key={stat.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 * idx }}
               className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center min-w-[80px]"
             >
               <span className="text-[10px] text-white/20 uppercase tracking-tighter">{stat.label}</span>
               <span className="text-lg font-mono font-bold text-white/80">{stat.value}</span>
-            </motion.div>
+            </div>
           ))}
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import { IndustryCalendar } from "@/features/calendar/components/IndustryCalendar";
 import { IndustryType } from "@/features/calendar/types";
-import { use, Suspense, useEffect, useState } from "react";
+import { use, Suspense, useState, useEffect } from "react";
 
 export default function ImmersiveCalendarPage({ 
   params 
@@ -19,7 +19,7 @@ export default function ImmersiveCalendarPage({
 
   const [mode, setMode] = useState<"admin" | "immersive">("immersive");
   const [isMounted, setIsMounted] = useState(false);
-  
+
   useEffect(() => {
     setIsMounted(true);
     try {
@@ -27,7 +27,7 @@ export default function ImmersiveCalendarPage({
       if (userStr) {
         const user = JSON.parse(userStr);
         if (user.role === 'boss' || user.role === 'merchant') {
-          setMode('admin');
+          setMode("admin");
         }
       }
     } catch (e) {

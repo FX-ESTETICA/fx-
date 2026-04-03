@@ -1,8 +1,43 @@
 import { NextResponse } from "next/server";
 
+type PlacesTextSearchRequest = {
+  textQuery: string;
+  maxResultCount: number;
+  minRating: number;
+  locationBias: {
+    circle: {
+      center: { latitude: number; longitude: number };
+      radius: number;
+    };
+  };
+  rankPreference?: "DISTANCE" | "RELEVANCE";
+};
+
+type GooglePlace = {
+  id?: string;
+  displayName?: { text?: string };
+  rating?: number;
+  userRatingCount?: number;
+  businessStatus?: string;
+  location?: { latitude?: number; longitude?: number };
+  photos?: Array<{ name?: string }>;
+};
+
+type PlacesTextSearchResponse = {
+  places?: GooglePlace[];
+  error?: { message?: string };
+};
+
 export async function POST(req: Request) {
   try {
-    const { lat, lng, category, subCategory = "all", sortBy = "POPULARITY" } = await req.json();
+    const body = (await req.json()) as {
+      lat?: number;
+      lng?: number;
+      category?: string;
+      subCategory?: string;
+      sortBy?: "POPULARITY" | "DISTANCE" | "RATING" | string;
+    };
+    const { lat, lng, category, subCategory = "all", sortBy = "POPULARITY" } = body;
 
     if (!lat || !lng || !category) {
       return NextResponse.json(
@@ -22,7 +57,7 @@ export async function POST(req: Request) {
 
     // 引擎选择器与参数构建
     let url = "";
-    let requestBody: any = {};
+    let requestBody: PlacesTextSearchRequest | Record<string, unknown> = {};
     const fieldMask = "places.id,places.displayName,places.rating,places.userRatingCount,places.businessStatus,places.location,places.photos";
 
     // 全量启用 searchText 引擎，进行语义化高精度检索
@@ -84,7 +119,7 @@ export async function POST(req: Request) {
       body: JSON.stringify(requestBody)
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as PlacesTextSearchResponse;
 
     if (!response.ok) {
       console.error(`Google Places API Error (${subCategory === "all" ? "Nearby" : "Text"}):`, data.error?.message || response.statusText);
@@ -95,7 +130,7 @@ export async function POST(req: Request) {
     }
 
     // Process and filter the results
-    let places = (data.places || []).map((place: any) => ({
+    const places = (data.places || []).map((place) => ({
       id: place.id,
       name: place.displayName?.text || "Unknown Place",
       rating: place.rating || 0,
@@ -126,13 +161,13 @@ export async function POST(req: Request) {
     const CONFIDENCE_PRIOR = 50; // 信任基数：50 个评论
     
     // 1. 先计算距离并执行物理截断 (过滤掉 > 3000 米的放飞自我数据)
-    let processedPlaces = places.map((p: any) => {
-      const distanceKm = getDistanceKm(lat, lng, p.lat, p.lng);
+    const processedPlaces = places.map((p) => {
+      const distanceKm = (p.lat !== undefined && p.lng !== undefined) ? getDistanceKm(lat, lng, p.lat, p.lng) : 999;
       return { ...p, distanceKm };
-    }).filter((p: any) => p.distanceKm <= 3.0); // 绝对物理栅栏：只留 3km 内的
+    }).filter((p) => p.distanceKm <= 3.0); // 绝对物理栅栏：只留 3km 内的
 
     // 2. 对留下来的“本地真实数据”进行真理法庭算分
-    processedPlaces = processedPlaces.map((p: any) => {
+    const placesWithScore = processedPlaces.map((p) => {
       const R = p.rating;
       const v = p.user_ratings_total;
       
@@ -160,15 +195,15 @@ export async function POST(req: Request) {
 
     // 排序路由拦截
     if (sortBy === "RATING") {
-      processedPlaces.sort((a: any, b: any) => b.gxScore - a.gxScore);
+      placesWithScore.sort((a, b) => b.gxScore - a.gxScore);
     } else if (sortBy === "DISTANCE") {
-      processedPlaces.sort((a: any, b: any) => a.distanceKm - b.distanceKm);
+      placesWithScore.sort((a, b) => a.distanceKm - b.distanceKm);
     } else {
-      processedPlaces.sort((a: any, b: any) => b.gxScore - a.gxScore);
+      placesWithScore.sort((a, b) => b.gxScore - a.gxScore);
     }
 
-    return NextResponse.json({ places: processedPlaces });
-  } catch (error: any) {
+    return NextResponse.json({ places: placesWithScore });
+  } catch (error) {
     console.error("Error fetching places:", error);
     return NextResponse.json(
       { error: "Failed to fetch places" },

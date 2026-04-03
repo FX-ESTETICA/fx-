@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay } from "lucide-react";
 import { cn } from "@/utils/cn";
+import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { OperatingHour } from "./IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
@@ -32,13 +33,10 @@ export interface NebulaConfigHubProps {
   onClose: () => void;
   industryLabel?: string;
   operatingHours: OperatingHour[];
-  onOperatingHoursChange: (hours: OperatingHour[]) => void;
   staffs: StaffItem[];
-  onStaffsChange: (staffs: StaffItem[]) => void;
   categories: CategoryItem[];
-  onCategoriesChange: (categories: CategoryItem[]) => void;
   services: ServiceItem[];
-  onServicesChange: (services: ServiceItem[]) => void;
+  onGlobalSave: (hours: OperatingHour[], staffs: StaffItem[], categories: CategoryItem[], services: ServiceItem[]) => void;
 }
 
 /**
@@ -50,13 +48,10 @@ export const NebulaConfigHub = ({
   onClose, 
   industryLabel = "美业",
   operatingHours,
-  onOperatingHoursChange,
   staffs,
-  onStaffsChange,
   categories,
-  onCategoriesChange,
   services,
-  onServicesChange
+  onGlobalSave
 }: NebulaConfigHubProps) => {
   type MainTab = "staff" | "services" | "hours" | "visual";
   const [activeTab, setActiveTab] = useState<MainTab>("hours");
@@ -67,6 +62,16 @@ export const NebulaConfigHub = ({
   const [localStaffs, setLocalStaffs] = useState<StaffItem[]>(staffs);
   const [localCategories, setLocalCategories] = useState<CategoryItem[]>(categories);
   const [localServices, setLocalServices] = useState<ServiceItem[]>(services);
+
+  // 【开箱同步锁】：每次打开抽屉时，强制同步外部最新数据，摧毁陈旧的本地缓存
+  useEffect(() => {
+    if (isOpen) {
+      setLocalHours(operatingHours);
+      setLocalStaffs(staffs);
+      setLocalCategories(categories);
+      setLocalServices(services);
+    }
+  }, [isOpen, operatingHours, staffs, categories, services]);
 
   // 状态机：感知当前是否有子表单正在编辑
   const [editingContext, setEditingContext] = useState<{
@@ -86,10 +91,7 @@ export const NebulaConfigHub = ({
 
 
   const handleGlobalSave = () => {
-    onOperatingHoursChange(localHours);
-    onStaffsChange(localStaffs);
-    onCategoriesChange(localCategories);
-    onServicesChange(localServices);
+    onGlobalSave(localHours, localStaffs, localCategories, localServices);
     onClose();
   };
 
@@ -451,11 +453,14 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
   };
 
   const handleUpdate = (id: string, field: 'start' | 'end', value: string) => {
-    const numValue = parseInt(value.split(':')[0], 10);
+    const numValue = parseInt(value, 10);
     if (isNaN(numValue)) return;
     
     onChange(hours.map(h => h.id === id ? { ...h, [field]: numValue } : h));
   };
+
+  // 0-24 营业时间选项
+  const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i);
 
   return (
     <div className="space-y-6">
@@ -483,21 +488,31 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
                 <div className="flex-1 grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <span className="text-[8px] font-mono text-white/40 uppercase">Start</span>
-                    <input 
-                      type="time" 
-                      value={`${hour.start.toString().padStart(2, '0')}:00`} 
+                    <select 
+                      value={hour.start} 
                       onChange={(e) => handleUpdate(hour.id, 'start', e.target.value)}
-                      className="bg-transparent text-white font-mono outline-none" 
-                    />
+                      className="bg-transparent text-white font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                    >
+                      {HOUR_OPTIONS.map(h => (
+                        <option key={`start-${h}`} value={h} className="bg-black text-white">
+                          {h.toString().padStart(2, '0')}:00
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[8px] font-mono text-white/40 uppercase">End</span>
-                    <input 
-                      type="time" 
-                      value={`${hour.end.toString().padStart(2, '0')}:00`}
+                    <select 
+                      value={hour.end}
                       onChange={(e) => handleUpdate(hour.id, 'end', e.target.value)}
-                      className="bg-transparent text-white font-mono outline-none" 
-                    />
+                      className="bg-transparent text-white font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                    >
+                      {HOUR_OPTIONS.map(h => (
+                        <option key={`end-${h}`} value={h} className="bg-black text-white">
+                          {h.toString().padStart(2, '0')}:00
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <button onClick={() => handleRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors">
@@ -512,9 +527,12 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
   );
 };
 
+import { useShop } from "@/features/shop/ShopContext";
+
 const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[] }) => {
   const [editingStaff, setEditingStaff] = useState<StaffItem | null>(null);
   const staffIdSeed = useRef(0);
+  const { activeShopId } = useShop();
 
   // 监听编辑状态变化，同步到外层状态机
   useEffect(() => {
@@ -546,17 +564,11 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
           
           // 如果填写了 Frontend ID，触发云端绑定授权，让员工端可以显示日历入口
           if (data.frontendId && data.frontendId.trim() !== '') {
-            const currentUserStr = typeof window !== 'undefined' ? localStorage.getItem('gx_sandbox_session') : null;
-            if (currentUserStr) {
-              const currentUser = JSON.parse(currentUserStr);
-              const activeShopId = currentUser.shopId;
-              
-              if (activeShopId) {
-                BookingService.bindUserToShop(data.frontendId.trim(), activeShopId)
-                .then(() => {
-                  console.log(`[NebulaConfigHub] Successfully linked ${data.frontendId} to shop ${activeShopId}`);
-                }).catch((e: unknown) => console.error("Failed to link frontend ID to shop:", e));
-              }
+            if (activeShopId) {
+              BookingService.bindUserToShop(data.frontendId.trim(), activeShopId)
+              .then(() => {
+                console.log(`[NebulaConfigHub] Successfully linked ${data.frontendId} to shop ${activeShopId}`);
+              }).catch((e: unknown) => console.error("Failed to link frontend ID to shop:", e));
             }
           }
           
@@ -716,7 +728,13 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                 style={{ backgroundColor: `${formData.color}20`, border: `1px solid ${formData.color}40` }}
               >
                 {formData.frontendId ? (
-                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.frontendId}`} alt="avatar" className="w-full h-full object-cover" />
+                  <Image
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.frontendId}`}
+                    alt="avatar"
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
                 ) : (
                   <User className="w-8 h-8" style={{ color: formData.color }} />
                 )}
@@ -969,94 +987,139 @@ const ServicesConfig = ({
   onCategoriesChange: (c: CategoryItem[]) => void, 
   onServicesChange: (s: ServiceItem[]) => void 
 }) => {
-  const [ghostInputs, setGhostInputs] = useState<Record<string, string>>({});
+  const [globalInput, setGlobalInput] = useState("");
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(categories.length > 0 ? categories[0].id : null);
+  
   const categoryIdSeed = useRef(0);
   const serviceIdSeed = useRef(0);
 
-  const handleNLPInput = (categoryId: string, value: string) => {
-    if (!value.trim()) return;
+  // Synchronize activeCategoryId if categories change and active is gone, or if initially null and categories added
+  useEffect(() => {
+    if (!activeCategoryId && categories.length > 0) {
+      setActiveCategoryId(categories[0].id);
+    } else if (activeCategoryId && !categories.find(c => c.id === activeCategoryId)) {
+      setActiveCategoryId(categories.length > 0 ? categories[0].id : null);
+    }
+  }, [categories, activeCategoryId]);
 
-    // 智能解析逻辑
-    // 1. 如果以 # 开头，则创建新分类
+  const handleGlobalNLPInput = () => {
+    if (!globalInput.trim()) return;
+    const value = globalInput.trim();
+
+    // 1. 如果以 # 开头，则切换或创建分类 (上下文锁定)
     if (value.startsWith('#')) {
-      const newCategoryName = value.substring(1).trim();
-      if (newCategoryName) {
+      const targetName = value.substring(1).trim();
+      if (!targetName) return;
+
+      const existingCat = categories.find(c => c.name === targetName);
+      if (existingCat) {
+        setActiveCategoryId(existingCat.id);
+      } else {
         categoryIdSeed.current += 1;
-        const newCatId = `cat_${categoryIdSeed.current}`;
-        const newCategories = [...categories, { id: newCatId, name: newCategoryName }];
-        onCategoriesChange(newCategories);
+        const newCatId = `cat_${Date.now()}_${categoryIdSeed.current}`;
+        onCategoriesChange([...categories, { id: newCatId, name: targetName }]);
+        setActiveCategoryId(newCatId);
       }
+      setGlobalInput("");
       return;
     }
 
-    // 2. 正常解析：日式美甲 30/35/40 45
-    const parts = value.trim().split(/\s+/);
+    // 2. 正常解析：名称 基准价 耗时 (如：Ms 35 45)
+    let targetCatId = activeCategoryId;
+    
+    // 如果没有激活的分类（兜底：创建"未分类"）
+    if (!targetCatId) {
+      const uncatName = "未分类";
+      let uncat = categories.find(c => c.name === uncatName);
+      if (!uncat) {
+        categoryIdSeed.current += 1;
+        const newCatId = `cat_${Date.now()}_${categoryIdSeed.current}`;
+        uncat = { id: newCatId, name: uncatName };
+        onCategoriesChange([...categories, uncat]);
+      }
+      targetCatId = uncat.id;
+      setActiveCategoryId(targetCatId);
+    }
+
+    const parts = value.split(/\s+/);
     let name = value;
-    let prices: number[] = [0];
+    let basePrice = 0;
     let duration = 60; // 默认 60 分钟
 
     if (parts.length >= 3) {
       const last = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(last)) {
-        duration = last;
-      }
+      if (!isNaN(last)) duration = last;
       
       const priceStr = parts[parts.length - 2];
-      const parsedPrices = priceStr.split(/[/,]/).map(p => parseInt(p, 10)).filter(p => !isNaN(p));
-      if (parsedPrices.length > 0) {
-        prices = parsedPrices;
-      }
+      const parsedPrice = parseInt(priceStr, 10);
+      if (!isNaN(parsedPrice)) basePrice = parsedPrice;
       
       name = parts.slice(0, parts.length - 2).join(" ");
     } else if (parts.length === 2) {
-      const priceStr = parts[parts.length - 1];
-      const parsedPrices = priceStr.split(/[/,]/).map(p => parseInt(p, 10)).filter(p => !isNaN(p));
-      if (parsedPrices.length > 0) {
-        prices = parsedPrices;
-      }
+      const parsedPrice = parseInt(parts[1], 10);
+      if (!isNaN(parsedPrice)) basePrice = parsedPrice;
       name = parts[0];
     }
 
     const newItem = {
-      id: `svc_${++serviceIdSeed.current}`,
-      categoryId,
+      id: `svc_${Date.now()}_${++serviceIdSeed.current}`,
+      categoryId: targetCatId,
       name,
-      prices, // 使用数组存储价格档位
+      prices: [basePrice], // 仅存基准价，后续通过胶囊添加变体
       duration
     };
 
-    const newServices = [...services, newItem];
-    onServicesChange(newServices);
-    // 自动保存至云端，移除 localStorage
+    onServicesChange([...services, newItem]);
+    setGlobalInput(""); // 极速连录
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, categoryId: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleNLPInput(categoryId, ghostInputs[categoryId] || '');
-      setGhostInputs({ ...ghostInputs, [categoryId]: '' }); // 清空当前输入框，实现连录
+      handleGlobalNLPInput();
     }
   };
 
   const handleRemoveService = (id: string) => {
-    const newServices = services.filter(s => s.id !== id);
-    onServicesChange(newServices);
-    // 自动保存至云端，移除 localStorage
+    onServicesChange(services.filter(s => s.id !== id));
   };
 
   const handleRemoveCategory = (id: string) => {
-    const newCategories = categories.filter((c) => c.id !== id);
-    onCategoriesChange(newCategories);
-    // 自动保存至云端，移除 localStorage
+    onCategoriesChange(categories.filter((c) => c.id !== id));
   };
 
+  // --- 分类标题行内编辑逻辑 ---
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryEditInput, setCategoryEditInput] = useState("");
+
+  const handleStartCategoryEdit = (category: CategoryItem) => {
+    setEditingCategoryId(category.id);
+    setCategoryEditInput(category.name);
+  };
+
+  const handleSaveCategoryEdit = (categoryId: string) => {
+    if (!categoryEditInput.trim()) {
+      setEditingCategoryId(null);
+      return;
+    }
+    const newName = categoryEditInput.trim();
+    onCategoriesChange(categories.map(c => {
+      if (c.id === categoryId) {
+        return { ...c, name: newName };
+      }
+      return c;
+    }));
+    setEditingCategoryId(null);
+  };
+
+  // --- 行内编辑逻辑 ---
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
 
   const handleStartEdit = (service: ServiceItem) => {
     setEditingServiceId(service.id);
-    const priceStr = service.prices ? service.prices.join('/') : service.price;
-    setEditInput(`${service.name} ${priceStr} ${service.duration}`);
+    const basePrice = service.prices && service.prices.length > 0 ? service.prices[0] : (service.price || 0);
+    setEditInput(`${service.name} ${basePrice} ${service.duration}`);
   };
 
   const handleSaveEdit = (serviceId: string) => {
@@ -1064,86 +1127,165 @@ const ServicesConfig = ({
       setEditingServiceId(null);
       return;
     }
-
     const parts = editInput.trim().split(/\s+/);
     let name = editInput;
-    let prices: number[] = [0];
+    let basePrice = 0;
     let duration = 60;
 
     if (parts.length >= 3) {
       const last = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(last)) {
-        duration = last;
-      }
-      
-      const priceStr = parts[parts.length - 2];
-      const parsedPrices = priceStr.split(/[/,]/).map(p => parseInt(p, 10)).filter(p => !isNaN(p));
-      if (parsedPrices.length > 0) {
-        prices = parsedPrices;
-      }
-      
+      if (!isNaN(last)) duration = last;
+      const parsedPrice = parseInt(parts[parts.length - 2], 10);
+      if (!isNaN(parsedPrice)) basePrice = parsedPrice;
       name = parts.slice(0, parts.length - 2).join(" ");
     } else if (parts.length === 2) {
-      const priceStr = parts[parts.length - 1];
-      const parsedPrices = priceStr.split(/[/,]/).map(p => parseInt(p, 10)).filter(p => !isNaN(p));
-      if (parsedPrices.length > 0) {
-        prices = parsedPrices;
-      }
+      const parsedPrice = parseInt(parts[1], 10);
+      if (!isNaN(parsedPrice)) basePrice = parsedPrice;
       name = parts[0];
     } else {
-      // 只有名称的情况
       name = editInput;
-      // 尝试保留原有的价格和时长
-      const existingService = services.find(s => s.id === serviceId);
-      if (existingService) {
-        prices = existingService.prices || [existingService.price || 0];
-        duration = existingService.duration || 60;
+      const existing = services.find(s => s.id === serviceId);
+      if (existing) {
+        basePrice = existing.prices && existing.prices.length > 0 ? existing.prices[0] : (existing.price || 0);
+        duration = existing.duration || 60;
       }
     }
 
-    const newServices = services.map(s => {
+    onServicesChange(services.map(s => {
       if (s.id === serviceId) {
-        return { ...s, name, prices, duration };
+        // 仅覆盖基准价(prices[0])，保留后续的变体胶囊
+        const newPrices = s.prices ? [...s.prices] : [];
+        if (newPrices.length > 0) {
+          newPrices[0] = basePrice;
+        } else {
+          newPrices.push(basePrice);
+        }
+        return { ...s, name, prices: newPrices, duration };
       }
       return s;
-    });
-
-    onServicesChange(newServices);
-    // 移除 localStorage
+    }));
     setEditingServiceId(null);
   };
 
+  // --- 变体胶囊逻辑 ---
+  const [addingVariantId, setAddingVariantId] = useState<string | null>(null);
+  const [variantInput, setVariantInput] = useState("");
+
+  const handleAddVariant = (serviceId: string) => {
+    if (!variantInput.trim()) {
+      setAddingVariantId(null);
+      return;
+    }
+    const newPrice = parseInt(variantInput.trim(), 10);
+    if (!isNaN(newPrice)) {
+      onServicesChange(services.map(s => {
+        if (s.id === serviceId) {
+          const newPrices = s.prices ? [...s.prices] : [s.price || 0];
+          newPrices.push(newPrice);
+          return { ...s, prices: newPrices };
+        }
+        return s;
+      }));
+    }
+    setVariantInput("");
+    setAddingVariantId(null);
+  };
+
+  const handleRemoveVariant = (serviceId: string, indexToRemove: number) => {
+    if (indexToRemove === 0) return; // 基准价不可在此删除
+    onServicesChange(services.map(s => {
+      if (s.id === serviceId && s.prices) {
+        const newPrices = [...s.prices];
+        newPrices.splice(indexToRemove, 1);
+        return { ...s, prices: newPrices };
+      }
+      return s;
+    }));
+  };
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+
+  const handleCreateCategoryFromDropdown = () => {
+    if (!newCategoryInput.trim()) return;
+    const targetName = newCategoryInput.trim();
+    
+    const existingCat = categories.find(c => c.name === targetName);
+    if (existingCat) {
+      setActiveCategoryId(existingCat.id);
+    } else {
+      categoryIdSeed.current += 1;
+      const newCatId = `cat_${Date.now()}_${categoryIdSeed.current}`;
+      onCategoriesChange([...categories, { id: newCatId, name: targetName }]);
+      setActiveCategoryId(newCatId);
+    }
+    setNewCategoryInput("");
+    setIsDropdownOpen(false);
+  };
+
+  const activeCategoryName = categories.find(c => c.id === activeCategoryId)?.name || "未选择";
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24">
+      {/* 顶部指引 */}
       <div className="bg-gx-cyan/10 border border-gx-cyan/20 p-4 rounded-xl flex items-start gap-3">
         <Settings className="w-4 h-4 text-gx-cyan mt-0.5 shrink-0" />
         <div className="space-y-1">
-          <h4 className="text-xs font-bold text-gx-cyan">极客输入模式 (NLP Flow-State)</h4>
+          <h4 className="text-xs font-bold text-gx-cyan">极客输入模式 (Omni-Input Core)</h4>
           <p className="text-[10px] text-white/60 leading-relaxed">
-            无需繁琐弹窗，在下方输入框直接打字：<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">洗剪吹 128 60</span> 按回车极速连录。
-            输入 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">#分类名</span> 可快速创建新分类。
+            1. 底部输入 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">#分类名</span> 锁定上下文。<br/>
+            2. 极速建档 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">名称 基准价 耗时</span> (如：Ms 35 45)。<br/>
+            3. GUI 贴胶囊：在卡片上点击 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">+</span> 添加变体价格。
           </p>
         </div>
       </div>
 
+      {/* 分类与服务列表 */}
       {categories.map((cat) => {
         const catServices = services.filter(s => s.categoryId === cat.id);
+        const isActive = cat.id === activeCategoryId;
         
         return (
-          <div key={cat.id} className="space-y-3">
+          <div key={cat.id} className={`space-y-3 p-4 rounded-xl transition-all border ${isActive ? 'bg-white/[0.02] border-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.05)]' : 'border-transparent'}`}>
             <div className="flex items-center justify-between border-b border-white/10 pb-2 group/header">
-              <h3 className="text-xs font-black text-white/80 tracking-widest flex items-center gap-2">
-                {cat.name}
-                {catServices.length === 0 && (
-                  <button 
-                    onClick={() => handleRemoveCategory(cat.id)}
-                    className="text-white/20 hover:text-red-500 opacity-0 group-hover/header:opacity-100 transition-opacity"
-                    title="解散空分类"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </h3>
+              {editingCategoryId === cat.id ? (
+                <input
+                  type="text"
+                  value={categoryEditInput}
+                  onChange={(e) => setCategoryEditInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); handleSaveCategoryEdit(cat.id); }
+                    else if (e.key === 'Escape') setEditingCategoryId(null);
+                  }}
+                  autoFocus
+                  onBlur={() => handleSaveCategoryEdit(cat.id)}
+                  className="flex-1 bg-black/60 border border-gx-cyan/50 rounded text-white text-xs font-black tracking-widest px-2 py-1 outline-none mr-2"
+                />
+              ) : (
+                <h3 
+                  className={`text-xs font-black tracking-widest flex items-center gap-2 cursor-pointer ${isActive ? 'text-gx-cyan' : 'text-white/80'} hover:text-gx-cyan transition-colors`}
+                  onClick={() => {
+                    if (isActive) {
+                      handleStartCategoryEdit(cat);
+                    } else {
+                      setActiveCategoryId(cat.id);
+                    }
+                  }}
+                  title={isActive ? "点击重命名分类" : "点击激活该分类"}
+                >
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse" />}
+                  {cat.name}
+                  {catServices.length === 0 && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleRemoveCategory(cat.id); }}
+                      className="text-white/20 hover:text-red-500 opacity-0 group-hover/header:opacity-100 transition-opacity ml-2"
+                      title="解散空分类"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </h3>
+              )}
               <span className="text-[10px] font-mono text-white/30">{catServices.length} ITEMS</span>
             </div>
 
@@ -1155,7 +1297,7 @@ const ServicesConfig = ({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="flex flex-col gap-2 p-4 bg-white/[0.02] border border-white/5 rounded-xl group hover:bg-white/[0.05] transition-all relative overflow-hidden"
+                    className="flex flex-col gap-2 p-4 bg-black/40 border border-white/5 rounded-xl group hover:bg-white/[0.05] transition-all relative overflow-hidden"
                   >
                     {editingServiceId === service.id ? (
                       <div className="flex items-center gap-2 relative z-10">
@@ -1164,12 +1306,8 @@ const ServicesConfig = ({
                           value={editInput}
                           onChange={(e) => setEditInput(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleSaveEdit(service.id);
-                            } else if (e.key === 'Escape') {
-                              setEditingServiceId(null);
-                            }
+                            if (e.key === 'Enter') { e.preventDefault(); handleSaveEdit(service.id); }
+                            else if (e.key === 'Escape') setEditingServiceId(null);
                           }}
                           autoFocus
                           onBlur={() => handleSaveEdit(service.id)}
@@ -1178,95 +1316,198 @@ const ServicesConfig = ({
                       </div>
                     ) : (
                       <>
-                        <div 
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => handleStartEdit(service)}
-                        >
-                          <span className="text-xs font-bold text-white flex items-center gap-2 group-hover:text-gx-cyan transition-colors">
+                        <div className="flex items-center justify-between">
+                          <span 
+                            className="text-xs font-bold text-white flex items-center gap-2 group-hover:text-gx-cyan transition-colors cursor-pointer"
+                            onClick={() => handleStartEdit(service)}
+                          >
                             {service.name}
                           </span>
                           <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5">
-                              {service.prices && service.prices.length > 0 ? (
-                                <>
-                                  <span className="text-xs font-bold text-gx-cyan font-mono">¥{service.prices[0]}</span>
-                                  {service.prices.length > 1 && (
-                                    <div className="flex items-center gap-1 ml-2">
-                                      {service.prices.slice(1).map((p: number, i: number) => (
-                                        <span key={i} className="text-[10px] text-white/40 font-mono bg-white/5 px-1.5 py-0.5 rounded">
-                                          ¥{p}
-                                        </span>
-                                      ))}
+                            <div className="flex items-center flex-wrap justify-end gap-1.5">
+                              {/* 基准价 */}
+                              <span 
+                                className="text-xs font-bold text-gx-cyan font-mono cursor-pointer"
+                                onClick={() => handleStartEdit(service)}
+                              >
+                                ¥{service.prices && service.prices.length > 0 ? service.prices[0] : (service.price || 0)}
+                              </span>
+                              
+                              {/* 变体胶囊阵列 */}
+                              {service.prices && service.prices.length > 1 && (
+                                <div className="flex items-center gap-1 ml-1">
+                                  {service.prices.slice(1).map((p: number, i: number) => (
+                                    <div key={i} className="group/capsule relative">
+                                      <span className="text-[10px] text-white/80 font-mono bg-white/10 px-1.5 py-0.5 rounded-full border border-white/5">
+                                        {p}
+                                      </span>
+                                      <button 
+                                        onClick={() => handleRemoveVariant(service.id, i + 1)}
+                                        className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3 h-3 flex items-center justify-center opacity-0 group-hover/capsule:opacity-100 transition-opacity"
+                                      >
+                                        <span className="text-[8px] text-white leading-none -mt-0.5">×</span>
+                                      </button>
                                     </div>
-                                  )}
-                                </>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* 添加胶囊按钮/输入框 */}
+                              {addingVariantId === service.id ? (
+                                <input 
+                                  type="text"
+                                  value={variantInput}
+                                  onChange={e => setVariantInput(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') { e.preventDefault(); handleAddVariant(service.id); }
+                                    else if (e.key === 'Escape') setAddingVariantId(null);
+                                  }}
+                                  onBlur={() => handleAddVariant(service.id)}
+                                  autoFocus
+                                  className="w-10 text-[10px] bg-black/60 border border-gx-cyan/50 rounded px-1 py-0.5 text-white font-mono outline-none"
+                                  placeholder="价格"
+                                />
                               ) : (
-                                <span className="text-xs font-bold text-gx-cyan font-mono">¥{service.price}</span>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setAddingVariantId(service.id); }}
+                                  className="text-[10px] text-white/40 hover:text-gx-cyan bg-white/5 hover:bg-gx-cyan/10 px-1.5 py-0.5 rounded-full transition-colors border border-dashed border-white/20 hover:border-gx-cyan/50 ml-1"
+                                >
+                                  +
+                                </button>
                               )}
                             </div>
+                            
+                            {/* 垃圾桶 */}
                             <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveService(service.id);
-                              }} 
-                              className="text-white/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveService(service.id); }} 
+                              className="text-white/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 ml-2"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] font-mono text-white/40">
-                          <span>默认耗时: {service.duration} 分钟</span>
+                        <div className="flex items-center justify-between text-[10px] font-mono text-white/40 mt-1">
+                          <span>默认耗时: {service.duration || 60} 分钟</span>
                         </div>
                       </>
                     )}
                   </motion.div>
                 ))}
               </AnimatePresence>
-
-              {/* 幽灵输入框 Ghost Input */}
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gx-cyan/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                <input
-                  type="text"
-                  value={ghostInputs[cat.id] || ''}
-                  onChange={(e) => setGhostInputs({ ...ghostInputs, [cat.id]: e.target.value })}
-                  onKeyDown={(e) => handleKeyDown(e, cat.id)}
-                  placeholder="项目名称 价格 耗时 (如：深层护理 298 45) ..."
-                  className="w-full relative bg-black/40 border border-white/10 group-focus-within:border-gx-cyan/50 rounded-xl text-white text-xs px-4 py-3 outline-none transition-all placeholder:text-white/20 font-mono shadow-inner"
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none">
-                  <span className="text-[8px] text-gx-cyan/60 border border-gx-cyan/30 rounded px-1.5 py-0.5">ENTER</span>
-                </div>
-              </div>
             </div>
           </div>
         );
       })}
 
-      {/* 新建分类输入框 */}
-      <div className="relative group mt-6">
-        <div className="absolute inset-0 bg-white/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity" />
-        <input
-          type="text"
-          value={ghostInputs['new_category'] || ''}
-          onChange={(e) => setGhostInputs({ ...ghostInputs, 'new_category': e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && ghostInputs['new_category']?.trim()) {
-              e.preventDefault();
-              let catName = ghostInputs['new_category'].trim();
-              if (catName.startsWith('#')) catName = catName.substring(1).trim();
-              if (catName) {
-                categoryIdSeed.current += 1;
-                const newCatId = `cat_${categoryIdSeed.current}`;
-                onCategoriesChange([...categories, { id: newCatId, name: catName }]);
-                setGhostInputs({ ...ghostInputs, 'new_category': '' });
-              }
-            }
-          }}
-          placeholder="+ 输入 #新分类名称 并按回车..."
-          className="w-full relative bg-transparent border border-dashed border-white/20 group-focus-within:border-white/50 rounded-xl text-white text-xs px-4 py-3 outline-none transition-all placeholder:text-white/40 font-mono"
-        />
+      {/* 底部全局指挥舱 (Omni-Input Core) */}
+      <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent z-30">
+        
+        {/* 透明遮罩：用于点击外部关闭下拉菜单 */}
+        {isDropdownOpen && (
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setIsDropdownOpen(false)}
+          />
+        )}
+
+        <div className="relative group flex items-center bg-black/60 border border-white/10 group-focus-within:border-gx-cyan/50 rounded-2xl p-1.5 backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] transition-all z-50">
+          
+          {/* 上下文 Badge (交互式 Dropdown) */}
+          <div className="relative">
+            <div 
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gx-cyan/10 border border-gx-cyan/20 shrink-0 cursor-pointer hover:bg-gx-cyan/20 transition-colors"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              title="点击切换或新建分类"
+            >
+              <span className="text-[10px] font-black text-gx-cyan uppercase tracking-wider max-w-[80px] truncate">
+                {activeCategoryName}
+              </span>
+              <svg 
+                className="w-2.5 h-2.5 text-gx-cyan/50 transition-transform duration-200" 
+                style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* 下拉菜单面板 */}
+            <AnimatePresence>
+              {isDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-0 mb-2 w-48 bg-[#0f0f0f] border border-white/10 rounded-xl shadow-[0_-10px_40px_rgba(0,0,0,0.8)] backdrop-blur-2xl overflow-hidden flex flex-col z-50"
+                >
+                  <div className="max-h-40 overflow-y-auto no-scrollbar py-1">
+                    {categories.length === 0 && (
+                      <div className="px-3 py-2 text-[10px] text-white/30 text-center font-mono">暂无分类</div>
+                    )}
+                    {categories.map(cat => (
+                      <div
+                        key={cat.id}
+                        className={`px-3 py-2 text-xs font-black tracking-widest cursor-pointer transition-colors ${cat.id === activeCategoryId ? 'text-gx-cyan bg-gx-cyan/5' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+                        onClick={() => {
+                          setActiveCategoryId(cat.id);
+                          setIsDropdownOpen(false);
+                        }}
+                      >
+                        {cat.name}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="border-t border-white/10 p-2 bg-black/40">
+                    <input
+                      type="text"
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCreateCategoryFromDropdown();
+                        } else if (e.key === 'Escape') {
+                          setIsDropdownOpen(false);
+                        }
+                      }}
+                      placeholder="+ 新建分类 (Enter)"
+                      className="w-full bg-white/5 border border-white/10 focus:border-gx-cyan/50 rounded text-white text-[10px] px-2 py-1.5 outline-none font-mono placeholder:text-white/30 transition-colors"
+                      autoFocus
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <input
+            type="text"
+            value={globalInput}
+            onChange={(e) => setGlobalInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="项目名称 价格 耗时 (如：Ms 35 45)"
+            className="flex-1 bg-transparent text-white text-sm px-3 py-2 outline-none placeholder:text-white/20 font-mono"
+          />
+
+          {/* 触屏发送键 / OCR 兜底预留位 */}
+          <div className="flex items-center gap-1 pr-1">
+            <button 
+              onClick={() => {}} // 预留 OCR 接口
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              title="全息扫描 (Camera Scan)"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+            <button
+              onClick={handleGlobalNLPInput}
+              className="w-8 h-8 rounded-xl bg-gx-cyan flex items-center justify-center text-black hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ export interface MatrixResource {
   avatar?: string;
   themeColor?: string; // 专属配色，用于快速识别
   status?: "available" | "busy" | "away";
-  metadata?: Record<string, any>; // 如：专家评分、擅长领域
+  metadata?: Record<string, unknown>;
 }
 
 /**

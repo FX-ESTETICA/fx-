@@ -3,14 +3,24 @@
 import { Suspense } from 'react';
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { Fingerprint } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <NebulaBackground rotation={0} />
+    <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       
+      <div className="absolute inset-0 z-0">
+        <Image
+          src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=2074&auto=format&fit=crop"
+          alt="GX Private Access"
+          fill
+          className="object-cover opacity-60 mix-blend-overlay"
+          priority // 【LCP 性能极致优化：强制首屏预加载】
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+      </div>
+
       {/* 顶部 Brand Identity */}
       <div className="absolute top-8 w-full flex justify-center z-10 pointer-events-none">
         <div className="flex flex-col items-center gap-2">

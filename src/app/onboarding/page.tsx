@@ -1,6 +1,5 @@
 "use client";
 
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { motion } from "framer-motion";
 import { Building2, Rocket, ShieldCheck, Zap, ArrowLeft, ArrowRight } from "lucide-react";
@@ -29,8 +28,7 @@ export default function OnboardingPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
-      <NebulaBackground rotation={0} />
+    <main className="min-h-screen bg-transparent text-white relative overflow-x-hidden">
       
       <div className="max-w-4xl mx-auto px-6 py-24 relative z-10">
         <button 

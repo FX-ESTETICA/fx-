@@ -1,4 +1,5 @@
 import { BookingDetails, DB_Booking, BookingStatus } from "../types";
+import { IndustryType } from "@/features/calendar/types";
 
 /**
  * BookingAdapter - 震荡隔离层
@@ -31,7 +32,7 @@ export const BookingAdapter = {
   fromDB(db: DB_Booking): BookingDetails {
     return {
       id: db.id,
-      industry: db.industry_type as any,
+      industry: db.industry_type as IndustryType,
       serviceId: db.service_id,
       serviceName: db.service_name,
       date: db.booking_date,

@@ -6,6 +6,7 @@ import { X, Image as ImageIcon, RefreshCw, ChevronLeft, Send } from "lucide-reac
 import * as tus from "tus-js-client";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/shared/Button";
+import Image from "next/image";
 
 interface UGCUploadModalProps {
   isOpen: boolean;
@@ -181,8 +182,9 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
       } else {
         await uploadImage(file);
       }
-    } catch (err: any) {
-      setError(err.message || "上传失败，请重试");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "上传失败，请重试";
+      setError(message);
       setUploading(false);
     }
   };
@@ -361,7 +363,14 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                 {file.type.startsWith("video/") ? (
                   <video src={previewUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                 ) : (
-                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <Image
+                    src={previewUrl}
+                    alt="Preview"
+                    fill
+                    sizes="100vw"
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
                 )}
               </div>
 

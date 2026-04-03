@@ -1,25 +1,35 @@
 "use client";
 
-import { GlassCard } from "@/components/shared/GlassCard";
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
-import { motion, useMotionValue, useTransform, useSpring, animate, useMotionValueEvent } from "framer-motion";
+import { motion, useMotionValue, useTransform, useSpring, animate, useMotionValueEvent, type MotionValue, type PanInfo } from "framer-motion";
+import { Database, Network, ShieldAlert, Lock, Box, Terminal, ChevronLeft, PenTool, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import { cn } from "@/utils/cn";
 
 const NAVIGATION_LINKS = [
-  { id: "01", name: "核心控制台 / CORE", path: "/", description: "全景驾驶舱，系统状态实时监控。", status: "ACTIVE", glow: "cyan" },
-  { id: "02", name: "身份验证 / AUTH", path: "/login", description: "安全接入网关，支持 Mock 模式。", status: "READY", glow: "purple" },
-  { id: "03", name: "管理看板 / DASHBOARD", path: "/dashboard", description: "多角色业务看板，数据可视化。", status: "READY", glow: "blue" },
-  { id: "04", name: "预约系统 / BOOKING", path: "/booking", description: "全链路预约流，Mock 闭环测试。", status: "READY", glow: "emerald" },
-  { id: "05", name: "发现广场 / DISCOVERY", path: "/discovery", description: "赛博内容分发，动态流展示。", status: "READY", glow: "amber" },
-  { id: "06", name: "星云 UI / NEBULA", path: "/nebula", description: "WebGL 视觉引擎，沉浸式体验。", status: "INITIALIZING", glow: "pink" },
-  { id: "07", name: "行业日历 / CALENDAR", path: "/calendar", description: "时间节点管理，行业动态追踪。", status: "READY", glow: "indigo" },
-  { id: "08", name: "数据分析 / ANALYTICS", path: "/analytics", description: "性能指标分析，系统负载监控。", status: "READY", glow: "rose" },
+  { id: "01", label: "核心矩阵 / Core Matrix", icon: <Database className="w-5 h-5" />, href: "/calendar", glow: "text-gx-cyan", status: "ONLINE" },
+  { id: "02", label: "星云引擎 / Nebula Engine", icon: <Network className="w-5 h-5" />, href: "/nebula", glow: "text-gx-purple", status: "SYNCING" },
+  { id: "03", label: "入驻审批台 / Ascension Console", icon: <ShieldAlert className="w-5 h-5" />, href: "/boss/approvals", glow: "text-red-500", status: "ACTION REQ" },
+  { id: "04", label: "联邦权限署 / Federation Auth", icon: <Lock className="w-5 h-5" />, href: "/auth", glow: "text-yellow-500", status: "LOCKED" },
+  { id: "05", label: "物理节点 / Spatial Nodes", icon: <Box className="w-5 h-5" />, href: "/discovery", glow: "text-white", status: "STANDBY" },
+  { id: "06", label: "深渊协议 / Abyss Protocol", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white/40", status: "CLASSIFIED" },
+  { id: "07", label: "日历设计舱 / Blueprint", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "text-emerald-400", status: "DESIGN_MODE" },
+  { id: "08", label: "沙盒实验区 / Sandbox", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "text-pink-500", status: "TESTING" },
 ];
+
+type NavigationLink = typeof NAVIGATION_LINKS[number];
+
+type CardItemProps = {
+  link: NavigationLink;
+  index: number;
+  total: number;
+  springRotation: MotionValue<number>;
+  isActive: boolean;
+  isMobile: boolean;
+};
 
 export default function Home() {
   const [activeId, setActiveId] = useState("01");
-  const [rotationValue, setRotationValue] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const carouselRotation = useMotionValue(0);
 
@@ -39,7 +49,6 @@ export default function Home() {
   });
   
   useMotionValueEvent(springRotation, "change", (latest) => {
-    setRotationValue(latest);
     
     // 实时计算当前激活的 ID
     const totalItems = NAVIGATION_LINKS.length;
@@ -57,12 +66,12 @@ export default function Home() {
     startRotationRef.current = carouselRotation.get();
   };
 
-  const handleDrag = (_: any, info: { offset: { x: number } }) => {
+  const handleDrag = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const sensitivity = isMobile ? 0.4 : 0.2; // 移动端提高灵敏度
     carouselRotation.set(startRotationRef.current + info.offset.x * sensitivity);
   };
 
-  const handleDragEnd = (_: any, info: { offset: { x: number }, velocity: { x: number } }) => {
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const velocity = info.velocity.x;
     
     let targetRotation = carouselRotation.get();
@@ -83,11 +92,10 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-[100dvh] flex-col items-center text-white p-6 md:p-12 overflow-hidden touch-none relative">
-      <NebulaBackground rotation={rotationValue} />
-
-      <div className="z-10 max-w-7xl w-full flex flex-col gap-6 md:gap-8 h-full flex-1">
-        <header className="flex flex-col gap-4 shrink-0">
+    <main className="flex min-h-[100dvh] flex-col items-center text-white p-6 md:p-12 overflow-hidden relative" style={{ pointerEvents: 'auto' }}>
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}></div>
+      <div className="z-10 max-w-7xl w-full flex flex-col gap-6 md:gap-8 h-full flex-1 pointer-events-none">
+        <header className="flex flex-col gap-4 shrink-0 pointer-events-auto">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -111,14 +119,9 @@ export default function Home() {
         </header>
 
         {/* Core 3D stage - 强制 60vh 物理高度锚定 */}
-        <div className={`relative flex-1 ${isMobile ? 'h-[60vh] min-h-[400px]' : 'min-h-[500px]'} flex items-center justify-center ${isMobile ? 'perspective-[1200px]' : 'perspective-[2000px]'} [perspective-origin:center_40%]`}>
+        <div className={`relative flex-1 ${isMobile ? 'h-[60vh] min-h-[400px]' : 'min-h-[500px]'} flex items-center justify-center ${isMobile ? 'perspective-[1200px]' : 'perspective-[2000px]'} [perspective-origin:center_40%] pointer-events-none`}>
           {/* 旋转容器与交互层 */}
           <motion.div
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            onDragStart={handleDragStart}
-            onDrag={handleDrag}
-            onDragEnd={handleDragEnd}
             style={{ 
               transformStyle: "preserve-3d",
               width: "100%",
@@ -128,7 +131,13 @@ export default function Home() {
               justifyContent: "center",
               position: "relative"
             }}
-            className="cursor-grab active:cursor-grabbing"
+            className="cursor-grab active:cursor-grabbing pointer-events-auto relative flex items-center justify-center w-full max-w-[320px] md:max-w-none h-full [transform-style:preserve-3d]"
+            drag="x"
+            dragConstraints={{ left: -1000, right: 1000 }}
+            dragElastic={0.1}
+            onDragStart={handleDragStart}
+            onDrag={handleDrag}
+            onDragEnd={handleDragEnd}
           >
             {NAVIGATION_LINKS.map((index_link, index) => (
               <CardItem 
@@ -157,7 +166,7 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="w-full max-w-7xl z-10 py-6 flex justify-between items-center text-zinc-600 font-mono text-[9px] tracking-widest border-t border-white/5">
+      <footer className="w-full max-w-7xl z-10 py-6 flex justify-between items-center text-zinc-600 font-mono text-[9px] tracking-widest border-t border-white/5 pointer-events-auto">
         <div className="flex gap-8">
           <span>© 2026 GALAXY EXPERIENCE</span>
           <span className="hidden lg:inline text-zinc-800">GX_V1_LEGACY_RESTORED</span>
@@ -171,105 +180,103 @@ export default function Home() {
   );
 }
 
-function CardItem({ link, index, total, springRotation, isActive, isMobile }: any) {
-  const angleStep = 360 / total;
-  const baseAngle = index * angleStep;
+// 为了确保平滑替换，我们需要重构 CardItem 适配新的 NAVIGATION_LINKS 数据结构
+const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: CardItemProps) => {
+  const [isMounted] = useState(() => typeof window !== "undefined");
+
+  const angle = (index / total) * 360;
   
-  // 计算卡片在圆环上的实时角度 (考虑整体旋转)
-  const currentAngle = useTransform(springRotation, (r: number) => {
-    return baseAngle + r;
+  // 为了彻底解决 Hydration 和 Hooks 调用顺序问题：
+  // 所有的 Framer Motion hook (useTransform) 必须在组件的最外层调用，不能放在条件语句中。
+  // 我们只在最终渲染的 style 对象中，根据 isMounted 切换使用静态值还是动态 hook 值。
+  
+  // 计算每个卡片的相对旋转角度
+  const cardRotation = useTransform(springRotation, (val: number) => {
+    return val + angle;
   });
 
-  // 将角度转换为弧度用于三角函数
-  const radian = useTransform(currentAngle, (a: number) => (a * Math.PI) / 180);
-
-  // Mathematical simulation of ring position: calculate X and Z coordinates
-  const radius = isMobile ? 280 : 450; // 进一步减小移动端半径，防止超出视口
-  const x = useTransform(radian, (r: number) => Math.sin(r) * radius);
-  const z = useTransform(radian, (r: number) => Math.cos(r) * radius);
-
-  // Offset relative to the center point (for visual feedback)
-  const relativeOffset = useTransform(currentAngle, (a: number) => {
-    const normalized = ((a % 360) + 360) % 360;
-    return normalized > 180 ? normalized - 360 : normalized;
+  // 根据角度计算 Z 轴深度和透明度 (使用三角函数)
+  const zTranslate = useTransform(cardRotation, (val: number) => {
+    const rad = (val * Math.PI) / 180;
+    return Math.cos(rad) * (isMobile ? 120 : 300); // 半径
+  });
+  
+  const xTranslate = useTransform(cardRotation, (val: number) => {
+    const rad = (val * Math.PI) / 180;
+    return Math.sin(rad) * (isMobile ? 160 : 400);
   });
 
-  // Extreme visual feedback
-  const scale = useTransform(relativeOffset, [-60, 0, 60], [isMobile ? 0.8 : 0.8, 1, isMobile ? 0.8 : 0.8]);
-  const opacity = useTransform(relativeOffset, [-90, -45, 0, 45, 90], [0.1, 0.7, 1, 0.7, 0.1]); // 提高非激活卡片在移动端的可见度
-  const blurValue = useTransform(relativeOffset, [-60, 0, 60], [isMobile ? 0 : 6, 0, isMobile ? 0 : 6]); // 移动端禁用卡片虚化
+  const scale = useTransform(cardRotation, (val: number) => {
+    const rad = (val * Math.PI) / 180;
+    const cosVal = Math.cos(rad);
+    return 0.6 + (cosVal + 1) * 0.2; // 0.6 到 1.0
+  });
+
+  const opacity = useTransform(cardRotation, (val: number) => {
+    const rad = (val * Math.PI) / 180;
+    const cosVal = Math.cos(rad);
+    return 0.1 + (cosVal + 1) * 0.45; // 0.1 到 1.0
+  });
+
+  const blur = useTransform(cardRotation, (val: number) => {
+    const rad = (val * Math.PI) / 180;
+    const cosVal = Math.cos(rad);
+    return `${Math.max(0, (1 - cosVal) * 8)}px`;
+  });
+  
+  const rotateY = useTransform(cardRotation, (val: number) => -val);
 
   return (
     <motion.div
-      style={{
+      style={isMounted ? {
         position: "absolute",
-        width: isMobile ? "180px" : "220px", // Smaller cards on mobile
-        height: isMobile ? "240px" : "300px",
-        x: x,
-        z: z,
-        // 关键：永远保持 rotateY 为 0，确保卡片永远正对屏幕平面
-        rotateY: 0,
-        scale: scale,
-        opacity: opacity,
-        zIndex: useTransform(z, (v) => Math.round(v + radius)),
-        transformStyle: "preserve-3d",
-        backfaceVisibility: "hidden", // 提升移动端渲染稳定性
-        WebkitBackfaceVisibility: "hidden",
+        x: xTranslate,
+        z: zTranslate,
+        scale,
+        opacity,
+        filter: blur,
+        rotateY: rotateY // 让卡片始终面向观众
+      } : {
+        position: "absolute",
+        // Hydration 阶段强制给一个默认静态的安全值，避免服务器与客户端 Math.random/userAgent 不一致导致的 mismatch
+        transform: "translateX(0px) translateZ(0px) scale(0.6) rotateY(0deg)",
+        opacity: 0.1,
+        filter: "blur(8px)",
       }}
+      className={cn(
+        "w-64 h-80 md:w-80 md:h-[400px] rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl flex flex-col p-8 transition-colors duration-500",
+        isActive ? "border-white/40 shadow-[0_0_50px_rgba(255,255,255,0.1)]" : "hover:border-white/20"
+      )}
     >
-      <motion.div
-        style={{
-          filter: useTransform(blurValue, (v) => `blur(${v}px)`),
-          height: "100%",
-          width: "100%"
-        }}
-      >
-        <Link 
-           href={link.path} 
-           className={`${isActive ? "pointer-events-auto cursor-pointer" : "pointer-events-none"} block h-full w-full`}
-           prefetch={false}
-         >
-          <GlassCard 
-            glowColor={link.glow as any} 
-            className={`h-full flex flex-col gap-4 p-6 border-white/5 transition-all duration-500 ${
-              isActive ? 'border-white/20 shadow-[0_0_40px_rgba(0,242,255,0.12)] ring-1 ring-white/20 group' : ''
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <span className={`text-3xl font-mono font-bold ${isActive ? 'text-white/20' : 'text-white/5'}`}>
-                {link.id}
-              </span>
-              <div className={`w-6 h-6 rounded-full border border-white/10 flex items-center justify-center`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-gx-cyan shadow-[0_0_8px_#00f2ff]' : 'bg-white/10'}`} />
-              </div>
-            </div>
+      <div className="flex justify-between items-start mb-auto">
+        <span className="text-4xl font-black font-mono tracking-tighter text-white/20">{link.id}</span>
+        <div className={cn("px-2 py-1 rounded text-[10px] font-mono tracking-widest border bg-black/50", link.glow, link.glow.replace('text-', 'border-').replace('/40', '/20'))}>
+          {link.status}
+        </div>
+      </div>
+      
+      <div className="space-y-4 relative z-10">
+        <div className={cn("w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/10", link.glow)}>
+          {link.icon}
+        </div>
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold tracking-tighter mb-2">{link.label}</h2>
+          <p className="text-xs text-white/40 font-mono">SYSTEM_LINK // {link.href}</p>
+        </div>
+      </div>
 
-            <div className="flex flex-col gap-1.5">
-              <h2 className={`text-lg font-bold tracking-tight transition-colors ${isActive ? 'text-gx-cyan' : 'text-white/90'}`}>
-                {link.name}
-              </h2>
-              <p className="text-zinc-500 text-[10px] leading-relaxed line-clamp-3">
-                {link.description}
-              </p>
-            </div>
-
-            <div className="mt-auto pt-3 border-t border-white/5 flex items-center justify-between">
-              <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">
-                {link.status}
-              </span>
-              {isActive && (
-                <motion.span 
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="text-[8px] font-mono text-gx-cyan tracking-tighter flex items-center gap-1"
-                >
-                  OPEN / 建立连接 <span className="text-[10px]">→</span>
-                </motion.span>
-              )}
-            </div>
-          </GlassCard>
+      <div className="mt-8 pt-6 border-t border-white/10">
+        <Link href={link.href} prefetch={false} className="w-full">
+          <button 
+            onPointerDownCapture={(e) => e.stopPropagation()} // 终极护盾：防止 Framer Motion 拦截点击事件
+            className={cn(
+            "w-full py-3 rounded-lg text-xs font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2",
+            isActive ? "bg-white text-black hover:bg-white/90" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+          )}>
+            进入协议 / Enter <ChevronLeft className="w-4 h-4 rotate-180" />
+          </button>
         </Link>
-      </motion.div>
+      </div>
     </motion.div>
   );
-}
+};

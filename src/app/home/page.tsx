@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { 
   Sparkles, 
   ShoppingBag, 
@@ -20,6 +19,27 @@ import {
 import { useState, useEffect } from "react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
+
+type PlaceCategory = "dining" | "beauty" | "hotel" | "nightlife" | "fitness" | "all";
+
+type PlacesApiPlace = {
+  id: string;
+  name: string;
+  rating: number;
+  user_ratings_total: number;
+  status: string;
+  category: PlaceCategory | string;
+  lat?: number;
+  lng?: number;
+  photoName?: string | null;
+};
+
+type AggregatedPlace = PlacesApiPlace & {
+  distance: string;
+  image: string;
+  isRealGooglePhoto: boolean;
+  ugcImages: string[];
+};
 
 // 预设的高质感赛博朋克占位图 (用于替代昂贵的 Google Place Photo)
 const MOCK_IMAGES = {
@@ -42,7 +62,7 @@ const MOCK_IMAGES = {
 };
 
 // 模拟的 Google Places 返回数据 (用于前期 UI 验证，后续替换为真实 API 调用)
-const MOCK_GOOGLE_PLACES = [
+const MOCK_GOOGLE_PLACES: Array<PlacesApiPlace & { distance: string }> = [
   { id: "gp_1", name: "The Cyber Sushi / 霓虹刺身", rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
   { id: "gp_2", name: "Neon Coffee Roasters", rating: 4.9, user_ratings_total: 128, distance: "1.2km", status: "OPEN", category: "dining" },
   { id: "gp_3", name: "Midnight Noodle Bar / 午夜面馆", rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
@@ -137,7 +157,7 @@ export default function HomePage() {
   
   // 冷启动聚合模式状态
   const [isAggregating, setIsAggregating] = useState(false);
-  const [aggregatedPlaces, setAggregatedPlaces] = useState<any[]>([]);
+  const [aggregatedPlaces, setAggregatedPlaces] = useState<AggregatedPlace[]>([]);
   // 分页与位置状态
   const [displayCount, setDisplayCount] = useState(6);
   const [isRelocating, setIsRelocating] = useState(false);
@@ -175,14 +195,14 @@ export default function HomePage() {
           throw new Error(`API Error: ${errData.error || res.status}`);
         }
         
-        const data = await res.json();
+        const data = (await res.json()) as { places: PlacesApiPlace[] };
         
         // 映射返回的数据并附加上占位图和计算出的距离
-        const placesWithImages = data.places.map((place: any, idx: number) => {
+        const placesWithImages: AggregatedPlace[] = data.places.map((place, idx) => {
           const cat = place.category === "all" ? "dining" : place.category; // fallback
           const imageArray = MOCK_IMAGES[cat as keyof typeof MOCK_IMAGES] || MOCK_IMAGES.all;
           
-          const distance = getDistanceFromLatLonInKm(lat, lng, place.lat, place.lng);
+          const distance = (place.lat !== undefined && place.lng !== undefined) ? getDistanceFromLatLonInKm(lat, lng, place.lat, place.lng) : "999km";
           
           let coverImage = imageArray[idx % imageArray.length];
           let isRealGooglePhoto = false;
@@ -207,11 +227,17 @@ export default function HomePage() {
         setAggregatedPlaces(placesWithImages);
         setDisplayCount(6); // 每次重新获取数据时重置显示数量为 6 (响应式公倍数)
         setIsMockMode(false); // 成功获取真实数据
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching Google Places:", err);
         // setLocationError("无法连接到卫星网络，正在使用离线数据");
         // 如果 API 失败，可以回退到 Mock 数据 (为了演示不至于白屏)
-        setAggregatedPlaces(MOCK_GOOGLE_PLACES.map(p => ({...p, image: MOCK_IMAGES.all[0]})));
+        const fallbackPlaces: AggregatedPlace[] = MOCK_GOOGLE_PLACES.map((p) => ({
+          ...p,
+          image: MOCK_IMAGES.all[0],
+          isRealGooglePhoto: false,
+          ugcImages: []
+        }));
+        setAggregatedPlaces(fallbackPlaces);
         setDisplayCount(6);
         setIsMockMode(true); // 标记为 Mock 模式
       } finally {
@@ -237,7 +263,7 @@ export default function HomePage() {
             const city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || "未知位置";
             const country = geoData.address?.country || "";
             setLocationName(`${city}${country ? `, ${country}` : ''}`);
-          } catch (e) {
+          } catch {
             setLocationName("当前位置");
           }
 
@@ -259,15 +285,14 @@ export default function HomePage() {
       setIsRelocating(false);
     }
     
-  }, [activeCategory, activeSubCategory, activeTab, sortBy]);
+  }, [activeCategory, activeSubCategory, activeTab, sortBy, isMockMode]);
 
   const handleLoadMore = () => {
     setDisplayCount(prev => Math.min(prev + 6, aggregatedPlaces.length)); // 每次加载也以 6 为基数递增
   };
 
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-x-hidden pb-32">
-      <NebulaBackground rotation={0} />
+    <main className="min-h-screen bg-transparent text-white relative overflow-x-hidden pb-32">
       
       <div className="w-full max-w-[1400px] mx-auto px-4 pt-6 relative z-10 space-y-6">
         {/* Top Info Bar - Brand Identity & LBS Dual Wing */}
@@ -543,14 +568,14 @@ export default function HomePage() {
             dragConstraints={{ left: 0, right: 0 }} // 元素少于屏幕时不让拖动，保持绝对居中
             className="flex items-center gap-6 cursor-grab active:cursor-grabbing"
           >
-            {[
+            {([
               { id: "POPULARITY", label: "综合推荐" },
               { id: "DISTANCE", label: "距离最近" },
               { id: "RATING", label: "好评优先" }
-            ].map((sortOption) => (
+            ] as const).map((sortOption) => (
               <button
                 key={sortOption.id}
-                onClick={() => setSortBy(sortOption.id as any)}
+                onClick={() => setSortBy(sortOption.id)}
                 className={cn(
                   "relative pb-1 text-[12px] font-bold tracking-widest transition-all whitespace-nowrap shrink-0",
                   sortBy === sortOption.id

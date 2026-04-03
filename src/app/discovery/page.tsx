@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { motion } from "framer-motion";
 import { 
@@ -21,6 +20,20 @@ import Image from "next/image";
 import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
 
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
+
+type DiscoveryPost = {
+  id: string;
+  type: "video" | "image";
+  title: string;
+  author: string;
+  avatar: string;
+  cover: string;
+  videoId?: string;
+  likes: string;
+  comments: string;
+  tags: string[];
+  merchantId: string;
+};
 
 // ==========================================
 // VideoPlayer Component (Intersection Observer)
@@ -48,13 +61,14 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
       { threshold: 0.6 } // Play when 60% of the video is visible
     );
 
-    if (videoRef.current) {
-      observer.observe(videoRef.current);
+    const videoEl = videoRef.current;
+    if (videoEl) {
+      observer.observe(videoEl);
     }
 
     return () => {
-      if (videoRef.current) {
-        observer.unobserve(videoRef.current);
+      if (videoEl) {
+        observer.unobserve(videoEl);
       }
     };
   }, []);
@@ -113,12 +127,12 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
   );
 };
 
-const MOCK_POSTS: any[] = [];
+const MOCK_POSTS: DiscoveryPost[] = [];
 
 export default function DiscoveryPage() {
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [posts, setPosts] = useState(MOCK_POSTS);
+  const [posts, setPosts] = useState<DiscoveryPost[]>(MOCK_POSTS);
 
   const handleUploadSuccess = (type: "video" | "image", url: string, videoId?: string) => {
     // 这是一个临时的前端插入逻辑，未来应改为写入数据库并重新 fetch
@@ -139,8 +153,7 @@ export default function DiscoveryPage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-x-hidden pb-32">
-      <NebulaBackground rotation={0} />
+    <main className="min-h-screen bg-transparent text-white relative overflow-x-hidden pb-32">
       
       <div className="max-w-7xl mx-auto px-6 pt-12 relative z-10 space-y-10">
         {/* Header */}

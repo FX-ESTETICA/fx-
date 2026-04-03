@@ -10,19 +10,39 @@ export interface EliteSpatialMatrixProps {
   dna: IndustryDNA;
 }
 
+type TableStatus = "occupied" | "available" | "reserved";
+
+type TableInfo = {
+  id: string;
+  name: string;
+  type: string;
+  status: TableStatus;
+};
+
+type LegendItem = {
+  label: string;
+  color: string;
+  shadow: string;
+};
+
 /**
  * EliteSpatialMatrix (实时态势空间阵列)
  * X: 桌位, Y: 时间轴 + 全域桌位雷达
  */
 export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) => {
   const timeSlots = Array.from({ length: 14 }, (_, i: number) => `${(i + 10).toString().padStart(2, '0')}:00`);
-  const tables = [
+  const tables: TableInfo[] = [
     { id: 'T1', name: '靠窗 01', type: '2人桌', status: 'occupied' },
     { id: 'T2', name: '靠窗 02', type: '2人桌', status: 'available' },
     { id: 'T3', name: '中心 03', type: '4人桌', status: 'reserved' },
     { id: 'T4', name: '中心 04', type: '4人桌', status: 'available' },
     { id: 'T5', name: '卡座 05', type: '6人桌', status: 'occupied' },
     { id: 'T6', name: '包间 06', type: '10人桌', status: 'available' },
+  ];
+  const statusLegend: LegendItem[] = [
+    { label: '空闲', color: 'bg-gx-cyan', shadow: 'shadow-[0_0_12px_rgba(0,240,255,0.5)]' },
+    { label: '占用', color: 'bg-red-500', shadow: 'shadow-[0_0_12px_rgba(239,68,68,0.5)]' },
+    { label: '已预订', color: 'bg-orange-500', shadow: 'shadow-[0_0_12px_rgba(249,115,22,0.5)]' }
   ];
 
   return (
@@ -54,11 +74,7 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
           </div>
           <div className="h-8 w-px bg-white/5" />
           <div className="flex gap-6">
-            {[
-              { label: '空闲', color: 'bg-gx-cyan', shadow: 'shadow-[0_0_12px_rgba(0,240,255,0.5)]' },
-              { label: '占用', color: 'bg-red-500', shadow: 'shadow-[0_0_12px_rgba(239,68,68,0.5)]' },
-              { label: '已预订', color: 'bg-orange-500', shadow: 'shadow-[0_0_12px_rgba(249,115,22,0.5)]' }
-            ].map((s: any) => (
+            {statusLegend.map((s) => (
               <div key={s.label} className="flex items-center gap-2.5">
                 <div className={cn("w-2 h-2 rounded-full", s.color, s.shadow)} />
                 <span className="text-[10px] font-mono text-white font-bold uppercase tracking-widest">{s.label}</span>
@@ -96,7 +112,7 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
           <div className="min-w-fit flex flex-col">
             {/* 桌位表头 */}
             <div className="flex bg-black/40 sticky top-0 z-10 backdrop-blur-xl">
-              {tables.map((table: any) => (
+              {tables.map((table) => (
                 <div key={table.id} className="flex-1 min-w-[140px] max-w-[240px] h-16 flex flex-col items-center justify-center shrink-0 group cursor-pointer hover:bg-white/[0.02] transition-colors">
                   <span className="text-[11px] font-black text-white group-hover:text-gx-cyan transition-colors">{table.name}</span>
                   <span className="text-[8px] font-mono text-white font-bold uppercase tracking-widest">{table.type}</span>
@@ -108,7 +124,7 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
             <div className="relative">
               {timeSlots.map((_, timeIdx: number) => (
                 <div key={timeIdx} className="flex h-20">
-                  {tables.map((table: any) => (
+                  {tables.map((table) => (
                     <div key={table.id} className="flex-1 min-w-[140px] max-w-[240px] relative group hover:bg-white/[0.01] transition-colors shrink-0">
                       {/* 模拟状态占位 */}
                       {timeIdx === 2 && table.id === 'T1' && (

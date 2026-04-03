@@ -99,7 +99,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
               transition={{ delay: 0.3 + idx * 0.1 }}
             >
               <GlassCard 
-                glowColor={(insight.type === "opportunity" ? "cyan" : insight.type === "warning" ? "danger" : "purple") as any}
+                glowColor={insight.type === "opportunity" ? "cyan" : insight.type === "warning" ? "danger" : "purple"}
                 className={cn(
                   "p-5 border-l-4",
                   insight.type === "opportunity" ? "border-gx-cyan" : 

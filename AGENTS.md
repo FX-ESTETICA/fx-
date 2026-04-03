@@ -198,3 +198,20 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **内存伪分页 (Phantom Pagination)**：鉴于 Google `searchNearby` 单次请求物理极限为 20 条，后端一次性拉满 `maxResultCount: 20` 存入前端内存。前端初始化仅渲染 5 条（`slice(0, displayCount)`），用户点击“加载更多”时无网络开销瞬间释放后续数据，直至 20 条耗尽，拒绝使用昂贵的 `nextPageToken`。
 - **深链引流闭环**：用户点击卡片查看详情时，禁止在站内做复杂的详情渲染，必须直接利用 `window.open` 构造 URI (`https://www.google.com/maps/search/?api=1&query=商家名`)，将流量导向 Google Maps 原生应用实现降维打击，并达成 100% 合规。
 - **主动重定位雷达**：必须提供“准星/雷达”按钮，允许用户清空当前列表并强制重新触发 `navigator.geolocation` 校准坐标，解决 HTML5 定位漂移问题。
+
+## 12. 世界级多门店实体绑定与联邦制兼并法则 (阶段进度)
+
+### 12.1 核心架构：实体中心化 (Entity-Centric)
+- 废弃“人绑人”的层级树，采用“实体中心化”绑定。所有身份（老板、店长、员工）均绑定至具体的门店实体（Shop）。
+- 数据库底层强制使用 `shops` 和 `shop_bindings` 进行物理防爆隔离。
+
+### 12.2 联邦制兼并法则 (Federated Acquisition)
+- **独立商户**：自主申请建店，成为 `OWNER`。
+- **连锁集团/企业模式**：大老板注册“企业联邦”后，不亲自建店。系统为其生成专属的**联邦集结码 (Nexus Code)**（格式为纯粹的 `GX_MCH_XXXX`）。
+- **兼并流**：让子店长自己去走入驻流程、填信息，在表单底部输入该集结码。大老板即可在星云中“吞并”这些节点，实现管理成本极度下放。
+
+### 12.3 当前演进状态 (The Roadmap)
+- **[ 已完成 ] 第一阶段**：数据库底层 `shops` 与 `shop_bindings` 的架构推演与 SQL 重构。
+- **[ 已完成 ] 第二阶段**：前端入驻审批流与“联邦制兼并法则”的表单闭环（包含身份分形开关与 Boss 审批台）。
+- **[ 待续 ] 第三阶段**：星云中枢与日历的视觉挂载。需要在界面右下角打上带有 `Shop ID` 和 `集团归属` 的彩色流光物理锚点，以验证多租户隔离效果。
+- **[ 待续 ] 第四阶段**：店长与员工的裂变绑定 (The Viral Binding)。在已创建的门店中，店长录入员工的 `GX_ID` 将其收编入特定门店的日历矩阵。

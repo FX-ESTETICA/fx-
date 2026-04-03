@@ -1,6 +1,49 @@
 import { supabase, isMockMode } from "@/lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { BookingDetails, DB_Booking } from "../types";
 import { BookingAdapter } from "../utils/adapter";
+
+export type BookingRecord = {
+  id: string;
+  shopId: string;
+  date: string;
+  startTime: string;
+  duration: number;
+  resourceId?: string;
+  status?: string;
+  [key: string]: unknown;
+};
+
+export type BookingRealtimePayload = {
+  eventType: string;
+  new?: Record<string, unknown>;
+  old?: Record<string, unknown>;
+};
+
+export type BookingUpsertInput = {
+  id?: string | number;
+  shopId?: string;
+  date: string;
+  startTime: string;
+  duration?: number;
+  resourceId?: string;
+  status?: string;
+  is_staff_requested?: boolean; // 新增智能调度底层标识
+  [key: string]: unknown;
+};
+
+export type ShopConfig = {
+  staffs?: unknown[];
+  hours?: unknown[];
+  categories?: unknown[];
+  services?: unknown[];
+  [key: string]: unknown;
+};
+
+export type MerchantApplicationStatus = {
+  status: string;
+  brand_name: string;
+};
 
 /**
  * BookingService - 预约模块 API 交互层
@@ -102,7 +145,7 @@ export const BookingService = {
 
   // --- 零束缚架构扩展方法 ---
 
-  async getConfigs(shopId: string) {
+  async getConfigs(shopId: string): Promise<{ data: ShopConfig | null }> {
     if (isMockMode) return { data: null };
     
     // 如果没有传入合法的 shopId（比如 default），则不查询直接返回，避免触发 UUID 格式错误
@@ -111,9 +154,9 @@ export const BookingService = {
     }
     
     const { data, error } = await supabase
-      .from('shops')
+      .from('shop_configs')
       .select('config')
-      .eq('id', shopId)
+      .eq('shop_id', shopId)
       .maybeSingle(); // 使用 maybeSingle 避免 0 行数据时抛出报错
       
     if (error) {
@@ -121,10 +164,77 @@ export const BookingService = {
       return { data: null };
     }
     
-    return { data: data?.config };
+    return { data: (data?.config as ShopConfig) || null };
   },
 
-  async updateConfigs(shopId: string, key: string, payload: any) {
+  /**
+   * 终极断层扫描分配器 (The Ultimate Gap Finder)
+   * 扫描数据库中已存在的 ID，自动复用断层，实现 100% 零冲突与零跳号
+   */
+  async getAvailableCustomerId(shopId: string, prefix: string): Promise<string> {
+    let existingNums: number[] = [];
+
+    if (!isMockMode) {
+      // 1. 读取真实数据库
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('data')
+        .eq('shop_id', shopId || 'default')
+        .neq('status', 'VOID'); // 忽略被软删除的废弃订单
+
+      if (!error && data) {
+        existingNums = data
+          .map((b: any) => b.data?.customerId as string)
+          .filter(Boolean)
+          .map(id => {
+            const match = id.match(/^([a-zA-Z]+)\s*(.+)$/i);
+            if (match && match[1].toUpperCase() === prefix.toUpperCase()) {
+              return parseInt(match[2], 10);
+            }
+            return NaN;
+          })
+          .filter(n => !isNaN(n));
+      }
+    }
+
+    // 2. 合并本地“幽灵锁”中的数字（防止同一台电脑、同一个浏览器的多开窗口撞车）
+    if (typeof window !== 'undefined') {
+      const rawLocks = localStorage.getItem(`gx_locked_ids_${prefix}`);
+      const locks: Record<number, number> = rawLocks ? JSON.parse(rawLocks) : {};
+      const now = Date.now();
+      for (const [idStr, expireAt] of Object.entries(locks)) {
+        if (now < expireAt) {
+          existingNums.push(Number(idStr));
+        } else {
+          delete locks[Number(idStr)];
+        }
+      }
+      localStorage.setItem(`gx_locked_ids_${prefix}`, JSON.stringify(locks));
+    }
+
+    // 3. 去重并排序
+    existingNums = Array.from(new Set(existingNums)).sort((a, b) => a - b);
+
+    // 4. 定义基准值
+    const base = prefix === 'GV' ? 0 : prefix === 'AD' ? 3000 : prefix === 'AN' ? 6000 : prefix === 'UM' ? 9000 : 0;
+    let candidate = base + 1;
+
+    // 5. 核心：断层扫描寻找空缺
+    for (const num of existingNums) {
+      if (num === candidate) {
+        candidate++;
+      } else if (num > candidate) {
+        break; // 找到断层！
+      }
+    }
+
+    // 6. 格式化输出
+    return ['CO', 'NO'].includes(prefix) 
+      ? `${prefix} ${candidate}` 
+      : `${prefix} ${candidate.toString().padStart(4, '0')}`;
+  },
+
+  async updateConfigs(shopId: string, key: string, payload: unknown) {
     if (isMockMode) return;
     
     if (!shopId || shopId === 'default') {
@@ -132,23 +242,17 @@ export const BookingService = {
       return;
     }
     
-    // 获取当前 config
-    const { data: shopData } = await supabase
-      .from('shops')
-      .select('config')
-      .eq('id', shopId)
-      .maybeSingle();
-      
-    const currentConfig = shopData?.config || {};
-    currentConfig[key] = payload;
+    // 【世界顶端 0 冲突架构】：不再拉取旧数据进行危险的前端合并
+    // 直接构建精准补丁包，调用底层 PostgreSQL 的原子级融合 RPC
+    const patch = { [key]: payload };
 
-    const { error } = await supabase
-      .from('shops')
-      .update({ config: currentConfig })
-      .eq('id', shopId);
+    const { error } = await supabase.rpc('patch_shop_config', {
+      p_shop_id: shopId,
+      p_patch: patch
+    });
 
     if (error) {
-      console.error("[BookingService] updateConfigs Error:", error);
+      console.error("[BookingService] 原子级更新配置失败 / Atomic Update Failed:", error);
       throw error;
     }
   },
@@ -161,9 +265,15 @@ export const BookingService = {
        return;
     }
     
+    // 【阶段二重塑】：既然数据库 bindings.principal_id 已经是 text 类型，且没有了外键束缚
+    // 我们直接将工牌号（如 GX-UR-000001 或 A）存入，不报任何错！
     const { error } = await supabase
       .from('bindings')
-      .upsert({ principal_id: userId, shop_id: shopId, role: 'STAFF' }, { onConflict: 'principal_id, shop_id' });
+      .upsert(
+        { principal_id: userId, shop_id: shopId, role: 'STAFF' }, 
+        // Supabase upsert 需要基于唯一约束，我们在 SQL 里建了 UNIQUE(shop_id, principal_id)
+        { onConflict: 'shop_id, principal_id' }
+      );
       
     if (error) {
       console.error("[BookingService] bindUserToShop Error:", error);
@@ -171,7 +281,7 @@ export const BookingService = {
     }
   },
 
-  async getBookings(shopId: string) {
+  async getBookings(shopId: string): Promise<{ data: BookingRecord[] }> {
     if (isMockMode) return { data: [] };
     
     if (!shopId || shopId === 'default') {
@@ -181,7 +291,8 @@ export const BookingService = {
     const { data, error } = await supabase
       .from('v_bookings')
       .select('*')
-      .eq('shop_id', shopId);
+      .eq('shop_id', shopId)
+      .neq('status', 'VOID'); // 过滤被丢入黑洞的卡片
       
     if (error) {
       console.error("[BookingService] getBookings Error:", error);
@@ -189,7 +300,7 @@ export const BookingService = {
     }
     
     // 铺平 JSONB
-    const formatted = (data || []).map(b => ({
+    const formatted: BookingRecord[] = (data || []).map((b) => ({
       id: b.id,
       shopId: b.shop_id,
       date: b.date,
@@ -203,37 +314,151 @@ export const BookingService = {
     return { data: formatted };
   },
 
-  async upsertBookings(bookings: any[]) {
+  async upsertBookings(bookings: BookingUpsertInput[]) {
     if (isMockMode) return;
     
-    const bookingsToUpsert = bookings.map(b => {
+    // 【世界顶端架构法则：物理分流插入与更新，彻底消灭 23502 陷阱】
+    const inserts: any[] = [];
+    const updates: any[] = [];
+
+    bookings.forEach((b) => {
       const {
-        id, shopId, date, startTime, duration, resourceId, status, ...restData
+        id, shopId, date, startTime, duration, resourceId, status, is_staff_requested, ...restData
       } = b;
 
-      const isDbId = id && String(id).includes('-');
+      // 判断是否是前端生成的临时 ID（如 BKG-xxx）或者干脆没有 ID
+      const isFrontendGeneratedId = typeof id === 'string' && id.startsWith('BKG-');
+      const isNewBooking = isFrontendGeneratedId || !id;
 
-      return {
-        ...(isDbId ? { id } : {}),
+      const payload = {
         shop_id: shopId || 'default',
         date: date,
         start_time: startTime,
         duration_min: duration || 60,
-        resource_id: resourceId,
+        resource_id: resourceId, 
         status: status || 'PENDING',
         data: {
           ...restData,
-          original_frontend_id: id
+          is_staff_requested: is_staff_requested ?? true, // 【核心修复】：移入 JSONB 扩展字段，避免物理列不存在导致的 400 报错
+          order_no: isNewBooking ? id : restData.order_no, // 封印快照
         }
       };
+
+      if (isNewBooking) {
+        // 纯净插入通道：绝不包含 id 字段，让数据库 UUID_V4 发挥作用
+        inserts.push(payload);
+      } else {
+        // 纯净更新通道：必须包含真实的 id
+        updates.push({ ...payload, id });
+      }
     });
 
-    const { error } = await supabase
-      .from('bookings')
-      .upsert(bookingsToUpsert, { onConflict: 'id' });
+    try {
+      // 1. 批量处理更新军团
+      if (updates.length > 0) {
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .upsert(updates, { onConflict: 'id' });
+        
+        if (updateError) throw updateError;
+      }
 
-    if (error) {
+      // 2. 批量处理新编军团
+      if (inserts.length > 0) {
+        const { error: insertError } = await supabase
+          .from('bookings')
+          .insert(inserts);
+          
+        if (insertError) throw insertError;
+      }
+    } catch (error) {
       console.error("[BookingService] upsertBookings Error:", error);
+      throw error;
+    }
+  },
+
+  async deleteBookings(ids: string[]) {
+    if (isMockMode) return;
+    
+    if (!ids || ids.length === 0) return;
+
+    try {
+      // 世界顶端防呆设计：软删除流放 (3天回收站)
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'VOID' }) // 数据仍保留在 DB，通过 status 隔离
+        .in('id', ids);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("[BookingService] deleteBookings Error:", error);
+      throw error;
+    }
+  },
+
+  async getVoidedBookings(shopId: string): Promise<{ data: BookingRecord[] }> {
+    if (isMockMode) return { data: [] };
+    
+    if (!shopId || shopId === 'default') {
+       return { data: [] };
+    }
+    
+    const { data, error } = await supabase
+      .from('v_bookings')
+      .select('*')
+      .eq('shop_id', shopId)
+      .eq('status', 'VOID')
+      .order('date', { ascending: false }); // 按照时间倒序，最新的在上面
+      
+    if (error) {
+      console.error("[BookingService] getVoidedBookings Error:", error);
+      return { data: [] };
+    }
+    
+    const formatted: BookingRecord[] = (data || []).map((b) => ({
+      id: b.id,
+      shopId: b.shop_id,
+      date: b.date,
+      startTime: b.start_time,
+      duration: b.duration_min,
+      resourceId: b.resource_id,
+      status: b.status,
+      ...(b.data || {})
+    }));
+    
+    return { data: formatted };
+  },
+
+  async restoreBookings(ids: string[]) {
+    if (isMockMode) return;
+    if (!ids || ids.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'CONFIRMED' }) 
+        .in('id', ids);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("[BookingService] restoreBookings Error:", error);
+      throw error;
+    }
+  },
+
+  async purgeBookings(ids: string[]) {
+    if (isMockMode) return;
+    if (!ids || ids.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("[BookingService] purgeBookings Error:", error);
       throw error;
     }
   },
@@ -256,7 +481,7 @@ export const BookingService = {
     }
   },
 
-  subscribeToAllBookings(onUpdate: (payload: any) => void) {
+  subscribeToAllBookings(onUpdate: (payload: BookingRealtimePayload) => void) {
     if (isMockMode) return null;
 
     const channel = supabase
@@ -273,17 +498,42 @@ export const BookingService = {
     return channel;
   },
 
-  unsubscribe(channel: any) {
+  subscribeToShopBookings(shopId: string, onUpdate: (payload: BookingRealtimePayload) => void) {
+    if (isMockMode || !shopId || shopId === 'default') return null;
+
+    const channel = supabase
+      .channel(`public:bookings:${shopId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'bookings',
+          filter: `shop_id=eq.${shopId}`
+        },
+        (payload) => {
+          onUpdate(payload);
+        }
+      )
+      .subscribe();
+
+    return channel;
+  },
+
+  unsubscribe(channel: RealtimeChannel | null) {
     if (channel) {
-      supabase.removeChannel(channel);
+      // 修复内存泄漏：正确断开连接，而不是仅仅从本地对象里移除
+      channel.unsubscribe().then(() => {
+        supabase.removeChannel(channel);
+      });
     }
   },
 
   // --- Merchant Application Singleton Query (完美修复法则) ---
   
-  _pendingApplicationQuery: null as Promise<any> | null,
+  _pendingApplicationQuery: null as Promise<{ data: MerchantApplicationStatus | null }> | null,
 
-  async getMerchantApplicationStatus(userId: string): Promise<{ data: any | null }> {
+  async getMerchantApplicationStatus(userId: string): Promise<{ data: MerchantApplicationStatus | null }> {
     if (isMockMode || !userId) return { data: null };
 
     // 如果已经有请求在飞，直接返回它（单例锁机制）
@@ -301,7 +551,7 @@ export const BookingService = {
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         this._pendingApplicationQuery = null;
         

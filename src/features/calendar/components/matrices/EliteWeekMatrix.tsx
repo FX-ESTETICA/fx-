@@ -24,6 +24,11 @@ export interface EliteWeekMatrixProps {
 
 const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
+type WeekBooking = {
+  startTime?: string;
+  duration?: number;
+};
+
 export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, onGridClick, onDateClick, currentDate }: EliteWeekMatrixProps) => {
   const [isMounted, setIsMounted] = React.useState(false);
   React.useEffect(() => setIsMounted(true), []);
@@ -33,7 +38,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
   const shopId = searchParams.get('shopId');
 
   // 新增：从云端读取沙盒预约数据 (为了支持被动撑开逻辑)
-  const [sandboxBookings, setSandboxBookings] = React.useState<any[]>([]);
+  const [sandboxBookings, setSandboxBookings] = React.useState<WeekBooking[]>([]);
 
   React.useEffect(() => {
     const loadBookings = async () => {
@@ -211,14 +216,18 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                       className="w-full h-full group hover:bg-white/[0.02] transition-colors relative p-1 flex flex-col gap-1 cursor-pointer"
                       onClick={() => onGridClick && onGridClick(undefined, `${String(slot.hour).padStart(2, '0')}:00`)}
                     >
-                      {/* 渲染当前格子内所有被选中员工的预约 (模拟数据) */}
+                      {/* 渲染当前格子内所有被选中员工的真实预约 */}
                       {filteredResources.map((res) => {
-                        // 伪代码：在沙盒中为了演示聚合效果，随机生成一些色块
-                        // 利用人员id和时间槽产生确定性的伪随机
-                        const pseudoRandom = (res.id.charCodeAt(0) + slot.hour + dayIdx) % 5;
-                        const hasBooking = pseudoRandom === 0; 
+                        const dateStr = _date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
                         
-                        if (hasBooking) {
+                        // 查找该员工在该天该时间槽是否有真实的订单
+                        const hasRealBooking = sandboxBookings.some(b => {
+                           if (b.resourceId !== res.id || b.date !== dateStr) return false;
+                           const startHour = b.startTime ? parseInt(b.startTime.split(':')[0], 10) : -1;
+                           return startHour === slot.hour;
+                        });
+                        
+                        if (hasRealBooking) {
                           return (
                             <div 
                               key={res.id} 

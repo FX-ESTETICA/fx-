@@ -3,7 +3,14 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const configs: Record<string, any> = {
+  type SandboxConfig = {
+    hours: { id: string; start: number; end: number }[];
+    staffs: { id: string; name: string; role: string; color: string; status: string; commissionRate: number }[];
+    categories: { id: string; name: string }[];
+    services: { id: string; name: string; duration: number; prices: number[]; assignedEmployeeId: string }[];
+  };
+
+  const configs: Record<string, SandboxConfig> = {
     default: {
       hours: [
         { id: "1", start: 9, end: 12 },

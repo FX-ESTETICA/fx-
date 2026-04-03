@@ -11,18 +11,27 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { LayoutDashboard, Mail, Key, Eye, EyeOff, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useAuth, SandboxUser } from "@/features/auth/hooks/useAuth";
+import { useShop } from "@/features/shop/ShopContext";
 import { BookingService } from "@/features/booking/api/booking";
 import { useRouter } from "next/navigation";
 import { useBackground } from "@/hooks/useBackground";
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
+import { PhoneAuthBar } from "@/features/profile/components/PhoneAuthBar";
+import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 
 export default function DashboardPage() {
-  const { user, activeRole, setActiveRole, signOut } = useAuth();
+  const { user, isLoading, activeRole, setActiveRole, signOut } = useAuth();
+  const { activeShopId } = useShop();
   const { cycleBackground } = useBackground();
   const [boundShopId] = useState<string | null>(null);
   const [shopIndustry, setShopIndustry] = useState<string | null>(null);
   const [showAdminPwd, setShowAdminPwd] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/login");
+    }
+  }, [user, isLoading, router]);
 
   // 挂载时检查云端绑定关系和门店行业配置
   useEffect(() => {
@@ -33,20 +42,13 @@ export default function DashboardPage() {
         if (!sUser) return;
 
         // 获取该用户的归属门店
-        let userAssignedShopId = null;
-        if (sUser.role === 'user') {
-          // 由于原先基于全量 bindings 读取，现在改为调用服务查询 (需要后端支持按用户查绑定的 shop，暂时我们从 user 对象或本地缓存的归属中推断，或假设已经绑定好)
-          // 作为沙盒降级，如果普通员工没有带 shopId，暂时忽略
-          userAssignedShopId = null; // 真实环境需要查询 bindings 表
-        } else if (sUser.role === 'merchant') {
-          userAssignedShopId = sUser.shopId;
-        }
+        const userAssignedShopId = activeShopId;
 
         // 如果有关联门店，拉取该门店的行业配置
         if (userAssignedShopId) {
           const { data: config } = await BookingService.getConfigs(userAssignedShopId);
           if (config && config.industry) {
-            setShopIndustry(config.industry);
+            setShopIndustry(config.industry as string);
           }
         }
       } catch (e) {
@@ -56,7 +58,7 @@ export default function DashboardPage() {
     if (user) {
       checkCloudData();
     }
-  }, [user, activeRole]);
+  }, [user, activeRole, activeShopId]);
 
   // 构建当前用户信息
   const sUser = user as SandboxUser;
@@ -92,18 +94,20 @@ export default function DashboardPage() {
 
   // 决定可用角色切换
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-6 md:px-12 md:pt-8 md:pb-12 relative overflow-hidden">
-      <NebulaBackground rotation={0} />
+    <main className="min-h-screen bg-transparent text-white px-6 py-6 md:px-12 md:pt-8 md:pb-12 relative overflow-hidden">
       
       {/* 背景光效 */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="max-w-6xl mx-auto relative z-10">
-        {/* 动态角色切换器 */}
-        {availableRoles.length > 0 && (
-          <nav className="flex items-center justify-end mb-6">
-            <div className="flex items-center gap-3">
+        {/* 动态角色切换器 & 联邦星云切换舱 */}
+        <nav className="flex items-center justify-end mb-6">
+          <div className="flex items-center gap-3">
+            {/* 注入 Nexus Switcher */}
+            <NexusSwitcher />
+            
+            {availableRoles.length > 0 && (
               <div className="hidden md:flex bg-white/5 p-1 rounded-lg border border-white/5">
                 {availableRoles.map((r) => (
                   <button
@@ -117,9 +121,9 @@ export default function DashboardPage() {
                   </button>
                 ))}
               </div>
-            </div>
-          </nav>
-        )}
+            )}
+          </div>
+        </nav>
 
         {/* Profile Header */}
         <ProfileHeader profile={currentProfile} />
@@ -152,6 +156,8 @@ export default function DashboardPage() {
                     </div>
                   </GlassCard>
                 </Link>
+
+                <PhoneAuthBar className="w-full" />
 
                 <GlassCard className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">

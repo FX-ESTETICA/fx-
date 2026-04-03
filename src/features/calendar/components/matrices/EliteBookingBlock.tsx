@@ -13,19 +13,27 @@ export interface EliteBookingBlockProps {
   height: string | number; // 允许传入数字或字符串
   isTiny?: boolean; // 新增：由父组件基于 duration 计算传入的绝对静态标识
   onClick?: (e: React.MouseEvent) => void;
+  onDragStart?: () => void;
+  onDrag?: (e: any, info: any) => void;
+  onDragEnd?: (e: any, info: any) => void;
 }
 
 /**
  * EliteBookingBlock (液态玻璃预约块) - 极简降维重构版
  * 采用物理引擎反馈，极光呼吸灯，降维打击级质感
  */
-export const EliteBookingBlock = ({ title, client, color, accent, height, isTiny = false, onClick }: EliteBookingBlockProps) => {
+export const EliteBookingBlock = ({ title, client, color, accent, height, isTiny = false, onClick, onDragStart, onDrag, onDragEnd }: EliteBookingBlockProps) => {
   // Check if the color is a hex code
   const isHexColor = color?.startsWith('#');
 
   return (
     <motion.div
       onClick={onClick}
+      drag
+      dragSnapToOrigin // 松手自动弹回原位
+      onDragStart={onDragStart}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
       initial={{ opacity: 0, scale: 0.95, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       whileHover={{ 

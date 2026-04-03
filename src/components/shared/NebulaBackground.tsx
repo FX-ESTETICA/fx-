@@ -5,8 +5,9 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
-import { useBackground } from "@/hooks/useBackground";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { useBackground } from "@/hooks/useBackground";
+import Image from "next/image";
 
 // --- 降维组件：Mobile-Safe 2D Background ---
 function MobileNebulaFallback({ rotation }: { rotation: number }) {
@@ -39,18 +40,32 @@ function MobileNebulaFallback({ rotation }: { rotation: number }) {
 }
 
 // --- 极致 3D 组件 (原逻辑) ---
-function NebulaParticles({ rotation }: { rotation: number }) {
+const createSeededRandom = (seed: number) => {
+  let t = seed;
+  return () => {
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+export function NebulaParticles({ rotation }: { rotation: number }) {
   const ref = useRef<THREE.Points>(null);
   
   const particles = useMemo(() => {
-    const count = 4000;
+    // 1. 数量增加到 2000
+    const count = 2000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const random = createSeededRandom(1337);
+    const spread = (range: number) => (random() - 0.5) * range;
     
     for (let i = 0; i < count; i++) {
-      const theta = THREE.MathUtils.randFloatSpread(360);
-      const phi = THREE.MathUtils.randFloatSpread(360);
-      const distance = 8 + Math.random() * 20;
+      const theta = spread(360);
+      const phi = spread(360);
+      // 2. 距离再拉近一点：从 (12 + 25) 改为 (10 + 20)
+      const distance = 10 + random() * 20;
       
       positions[i * 3] = distance * Math.sin(theta) * Math.cos(phi);
       positions[i * 3 + 1] = distance * Math.sin(theta) * Math.sin(phi);
@@ -60,7 +75,7 @@ function NebulaParticles({ rotation }: { rotation: number }) {
       mixedColor.lerpColors(
         new THREE.Color("#00f2ff"), 
         new THREE.Color("#bc13fe"), 
-        Math.random()
+        random()
       );
       colors[i * 3] = mixedColor.r;
       colors[i * 3 + 1] = mixedColor.g;
@@ -72,12 +87,11 @@ function NebulaParticles({ rotation }: { rotation: number }) {
   useFrame((state) => {
     if (!ref.current) return; 
     
-    // 完美方案：避免调用废弃的 state.clock.getElapsedTime()，直接使用 state.clock.elapsedTime
-    // 或者如果需要更高兼容性，可以直接利用 delta 手动累加，但 R3F 的 state 已经暴露了 clock.elapsedTime 属性
     const time = state.clock.elapsedTime;
     
-    ref.current.rotation.y = time * 0.03 + rotation * 0.005;
-    ref.current.rotation.z = time * 0.02;
+    // 稍微放慢旋转速度，让星空更宁静
+    ref.current.rotation.y = time * 0.015 + rotation * 0.005;
+    ref.current.rotation.z = time * 0.01;
   });
 
   return (
@@ -85,7 +99,8 @@ function NebulaParticles({ rotation }: { rotation: number }) {
       <PointMaterial
         transparent
         vertexColors
-        size={0.08}
+        // 3. 尺寸微调：从隐形的 0.03 改为可见的 0.05
+        size={0.05}
         sizeAttenuation={true}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
@@ -133,42 +148,36 @@ function NebulaParticles({ rotation }: { rotation: number }) {
 } */
 
 // --- 主入口：3D 星云控制器 ---
-export function NebulaBackground({ rotation }: { rotation: number }) {
-  const [isLoaded, setIsLoaded] = useState(false);
+export function NebulaBackground({ rotation }: { rotation?: number }) {
   const [hasError, setHasError] = useState(false);
-  const { currentBg } = useBackground();
+  const [imageError, setImageError] = useState(false); // 渲染层动态自愈探针
   const { settings } = useVisualSettings();
-
+  const { currentBg } = useBackground();
+  
+  // 切换背景时重置错误状态
   useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+    setImageError(false);
+  }, [currentBg]);
 
-  if (!isLoaded) return <div className="fixed inset-0 bg-black z-0" />;
-
-  const isImageBg = currentBg !== 'starry';
+  const rot = rotation || 0;
 
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none bg-black">
-      {/* 动态背景图片层 (Layer 0) */}
-      <AnimatePresence>
-        {isImageBg && settings.showWallpaper && (
-          <motion.div
-            key={currentBg}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0 z-0"
-            style={{
-              backgroundImage: `url('${currentBg}')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
-            }}
+    <div className="fixed inset-0 z-0 bg-black pointer-events-none">
+      {/* 静态壁纸层 (自愈架构) */}
+      {settings.showWallpaper && currentBg !== 'starry' && !imageError && (
+        <div className="absolute inset-0 z-0 opacity-40 transition-opacity duration-1000">
+          <Image
+            src={currentBg}
+            alt="Global Background"
+            fill
+            className="object-cover"
+            priority
+            onError={() => setImageError(true)} // 捕获 404 瞬间静默销毁
           />
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
+      {/* 3D 星云层 */}
       {settings.showNebula && (
         <AnimatePresence mode="wait">
         {hasError ? (
@@ -178,7 +187,7 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
             animate={{ opacity: 1 }}
             className="absolute inset-0 z-10"
           >
-            <MobileNebulaFallback rotation={rotation} />
+            <MobileNebulaFallback rotation={rot} />
           </motion.div>
         ) : (
           <motion.div
@@ -198,40 +207,22 @@ export function NebulaBackground({ rotation }: { rotation: number }) {
               onCreated={({ gl }) => {
                 // 仅在 Canvas 渲染失败（极其罕见）时，静默回退
                 if (!gl) setHasError(true);
-                // 拦截 R3F 内部 Clock 的警告机制
-                // R3F 内部依然会实例化 THREE.Clock，这会触发 warning
-                // 但由于我们无法修改 node_modules，我们可以忽略这个特定的 console.warn
               }}
               onError={() => setHasError(true)}
+              style={{ pointerEvents: 'none' }}
             >
-              {/* 如果是图片背景，则移除黑色背景填充，让 Canvas 变透明 */}
-              {!isImageBg && <color attach="background" args={["#000000"]} />}
               
               <ambientLight intensity={0.8} />
               <pointLight position={[15, 15, 15]} intensity={2} color="#00f2ff" />
               <pointLight position={[-15, -15, -15]} intensity={1.5} color="#bc13fe" />
               
-              <NebulaParticles rotation={rotation} />
-              {/* <OrbitalSpheroids rotation={rotation} /> 移除不好看的双球 */}
+              <NebulaParticles rotation={rot} />
               
-              {/* 仅在纯星空模式下添加黑色雾效，避免图片背景被雾效遮挡 */}
-              {!isImageBg && <fog attach="fog" args={["#000000", 25, 45]} />}
+              <fog attach="fog" args={["#000000", 25, 45]} />
             </Canvas>
           </motion.div>
         )}
       </AnimatePresence>
-      )}
-
-      {/* 顶层全局毛玻璃背板 (Global Glass Shield) */}
-      {settings.enableGlassShield && (
-        <div 
-          className="absolute inset-0 z-20 transition-all duration-300 pointer-events-none"
-          style={{
-            backgroundColor: `rgba(0, 0, 0, ${settings.shieldOpacity / 100})`,
-            backdropFilter: `blur(${settings.shieldBlur}px)`,
-            WebkitBackdropFilter: `blur(${settings.shieldBlur}px)`
-          }}
-        />
       )}
     </div>
   );

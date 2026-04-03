@@ -10,7 +10,7 @@ import { cn } from "@/utils/cn";
 export const CapacityFlow = () => {
   const timeSlots = Array.from({ length: 16 }, (_, i: number) => `${(i + 7).toString().padStart(2, '0')}:00`);
   
-  const entries = [
+  const entries: Array<{ id: string; name: string; type: "入场" | "离场"; time: string; avatar: string; status: "active" | "completed" }> = [
     { id: '1', name: '王健', type: '入场', time: '08:15', avatar: '🏃‍♂️', status: 'active' },
     { id: '2', name: '李力', type: '入场', time: '08:45', avatar: '💪', status: 'active' },
     { id: '3', name: '赵强', type: '离场', time: '09:30', avatar: '🧘‍♂️', status: 'completed' },
@@ -71,7 +71,7 @@ export const CapacityFlow = () => {
 
         {/* 出入场记录 */}
         <div className="flex-1 overflow-y-auto p-8 space-y-4 no-scrollbar">
-          {entries.map((entry: any) => (
+          {entries.map((entry) => (
             <motion.div 
               key={entry.id}
               initial={{ opacity: 0, x: 20 }}

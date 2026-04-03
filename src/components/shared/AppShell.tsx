@@ -1,13 +1,13 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { cn } from "@/utils/cn";
 import { Home, Compass, User } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuth();
 
   const isLoginPage = pathname === "/login" || pathname === "/";
@@ -21,7 +21,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const showBottomTabs = ["/home", "/discovery", "/me", "/dashboard"].includes(pathname || "");
 
   return (
-    <div className="relative min-h-screen bg-black flex flex-col">
+    <div className="relative min-h-screen bg-transparent flex flex-col">
       <div className="flex-1">
         {children}
       </div>
@@ -40,11 +40,13 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
             {/* 彻底去除背景与边框，实现幽灵态全息悬浮 */}
             <div className="flex items-center justify-around p-2 bg-transparent">
               {tabRoutes.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href;
+                // 智能激活态：如果当前是我的页或仪表盘，且标签为"我的"，则保持高亮
+                const active = pathname === href || (label === "我的" && (pathname === "/me" || pathname === "/dashboard"));
                 return (
-                  <button
-                    key={href}
-                    onClick={() => router.push(href)}
+                  <Link
+                    key={label} // 使用稳定的 label 作为 key，防止 href 变化导致组件卸载重绘
+                    href={href}
+                    prefetch={true} // 启用 Next.js 原生预加载，实现真正的秒开
                     className={cn(
                       "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all",
                       active ? "text-gx-cyan" : "text-white/40 hover:text-white/70"
@@ -52,7 +54,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
                   >
                     <Icon className={cn("w-5 h-5", active ? "drop-shadow-[0_0_12px_rgba(0,240,255,0.5)]" : "drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]")} />
                     <span className="text-[10px] font-mono uppercase tracking-widest drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">{label}</span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>

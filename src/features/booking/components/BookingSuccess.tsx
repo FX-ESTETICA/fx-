@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useId } from "react";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { CheckCircle, Calendar, Clock, ArrowRight, Download, Share2 } from "lucide-react";
@@ -13,6 +14,10 @@ interface BookingSuccessProps {
 }
 
 export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
+  const fallbackIdSeed = useId();
+  const fallbackId = `GX-${fallbackIdSeed.replace(/[^a-z0-9]/gi, "").slice(0, 9).toUpperCase()}`;
+  const bookingId = details.id ? `GX-${details.id.split("-")[0].toUpperCase()}` : fallbackId;
+
   return (
     <div className="max-w-2xl mx-auto space-y-12 py-12 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
       <div className="space-y-6">
@@ -37,7 +42,7 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
             <div className="space-y-1 text-left">
               <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em]">BOOKING_ID</p>
               <p className="text-xl font-mono text-white/80 uppercase">
-                {details.id ? `GX-${details.id.split("-")[0].toUpperCase()}` : `GX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`}
+                {bookingId}
               </p>
             </div>
             <div className="flex gap-4">

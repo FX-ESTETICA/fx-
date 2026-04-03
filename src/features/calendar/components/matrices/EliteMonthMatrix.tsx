@@ -10,13 +10,14 @@ export interface EliteMonthMatrixProps {
   resources: MatrixResource[];
   selectedStaffIds: string[];
   currentDate: Date;
+  sandboxBookings?: any[]; // 新增 sandboxBookings 属性，允许传入真实数据
   onGridClick?: () => void;
   onDateClick?: (date: Date) => void;
 }
 
 const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
-export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, onGridClick, onDateClick }: EliteMonthMatrixProps) => {
+export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, sandboxBookings = [], onGridClick, onDateClick }: EliteMonthMatrixProps) => {
   // 生成当前月的日历网格数据
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -118,12 +119,14 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, onG
               
               {/* 聚合员工点阵指示器 */}
               <div className="flex-1 flex flex-wrap content-start gap-1.5 pt-2">
-                {/* 沙盒模式：使用确定性伪随机展示聚合视觉 */}
+                {/* 基于真实订单数据渲染聚合视觉 */}
                 {filteredResources.map((res) => {
-                  const pseudoRandom = (res.id.charCodeAt(0) + cell.day) % 3;
-                  const hasBooking = pseudoRandom === 0;
+                  const dateStr = cell.date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+                  
+                  // 查找该员工在该天是否有真实的订单
+                  const hasRealBooking = sandboxBookings.some(b => b.resourceId === res.id && b.date === dateStr);
 
-                  if (!hasBooking) return null;
+                  if (!hasRealBooking) return null;
 
                   return (
                     <div 

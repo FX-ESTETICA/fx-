@@ -1,6 +1,5 @@
 "use client";
 
-import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -15,14 +14,21 @@ export default function MePage() {
 
   useEffect(() => {
     if (isLoading) return;
-    if (user) router.replace("/dashboard");
+    if (user) {
+      // 宏任务推迟法则：避开 Next.js 的 Transition 挂起死锁
+      const timer = setTimeout(() => {
+        router.replace("/dashboard");
+      }, 50);
+      return () => clearTimeout(timer);
+    }
   }, [isLoading, user, router]);
+
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-hidden flex items-center justify-center">
-      <NebulaBackground rotation={0} />
+    <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex items-center justify-center">
       
       {isLoading ? (
-        <div className="relative z-10 text-white/40 text-sm font-mono tracking-widest">Loading…</div>
+        // 视觉降噪：真空期不渲染任何文字，避免被快照冻结，保持绝对清透
+        <div className="relative z-10 w-full h-full" />
       ) : (
         <div className="relative z-10 w-full max-w-sm px-6">
           <GlassCard className="p-8 flex flex-col items-center justify-center gap-6 text-center border-white/5 bg-black/20 backdrop-blur-2xl">

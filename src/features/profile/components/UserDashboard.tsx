@@ -3,16 +3,15 @@
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
-import { Calendar, MessageSquare, History, Smartphone, RefreshCw, ArrowRight, X, Sparkles, Image as ImageIcon, MapPin } from "lucide-react";
+import { Calendar, MessageSquare, History, RefreshCw, ArrowRight, X, Sparkles, Image as ImageIcon, MapPin, Zap } from "lucide-react";
 import Link from "next/link";
 import { UserProfile } from "../types";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { motion } from "framer-motion";
 import { BookingService } from "@/features/booking/api/booking";
-import { auth } from "@/lib/firebase";
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import { PhoneAuthBar } from "./PhoneAuthBar";
 
 interface UserDashboardProps {
   profile: UserProfile;
@@ -25,63 +24,24 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
   // 如果绑定的商户 industry 为 'none'，则认为该用户没有日历权限
   const hasPrivilege = profile.privileges?.includes("calendar_access") && industry !== 'none';
   const calendarUrl = boundShopId ? `/calendar/${industry || 'beauty'}?shopId=${boundShopId}` : "/calendar/beauty";
+  const profileGxId = (profile as UserProfile & { gx_id?: string; gxId?: string }).gx_id 
+    ?? (profile as UserProfile & { gx_id?: string; gxId?: string }).gxId 
+    ?? (user as any)?.gxId // 尝试从 user 对象中直接提取
+    ?? "GX-PENDING"; // 降级处理
 
-  // ------------------------------------------------------------------
-  // 状态机 (The Core State Machine) - Firebase Phone Auth 模式
-  // ------------------------------------------------------------------
-  const [phoneInput, setPhoneInput] = useState(profile.phone || "");
-  const [countryCode, setCountryCode] = useState("+39"); // 默认国家号修改为意大利
-  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
-  const [phoneMessage, setPhoneMessage] = useState("");
-  
-  // 国家代码列表
-  const countryCodes = [
-    { code: "+39", label: "IT" }, // 将意大利置于首位
-    { code: "+60", label: "MY" },
-    { code: "+86", label: "CN" },
-    { code: "+1",  label: "US/CA" },
-    { code: "+44", label: "UK" },
-    { code: "+65", label: "SG" },
-  ];
-  
-  // Firebase 专属状态与风控状态机
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isCodeSent, setIsCodeSent] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [showRecaptcha, setShowRecaptcha] = useState(false); // 控制显式 reCAPTCHA 降级UI
-
-  // 倒计时逻辑
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    }
-  }, [countdown]);
-
-  // 【全真防刷风控引擎】
-  // 废弃游离黑洞方案，采用稳定的 DOM 节点与单例模式，避免触发 Firebase Bot 风控
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-        recaptchaVerifierRef.current = null;
-      }
-    };
-  }, []);
-  
   // ------------------------------------------------------------------
   // 状态机 (The Core State Machine)
   // ------------------------------------------------------------------
   const [showMerchantPortal, setShowMerchantPortal] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<"idle" | "submitting" | "success" | "approved" | "rejected">("idle");
+  const [ascensionMode, setAscensionMode] = useState<"indie" | "enterprise">("indie"); // 新增：身份分形开关
   const [formData, setFormData] = useState({
     brandName: "",
-    contact: "",
+    countryCode: "+39", // 新增：国际区号，默认意大利
+    contact: "",        // 纯手机号
     mapsLink: "",
-    genesisCode: ""
+    industry: "beauty", // 新增：必须选择行业引擎
+    nexusCode: ""       // 升级：联邦制集结码 (原 genesisCode)
   });
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState("");
@@ -116,7 +76,9 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
     const errors = [];
     if (!formData.brandName.trim()) errors.push("brandName");
     if (!formData.contact.trim()) errors.push("contact");
-    if (!formData.mapsLink.trim()) errors.push("mapsLink");
+    
+    // 独立门店模式下必须填物理坐标
+    if (ascensionMode === "indie" && !formData.mapsLink.trim()) errors.push("mapsLink");
     
     if (errors.length > 0) {
       setFormErrors(errors);
@@ -134,14 +96,16 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
     setApplicationStatus("submitting");
 
     try {
+      const fullPhone = `${formData.countryCode} ${formData.contact}`;
       const { error } = await supabase
         .from('merchant_applications')
         .insert({
           user_id: user?.id,
           brand_name: formData.brandName,
-          contact_phone: formData.contact,
-          maps_link: formData.mapsLink,
-          genesis_code: formData.genesisCode || null,
+          contact_phone: fullPhone, // 合并区号与手机号存入数据库
+          maps_link: ascensionMode === "indie" ? formData.mapsLink : null,
+          industry: ascensionMode === "indie" ? formData.industry : 'enterprise', // 企业模式专属标识
+          genesis_code: formData.nexusCode || null, // 后端暂时复用 genesis_code 字段存储集结码
           status: 'pending'
         });
 
@@ -155,101 +119,11 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
         setShowMerchantPortal(false);
       }, 1500);
 
-    } catch (e: any) {
+    } catch (e) {
       console.error("Submission failed:", e);
-      setSubmitError(e.message || "高维链路连接失败，请重试。");
+      const message = e instanceof Error ? e.message : "高维链路连接失败，请重试。";
+      setSubmitError(message);
       setApplicationStatus("idle");
-    }
-  };
-
-  const handleSendCode = async () => {
-    if (!phoneInput.trim() || !user) return;
-    
-    setIsUpdatingPhone(true);
-    setPhoneMessage("正在发送 / SENDING...");
-    
-    const fullPhone = `${countryCode}${phoneInput.trim()}`;
-    
-    try {
-      // 触发显式降级：暴露验证框
-      setShowRecaptcha(true);
-
-      // 确保使用稳定的不可见 DOM 节点建立 reCAPTCHA 实例，但这次采用 visible 模式
-      if (!recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'normal', // 降维打击：废弃 invisible，强制要求物理交互
-          callback: () => {
-            console.log("reCAPTCHA solved in normal mode");
-            // 验证通过后可以隐藏或保持，这里让它完成使命
-          },
-          'expired-callback': () => {
-             console.warn("reCAPTCHA expired");
-             setPhoneMessage("验证过期，请重试");
-             setShowRecaptcha(false);
-          }
-        });
-      }
-      
-      // 稳如泰山地发送
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, recaptchaVerifierRef.current);
-      
-      setConfirmationResult(confirmation);
-      setIsCodeSent(true);
-      setCountdown(60);
-      setPhoneMessage("验证码已发送 / CODE SENT");
-      setShowRecaptcha(false); // 发送成功后收起护盾
-    } catch (error: any) {
-      console.error("SMS 发送失败:", error);
-      
-      // 出错时清除实例以防死锁，下次重新生成
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-        recaptchaVerifierRef.current = null;
-      }
-      setShowRecaptcha(false);
-      
-      const displayMsg = error.code === 'auth/invalid-app-credential' 
-        ? "安全凭据无效，请检查云端配置" 
-        : error.code === 'auth/too-many-requests'
-        ? "请求过于频繁，请稍后再试或更换号码"
-        : error.message || "发送失败，请检查号码格式 / SEND FAILED";
-        
-      setPhoneMessage(displayMsg);
-    } finally {
-      setIsUpdatingPhone(false);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!verificationCode.trim() || !confirmationResult || !user) return;
-    
-    setIsUpdatingPhone(true);
-    setPhoneMessage("正在验证 / VERIFYING...");
-    
-    try {
-      // 1. Firebase 验证验证码
-      await confirmationResult.confirm(verificationCode);
-      
-      // 2. 验证成功后，将手机号写入 Supabase
-      const fullPhone = `${countryCode}${phoneInput.trim()}`;
-      const { error } = await supabase
-        .from('profiles')
-        .update({ phone: fullPhone })
-        .eq('id', user.id);
-        
-      if (error) {
-        if (error.code === '23505') throw new Error("该终端已被其他实体绑定");
-        throw error;
-      }
-      
-      setPhoneMessage("绑定成功 / BIND SUCCESS");
-      setIsCodeSent(false); // 验证成功后恢复 UI 状态
-      
-    } catch (error: any) {
-      console.error("验证失败:", error);
-      setPhoneMessage("验证码错误或已过期 / INVALID CODE");
-    } finally {
-      setIsUpdatingPhone(false);
     }
   };
 
@@ -297,7 +171,7 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
             </div>
             
             <div className="relative z-10 text-[10px] font-mono text-white/20 uppercase tracking-widest">
-              // ASCENSION_PROTOCOL_ACTIVE
+              ASCENSION_PROTOCOL_ACTIVE
             </div>
           </div>
 
@@ -317,60 +191,135 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
             </div>
 
             <div className="space-y-6 flex-1">
+              {/* 身份分形开关 (Identity Fission) */}
+              <div className="flex bg-white/5 p-1 rounded-xl">
+                <button 
+                  onClick={() => setAscensionMode("indie")}
+                  className={cn(
+                    "flex-1 py-3 text-xs font-bold tracking-widest uppercase transition-all rounded-lg",
+                    ascensionMode === "indie" ? "bg-white text-black shadow-md" : "text-white/40 hover:text-white/80"
+                  )}
+                >
+                  独立空间 (Indie Node)
+                </button>
+                <button 
+                  onClick={() => setAscensionMode("enterprise")}
+                  className={cn(
+                    "flex-1 py-3 text-xs font-bold tracking-widest uppercase transition-all rounded-lg",
+                    ascensionMode === "enterprise" ? "bg-gx-cyan text-black shadow-[0_0_15px_rgba(0,240,255,0.5)]" : "text-white/40 hover:text-white/80"
+                  )}
+                >
+                  企业联邦 (Enterprise)
+                </button>
+              </div>
+
               {/* 基础身份 */}
               <div className="space-y-4">
                 <h4 className="text-[10px] font-bold text-white/60 uppercase tracking-widest border-b border-white/5 pb-2">01 / 基础身份 (Identity)</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2 relative">
-                    <label className="text-[10px] text-white/40 uppercase font-mono">空间名称 / Brand Name</label>
-                    <Input 
-                      placeholder="例如: AKIRA STUDIO" 
-                      value={formData.brandName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, brandName: e.target.value }))}
-                      className={cn(
-                        "bg-black/50 focus:border-gx-gold/50 transition-all",
-                        formErrors.includes("brandName") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
-                      )} 
-                    />
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 relative">
+                    <label className="text-[10px] text-white/40 uppercase font-mono sm:w-36 shrink-0">
+                      {ascensionMode === "indie" ? "空间名称 / BRAND NAME" : "集团名称 / CONGLOMERATE NAME"}
+                    </label>
+                    <div className="relative z-20 flex-1">
+                      <Input 
+                        placeholder={ascensionMode === "indie" ? "输入您的店名..." : "输入您的企业/集团名称..."}
+                        value={formData.brandName}
+                        onChange={(e) => setFormData(prev => ({ ...prev, brandName: e.target.value }))}
+                        className={cn(
+                          "bg-black/50 focus:border-gx-gold/50 transition-all h-12",
+                          formErrors.includes("brandName") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
+                        )} 
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2 relative">
-                    <label className="text-[10px] text-white/40 uppercase font-mono">联系电话 / Contact</label>
-                    <Input 
-                      placeholder="+86 138..." 
-                      value={formData.contact}
-                      onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
-                      className={cn(
-                        "bg-black/50 focus:border-gx-gold/50 transition-all",
-                        formErrors.includes("contact") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
-                      )} 
-                    />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 relative">
+                    <label className="text-[10px] text-white/40 uppercase font-mono sm:w-36 shrink-0">联系电话 / CONTACT</label>
+                    <div className="relative z-20 flex flex-1 gap-2">
+                      {/* 国际区号选择器 */}
+                      <div className="relative w-28 shrink-0">
+                        <select
+                          value={formData.countryCode}
+                          onChange={(e) => setFormData(prev => ({ ...prev, countryCode: e.target.value }))}
+                          className="w-full bg-black/50 border border-white/10 rounded-lg px-3 text-white font-mono text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-12"
+                        >
+                          <option value="+39">IT (+39)</option>
+                          <option value="+33">FR (+33)</option>
+                          <option value="+49">DE (+49)</option>
+                          <option value="+44">UK (+44)</option>
+                          <option value="+34">ES (+34)</option>
+                          <option value="+86">CN (+86)</option>
+                          <option value="+1">US (+1)</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-[10px]">▼</div>
+                      </div>
+                      {/* 手机号输入框 */}
+                      <Input 
+                        placeholder="138..." 
+                        value={formData.contact}
+                        onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                        className={cn(
+                          "flex-1 bg-black/50 focus:border-gx-gold/50 transition-all font-mono h-12",
+                          formErrors.includes("contact") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
+                        )} 
+                      />
+                    </div>
                   </div>
                 </div>
+                
+                {/* 行业引擎选择器 - 仅独立门店模式显示 */}
+                {ascensionMode === "indie" && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 relative">
+                    <label className="text-[10px] text-white/40 uppercase font-mono sm:w-36 shrink-0">业务类型 / Industry</label>
+                    <div className="relative flex-1">
+                      <select
+                        value={formData.industry}
+                        onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-12"
+                      >
+                        <option value="beauty">美业 / BEAUTY (Salon, Spa, Nails)</option>
+                        <option value="dining">餐饮 / DINING (Restaurant, Cafe)</option>
+                        <option value="medical">医疗 / MEDICAL (Clinic, Dental)</option>
+                        <option value="fitness">健身 / FITNESS (Gym, Yoga)</option>
+                        <option value="expert">专家 / EXPERT (Consulting)</option>
+                        <option value="hotel">住宿 / HOTEL (B&B, Resort)</option>
+                        <option value="other">常规 / OTHER (General Booking)</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* 物理锚点 */}
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-bold text-white/60 uppercase tracking-widest border-b border-white/5 pb-2">02 / 物理锚点 (Location)</h4>
-                <div className="space-y-2 relative">
-                  <label className="text-[10px] text-white/40 uppercase font-mono flex items-center gap-2">
-                    <MapPin className="w-3 h-3" /> Google Maps Link
-                  </label>
-                  <Input 
-                    placeholder="https://maps.google.com/..." 
-                    value={formData.mapsLink}
-                    onChange={(e) => setFormData(prev => ({ ...prev, mapsLink: e.target.value }))}
-                    className={cn(
-                      "bg-black/50 focus:border-gx-gold/50 font-mono text-xs transition-all",
-                      formErrors.includes("mapsLink") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
-                    )} 
-                  />
-                  <p className="text-[9px] text-white/30">请提供准确的 Google Maps 链接，系统将自动抓取坐标与公开评分。</p>
+              {/* 物理锚点 - 仅独立门店模式显示 */}
+              {ascensionMode === "indie" && (
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold text-white/60 uppercase tracking-widest border-b border-white/5 pb-2">02 / 物理锚点 (Location)</h4>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 relative">
+                    <label className="text-[10px] text-white/40 uppercase font-mono flex items-center gap-2 sm:w-36 shrink-0">
+                      <MapPin className="w-3 h-3" /> Google Maps Link
+                    </label>
+                    <div className="relative z-20 flex-1">
+                      <Input 
+                        placeholder="https://maps.google.com/..." 
+                        value={formData.mapsLink}
+                        onChange={(e) => setFormData(prev => ({ ...prev, mapsLink: e.target.value }))}
+                        className={cn(
+                          "bg-black/50 focus:border-gx-gold/50 font-mono text-xs transition-all h-12",
+                          formErrors.includes("mapsLink") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
+                        )} 
+                      />
+                      <p className="text-[9px] text-white/30 mt-2">请提供准确的 Google Maps 链接，系统将自动抓取坐标与公开评分。</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 核心资产 */}
               <div className="space-y-4">
-                <h4 className="text-[10px] font-bold text-white/60 uppercase tracking-widest border-b border-white/5 pb-2">03 / 核心视觉 (Visual Assets)</h4>
+                <h4 className="text-[10px] font-bold text-white/60 uppercase tracking-widest border-b border-white/5 pb-2">
+                  {ascensionMode === "indie" ? "03 / 核心视觉 (Visual Assets)" : "02 / 集团标志 (Corporate Identity)"}
+                </h4>
                 <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center gap-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer group">
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/40 group-hover:text-gx-gold transition-colors">
                     <ImageIcon className="w-5 h-5" />
@@ -382,16 +331,34 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
                 </div>
               </div>
               
-              {/* 创世密钥 */}
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-gx-gold uppercase font-mono">创世密钥 / Genesis Code (可选)</label>
-                  <Input 
-                    placeholder="GX-XXXX-XXXX" 
-                    value={formData.genesisCode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, genesisCode: e.target.value }))}
-                    className="bg-gx-gold/5 border-gx-gold/30 focus:border-gx-gold text-center tracking-[0.2em] font-mono text-gx-gold placeholder:text-gx-gold/20 uppercase" 
-                  />
+              {/* 联邦制兼并 (可选/固定) */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <h4 className="text-[10px] font-bold text-gx-gold uppercase tracking-widest flex items-center gap-2">
+                  <Zap className="w-3 h-3" /> 04 / 联邦集结 (Federation) {ascensionMode === "indie" ? <span className="text-white/40">- OPTIONAL</span> : <span className="text-gx-gold/60">- AUTO GENERATED</span>}
+                </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 relative">
+                  <label className="text-[10px] text-white/40 uppercase font-mono sm:w-36 shrink-0">集团集结码 / Nexus Code</label>
+                  <div className="relative z-20 flex-1">
+                    {ascensionMode === "enterprise" ? (
+                      <div className="bg-black/50 p-3 rounded-lg border border-gx-gold/30 font-mono text-gx-gold flex items-center justify-between">
+                        <span className="tracking-widest">{profileGxId || "SYS-ERROR"}</span>
+                        <span className="text-[10px] text-gx-gold/40 border border-gx-gold/20 px-2 py-0.5 rounded">不可修改</span>
+                      </div>
+                    ) : (
+                      <Input 
+                        placeholder="请输入大老板的起源代码 (Boss ID)" 
+                        value={formData.nexusCode}
+                        onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
+                        className="bg-gx-gold/5 border-gx-gold/20 focus:border-gx-gold text-gx-gold placeholder:text-gx-gold/20 font-mono tracking-widest text-sm h-12"
+                      />
+                    )}
+                    <p className="text-[9px] text-white/30 leading-relaxed mt-2">
+                      {ascensionMode === "enterprise" 
+                        ? "您正在创建企业联邦。系统已自动将您的专属标识设为最高统摄集结码。" 
+                        : <>若您属于某集团旗下门店，请在此输入大老板提供的起源代码 (Boss ID)。<br/><span className="text-gx-gold/60">留空则代表您将建立一家独立的创始空间。</span></>
+                      }
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -473,115 +440,7 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
       </div>
 
       {/* 跨域身份融合信标绑定 (赛博光刻舱 - Firebase Phone Auth 版) */}
-      <div className={cn(
-        "w-full relative overflow-hidden rounded-xl bg-white/[0.02] backdrop-blur-xl transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.4)] border",
-        isCodeSent ? "border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)]" : "border-white/10 hover:border-white/30"
-      )}>
-        {/* 动态光栅扫描线 */}
-        <div className={cn(
-          "absolute top-0 bottom-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none",
-          isCodeSent ? "animate-[shimmer_2s_linear_infinite] via-gx-cyan/10" : "hidden group-hover:block animate-[shimmer_3s_linear_infinite]"
-        )} />
-        
-        <div className="p-6 flex flex-col gap-6 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className={cn(
-              "w-10 h-10 rounded-lg border flex items-center justify-center transition-all",
-              isCodeSent 
-                ? "border-gx-cyan bg-gx-cyan/20 text-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.5)] animate-pulse" 
-                : "border-white/20 bg-white/5 text-white/60"
-            )}>
-              <Smartphone className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-[13px] font-black tracking-widest uppercase text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                手机号绑定
-              </h2>
-              <p className="text-[10px] text-gray-400 font-mono uppercase tracking-widest mt-1">
-                {isCodeSent ? `AWAITING CODE [${countdown}s]` : "ACCOUNT SECURITY"}
-              </p>
-            </div>
-          </div>
-          
-          <div className="w-full flex items-center bg-transparent border border-white/20 rounded-xl overflow-hidden focus-within:border-gx-cyan focus-within:shadow-[0_0_15px_rgba(0,240,255,0.3)] transition-all h-12">
-            
-            {!isCodeSent ? (
-              // 模式 1：输入手机号 (强制单行连体)
-              <>
-                <div className="h-full flex items-center bg-white/5 border-r border-white/10 shrink-0">
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="bg-transparent text-white font-mono text-[11px] outline-none px-2 appearance-none cursor-pointer hover:bg-white/5 transition-colors text-center w-12 sm:w-16"
-                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                  >
-                    {countryCodes.map((item) => (
-                      <option key={item.code} value={item.code} className="bg-black text-white">
-                        {item.code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <input 
-                  placeholder="PHONE NUMBER" 
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  className="flex-1 min-w-0 bg-transparent px-3 text-xs sm:text-sm font-mono text-white outline-none placeholder:text-white/30"
-                />
-                <button 
-                  onClick={handleSendCode} 
-                  disabled={isUpdatingPhone || !phoneInput.trim() || `${countryCode}${phoneInput.trim()}` === profile.phone}
-                  className="h-full shrink-0 px-3 sm:px-6 bg-transparent text-white hover:bg-white/10 hover:text-gx-cyan font-bold font-mono uppercase tracking-widest text-[10px] transition-all border-l border-white/10 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-white disabled:cursor-not-allowed"
-                >
-                  {isUpdatingPhone ? "..." : (profile.phone && `${countryCode}${phoneInput.trim()}` === profile.phone) ? "ACTIVE" : "获取验证码"}
-                </button>
-              </>
-            ) : (
-              // 模式 2：输入验证码 (强制单行连体)
-              <>
-                <input 
-                  placeholder="6-DIGIT CODE" 
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  maxLength={6}
-                  className="flex-1 min-w-0 bg-transparent px-4 text-xs sm:text-sm font-mono text-center tracking-[0.3em] sm:tracking-[0.5em] text-gx-cyan outline-none placeholder:text-white/30 placeholder:tracking-normal"
-                />
-                <button 
-                  onClick={handleVerifyCode} 
-                  disabled={isUpdatingPhone || verificationCode.length < 6}
-                  className="h-full shrink-0 px-4 sm:px-6 bg-gx-cyan/10 text-gx-cyan hover:bg-gx-cyan/20 font-bold font-mono uppercase tracking-widest text-[10px] transition-all border-l border-gx-cyan/30 disabled:opacity-40 disabled:hover:bg-gx-cyan/10 disabled:cursor-not-allowed"
-                >
-                  {isUpdatingPhone ? "..." : "验证"}
-                </button>
-              </>
-            )}
-
-          </div>
-
-          {/* 显式 reCAPTCHA 护盾舱 - 常驻DOM，CSS控制显隐 */}
-          <div 
-            className={cn(
-              "w-full flex justify-center overflow-hidden rounded-lg bg-black/40 border border-white/5 transition-all duration-500",
-              showRecaptcha ? "py-2 opacity-100 h-auto mt-4" : "opacity-0 h-0 m-0 border-transparent"
-            )}
-          >
-            <div id="recaptcha-container"></div>
-          </div>
-
-          {phoneMessage && (
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-               <p className={cn(
-                 "text-[10px] font-bold font-mono uppercase tracking-widest",
-                 phoneMessage.includes("激活") ? "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" 
-                 : phoneMessage.includes("等待") || phoneMessage.includes("发送") ? "text-yellow-400 animate-pulse" 
-                 : "text-gx-red drop-shadow-[0_0_8px_rgba(255,0,0,0.8)]"
-               )}>
-                 {phoneMessage}
-               </p>
-            </div>
-          )}
-        </div>
-      </div>
+      <PhoneAuthBar initialPhone={profile.phone || ""} />
 
       {/* 退出系统 */}
       <div className="pt-4 w-full flex justify-center">

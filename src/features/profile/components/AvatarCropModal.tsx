@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Cropper from "react-easy-crop";
+import Cropper, { Area } from "react-easy-crop";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/shared/Button";
@@ -17,10 +17,10 @@ interface AvatarCropModalProps {
 export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: AvatarCropModalProps) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
+  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { Heart, MessageCircle, Play, Image as ImageIcon } from "lucide-react";
 import { DiscoveryItem } from "../types";
 import { cn } from "@/utils/cn";
+import Image from "next/image";
 
 interface DiscoveryWaterfallProps {
   items: DiscoveryItem[];
@@ -21,11 +22,7 @@ export const DiscoveryWaterfall = ({
   items, 
   onItemClick 
 }: DiscoveryWaterfallProps) => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [mounted] = useState(() => typeof window !== "undefined");
 
   if (!mounted) return null;
 
@@ -48,6 +45,7 @@ export const DiscoveryWaterfall = ({
 
 const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () => void }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const isAuthorAvatarLocal = item.author.avatarUrl?.startsWith("data:") || item.author.avatarUrl?.startsWith("blob:");
 
   return (
     <GlassCard
@@ -66,14 +64,15 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
           style={{ paddingBottom: `${(1 / item.aspectRatio) * 100}%` }}
           className="w-full relative"
         >
-          <img
+          <Image
             src={item.mediaUrl}
             alt={item.title}
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             className={cn(
               "absolute inset-0 w-full h-full object-cover transition-transform duration-700",
               isHovered ? "scale-110" : "scale-100"
             )}
-            loading="lazy"
           />
           
           {/* 媒体类型标识 */}
@@ -93,7 +92,14 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-6 h-6 rounded-full border border-white/20 overflow-hidden bg-gx-cyan/20">
                 {item.author.avatarUrl ? (
-                  <img src={item.author.avatarUrl} alt={item.author.name} className="w-full h-full object-cover" />
+                  <Image
+                    src={item.author.avatarUrl}
+                    alt={item.author.name}
+                    width={24}
+                    height={24}
+                    className="w-full h-full object-cover"
+                    unoptimized={isAuthorAvatarLocal}
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gx-cyan">
                     {item.author.name[0]}

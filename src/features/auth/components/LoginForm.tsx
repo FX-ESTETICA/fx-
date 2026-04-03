@@ -62,7 +62,7 @@ export const LoginForm = () => {
       try {
         await AuthService.verifyEmailOtp(email, otp);
         router.push(nextParam || "/home");
-      } catch (err: any) {
+      } catch {
         setOtpError("验证码错误，请重新输入");
         setOtp("");
         setAwaitingOtp(true);
@@ -71,9 +71,23 @@ export const LoginForm = () => {
       }
     };
     autoVerify();
-  }, [otp, awaitingOtp, mode, email, router]);
+  }, [otp, awaitingOtp, mode, email, router, nextParam]);
 
-  const t: Record<string, any> = {
+  const t: Record<"zh" | "en" | "it", {
+    title: string;
+    subtitle: string;
+    emailLabel: string;
+    passwordLabel: string;
+    submit: string;
+    authenticating: string;
+    or: string;
+    google: string;
+    guest: string;
+    reset: string;
+    register: string;
+    security: string;
+    error: string;
+  }> = {
     zh: {
       title: "GX 身份验证",
       subtitle: "银河体验接入系统",
@@ -144,7 +158,7 @@ export const LoginForm = () => {
       // 真实 Supabase 逻辑
       await AuthService.signInWithEmail(email, password);
       router.push(nextParam || "/home");
-    } catch (err: any) {
+    } catch {
       setPasswordError("密码错误，请重新输入");
     } finally {
       setIsLoading(false);
@@ -155,8 +169,9 @@ export const LoginForm = () => {
     setIsLoading(true);
     try {
       await AuthService.signInWithGoogle(nextParam);
-    } catch (err: any) {
-      setError(err.message || current.error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : current.error;
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -168,8 +183,9 @@ export const LoginForm = () => {
     try {
       await AuthService.signInWithMagicLink(email, nextParam);
       setMessage("已发送邮箱验证码/链接，请查收邮件并完成登录");
-    } catch (err: any) {
-      setError(err.message || current.error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : current.error;
+      setError(message);
     } finally {
       setIsLoading(false);
     }

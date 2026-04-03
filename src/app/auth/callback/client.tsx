@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+type EmailOtpType = "signup" | "magiclink" | "recovery" | "invite" | "email_change";
+
+const EMAIL_OTP_TYPES = new Set<EmailOtpType>(["signup", "magiclink", "recovery", "invite", "email_change"]);
+
 export function AuthCallbackClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -16,10 +20,11 @@ export function AuthCallbackClient() {
       const type = searchParams.get('type');
       const next = searchParams.get('next') || '/';
 
-      if (token_hash && type) {
+      const isValidEmailOtpType = type !== null && EMAIL_OTP_TYPES.has(type as EmailOtpType);
+      if (token_hash && isValidEmailOtpType) {
         // 使用 verifyOtp 验证
         const { error } = await supabase.auth.verifyOtp({
-          type: type as any,
+          type: type as EmailOtpType,
           token_hash,
         });
 
@@ -41,7 +46,7 @@ export function AuthCallbackClient() {
         try {
           localStorage.removeItem("gx_sandbox_session");
           localStorage.removeItem("gx_guest_mode");
-        } catch (_) {}
+        } catch {}
         
         router.push(next || "/home");
       }

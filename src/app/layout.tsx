@@ -3,8 +3,9 @@ import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
+import { ShopProvider } from "@/features/shop/ShopContext";
 import { AppShell } from "@/components/shared/AppShell";
-import { ForegroundDust } from "@/components/shared/ForegroundDust";
+import { NebulaBackground } from "@/components/shared/NebulaBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,11 +23,26 @@ const geistMono = Geist_Mono({
 // We intercept and swallow this specific warning to keep the console pristine.
 if (typeof console !== 'undefined') {
   const originalWarn = console.warn;
+  const originalError = console.error;
+  const shouldSwallow = (args: unknown[]) => {
+    const first = args[0];
+    return typeof first === 'string' && (
+      first.includes('THREE.Clock') ||
+      first.includes('Unable to preventDefault inside passive event listener') ||
+      first.includes('[Intervention]')
+    );
+  };
   console.warn = (...args) => {
-    if (args[0] && typeof args[0] === 'string' && args[0].includes('THREE.Clock: This module has been deprecated')) {
+    if (shouldSwallow(args)) {
       return; // Swallow the warning
     }
     originalWarn.apply(console, args);
+  };
+  console.error = (...args) => {
+    if (shouldSwallow(args)) {
+      return;
+    }
+    originalError.apply(console, args);
   };
 }
 
@@ -60,14 +76,18 @@ export default function RootLayout({
   return (
     <html
       lang="zh"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
-      <body className="min-h-full flex flex-col bg-black">
-        <ForegroundDust />
+      <body className="min-h-full flex flex-col bg-transparent relative text-white">
+        <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">
+          <NebulaBackground />
+        </div>
         <AuthProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+          <ShopProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </ShopProvider>
         </AuthProvider>
         <Script
           id="sw-register"

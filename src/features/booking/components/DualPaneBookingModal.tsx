@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft } from 'lucide-react';
+import Image from "next/image";
 import { cn } from "@/utils/cn";
-import { motion, AnimatePresence } from 'framer-motion';
 import { BookingService } from "@/features/booking/api/booking";
+import { useShop } from "@/features/shop/ShopContext";
 
 interface DualPaneBookingModalProps {
   isOpen: boolean;
@@ -12,41 +13,125 @@ interface DualPaneBookingModalProps {
   initialDate?: Date; // 接收当前日历的日期
   initialTime?: string; // 接收战术准星传递的精确时间
   initialResourceId?: string; // 接收战术准星传递的员工ID
-  editingBooking?: any; // 传入要编辑的预约数据
+  editingBooking?: BookingEdit; // 传入要编辑的预约数据
+  staffs: StaffMember[];
+  categories: CategoryItem[];
+  services: ServiceItem[];
 }
 
-export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime, initialResourceId, editingBooking }: DualPaneBookingModalProps) {
+type ServiceItem = {
+  id: string;
+  name?: string;
+  duration?: number;
+  prices?: number[];
+  assignedEmployeeId?: string | null;
+  [key: string]: unknown;
+};
+
+type CategoryItem = {
+  id: string;
+  name?: string;
+  [key: string]: unknown;
+};
+
+type StaffMember = {
+  id: string;
+  name?: string;
+  role?: string;
+  status?: string;
+  color?: string;
+  [key: string]: unknown;
+};
+
+type MatchedProfile = {
+  gx_id?: string;
+  name?: string;
+  avatar_url?: string;
+  role?: string;
+  phone?: string;
+};
+
+export type BookingEdit = {
+  id?: string;
+  date?: string;
+  startTime?: string;
+  duration?: number;
+  customerId?: string;
+  customerPhone?: string;
+  customerName?: string;
+  services?: ServiceItem[];
+  isSuperBooking?: boolean;
+  relatedBookings?: BookingEdit[];
+  resourceId?: string | null;
+  masterOrderId?: string;
+  [key: string]: unknown;
+};
+
+type ReflowBooking = BookingEdit & {
+  date: string;
+  startTime: string;
+  duration: number;
+  resourceId?: string | null;
+  originalUnassigned?: boolean;
+  shopId?: string;
+};
+
+export function DualPaneBookingModal({
+  isOpen,
+  onClose,
+  initialDate,
+  initialTime,
+  initialResourceId,
+  editingBooking,
+  staffs,
+  categories,
+  services
+}: DualPaneBookingModalProps) {
+  const { activeShopId } = useShop();
+
   // --- 结账模式状态 (Neon Core Checkout) ---
-  const [isCheckoutMode, setIsCheckoutMode] = useState(false);
+  const [checkoutOverride, setCheckoutOverride] = useState<boolean | null>(null);
   // const [checkoutProgress, setCheckoutProgress] = useState(0); // 用于滑动结账的进度
 
   // --- 状态机：右侧面板模式 ---
   type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
-  const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>('service');
+  const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>(() => editingBooking ? 'member' : 'service');
 
   // --- 服务项目状态 (支持多选与印章涂色) ---
-  const [selectedServices, setSelectedServices] = useState<any[]>([]);
+  const [selectedServices, setSelectedServices] = useState<ServiceItem[]>(() => {
+    if (!editingBooking?.services || editingBooking.services.length === 0) return [];
+    
+    // 【绝对焦点编辑】：废弃 isSuperBooking 的多单还原逻辑。
+    // 现在无论是否是连单，弹窗只还原当前点击的这个单子的服务。
+    return editingBooking.services.map((s) => ({
+      ...s,
+      assignedEmployeeId: editingBooking.originalUnassigned ? null : editingBooking.resourceId
+    }));
+  });
   // 服务内容的自定义附加文本
-  const [customServiceText, setCustomServiceText] = useState("");
+  const [customServiceText, setCustomServiceText] = useState<string>(() => (editingBooking?.customServiceText as string) || "");
   // 当前全局的“印章/笔刷”员工ID，null 代表未指定(默认印章)
-  const [currentBrushEmployeeId, setCurrentBrushEmployeeId] = useState<string | null>(null); 
+  const [currentBrushEmployeeId, setCurrentBrushEmployeeId] = useState<string | null>(() => {
+    if (editingBooking?.resourceId) return editingBooking.resourceId;
+    // 遵循绝对液态派发法则：新建预约时，员工画笔强制默认【无指定 (TBD)】，忽略点击的列坐标
+    return null;
+  }); 
   // 当前处于“待重定向”状态的已选服务ID
   const [retargetingServiceId, setRetargetingServiceId] = useState<string | null>(null);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(() => categories[0]?.id || null);
   
-  // --- 人员配置数据 ---
-  const [staffs, setStaffs] = useState<any[]>([]);
-
   // --- 会员信息状态 ---
   // 原 memberInfo 废弃，改为多轨电话数组
-  const [phoneTracks, setPhoneTracks] = useState<string[]>(['']);
+  const [phoneTracks, setPhoneTracks] = useState<string[]>(() => {
+    if (editingBooking?.customerName && editingBooking.customerName !== "散客 Walk-in") {
+      return editingBooking.customerName.split(',');
+    }
+    return [''];
+  });
   // 当前正在编辑的电话索引，null 代表静默态
   const [editingPhoneIndex, setEditingPhoneIndex] = useState<number | null>(null);
 
   // 核心：客户ID (例如 CO 0000001, GV 0001)
-  const [customerId, setCustomerId] = useState<string>("");
   // 核心：新建会员时的分类 (GV/AD/AN/UM)，null代表散客
   const [newCustomerType, setNewCustomerType] = useState<string | null>(null);
   
@@ -54,260 +139,190 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   const [isMemberInputFocused, setIsMemberInputFocused] = useState(false);
 
   // --- C端匹配状态 (Cross-Domain Match) ---
-  const [matchedProfile, setMatchedProfile] = useState<any | null>(null);
-  const [_isMatchingProfile, setIsMatchingProfile] = useState(false);
+  const [matchedProfile, setMatchedProfile] = useState<MatchedProfile | null>(null);
 
   // --- 日期与时间状态 ---
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (editingBooking?.date) return editingBooking.date.replace(/-/g, '/');
+    const targetDate = initialDate || new Date();
+    const year = targetDate.getFullYear();
+    const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+    const day = targetDate.getDate().toString().padStart(2, '0');
+    return `${year}/${month}/${day}`;
+  });
+  const [selectedTime, setSelectedTime] = useState(() => {
+    if (editingBooking?.startTime) return editingBooking.startTime;
+    if (initialTime) return initialTime;
+    const now = new Date();
+    const nextHour = (now.getHours() + 1) % 24;
+    return `${nextHour.toString().padStart(2, '0')}:00`;
+  });
+
+  // --- 预分配心跳锁引擎 (Pre-allocation Heartbeat Lock) ---
+  // 将锁引擎移至所有依赖状态（如 newCustomerType）声明之后，避免 ReferenceError
+  const [allocatedId, setAllocatedId] = useState<string | null>(null);
+  const allocatedIdRef = useRef<string | null>(null);
+
+  // 同步 ref 以便在闭包中获取最新状态
+  useEffect(() => {
+    allocatedIdRef.current = allocatedId;
+  }, [allocatedId]);
+
+  useEffect(() => {
+    if (!isOpen || editingBooking) return;
+    
+    let isMounted = true;
+    const prefix = newCustomerType || 'CO';
+
+    const fetchId = async () => {
+      // 1. 读取数据库，执行断层扫描并返回可用ID
+      const nextId = await BookingService.getAvailableCustomerId(activeShopId || 'default', prefix);
+      
+      if (!isMounted) return;
+
+      // 2. 写入本地幽灵锁 (防止同一个浏览器多开窗口撞车)
+      const match = nextId.match(/^([a-zA-Z]+)\s*(.+)$/i);
+      if (match) {
+        const num = parseInt(match[2], 10);
+        if (!isNaN(num)) {
+          const rawLocks = localStorage.getItem(`gx_locked_ids_${prefix}`);
+          const locks = rawLocks ? JSON.parse(rawLocks) : {};
+          locks[num] = Date.now() + 5 * 60 * 1000;
+          localStorage.setItem(`gx_locked_ids_${prefix}`, JSON.stringify(locks));
+        }
+      }
+      setAllocatedId(nextId);
+    };
+
+    fetchId();
+
+    return () => {
+      isMounted = false;
+      // 绝对安全释放幽灵锁：使用 ref 读取最新状态，打破闭包陷阱
+      const idToRelease = allocatedIdRef.current;
+      if (idToRelease) {
+        const match = idToRelease.match(/^([a-zA-Z]+)\s*(.+)$/i);
+        if (match) {
+          const relPrefix = match[1].toUpperCase();
+          const relNum = parseInt(match[2], 10);
+          if (!isNaN(relNum)) {
+            const rawLocks = localStorage.getItem(`gx_locked_ids_${relPrefix}`);
+            const locks = rawLocks ? JSON.parse(rawLocks) : {};
+            if (locks[relNum]) {
+              delete locks[relNum];
+              localStorage.setItem(`gx_locked_ids_${relPrefix}`, JSON.stringify(locks));
+            }
+          }
+        }
+      }
+      setAllocatedId(null);
+      allocatedIdRef.current = null;
+    };
+  }, [isOpen, editingBooking, newCustomerType, activeShopId]);
 
   // --- 服务时长微调状态 ---
-  const [durationOffset, setDurationOffset] = useState<number>(0);
+  const [durationOffset, setDurationOffset] = useState<number>(() => {
+    if (!editingBooking?.services || editingBooking.services.length === 0) return 0;
+    const baseD = editingBooking.services.reduce((acc, s) => acc + (s.duration || 0), 0);
+    const totalDuration = editingBooking.duration ?? baseD;
+    return totalDuration - baseD;
+  });
 
   // --- 双轨 HUD 时间选择器状态 ---
-  const [isAM, setIsAM] = useState(true);
+  const [isAM, setIsAM] = useState(() => {
+    const hour = parseInt((editingBooking?.startTime || initialTime || "").split(':')[0], 10);
+    return Number.isNaN(hour) ? true : hour < 12;
+  });
   const [draggingHour, setDraggingHour] = useState<number | null>(null);
   const [hoveredMinute, setHoveredMinute] = useState<number | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{x: number, y: number} | null>(null);
   const [centerDragStart, setCenterDragStart] = useState<number | null>(null);
-
-  // 同步 AM/PM 状态
-  useEffect(() => {
-    const hour = parseInt(selectedTime.split(':')[0], 10);
-    setIsAM(hour < 12);
-  }, [selectedTime]);
-
-  // 生成并分配下一个客户编号
-  const generateCustomerNumber = (type: string | null) => {
-    try {
-      // 1. 获取回收站
-      const recycledRaw = localStorage.getItem('gx_recycled_customer_ids');
-      const recycledIds: string[] = recycledRaw ? JSON.parse(recycledRaw) : [];
-      
-      // 2. 如果是散客 (type === null) 且回收站有 CO 编号，优先回收使用
-      if (type === null) {
-        const recycledCO = recycledIds.find(id => id.startsWith('CO'));
-        if (recycledCO) {
-          // 仅返回号码，暂时不从回收站删除，直到真正 confirm 预约时才正式消耗
-          return recycledCO;
-        }
-      }
-      
-      // 3. 正常递增逻辑
-      const countersRaw = localStorage.getItem('gx_customer_counters');
-      const counters = countersRaw ? JSON.parse(countersRaw) : {
-        CO: 1,
-        GV: 1,
-        AD: 3001,
-        AN: 6001,
-        UM: 9001
-      };
-
-      const prefix = type || 'CO';
-      const currentNum = counters[prefix] || 1;
-      
-      // 格式化：CO 为 7 位数字，其他为 4 位数字
-      const formattedNum = prefix === 'CO' 
-        ? currentNum.toString().padStart(7, '0')
-        : currentNum.toString().padStart(4, '0');
-        
-      return `${prefix} ${formattedNum}`;
-    } catch (e) {
-      console.error("Failed to generate customer number:", e);
-      return type ? `${type} 0001` : "CO 0000001";
+  const phoneMatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  const updateSelectedTime = (time: string) => {
+    setSelectedTime(time);
+    const hour = parseInt(time.split(':')[0], 10);
+    if (!Number.isNaN(hour)) {
+      setIsAM(hour < 12);
     }
   };
 
-  // 监听输入和分类变化，动态生成客户 ID，同时触发 C 端查询匹配
-  useEffect(() => {
-    if (editingBooking) {
-      setCustomerId(editingBooking.customerId || "");
-      // 如果已有电话记录，可以在这里触发匹配
-      if (editingBooking.customerPhone) {
-        const fetchMatch = async () => {
-          setIsMatchingProfile(true);
-          const { data } = await BookingService.getProfileByPhone(editingBooking.customerPhone);
-          setMatchedProfile(data);
-          setIsMatchingProfile(false);
-        };
-        fetchMatch();
-      }
+  const scheduleProfileMatch = (phone: string) => {
+    if (phoneMatchTimerRef.current) {
+      clearTimeout(phoneMatchTimerRef.current);
+    }
+    if (!phone || phone.length < 6) {
+      setMatchedProfile(null);
       return;
     }
+    phoneMatchTimerRef.current = setTimeout(async () => {
+      const { data } = await BookingService.getProfileByPhone(phone);
+      setMatchedProfile(data);
+    }, 500);
+  };
 
-    // 触发 C 端匹配 (防抖处理，输入电话号码后查询)
+  const updatePhoneTracks = (nextTracks: string[]) => {
+    setPhoneTracks(nextTracks);
+    scheduleProfileMatch(nextTracks[0]?.trim() || "");
+  };
+
+  const customerId = useMemo(() => {
+    if (editingBooking?.customerId) return editingBooking.customerId;
     const primaryPhone = phoneTracks[0]?.trim();
-    if (primaryPhone && primaryPhone.length >= 6) { // 简单判断长度
-      console.log("[GX] Triggering phone match for:", primaryPhone);
-      const timer = setTimeout(async () => {
-        setIsMatchingProfile(true);
-        const { data } = await BookingService.getProfileByPhone(primaryPhone);
-        console.log("[GX] Match result:", data);
-        setMatchedProfile(data);
-        setIsMatchingProfile(false);
-      }, 500); // 500ms 防抖
-      
-      // 这里的沙盒老客逻辑仅保留演示用，可被真实查询覆盖
+    if (primaryPhone && primaryPhone.length >= 6) {
       if (primaryPhone === "6667767" || primaryPhone === "3758376") {
-        setCustomerId("GV 0015");
-        setNewCustomerType(null);
-      } else {
-        setCustomerId(generateCustomerNumber(newCustomerType));
+        return "GV 0015";
       }
-      
-      return () => clearTimeout(timer);
-    } else {
-      setMatchedProfile(null);
-      setCustomerId(generateCustomerNumber(newCustomerType));
     }
-  }, [phoneTracks, newCustomerType, editingBooking]);
+    return allocatedId || `${newCustomerType || 'CO'} --`;
+  }, [editingBooking?.customerId, phoneTracks, allocatedId, newCustomerType]);
 
-  // 智能结账预判：如果打开已有订单且时间过半，自动进入结账舱
-  useEffect(() => {
-    if (isOpen && editingBooking) {
-      try {
-        const [year, month, day] = editingBooking.date.split(/[-/]/).map(Number);
-        const [hours, minutes] = (editingBooking.startTime || "00:00").split(':').map(Number);
-        
-        // 我们用系统真实时间与订单时间对比
-        const now = new Date();
-        const start = new Date(year, month - 1, day, hours, minutes);
-        const durationMs = (editingBooking.duration || 60) * 60 * 1000;
-        const elapsedMs = now.getTime() - start.getTime();
-
-        // 服务时间过半，或者已经结束
-        if (elapsedMs >= durationMs / 2) {
-          setIsCheckoutMode(true);
-        } else {
-          setIsCheckoutMode(false);
-        }
-      } catch (e) {
-        setIsCheckoutMode(false);
-      }
-    } else {
-      setIsCheckoutMode(false);
+  const autoCheckoutMode = useMemo(() => {
+    if (!isOpen || !editingBooking || !editingBooking.date) return false;
+    try {
+      const [year, month, day] = editingBooking.date.split(/[-/]/).map(Number);
+      const [hours, minutes] = (editingBooking.startTime || "00:00").split(':').map(Number);
+      const now = new Date();
+      const start = new Date(year, month - 1, day, hours, minutes);
+      const durationMs = (editingBooking.duration || 60) * 60 * 1000;
+      const elapsedMs = now.getTime() - start.getTime();
+      return elapsedMs >= durationMs / 2;
+    } catch {
+      return false;
     }
-    // setCheckoutProgress(0); // 重置结账滑块进度
   }, [isOpen, editingBooking]);
 
-  // 从云端 API 获取配置数据 (不再从 localStorage 获取)
+  const isCheckoutMode = checkoutOverride ?? autoCheckoutMode;
+
+  const resetFormState = useCallback(() => {
+    setSelectedServices([]);
+    setCustomServiceText("");
+    setCurrentBrushEmployeeId(null);
+    setRetargetingServiceId(null);
+    setActivePaneMode('service');
+    setPhoneTracks(['']);
+    setDurationOffset(0);
+    setEditingPhoneIndex(null);
+    setMatchedProfile(null);
+    setNewCustomerType(null);
+    setCheckoutOverride(null);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    resetFormState();
+    onClose();
+  }, [onClose, resetFormState]);
+
   useEffect(() => {
-    if (isOpen) {
-      const loadCloudConfig = async () => {
-        try {
-          // 获取当前登录用户/门店的信息
-          const sessionStr = localStorage.getItem('gx_sandbox_session');
-          let currentShopId = 'default';
-          if (sessionStr) {
-            const session = JSON.parse(sessionStr);
-            currentShopId = new URLSearchParams(window.location.search).get('shopId') || session.shopId || 'default';
-          }
-          
-          const res = await fetch('/api/sandbox');
-          const db = await res.json();
-          const cloudConfig = db.configs?.[currentShopId];
-          
-          if (cloudConfig) {
-            if (cloudConfig.staffs) {
-              setStaffs(cloudConfig.staffs.filter((s: any) => s.status !== 'resigned'));
-            }
-            if (cloudConfig.categories) {
-              setCategories(cloudConfig.categories);
-              if (cloudConfig.categories.length > 0 && !activeCategory) {
-                setActiveCategory(cloudConfig.categories[0].id);
-              }
-            }
-            if (cloudConfig.services) {
-              setServices(cloudConfig.services);
-            }
-          }
-        } catch (e) {
-          console.error("Failed to load cloud config in BookingModal:", e);
-        }
-      };
-      
-      loadCloudConfig();
-
-      // 初始化表单数据
-      if (editingBooking) {
-        // 编辑模式：回显数据
-          setPhoneTracks(editingBooking.customerName && editingBooking.customerName !== "散客 Walk-in" ? editingBooking.customerName.split(',') : [""]);
-          setSelectedTime(editingBooking.startTime);
-          if (editingBooking.date) {
-            setSelectedDate(editingBooking.date.replace(/-/g, '/'));
-          }
-          
-          if (editingBooking.services && editingBooking.services.length > 0) {
-            // 修复：确保回显的服务项目带有正确的 assignedEmployeeId
-            // 如果是 SuperBooking (跨块连单)，我们需要追溯每个 service 到底属于哪个子订单 (resourceId)
-            let restoredServices = [];
-            
-            if (editingBooking.isSuperBooking && editingBooking.relatedBookings) {
-              // 遍历所有子订单，提取它们各自的 services，并强制打上该子订单的 resourceId 印章
-              editingBooking.relatedBookings.forEach((b: any) => {
-                if (b.services) {
-                  const bServices = b.services.map((s: any) => ({
-                    ...s,
-                    assignedEmployeeId: b.originalUnassigned ? null : b.resourceId
-                  }));
-                  restoredServices.push(...bServices);
-                }
-              });
-            } else {
-              // 单块订单逻辑
-              restoredServices = editingBooking.services.map((s: any) => ({
-                ...s,
-                assignedEmployeeId: editingBooking.originalUnassigned ? null : editingBooking.resourceId
-              }));
-            }
-            
-            setSelectedServices(restoredServices);
-            
-            // 还原自定义文本
-            setCustomServiceText(editingBooking.customServiceText || "");
-            
-            // 还原时长微调
-            const baseD = editingBooking.services.reduce((acc: number, s: any) => acc + (s.duration || 0), 0);
-            setDurationOffset(editingBooking.duration - baseD);
-          }
-          
-          // 智能分发：点开旧预约时，右侧默认展开雷达面板以查看客人底细
-          setActivePaneMode('member');
-        } else {
-          // 新建模式：初始化日期和时间
-          const targetDate = initialDate || new Date();
-          const year = targetDate.getFullYear();
-          const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
-          const day = targetDate.getDate().toString().padStart(2, '0');
-          setSelectedDate(`${year}/${month}/${day}`);
-
-          if (initialTime) {
-            setSelectedTime(initialTime);
-          } else {
-            const now = new Date();
-            const nextHour = (now.getHours() + 1) % 24;
-            setSelectedTime(`${nextHour.toString().padStart(2, '0')}:00`);
-          }
-
-          if (initialResourceId) {
-            setCurrentBrushEmployeeId(initialResourceId);
-          }
-        }
-
-    } else {
-      // 弹窗关闭时重置状态
-      setSelectedServices([]);
-      setCustomServiceText("");
-      setCurrentBrushEmployeeId(null);
-      setRetargetingServiceId(null);
-      setActivePaneMode('service');
-      setPhoneTracks(['']); // 修复：重置为初始的多轨电话状态
-      setDurationOffset(0);
-    }
-  }, [isOpen, editingBooking, initialDate, initialTime, initialResourceId]);
+    return () => {
+      if (phoneMatchTimerRef.current) {
+        clearTimeout(phoneMatchTimerRef.current);
+      }
+    };
+  }, []);
 
   // 处理服务多选与印章涂色
-  const handleToggleService = (service: any) => {
+  const handleToggleService = (service: ServiceItem) => {
     // 如果当前有正在重定向的服务，点击矩阵中的任何其他服务或本身，都取消重定向状态
     if (retargetingServiceId) {
       setRetargetingServiceId(null);
@@ -354,18 +369,46 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     setRetargetingServiceId(prev => prev === serviceId ? null : serviceId);
   };
 
-  // 处理手势：向右滑动进入结账，向左滑动退回表单
-  // 加入严格的防误触判定：只响应纯粹的横向滑动，忽略上下滚动时的轻微横向偏移
-  const handlePanEnd = (_e: any, info: any) => {
-    const isHorizontalSwipe = Math.abs(info.offset.x) > 80 && Math.abs(info.offset.y) < 50;
+  // 手势拦截系统 (原生触控向量引擎 - Native Touch Vector Engine)
+  const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || e.changedTouches.length === 0) return;
     
-    if (isHorizontalSwipe) {
-      if (!isCheckoutMode && info.offset.x > 80) {
-        setIsCheckoutMode(true);
-      } else if (isCheckoutMode && info.offset.x < -80) {
-        setIsCheckoutMode(false);
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    
+    // 物理向量判定法则：只有横向滑动距离大于 50px，且横向位移绝对值显著大于纵向位移，才判定为“横向手势”
+    // 这完美解决了在上下滚动的列表里误触横向切换的 0 弊端难题
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if (activePaneMode === 'member') {
+        // 会员模式下：右滑结账，左滑返回
+        if (!isCheckoutMode && deltaX > 50) {
+          setCheckoutOverride(true);
+        } else if (isCheckoutMode && deltaX < -50) {
+          setCheckoutOverride(false);
+        }
+      } else if (activePaneMode === 'service' && categories.length > 0) {
+        // 服务模式下：左右滑切换分类
+        const currentIndex = categories.findIndex(c => c.id === activeCategory);
+        if (deltaX < -50) {
+          // 向左划：看下一个分类
+          const nextIndex = (currentIndex + 1) % categories.length;
+          setActiveCategory(categories[nextIndex].id);
+        } else if (deltaX > 50) {
+          // 向右划：退回上一个分类
+          const prevIndex = (currentIndex - 1 + categories.length) % categories.length;
+          setActiveCategory(categories[prevIndex].id);
+        }
       }
     }
+    touchStartRef.current = null; // 重置
   };
 
   // 处理滑轨结账
@@ -375,6 +418,31 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   //   onClose();
   // };
 
+  // --- 核心业务逻辑：标记爽约 (NO SHOW) ---
+  const handleMarkAsNoShow = async () => {
+    if (!editingBooking) return;
+    
+    // 去真实数据库请求一个新的 NO 编号（自带断层扫描与锁定）
+    const newNoId = await BookingService.getAvailableCustomerId(activeShopId || 'default', 'NO');
+    
+    try {
+      const updatedBookings = [{
+        ...editingBooking,
+        date: editingBooking.date || selectedDate.replace(/\//g, '-'),
+        startTime: editingBooking.startTime || "00:00",
+        duration: editingBooking.duration || 60,
+        customerId: newNoId, // 临时替换为 NO 显示
+        status: 'no_show',
+        resourceId: 'NO', // 可以将其移动到“爽约”列，如果存在的话
+      }];
+      
+      await BookingService.upsertBookings(updatedBookings);
+      handleClose();
+    } catch (error) {
+      console.error("Failed to mark as No Show:", error);
+    }
+  };
+
   // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
   const handleConfirmBooking = async () => {
     if (selectedServices.length === 0) {
@@ -383,7 +451,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     }
 
     // 1. 按员工归组 (Group by Employee)
-    const groupedByEmployee = selectedServices.reduce((acc: any, service: any) => {
+    const groupedByEmployee = selectedServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
       // 如果没有指定员工，我们这里可以默认分配给一个特定员工，或者作为“待分配”状态
       // 为了沙盒演示，如果没有 assignedEmployeeId，我们将其分配给 default_unassigned
       const empId = service.assignedEmployeeId || 'unassigned';
@@ -395,7 +463,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     }, {});
 
     // 2. 生成拆分后的预约卡片数据
-    const newBookings: any[] = [];
+    const newBookings: BookingEdit[] = [];
     const customerName = phoneTracks.filter(t => t.trim() !== "").join(',') || "散客 Walk-in";
     const baseDate = selectedDate.replace(/\//g, '-'); // 确保格式为 YYYY-MM-DD 以便解析
     
@@ -403,45 +471,61 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     const masterOrderId = editingBooking?.masterOrderId || `ORD-${Date.now()}`;
 
     // --- 消耗/更新客户编号 (Consume Customer ID) ---
-      // 由于业务要求脱离 localStorage，这里暂时保留结构但不执行本地写操作
-      // 真正的计数器和 ID 生成应该交由 Supabase 后端序列处理
-      // if (!editingBooking && customerId) {
-      //   ...
-      // }
-  
-      Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup]: [string, any]) => {
-      // 聚合该员工负责的这部分服务的名称和总时长
-      const groupDuration = servicesInGroup.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
-      const groupServiceNames = servicesInGroup.map((s: any) => s.name).join(' + ');
+    // 真正的计数器和 ID 生成交由 Supabase 后端序列处理，本地无需再手动管理
+    // 断层扫描分配器已保证 `customerId` 完美填坑
 
+
+    // 废弃串行连单推演，改为“绝对并发创建 (Parallel Time Pipeline)”：
+    // 如果选了多个服务给不同员工，它们都将从相同的基准时间 (selectedTime) 开始。
+    let baseStartTimeMin = 0;
+    if (selectedTime) {
+      const [h, m] = selectedTime.split(':').map(Number);
+      // 15 点是 15 * 60 = 900
+      baseStartTimeMin = h * 60 + m;
+    }
+
+    // 【Bug Fix】修复 shopId 在沙盒/本地模式下无法从 window.location 获取的问题
+    let targetShopId = activeShopId || 'default';
+    if (typeof window !== 'undefined') {
+       targetShopId = new URLSearchParams(window.location.search).get('shopId') || targetShopId;
+    }
+    
+    // 遍历每个员工的服务组
+    Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup], groupIndex) => {
+      const groupDuration = servicesInGroup.reduce((sum, s) => sum + (s.duration || 0), 0);
+      const groupServiceNames = servicesInGroup.map((s) => s.name).join(' + ');
+      
       // 如果只有一个员工，时长微调 (durationOffset) 全算给他；如果有多个员工，微调比较复杂，这里简单处理，加在第一个员工头上，或者不加。
-      // 为了演示，如果员工数>1，暂时忽略微调；如果是单员工，应用微调
       const finalDuration = Object.keys(groupedByEmployee).length === 1 
         ? Math.max(1, groupDuration + durationOffset) 
         : groupDuration;
 
-      // 默认并行：所有拆分卡片的 startTime 都是表单选择的开始时间
-      const [hours, minutes] = selectedTime.split(':');
-      const startDateTime = new Date(`${baseDate}T${hours}:${minutes}:00`);
-
-      const endDateTime = new Date(startDateTime);
-      endDateTime.setMinutes(endDateTime.getMinutes() + finalDuration);
+      // 【重塑中枢：取消串行推演，恢复并发时刻】
+      // 计算当前这笔子订单的 startTime (HH:mm 格式)，所有组都使用基准时间
+      const startH = Math.floor(baseStartTimeMin / 60);
+      const startM = baseStartTimeMin % 60;
+      const currentStartTimeStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
+      
+      // 注意：这里不再将时间游标往后推 (不执行 currentStartTimeMin += finalDuration)
 
       newBookings.push({
-        id: editingBooking && Object.keys(groupedByEmployee).length === 1 ? editingBooking.id : `BKG-${Date.now()}-${empId}`, // 如果是单员工编辑，保留原ID；如果是重拆分，生成新ID
+        id: editingBooking && Object.keys(groupedByEmployee).length === 1 ? editingBooking.id : `BKG-${Date.now()}-${empId}-${groupIndex}`, // 重拆分时，加入 index 防止 React Key 重复
         masterOrderId: editingBooking ? editingBooking.masterOrderId : masterOrderId,
-        resourceId: empId === 'unassigned' ? null : empId, // 临时设为 null，后面由前置派发逻辑处理
+        resourceId: empId === 'unassigned' ? undefined : empId, // 临时设为 undefined，后面由前置派发逻辑处理
         customerId: customerId, // 【核心】：注入智能编号
         customerName: customerName,
         serviceName: customServiceText ? `${groupServiceNames} (${customServiceText})` : groupServiceNames,
         customServiceText: customServiceText, // 存入自定义文本以便下次编辑回显
         date: baseDate, // 【核心修复】：注入丢失的 date 字段，打破渲染隐形诅咒
-        startTime: `${hours}:${minutes}`, // 简单的时间字符串，用于渲染定位
+        startTime: currentStartTimeStr, // 【核心修复】：恢复所有预约块的同一起始时间
         duration: finalDuration,
         status: 'confirmed',
+        is_staff_requested: empId !== 'unassigned', // 如果分配了员工，就是强指定的；如果是 unassigned，就是非指定的
         services: servicesInGroup, // 原始服务数据，备用
         originalUnassigned: empId === 'unassigned', // 标记它原本是未指定的
-        shopId: new URLSearchParams(window.location.search).get('shopId') || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('gx_sandbox_session') || '{}').shopId) || 'default' // 强绑定租户：优先URL，其次Session，最后兜底
+        shopId: targetShopId, // 强绑定租户
+        // 【财务防篡改快照】
+        staff_snapshot_name: staffs.find(s => s.id === empId)?.name || empId // 封印当时的员工名字
       });
     });
 
@@ -449,26 +533,30 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     // 读取所有数据，进行“绝对路权锚定”与“无指定预约重新寻位”
     try {
       // 这里的逻辑改成从 Supabase 异步读取
-      const currentShopId = new URLSearchParams(window.location.search).get('shopId') || 'default';
+      let currentShopId = activeShopId || 'default';
+      if (typeof window !== 'undefined') {
+         currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
+      }
       const { data: bookingsData } = await BookingService.getBookings(currentShopId);
-      let allBookings = bookingsData || [];
+      let allBookings: ReflowBooking[] = (bookingsData as ReflowBooking[]) || [];
       
-      // 1. 如果是编辑模式，先从现存列表中移除这笔被编辑的旧订单（或所有关联子订单）
+      // 1. 如果是编辑模式，先从现存列表中移除这笔被编辑的旧订单
+      // 【绝对焦点编辑】：只移除当前这个独立订单，不再连坐移除其他 relatedBookings
       if (editingBooking) {
-        if (editingBooking.isSuperBooking && editingBooking.relatedBookings) {
-          const idsToRemove = editingBooking.relatedBookings.map((b: any) => b.id);
-          allBookings = allBookings.filter((b: any) => !idsToRemove.includes(b.id));
-        } else {
-          allBookings = allBookings.filter((b: any) => b.id !== editingBooking.id);
-        }
+        allBookings = allBookings.filter((b) => b.id !== editingBooking.id);
       }
 
       // 2. 将当前操作产生的新订单加入全量列表
-      allBookings = [...allBookings, ...newBookings];
+      allBookings = [...allBookings, ...newBookings.map(b => ({
+        ...b,
+        date: b.date || baseDate, // 确保 date 存在
+        startTime: b.startTime || "00:00", // 确保 startTime 存在
+        duration: b.duration || 60, // 确保 duration 存在
+      })) as ReflowBooking[]];
 
       // 3. 过滤出今天的订单进行重排，非今天的订单保持不动
-      const todayBookings = allBookings.filter((b: any) => b.date === baseDate);
-      const otherDayBookings = allBookings.filter((b: any) => b.date !== baseDate);
+      const todayBookings = allBookings.filter((b) => b.date === baseDate);
+      const otherDayBookings = allBookings.filter((b) => b.date !== baseDate);
 
       // 将时间字符串(HH:MM)转化为当天的绝对分钟数，用于碰撞检测
       const timeToMinutes = (timeStr: string) => {
@@ -477,15 +565,15 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
       };
 
       // 4. 剥离并分类：指定预约（含NO）、无指定预约
-      const assignedBookings: any[] = [];
-      let unassignedBookings: any[] = [];
+      const assignedBookings: ReflowBooking[] = [];
+      const unassignedBookings: ReflowBooking[] = [];
 
-      todayBookings.forEach((b: any) => {
+      todayBookings.forEach((b) => {
         // 如果它是无指定预约，且不是已经被锁定在爽约列的 NO
         if (b.originalUnassigned && b.resourceId !== 'NO') {
           // 【核心修复】：必须清空它之前的坑位记忆，让它变成纯粹的“无家可归”状态
           // 否则它会携带着旧的 resourceId 参与碰撞检测，导致死锁或自我挤压
-          b.resourceId = null;
+          b.resourceId = undefined;
           unassignedBookings.push(b);
         } else {
           // 真正的指定预约（拥有绝对路权）
@@ -525,23 +613,27 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
         }
 
         // 如果找到空位则落位，否则兜底放到第一个员工（允许视觉挤压）
-        unassignedBkg.resourceId = foundStaffId || (staffs.length > 0 ? staffs[0].id : null);
+        unassignedBkg.resourceId = foundStaffId || (staffs.length > 0 ? staffs[0].id : undefined);
         
         // 落位后，加入 placedBookings 参与后续无指定预约的碰撞检测
         placedBookings.push(unassignedBkg);
       });
 
       // 7. 合并重排后的今日订单与非今日订单，存盘
-      const finalUpdatedBookings = [...otherDayBookings, ...placedBookings];
+      const finalUpdatedBookings = [...otherDayBookings, ...placedBookings].map((booking) => ({
+        ...booking,
+        resourceId: booking.resourceId ?? undefined
+      }));
       
       // 异步保存到 Supabase
       await BookingService.upsertBookings(finalUpdatedBookings);
       
-      // 不再派发本地事件，因为已经有实时引擎接管
-      // window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+      // 核心修复：虽然有实时引擎，但是由于我们取消了全局重新拉取，
+      // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据
+      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
       
       // 关闭弹窗
-      onClose();
+      handleClose();
     } catch (error) {
       console.error("Failed to save bookings to Supabase:", error);
     }
@@ -550,11 +642,11 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   // Close on escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [handleClose]);
 
   // 计算总时长和结束时间
   const baseDuration = selectedServices.reduce((sum, service) => sum + (service.duration || 0), 0);
@@ -569,31 +661,30 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
     return date.toTimeString().substring(0, 5);
   };
 
-  const formatDisplayId = (rawId: string) => {
-    if (!rawId) return "CO 001";
-    const parts = rawId.split(' ');
-    if (parts.length !== 2) return rawId;
-    const prefix = parts[0];
-    const numStr = parts[1];
-    const num = parseInt(numStr, 10);
+  const formatDisplayId = (rawId: string): React.ReactNode => {
+    if (!rawId) return "CO 1";
     
-    if (['CO', 'NO'].includes(prefix)) {
-      let paddedNum = num.toString();
-      if (num < 1000) {
-        paddedNum = num.toString().padStart(3, '0');
-      } else if (num < 10000) {
-        paddedNum = num.toString().padStart(4, '0');
+    const match = rawId.match(/^([a-zA-Z]+)\s*(.+)$/i);
+    if (match) {
+      const pre = match[1].toUpperCase();
+      const rest = match[2];
+      
+      if (['CO', 'NO'].includes(pre)) {
+        // 散客和爽约，保留前缀，去除前导零 (如 CO 001 -> CO 1, CO 9 -> CO 9)
+        const num = parseInt(rest, 10);
+        return isNaN(num) ? rawId : `${pre} ${num}`;
+      } else {
+        // 正式会员 (GV/AD/AN/UM 等)，直接斩掉前缀字母，保留原有的数字格式 (如 0015, 3001)
+        return rest; 
       }
-      return `${prefix} ${paddedNum}`;
-    } else {
-      // 修复：确保会员编号能返回正确的格式，如果剥离前缀后导致不可见，我们在这里补充一个统一的前缀，或者直接返回原始编号以保证高亮显示
-      return rawId; 
     }
+    
+    return rawId;
   };
 
   // --- Checkout Data Transformer ---
   // 将选中的服务按员工进行分组，用于结账舱渲染
-  const groupedCheckoutServices = selectedServices.reduce((acc: any, service: any) => {
+  const groupedCheckoutServices = selectedServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
     // 关键修复：如果在编辑模式下（特别是连单模式），传进来的 service 可能没有 assignedEmployeeId，
     // 但是它所归属的 booking (或者它自己) 带有 resourceId。我们需要尽量去挖掘它属于哪个员工。
     // 因为在跨块连单组装时，我们是从不同的 block 里提取的 service。
@@ -603,8 +694,8 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
       // 尝试从外部 editingBooking 的相关订单中寻找（因为我们把它们压平了）
       if (editingBooking?.isSuperBooking && editingBooking.relatedBookings) {
         // 找一找哪个子订单包含了这个服务
-        const parentBooking = editingBooking.relatedBookings.find((b: any) => 
-          b.services?.some((s: any) => s.id === service.id)
+        const parentBooking = editingBooking.relatedBookings.find((b) => 
+          b.services?.some((s) => s.id === service.id)
         );
         if (parentBooking && parentBooking.resourceId) {
           empId = parentBooking.resourceId;
@@ -624,40 +715,32 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <>
       {isOpen && (
-        <motion.div 
-          className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-pan-y"
-          onPanEnd={handlePanEnd}
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-none"
         >
-          {/* 背景暗场遮罩，带有毛玻璃效果 */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={cn("absolute inset-0 transition-colors duration-700", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/40 backdrop-blur-sm")}
-            onClick={onClose}
+          {/* 背景暗场遮罩，带有毛玻璃效果 (极速出现) */}
+          <div 
+            className={cn("absolute inset-0 transition-colors duration-100", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/40 backdrop-blur-sm")}
+            onClick={handleClose}
           />
           
           {isCheckoutMode ? (
             /* ===================== Neon Core 结账舱 ===================== */
-            <motion.div 
+            <div 
               key="checkout-pane"
-              initial={{ scale: 0.95, opacity: 0, x: -50 }}
-              animate={{ scale: 1, opacity: 1, x: 0 }}
-              exit={{ scale: 0.95, opacity: 0, x: 50 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative z-10 w-full max-w-[800px] h-[80vh] md:h-[450px] flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 overflow-hidden"
+              className="relative z-10 w-full max-w-[800px] h-[80vh] md:h-[450px] flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 overflow-hidden touch-pan-y"
             >
               {/* 顶角关闭 / 返回按钮 */}
               <button 
-                onClick={() => setIsCheckoutMode(false)} 
+                onClick={() => setCheckoutOverride(false)} 
                 className="absolute top-4 left-4 text-white/40 hover:text-[#39FF14] transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <button 
-                onClick={onClose} 
+                onClick={handleClose} 
                 className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -678,7 +761,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
 
               {/* Middle Matrix: 极简三维消费流 */}
               <div className="flex-1 w-full mt-6 flex flex-col gap-4 overflow-y-auto no-scrollbar px-8 md:px-24">
-                {Object.entries(groupedCheckoutServices).map(([empId, services]: [string, any]) => {
+                {Object.entries(groupedCheckoutServices).map(([empId, services]) => {
                   // 这里解决渲染匹配问题：如果在沙盒模式下 assignedEmployeeId 是 null 或者 'unassigned'，它可能找不到 staff
                   // 但是在跨块连单传入时，booking 本身可能带有 resourceId。
                   // 我们在上面 transformer 中已经用 service.assignedEmployeeId 进行分组了。
@@ -688,11 +771,11 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                   
                   return (
                     <div key={empId} className="flex flex-col gap-4">
-                      {services.map((service: any, idx: number) => {
+                      {services.map((service, idx: number) => {
                         // 修复价格累加 bug：由于我们之前改成了按组遍历，这里的 idx 是组内索引！
                         // 而在旧版本（或者计算总价时），idx 是全局索引。
                         // 为了让沙盒模拟价格和总价对得上，我们需要在 `selectedServices` 中找到它的全局真实索引，或者干脆统一价格逻辑。
-                        const mockPrice = Array.isArray(service.prices) && service.prices.length > 0 ? service.prices[0] : 0;
+                        const mockPrice = (Array.isArray(service.prices) && service.prices.length > 0 ? service.prices[0] : 0) as number;
                         
                         return (
                           <div key={service.id || idx} className="flex items-center w-full gap-6">
@@ -700,18 +783,18 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                             <div className="w-24 shrink-0 text-left">
                               {idx === 0 ? (
                                 <span className="text-lg font-bold tracking-widest text-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] uppercase">
-                                  {staffName}
+                                  {staffName as React.ReactNode}
                                 </span>
                               ) : (
                                 <span className="text-lg font-bold tracking-widest text-transparent uppercase select-none">
-                                  {staffName}
+                                  {staffName as React.ReactNode}
                                 </span>
                               )}
                             </div>
                             
                             {/* 高对比度项目名称 */}
                             <span className="text-white font-bold text-lg tracking-wider shrink-0 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-                              {service.name}
+                              {service.name as React.ReactNode}
                             </span>
                             
                             {/* 动态赛博引线 (Leader) */}
@@ -736,7 +819,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                       </span>
                     </div>
                     <span className="text-white/80 font-bold text-lg tracking-widest shrink-0">
-                      {customServiceText}
+                      {customServiceText as string}
                     </span>
                     <div className="flex-1 h-px border-b border-dashed border-white/10 mx-2" />
                     <span className="text-white/50 font-bold text-lg tracking-wider shrink-0">
@@ -768,76 +851,107 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                   }, 0)}.00
                 </div>
               </div>
-            </motion.div>
+            </div>
           ) : (
             /* ===================== 常规双窗预约表单 ===================== */
-            <motion.div 
+            <div 
               key="form-pane"
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="relative z-10 w-full max-w-[800px] flex flex-col items-center px-4 md:px-0"
             >
               {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
               <main className="w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
                 {/* 右上角关闭按钮 */}
                 <button 
-                  onClick={onClose} 
+                  onClick={handleClose} 
                   className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100"
                 >
                   <X className="w-4 h-4" />
                 </button>
 
                 {/* ===================== 左侧/顶部：控制台面板 ===================== */}
-                <section className="w-full md:w-[50%] h-[50%] md:h-full p-5 md:pb-16 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0">
+                <section 
+                  className="w-full md:w-[50%] h-[50%] md:h-full p-5 md:pb-16 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0"
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                >
                 
                 {/* 表单录入区 */}
-                <div className="grid grid-cols-2 gap-4 mt-1">
+                <div className="flex flex-col gap-4 mt-1">
                   <div className="space-y-1.5">
                     <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">服务内容</label>
                     <div 
                       className={cn(
-                        "bg-black/40 border rounded-lg p-2 h-[38px] flex items-center cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] overflow-hidden",
+                        "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] overflow-hidden",
                         activePaneMode === 'service' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
                       )}
-                      onClick={() => {
+                      onClick={(e) => {
+                        // 终极修复：由于内部的胶囊 (button) 已经有了 e.stopPropagation()，
+                        // 能走到这一层的点击，必然是点在了空白处、透明输入框、或者提示文字上。
+                        // 因此不需要任何 if 判断，无条件切回服务面板。
                         setActivePaneMode('service');
                         document.getElementById('custom-service-input')?.focus();
                       }}
                     >
-                      <div className="flex-1 flex items-center overflow-x-auto no-scrollbar whitespace-nowrap h-full">
+                      <div id="custom-service-input-container" className="flex-1 flex flex-wrap items-center gap-2 w-full h-full">
                         {selectedServices.length === 0 && customServiceText === "" && (
-                          <span className="text-[11px] text-white/20 absolute pointer-events-none">选择服务项目或输入...</span>
+                          <span className="text-[11px] text-white/20 absolute pointer-events-none ml-1">选择服务项目或输入...</span>
                         )}
                         {selectedServices.map((s, index) => {
                           const staff = staffs.find(st => st.id === s.assignedEmployeeId);
                           const textColor = staff ? staff.color : '#ffffff'; // 未指定时字体为亮白色
+                          const isRetargeting = retargetingServiceId === s.id;
                           
                           return (
-                            <div key={s.id} className="flex items-center shrink-0">
+                            <button
+                              key={`svc_${s.id}_${index}`}
+                              onClick={(e) => {
+                                e.stopPropagation(); // 阻止冒泡
+                                handleRetargetService(s.id);
+                                setActivePaneMode('service'); // 确保唤起右侧服务面板
+                              }}
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-all shrink-0 group relative overflow-hidden",
+                                isRetargeting 
+                                  ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-pulse" 
+                                  : "bg-white/5 border-white/10 hover:bg-white/10"
+                              )}
+                              title="点击重新分配员工"
+                            >
+                               {/* 左侧颜色指示条 */}
+                               <div 
+                                  className="absolute left-0 top-0 bottom-0 w-1 opacity-80 group-hover:opacity-100 transition-opacity"
+                                  style={{ backgroundColor: textColor as string }}
+                               />
                               <span 
-                                className="text-[11px] font-bold tracking-wide transition-colors"
-                                style={{ 
-                                  color: textColor,
-                                  textShadow: staff ? `0 0 8px ${textColor}60` : '0 0 8px rgba(255,255,255,0.3)'
+                                className="text-[12px] font-bold tracking-wide transition-colors ml-1"
+                                style={!isRetargeting ? { 
+                                  color: textColor as string,
+                                  textShadow: staff ? `0 0 8px ${textColor as string}40` : 'none'
+                                } : {}}
+                              >
+                                {s.name as React.ReactNode}
+                              </span>
+                              
+                              {/* 删除按钮 */}
+                              <div 
+                                className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded-full text-white/40 hover:text-red-400"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleService(s); // 再次点击等于取消选中
                                 }}
                               >
-                                {s.name}
-                              </span>
-                              {(index < selectedServices.length - 1 || customServiceText !== "") && (
-                                <span className="text-white/20 px-1 text-[10px] font-bold">·</span>
-                              )}
-                            </div>
+                                <X className="w-3 h-3" />
+                              </div>
+                            </button>
                           );
                         })}
                         {/* 透明的自由文本输入框，紧跟在胶囊流后面 */}
                         <input
                           id="custom-service-input"
                           type="text"
-                          value={customServiceText}
+                          value={customServiceText as string}
                           onChange={(e) => setCustomServiceText(e.target.value)}
-                          className="bg-transparent border-none outline-none text-[11px] text-white font-bold flex-1 min-w-[60px] p-0 m-0 leading-tight placeholder:text-transparent shrink-0"
+                          className="bg-transparent border-none outline-none text-[12px] text-white font-bold flex-1 min-w-[60px] p-0 m-0 leading-tight placeholder:text-transparent shrink-0 ml-1"
                           placeholder={selectedServices.length > 0 ? "" : " "}
                         />
                       </div>
@@ -847,7 +961,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                     <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">会员信息</label>
                     <div 
                       className={cn(
-                        "bg-black/40 border rounded-lg p-2 h-[38px] flex items-center gap-2 cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] relative group",
+                        "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center gap-2 cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] relative group",
                         activePaneMode === 'member' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
                       )}
                       onClick={() => {
@@ -857,28 +971,28 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                     >
                       <User className={cn("w-3 h-3 shrink-0", activePaneMode === 'member' ? "text-gx-cyan" : "text-gx-cyan/70")} />
                       
-                      {/* 终极极简交互：如果处于非输入状态，且有 customerId，则只展示纯净的徽章 */}
-                      {!isMemberInputFocused && customerId ? (
-                        <div className="flex-1 truncate flex items-center justify-center pr-5">
+                      {/* 终极极简交互：如果处于非输入状态，且有 phoneTracks[0] 则说明有记录，如果为空则显示 placeholder */}
+                      {!isMemberInputFocused && phoneTracks[0] ? (
+                        <div className="flex-1 truncate flex items-center justify-start pl-2">
                           <span className={cn(
                             "text-[11px] font-bold font-mono tracking-widest leading-none -translate-y-[1px]",
-                            customerId.startsWith('CO') ? "text-white/40" : "text-gx-cyan"
+                            phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" || matchedProfile ? "text-gx-cyan" : "text-white/80"
                           )}>
-                            {formatDisplayId(customerId)}
+                            {matchedProfile?.name || phoneTracks[0]}
                           </span>
                         </div>
                       ) : (
-                        /* 输入模式：完全接管该区域，不显示任何前缀，只显示纯粹的输入框 */
-                        <div className="flex-1 w-full h-full flex items-center justify-center">
+                        /* 输入模式或无输入记录时显示输入框 */
+                        <div className="flex-1 w-full h-full flex items-center justify-start pl-2">
                           <input 
                             type="text" 
                             placeholder="输入主电话..." 
-                            className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none -translate-y-[1px] text-center pr-5"
+                            className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none -translate-y-[1px] text-left"
                             value={phoneTracks[0] || ""}
                             onChange={(e) => {
                               const newTracks = [...phoneTracks];
                               newTracks[0] = e.target.value;
-                              setPhoneTracks(newTracks);
+                              updatePhoneTracks(newTracks);
                               if (activePaneMode !== 'member') setActivePaneMode('member');
                             }}
                             onBlur={() => setIsMemberInputFocused(false)} // 失去焦点瞬间坍缩
@@ -890,79 +1004,111 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                   </div>
                 </div>
 
-                {/* 时间与持续时间 */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">预约日期</label>
-                    <div 
-                      className={cn(
-                        "bg-black/40 border rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] text-white",
-                        activePaneMode === 'date' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
-                      )}
-                      onClick={() => setActivePaneMode('date')}
-                    >
-                      <span>{selectedDate}</span>
-                      <CalendarIcon className={cn("w-3 h-3", activePaneMode === 'date' ? "text-gx-cyan" : "text-gx-cyan/70")} />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">开始时间</label>
-                    <div 
-                      className={cn(
-                        "bg-black/40 border rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] text-white",
-                        activePaneMode === 'time' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
-                      )}
-                      onClick={() => setActivePaneMode('time')}
-                    >
-                      <span>{selectedTime}</span>
-                      <Clock className={cn("w-3 h-3", activePaneMode === 'time' ? "text-gx-cyan" : "text-gx-cyan/70")} />
-                    </div>
-                  </div>
+                {/* 预约时空仪表盘 (Unified Time/Date Dashboard) */}
+                <div className="mt-2 space-y-1.5">
+                  <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">预约安排</label>
+                  <div className="bg-black/40 border border-white/10 rounded-xl p-1.5 flex flex-col gap-1 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    {/* 上半部分：日期与时间 (并排) */}
+                    <div className="flex gap-1">
+                      {/* 预约日期触发器 */}
+                      <button
+                        onClick={() => setActivePaneMode('date')}
+                        className={cn(
+                          "flex-1 flex flex-col items-start justify-center p-3 rounded-lg transition-all border group",
+                          activePaneMode === 'date' 
+                            ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
+                            : "bg-white/5 border-transparent hover:bg-white/10"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <CalendarIcon className={cn("w-3.5 h-3.5", activePaneMode === 'date' ? "text-gx-cyan" : "text-white/40 group-hover:text-white/60")} />
+                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">DATE</span>
+                        </div>
+                        <span className={cn(
+                          "text-sm font-bold font-mono tracking-wider",
+                          activePaneMode === 'date' ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/80"
+                        )}>
+                          {selectedDate.replace(/\//g, '.')}
+                        </span>
+                      </button>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">服务时长</label>
-                    <div 
-                      className={cn(
-                        "bg-black/40 border rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] cursor-pointer transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)]",
-                        activePaneMode === 'duration' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)] text-white" : "border-gx-cyan/30 hover:border-gx-cyan/70 text-white/60"
-                      )}
-                      onClick={() => setActivePaneMode('duration')}
-                    >
-                      <span className={durationOffset !== 0 ? "text-gx-cyan font-bold" : ""}>
-                        {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
-                      </span>
-                      <Clock className={cn("w-3 h-3", activePaneMode === 'duration' ? "text-gx-cyan" : "text-white/20")} />
+                      {/* 开始时间触发器 */}
+                      <button
+                        onClick={() => setActivePaneMode('time')}
+                        className={cn(
+                          "flex-1 flex flex-col items-start justify-center p-3 rounded-lg transition-all border group",
+                          activePaneMode === 'time' 
+                            ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
+                            : "bg-white/5 border-transparent hover:bg-white/10"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className={cn("w-3.5 h-3.5", activePaneMode === 'time' ? "text-gx-cyan" : "text-white/40 group-hover:text-white/60")} />
+                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">TIME</span>
+                        </div>
+                        <span className={cn(
+                          "text-sm font-bold font-mono tracking-wider",
+                          activePaneMode === 'time' ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/80"
+                        )}>
+                          {selectedTime}
+                        </span>
+                      </button>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">结束时间</label>
-                    <div 
-                      className="bg-black/40 border border-gx-cyan/30 rounded-lg p-2 h-[38px] flex justify-between items-center text-[11px] text-white/60 cursor-not-allowed"
-                    >
-                      <span>{getEndTime()}</span>
-                      <Clock className="w-3 h-3 text-white/20" />
+
+                    {/* 下半部分：时长与结束时间推算 (并排) */}
+                    <div className="flex gap-1">
+                      {/* 服务时长触发器 */}
+                      <button
+                        onClick={() => setActivePaneMode('duration')}
+                        className={cn(
+                          "flex-1 flex items-center justify-between p-3 rounded-lg transition-all border group",
+                          activePaneMode === 'duration' 
+                            ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
+                            : "bg-white/5 border-transparent hover:bg-white/10"
+                        )}
+                      >
+                        <span className="text-[10px] text-white/40 font-mono tracking-widest uppercase">DURATION</span>
+                        <span className={cn(
+                          "text-xs font-bold font-mono",
+                          durationOffset !== 0 ? "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]" : "text-white/80"
+                        )}>
+                          {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
+                        </span>
+                      </button>
+
+                      {/* 结束时间 (只读展示) */}
+                      <div className="flex-1 flex items-center justify-between p-3 rounded-lg bg-black/40 border border-transparent">
+                        <span className="text-[10px] text-white/30 font-mono tracking-widest uppercase">END AT</span>
+                        <span className="text-xs font-bold font-mono text-white/40">
+                          {getEndTime()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </section>
 
               {/* ===================== 右侧/底部：动态监视器区 ===================== */}
-              <section className="flex-1 h-[50%] md:h-full p-4 md:p-6 relative z-10 overflow-hidden">
+              <section 
+                className="flex-1 h-[50%] md:h-full p-4 md:p-6 relative z-10 overflow-hidden"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
                 {activePaneMode === 'service' && (
                   // 服务项目选择矩阵与人员分配
-                  <div className="h-full flex flex-col overflow-y-auto custom-scrollbar">
+                  <div className="h-full flex flex-col overflow-hidden relative">
                     {/* 分类标签导航 */}
-                    <div className="flex gap-[20px] border-b border-white/10 pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-md z-10">
+                    <div className="flex gap-[20px] border-b border-white/10 pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none">
                       {categories.map(cat => (
                         <button
                           key={cat.id}
                           onClick={() => setActiveCategory(cat.id)}
                           className={cn(
-                            "text-[15px] font-mono whitespace-nowrap transition-colors uppercase tracking-widest",
+                            "text-[15px] font-mono whitespace-nowrap transition-colors uppercase tracking-widest pointer-events-auto",
                             activeCategory === cat.id ? "text-gx-cyan font-bold" : "text-white/40 hover:text-white/80"
                           )}
                         >
-                          {cat.name.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()}
+                          {(cat.name || '').replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()}
                         </button>
                       ))}
                       {categories.length === 0 && (
@@ -970,152 +1116,123 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                       )}
                     </div>
 
-                    {/* 服务项目矩阵 (移动端2列，大屏5列) */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pr-2 content-start">
-                      {services
-                        .filter(s => s.categoryId === activeCategory)
-                        .map(service => {
-                          const isSelected = selectedServices.some(s => s.id === service.id);
-                          const selectedData = selectedServices.find(s => s.id === service.id);
-                          const assignedStaff = selectedData ? staffs.find(st => st.id === selectedData.assignedEmployeeId) : null;
-                          const staffColor = assignedStaff ? assignedStaff.color : 'rgba(255,255,255,0.2)';
+                    {/* Pro Studio 工作台布局：左侧画笔槽 + 右侧画布 */}
+                    <div className="flex-1 flex gap-3 overflow-hidden min-h-0">
+                      {/* 左侧垂直画笔槽 (极致压缩版竖列胶囊) */}
+                      <div className="w-[80px] shrink-0 flex flex-col gap-1.5 overflow-y-auto no-scrollbar border-r border-white/5 pr-2 pb-10">
+                        {/* 无指定 (断电态) */}
+                        <button
+                          onClick={() => handleSetBrush(null)}
+                          className={cn(
+                            "flex items-center justify-start gap-2 p-2 rounded-lg transition-all border shrink-0 h-[36px]",
+                            currentBrushEmployeeId === null
+                              ? "bg-gx-cyan/10 border-gx-cyan/50 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
+                              : "bg-white/5 border-transparent hover:bg-white/10"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-2 h-2 rounded-full shrink-0 transition-all",
+                            currentBrushEmployeeId === null ? "bg-gx-cyan shadow-[0_0_8px_rgba(0,240,255,0.8)]" : "border border-white/20"
+                          )} />
+                          <span className={cn(
+                            "text-[11px] font-mono font-bold tracking-wider uppercase text-left truncate",
+                            currentBrushEmployeeId === null ? "text-gx-cyan" : "text-white/40"
+                          )}>
+                            TBD
+                          </span>
+                        </button>
 
-                          return (
-                            <button
-                              key={service.id}
-                              onClick={() => handleToggleService(service)}
-                              className={cn(
-                                "p-3 rounded-xl border transition-all text-left flex flex-col justify-center h-[60px] group relative overflow-hidden",
-                                isSelected 
-                                  ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" 
-                                  : "bg-black/40 border-white/5 hover:border-white/20 hover:bg-white/5"
-                              )}
-                            >
-                              {/* 员工颜色标识点 */}
-                              {isSelected && (
-                                <div 
-                                  className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full shadow-sm transition-colors border border-black/50"
-                                  style={{ backgroundColor: staffColor }}
-                                />
-                              )}
-                              <span className={cn(
-                                "text-xs font-bold line-clamp-2 leading-tight transition-colors pr-3",
-                                isSelected ? "text-gx-cyan" : "text-white group-hover:text-white/90"
-                              )}>
-                                {service.name}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      {services.filter(s => s.categoryId === activeCategory).length === 0 && categories.length > 0 && (
-                        <div className="col-span-full text-center text-[10px] text-white/20 font-mono mt-10">
-                          NO SERVICES IN THIS CATEGORY
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 当前印章/笔刷选择栏 (Brush/Stamp Selection) */}
-                    <div className="border-t border-white/10 pt-3 mt-3 flex flex-col gap-3 shrink-0 mb-4">
-                      <div className="flex items-center justify-between">
-                        {/* 左侧动态胶囊 (兼具指示器与重置按钮功能) 与已选项目快捷映射 */}
-                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar flex-1 pr-4">
-                          <button 
-                            onClick={() => handleSetBrush(null)}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all cursor-pointer shrink-0",
-                              currentBrushEmployeeId === null
-                                ? "bg-gx-cyan/10 border-gx-cyan/30 hover:bg-gx-cyan/20"
-                                : "bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10"
-                            )}
-                            title="点击重置为未指定"
-                          >
-                            {currentBrushEmployeeId ? (
-                              <>
-                                <div 
-                                  className="w-2.5 h-2.5 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                                  style={{ backgroundColor: staffs.find(s => s.id === currentBrushEmployeeId)?.color }}
-                                />
-                                <span className="text-[11px] font-bold text-white uppercase tracking-widest">
-                                  {staffs.find(s => s.id === currentBrushEmployeeId)?.name}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-2.5 h-2.5 rounded-full bg-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.3)]" />
-                                <span className="text-[11px] font-bold text-gx-cyan uppercase tracking-widest">
-                                  未指定
-                                </span>
-                              </>
-                            )}
-                          </button>
-
-                          {/* 快捷映射：当前员工名下的已选项目 */}
-                          <div className="flex items-center gap-2">
-                            <AnimatePresence>
-                              {selectedServices
-                                .filter(s => s.assignedEmployeeId === currentBrushEmployeeId)
-                                .map(s => {
-                                  const isRetargeting = retargetingServiceId === s.id;
-                                  const staffColor = currentBrushEmployeeId 
-                                    ? staffs.find(st => st.id === currentBrushEmployeeId)?.color 
-                                    : "#ffffff"; // 未指定时为亮白色
-
-                                  return (
-                                    <motion.button
-                                      key={s.id}
-                                      initial={{ opacity: 0, scale: 0.8, x: -10 }}
-                                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                                      exit={{ opacity: 0, scale: 0.8, width: 0, padding: 0, margin: 0 }}
-                                      onClick={() => handleRetargetService(s.id)}
-                                      className={cn(
-                                        "px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border whitespace-nowrap",
-                                        isRetargeting 
-                                          ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-pulse" 
-                                          : "bg-white/5 border-white/10 hover:bg-white/10"
-                                      )}
-                                      style={!isRetargeting ? { color: staffColor } : {}}
-                                      title="点击进入重新分配模式"
-                                    >
-                                      {s.name}
-                                    </motion.button>
-                                  );
-                                })}
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-3 pb-2">
+                        {/* 员工画笔列表 */}
                         {staffs.map(staff => {
                           const isAssigned = currentBrushEmployeeId === staff.id;
-                            
                           return (
                             <button
                               key={staff.id}
                               onClick={() => handleSetBrush(staff.id)}
                               className={cn(
-                                "flex items-center gap-2 text-xs font-bold transition-colors whitespace-nowrap",
-                                isAssigned ? "text-white" : "text-white/60 hover:text-white"
+                                "flex items-center justify-start gap-2 p-2 rounded-lg transition-all border shrink-0 h-[36px]",
+                                isAssigned
+                                  ? "bg-white/10 shadow-lg"
+                                  : "bg-transparent border-transparent hover:bg-white/5"
                               )}
+                              style={isAssigned ? { borderColor: staff.color, boxShadow: `0 0 10px ${staff.color}30` } : {}}
                             >
                               <div 
-                                className={cn("w-3 h-3 rounded-full transition-all", isAssigned ? "shadow-[0_0_10px_rgba(255,255,255,0.4)] scale-110" : "")}
-                                style={{ backgroundColor: staff.color }}
+                                className={cn(
+                                  "w-2 h-2 rounded-full shrink-0 transition-all",
+                                  isAssigned ? "scale-125" : ""
+                                )}
+                                style={{ 
+                                  backgroundColor: staff.color,
+                                  boxShadow: isAssigned ? `0 0 8px ${staff.color}` : 'none'
+                                }}
                               />
-                              <span className="uppercase">{staff.name}</span>
+                              <span className={cn(
+                                "text-[11px] font-mono font-bold tracking-wider uppercase text-left truncate",
+                                isAssigned ? "text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" : "text-white/50"
+                              )}>
+                                {staff.name}
+                              </span>
                             </button>
                           );
                         })}
+                      </div>
+
+                      {/* 右侧服务项目矩阵画布 */}
+                      <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+                        <div className="grid grid-cols-2 gap-3 pr-2 content-start">
+                          {services
+                            .filter(s => s.categoryId === activeCategory)
+                            .map(service => {
+                              const isSelected = selectedServices.some(s => s.id === service.id);
+                              const selectedData = selectedServices.find(s => s.id === service.id);
+                              const assignedStaff = selectedData ? staffs.find(st => st.id === selectedData.assignedEmployeeId) : null;
+                              
+                              // 灵魂注入材质：根据分配的员工颜色决定发光颜色
+                              const glowColor = assignedStaff ? assignedStaff.color : 'rgba(0,240,255,0.8)'; // 未指定时默认青色发光
+                              const glowStyle = isSelected ? {
+                                borderColor: glowColor,
+                                boxShadow: `0 0 20px ${glowColor}30`,
+                                backgroundColor: `${glowColor}10`
+                              } : {};
+
+                              return (
+                                <button
+                                  key={service.id}
+                                  onClick={() => handleToggleService(service)}
+                                  className={cn(
+                                    "p-3 rounded-xl border transition-all text-left flex flex-col justify-center h-[64px] group relative overflow-hidden",
+                                    !isSelected && "bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10 hover:-translate-y-0.5"
+                                  )}
+                                  style={glowStyle}
+                                >
+                                  {/* 赛博扫描线特效 (仅未选中时悬浮可见) */}
+                                  {!isSelected && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:animate-[shimmer_1.5s_infinite]" />
+                                  )}
+                                  
+                                  <span className={cn(
+                                    "text-xs font-bold line-clamp-2 leading-tight transition-colors pr-3 z-10",
+                                    isSelected ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/60 group-hover:text-white"
+                                  )}>
+                                    {service.name}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          {services.filter(s => s.categoryId === activeCategory).length === 0 && categories.length > 0 && (
+                            <div className="col-span-full text-center text-[10px] text-white/20 font-mono mt-10">
+                              NO SERVICES IN THIS CATEGORY
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {activePaneMode === 'member' && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  <div 
                     className="h-full flex flex-col p-2 overflow-hidden relative"
                   >
                     {/* 1. 顶部：核心身份与消费概览 (双轨ID跨域融合架构) */}
@@ -1132,19 +1249,29 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                                 : "bg-white/5 border-white/10" // 游离态散客
                           )}>
                             {matchedProfile?.avatar_url ? (
-                              <img src={matchedProfile.avatar_url} alt="avatar" className="w-full h-full rounded-full object-cover" />
+                              <Image
+                                src={matchedProfile.avatar_url}
+                                alt="avatar"
+                                width={56}
+                                height={56}
+                                className="w-full h-full rounded-full object-cover"
+                              />
                             ) : (phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") ? (
-                              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=gx-vip" alt="avatar" className="w-full h-full rounded-full object-cover" />
+                              <Image
+                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=gx-vip"
+                                alt="avatar"
+                                width={56}
+                                height={56}
+                                className="w-full h-full rounded-full object-cover"
+                              />
                             ) : (
                               <User className="w-6 h-6 text-white/20" />
                             )}
                             
                             {/* 匹配成功的光晕特效 */}
                             {(matchedProfile || phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") && (
-                              <motion.div 
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                                className="absolute inset-[-4px] rounded-full border border-dashed border-gx-pink/40 pointer-events-none"
+                              <div 
+                                className="absolute inset-[-4px] rounded-full border border-dashed border-gx-pink/40 pointer-events-none animate-[spin_15s_linear_infinite]"
                               />
                             )}
                           </div>
@@ -1193,7 +1320,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                                     onChange={(e) => {
                                       const newTracks = [...phoneTracks];
                                       newTracks[index] = e.target.value;
-                                      setPhoneTracks(newTracks);
+                                      updatePhoneTracks(newTracks);
                                     }}
                                     onBlur={() => setEditingPhoneIndex(null)}
                                     autoFocus
@@ -1216,7 +1343,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                                 <div className="opacity-0 group-hover/phone:opacity-100 transition-opacity flex items-center gap-1">
                                   {index === phoneTracks.length - 1 && (
                                     <button 
-                                      onClick={() => setPhoneTracks([...phoneTracks, ''])}
+                                      onClick={() => updatePhoneTracks([...phoneTracks, ''])}
                                       className="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center text-white/40 hover:text-white hover:border-white hover:bg-white/10 transition-all text-xs"
                                     >
                                       +
@@ -1226,7 +1353,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                                     <button 
                                       onClick={() => {
                                         const newTracks = phoneTracks.filter((_, i) => i !== index);
-                                        setPhoneTracks(newTracks);
+                                        updatePhoneTracks(newTracks);
                                       }}
                                       className="w-4 h-4 rounded-full border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all text-xs"
                                     >
@@ -1329,7 +1456,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                     {/* 3. 底部：新客分类按钮 & 单行备注 */}
                     <div className="shrink-0 space-y-4 px-2">
                       {/* 分类选项 (仅在新客且未匹配到会员时显示) */}
-                      {phoneTracks[0] !== "6667767" && phoneTracks[0] !== "3758376" && (
+                      {!matchedProfile && phoneTracks[0] !== "6667767" && phoneTracks[0] !== "3758376" && (
                         <div className="flex gap-3">
                           {['GV', 'AD', 'AN', 'UM'].map(type => (
                             <button 
@@ -1359,21 +1486,19 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-gx-cyan/50 via-white/10 to-transparent" />
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 )}
 
                 {activePaneMode === 'duration' && (
                   <div className="h-full flex flex-col items-center justify-center p-8 select-none touch-none relative">
                     {/* 全息视界区 (HUD Display) */}
                     <div className="flex flex-col items-center mb-6">
-                      <motion.span 
+                      <span 
                         key={totalDuration}
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
                         className="text-[64px] font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-br from-white via-white/90 to-white/40 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] font-mono leading-none whitespace-nowrap"
                       >
                         {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
-                      </motion.span>
+                      </span>
                       
                       <div className="mt-4 flex items-center gap-4 text-[11px] font-mono tracking-widest text-white/60">
                         <span>BASE {baseDuration} MIN</span>
@@ -1596,7 +1721,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                       onPointerUp={() => {
                         if (draggingHour !== null) {
                           const min = hoveredMinute !== null ? hoveredMinute : 0;
-                          setSelectedTime(`${draggingHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+                          updateSelectedTime(`${draggingHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
                         }
                         setDraggingHour(null);
                         setHoveredMinute(null);
@@ -1605,7 +1730,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                       onPointerLeave={() => {
                         if (draggingHour !== null) {
                           const min = hoveredMinute !== null ? hoveredMinute : 0;
-                          setSelectedTime(`${draggingHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+                          updateSelectedTime(`${draggingHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
                         }
                         setDraggingHour(null);
                         setHoveredMinute(null);
@@ -1693,7 +1818,7 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                               // 支持纯点击选择整点
                               onClick={() => {
                                 if (draggingHour === null) {
-                                  setSelectedTime(`${hr.toString().padStart(2, '0')}:00`);
+                                  updateSelectedTime(`${hr.toString().padStart(2, '0')}:00`);
                                 }
                               }}
                             >
@@ -1707,17 +1832,15 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                       <div 
                         className="absolute inset-[100px] rounded-full flex flex-col items-center justify-center z-10 pointer-events-none"
                       >
-                        <motion.span 
+                        <span 
                           key={isAM ? 'AM' : 'PM'} // 利用 key 触发动画
-                          initial={{ opacity: 0, x: isAM ? -10 : 10 }}
-                          animate={{ opacity: 1, x: 0 }}
                           className="text-[48px] font-black tracking-widest text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] font-mono leading-none"
                         >
                           {draggingHour !== null 
                             ? `${draggingHour.toString().padStart(2, '0')}:${hoveredMinute !== null ? hoveredMinute.toString().padStart(2, '0') : '00'}`
                             : selectedTime
                           }
-                        </motion.span>
+                        </span>
                         
                         {/* AM/PM 状态指示器 (纯展示，点击事件也可以保留作为后备) */}
                         <div className="mt-5 pointer-events-auto">
@@ -1750,20 +1873,34 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                       )}
                     </div>
                   </div>
-                )}
-              </section>
-            </main>
+                  )}
+                </section>
+              </main>
 
             {/* 底部悬浮按钮栏 (内部居中跨越双窗) */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50 pointer-events-auto">
+              {editingBooking && (
+                <button 
+                  onClick={handleMarkAsNoShow}
+                  className="w-32 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                >
+                  爽约 / NO SHOW
+                </button>
+              )}
               <button 
                 onClick={handleConfirmBooking}
-                className="w-48 py-3 rounded-xl bg-gx-cyan text-black text-xs font-black tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(0,255,255,0.4)]"
+                disabled={selectedServices.length === 0}
+                className={cn(
+                  "w-48 py-3 rounded-xl text-xs font-black tracking-widest transition-all",
+                  selectedServices.length > 0 
+                    ? "bg-gx-cyan text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white" 
+                    : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
+                )}
               >
                 {editingBooking ? "更新预约 / UPDATE" : "确认预约 / CONFIRM"}
               </button>
               <button 
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-40 py-3 rounded-xl bg-black/60 border border-gx-cyan/30 text-white hover:border-gx-cyan transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
               >
                 取消 / CANCEL
@@ -1788,10 +1925,10 @@ export function DualPaneBookingModal({ isOpen, onClose, initialDate, initialTime
                 background: rgba(6, 182, 212, 0.5);
               }
             `}} />
-          </motion.div>
+          </div>
           )}
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

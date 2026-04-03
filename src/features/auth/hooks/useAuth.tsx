@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, createContext, useContext, ReactNode } from "react";
+import { useEffect, useState, useCallback, createContext, useContext, ReactNode, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { supabase, isMockMode } from "@/lib/supabase";
 
 export type UserRole = "user" | "merchant" | "boss";
 
@@ -17,7 +17,28 @@ export interface SandboxUser extends Omit<User, 'created_at'> {
   shopName?: string;
   avatar?: string;
   created_at: string;
+  // 新增：支持多门店绑定
+  bindings?: { shopId: string; role: string; industry: string; shopName?: string }[];
 }
+
+type ShopBindingRow = {
+  shop_id: string;
+  role: string;
+  shops?: { id?: string; name?: string; industry?: string } | { id?: string; name?: string; industry?: string }[] | null;
+};
+
+const mapShopBindings = (bindings?: ShopBindingRow[] | null): SandboxUser["bindings"] => {
+  if (!bindings) return [];
+  return bindings.map((b) => {
+    const shop = Array.isArray(b.shops) ? b.shops[0] : b.shops;
+    return {
+      shopId: b.shop_id,
+      role: b.role,
+      shopName: shop?.name,
+      industry: shop?.industry || "other"
+    };
+  });
+};
 
 interface AuthContextType {
   user: SandboxUser | User | null;
@@ -28,7 +49,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   setGuestMode: () => void;
   setActiveRole: (role: UserRole) => void;
-  sandboxLogin: (mockUser: SandboxUser) => void;
+  sandboxLogin: (user?: SandboxUser) => void;
+  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +65,177 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isGuest, setIsGuest] = useState(false);
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasConfirmedSession, setHasConfirmedSession] = useState(false);
+  const [localViewRole, setLocalViewRole] = useState<UserRole | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem("gx_view_role");
+    if (stored === "user" || stored === "merchant" || stored === "boss") return stored;
+    return null;
+  });
+  const getDeviceId = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    let deviceId = localStorage.getItem("gx_device_id");
+    if (!deviceId) {
+      deviceId = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `gx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      localStorage.setItem("gx_device_id", deviceId);
+    }
+    return deviceId;
+  }, []);
+  const getWindowId = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    let windowId = sessionStorage.getItem("gx_window_id");
+    if (!windowId) {
+      windowId = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `gxw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem("gx_window_id", windowId);
+    }
+    return windowId;
+  }, []);
+
+  const syncDeviceSession = useCallback(async (nextSession?: Session | null) => {
+    if (isMockMode) return;
+    const currentSession = nextSession ?? session;
+    if (!hasConfirmedSession) return;
+    if (!user) return;
+    if (!currentSession?.user || !currentSession.access_token || !currentSession.expires_at) return;
+    if (currentSession.expires_at * 1000 < Date.now()) return;
+    const deviceId = getDeviceId();
+    const windowId = getWindowId();
+    if (!deviceId || !windowId) return;
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) return;
+    const { data, error } = await supabase
+      .from('device_sessions')
+      .select('user_id, window_id')
+      .eq('device_id', deviceId)
+      .eq('user_id', currentSession.user.id)
+      .limit(1);
+    if (error) {
+      console.error("[AuthProvider] Device session query error:", error);
+      return;
+    }
+    const record = Array.isArray(data) ? data[0] : null;
+    if (!record) {
+      await supabase
+        .from('device_sessions')
+        .upsert({ device_id: deviceId, user_id: currentSession.user.id, window_id: windowId, updated_at: new Date().toISOString() }, { onConflict: 'device_id,user_id' });
+      return;
+    }
+    if (record.user_id !== currentSession.user.id) {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      setIsGuest(false);
+      return;
+    }
+    if (record.window_id && record.window_id !== windowId) {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      setIsGuest(false);
+      return;
+    }
+    await supabase
+      .from('device_sessions')
+      .update({ user_id: currentSession.user.id, window_id: windowId, updated_at: new Date().toISOString() })
+      .eq('device_id', deviceId)
+      .eq('user_id', currentSession.user.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getDeviceId, getWindowId, hasConfirmedSession]);
+
+  const hydrateSession = useCallback(async (nextSession: Session | null) => {
+    if (isMockMode) {
+      setSession(nextSession);
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+    setSession(nextSession);
+    if (nextSession?.user) {
+      setIsGuest(false);
+      localStorage.removeItem("gx_guest_mode");
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', nextSession.user.id)
+          .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
+
+        const { data: bindings } = await supabase
+          .from('shop_bindings')
+          .select('shop_id, role, shops(id, name, industry)')
+          .eq('user_id', nextSession.user.id);
+        let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
+
+        const isBoss = nextSession.user.email === ADMIN_EMAIL;
+        
+        // 【核心升级】：如果是 Boss，强制接管并拉取所有名下门店
+        if (isBoss) {
+          try {
+            const { data: ownedShops } = await supabase
+              .from('shops')
+              .select('id, name, industry')
+              // 此处假设未来在数据库层 shops 表会新增 owner_principal_id 等归属字段，
+              // 暂时为了保证 0 冲突不报错，Boss 先拉取全部 shops 或特定的 shops。
+              // TODO: 在 Supabase 中为 shops 表添加 owner_principal_id 后，加上 .eq('owner_principal_id', nextSession.user.id)
+              // 目前暂时拉取所有作为模拟上帝视角
+              .limit(100);
+              
+            if (ownedShops) {
+              shopBindings = ownedShops.map(shop => ({
+                shopId: shop.id,
+                role: 'OWNER',
+                shopName: shop.name,
+                industry: shop.industry || 'other'
+              }));
+            }
+          } catch (e) {
+            console.error("[AuthProvider] Failed to fetch boss shops", e);
+          }
+        }
+
+        if (profile) {
+          const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
+          const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
+          const actualName = profile.name || nextSession.user.user_metadata?.full_name;
+          const actualAvatar = profile.avatar_url || nextSession.user.user_metadata?.avatar_url;
+          const actualId = isBoss ? "GX88888888" : profile.gx_id;
+          const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
+          const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
+
+          const extendedUser = {
+            ...nextSession.user,
+            gxId: actualId,
+            role: actualRole,
+            avatar: actualAvatar,
+            phone: profile.phone,
+            name: actualName,
+            bindings: shopBindings
+          } as SandboxUser;
+          
+          setUser(extendedUser);
+          setActiveRoleState(effectiveRole as UserRole);
+          await syncDeviceSession(nextSession);
+        } else {
+          setUser(nextSession.user);
+          if (nextSession.user.email === ADMIN_EMAIL) {
+            setActiveRoleState("boss");
+          }
+        }
+      } catch (error) {
+        console.error("[AuthProvider] Hydrate Error:", error);
+        setUser(nextSession.user);
+      }
+    } else {
+      setUser(null);
+    }
+    setIsLoading(false);
+  }, [localViewRole, syncDeviceSession]);
+
+  const initLock = useRef(false);
 
   useEffect(() => {
     // 检查本地存储的游客状态
@@ -50,16 +243,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (guestStatus) {
       setIsGuest(true);
     }
+  }, []);
 
-    // 检查会话存储的角色状态
-    const savedRole = sessionStorage.getItem("gx_active_role") as UserRole;
-    if (savedRole && ["user", "merchant", "boss"].includes(savedRole)) {
-      setActiveRoleState(savedRole);
-    }
+  useEffect(() => {
+    if (initLock.current) return;
+    initLock.current = true; // 【完美修复法则】: 同步阶段立即上锁，彻底粉碎 React 18 Strict Mode 下的并发挂载请求风暴
 
     // 1. 获取初始 Session (Supabase 真实环境)
     const initAuth = async () => {
       try {
+        if (isMockMode) {
+          setIsLoading(false);
+          return;
+        }
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -71,48 +267,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        setSession(initialSession);
-        
         if (initialSession?.user) {
-          setIsGuest(false);
-          localStorage.removeItem("gx_guest_mode");
-          
-          // 从 public.profiles 表中读取扩展信息 (gx_id, role, avatar, phone)
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialSession.user.id)
-            .single();
-
-          if (profile) {
-            // 权限与信息兜底法则 (Admin Immunity & Metadata Fallback)
-            const isBoss = initialSession.user.email === ADMIN_EMAIL;
-            const actualRole = isBoss ? "boss" : profile.role;
-            const actualName = profile.name || initialSession.user.user_metadata?.full_name;
-            const actualAvatar = profile.avatar_url || initialSession.user.user_metadata?.avatar_url;
-            const actualId = isBoss ? "GX88888888" : profile.gx_id;
-
-            const extendedUser = {
-              ...initialSession.user,
-              gxId: actualId,
-              role: actualRole,
-              avatar: actualAvatar,
-              phone: profile.phone,
-              name: actualName
-            } as SandboxUser;
-            
-            setUser(extendedUser);
-            setActiveRoleState(actualRole as UserRole);
-          } else {
-            // Fallback 
-            setUser(initialSession.user);
-            if (initialSession.user.email === ADMIN_EMAIL) {
-              setActiveRoleState("boss");
-            }
-          }
+          setHasConfirmedSession(true);
         } else {
-          setUser(null);
+          setHasConfirmedSession(false);
         }
+        await hydrateSession(initialSession);
       } catch (error) {
         console.error("[AuthProvider] Init Error:", error);
       } finally {
@@ -122,108 +282,178 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     initAuth();
 
+    if (isMockMode) return;
     // 2. 订阅状态变更
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       console.log("[AuthProvider] Auth State Changed:", _event);
-      setSession(currentSession);
       
-      if (currentSession?.user) {
-        setIsGuest(false);
-        localStorage.removeItem("gx_guest_mode");
-        
-        // 同样从 profiles 表中拉取数据
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentSession.user.id)
-            .single();
-
-          if (profile) {
-            // 权限与信息兜底法则 (Admin Immunity & Metadata Fallback)
-            const isBoss = currentSession.user.email === ADMIN_EMAIL;
-            const actualRole = isBoss ? "boss" : profile.role;
-            const actualName = profile.name || currentSession.user.user_metadata?.full_name;
-            const actualAvatar = profile.avatar_url || currentSession.user.user_metadata?.avatar_url;
-            const actualId = isBoss ? "GX88888888" : profile.gx_id;
-
-            const extendedUser = {
-              ...currentSession.user,
-              gxId: actualId,
-              role: actualRole,
-              avatar: actualAvatar,
-              phone: profile.phone,
-              name: actualName
-            } as SandboxUser;
-            
-            setUser(extendedUser);
-            setActiveRoleState(actualRole as UserRole);
-          } else {
-            setUser(currentSession.user);
-            if (currentSession.user.email === ADMIN_EMAIL) {
-              setActiveRoleState("boss");
-            }
-          }
-        } catch (e) {
-          console.error("Fetch profile on auth change error", e);
-          setUser(currentSession.user);
-        }
-      } else {
-        setUser(null);
+      // 【防重排风暴】: 拦截 INITIAL_SESSION，因为它与上方的 initAuth 完全重叠，
+      // 会导致两次并发的 profiles 和 shop_bindings 网络请求，从而引发 React 剧烈重排卡顿。
+      if (_event === 'INITIAL_SESSION') return;
+      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+        setHasConfirmedSession(true);
       }
-      setIsLoading(false);
+      if (_event === 'SIGNED_OUT') {
+        setHasConfirmedSession(false);
+      }
+
+      await hydrateSession(currentSession);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [hydrateSession]);
 
-  // 3. 独立监听当前用户的 profiles 表实时变更 (多端同步)
+  const refreshUserData = useCallback(async (overrideSession?: Session | null) => {
+    if (isMockMode) return;
+    const activeSession = overrideSession ?? session;
+    if (!activeSession?.user) {
+      setUser(null);
+      return;
+    }
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', activeSession.user.id)
+        .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
+
+      const { data: bindings } = await supabase
+        .from('shop_bindings')
+        .select('shop_id, role, shops(id, name, industry)')
+        .eq('user_id', activeSession.user.id);
+      let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
+
+      const isBoss = activeSession.user.email === ADMIN_EMAIL;
+
+      // 【核心升级】：如果是 Boss，强制接管并拉取所有名下门店 (Refresh 逻辑保持同步)
+      if (isBoss) {
+        try {
+          const { data: ownedShops } = await supabase
+            .from('shops')
+            .select('id, name, industry')
+            .limit(100);
+            
+          if (ownedShops) {
+            shopBindings = ownedShops.map(shop => ({
+              shopId: shop.id,
+              role: 'OWNER',
+              shopName: shop.name,
+              industry: shop.industry || 'other'
+            }));
+          }
+        } catch (e) {
+          console.error("[AuthProvider] Failed to refresh boss shops", e);
+        }
+      }
+
+      if (profile) {
+        const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
+        const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
+        const actualName = profile.name || activeSession.user.user_metadata?.full_name;
+        const actualAvatar = profile.avatar_url || activeSession.user.user_metadata?.avatar_url;
+        const actualId = isBoss ? "GX88888888" : profile.gx_id;
+        const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
+        const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
+
+        const extendedUser = {
+          ...activeSession.user,
+          gxId: actualId,
+          role: actualRole,
+          avatar: actualAvatar,
+          phone: profile.phone,
+          name: actualName,
+          bindings: shopBindings
+        } as SandboxUser;
+        
+        setUser(extendedUser);
+        setActiveRoleState(effectiveRole as UserRole);
+      }
+    } catch (error) {
+      console.error("[AuthProvider] Refresh User Data Error:", error);
+    }
+  }, [session, localViewRole]);
+
+  // 3. 独立监听当前用户的 profiles 表和 shop_bindings 表实时变更 (多端同步)
   useEffect(() => {
+    if (isMockMode) return;
     if (!user || !user.id) return;
 
-    console.log(`[AuthProvider] Subscribing to profiles realtime for user: ${user.id}`);
-    
-    const profileChannel = supabase
+    const profileSubscription = supabase
       .channel(`public:profiles:${user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('[AuthProvider] Profile Realtime Update Received:', payload);
-          const updatedProfile = payload.new;
-          
-          setUser(prev => {
-            if (!prev) return prev;
-            
-            // 实时同步时同样保持特权兜底
-            const isBoss = prev.email === ADMIN_EMAIL;
-            const actualRole = isBoss ? "boss" : (updatedProfile.role || ('role' in prev ? prev.role : 'user'));
-            const actualId = isBoss ? "GX88888888" : (updatedProfile.gx_id || ('gxId' in prev ? prev.gxId : ''));
+        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        async (payload) => {
+          console.log("[AuthProvider] Profile realtime update received:", payload);
+          await refreshUserData();
+        }
+      )
+      .subscribe();
 
-            return {
-              ...prev,
-              gxId: actualId,
-              role: actualRole,
-              avatar: updatedProfile.avatar_url || ('avatar' in prev ? prev.avatar : ''),
-              phone: updatedProfile.phone || ('phone' in prev ? prev.phone : ''),
-              name: updatedProfile.name || ('name' in prev ? prev.name : '')
-            } as SandboxUser;
-          });
+    const bindingsSubscription = supabase
+      .channel(`public:shop_bindings:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shop_bindings', filter: `user_id=eq.${user.id}` },
+        async (payload) => {
+          console.log("[AuthProvider] Bindings realtime update received:", payload);
+          await refreshUserData();
+        }
+      )
+      .subscribe();
+      
+    // 监听全局 shops 表的变动 (处理门店名称修改、删除等情况)
+    // 注意：如果是普通用户可能没权限监听所有shops，但这里只用来触发刷新，所以不带 filter
+    const shopsSubscription = supabase
+      .channel('public:shops:global')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shops' },
+        async (payload) => {
+          console.log("[AuthProvider] Shops global realtime update received:", payload);
+          // 当任何 shop 发生变化时（特别是被删除或重命名时），重新拉取数据
+          await refreshUserData();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(profileSubscription);
+      supabase.removeChannel(bindingsSubscription);
+      supabase.removeChannel(shopsSubscription);
     };
-  }, [user?.id]); // 仅当 user.id 变化时重新订阅
+  }, [user, refreshUserData]); // 仅当 user 变化时重新订阅
+
+  useEffect(() => {
+    if (isMockMode) return;
+    if (typeof window === "undefined") return;
+    const handleVisibility = async () => {
+      if (document.visibilityState !== "visible") return;
+      const { data: { session: nextSession } } = await supabase.auth.getSession();
+      await hydrateSession(nextSession);
+      await refreshUserData(nextSession);
+      if (nextSession?.user) {
+        await syncDeviceSession(nextSession);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    const intervalId = window.setInterval(async () => {
+      const { data: { session: nextSession } } = await supabase.auth.getSession();
+      await hydrateSession(nextSession);
+      if (nextSession?.user) {
+        await syncDeviceSession(nextSession);
+      }
+    }, 30000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(intervalId);
+    };
+  }, [hydrateSession, refreshUserData, syncDeviceSession]);
 
   const setGuestMode = () => {
     setIsGuest(true);
@@ -232,10 +462,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const setActiveRole = (role: UserRole) => {
     setActiveRoleState(role);
-    sessionStorage.setItem("gx_active_role", role);
+    setLocalViewRole(role);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gx_view_role", role);
+    }
   };
 
-  const sandboxLogin = (_mockUser: SandboxUser) => {
+  const sandboxLogin = (user?: SandboxUser) => {
+    if (user) {
+      setUser(user);
+    }
     // 已经废弃：不再使用沙盒登录，避免干扰真实状态
     console.warn("sandboxLogin is deprecated. Using real Supabase auth now.");
   };
@@ -244,11 +480,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 彻底清除所有历史遗留的沙盒缓存
     localStorage.removeItem("gx_sandbox_session");
     
+    if (isMockMode) {
+      setUser(null);
+      setIsGuest(false);
+      localStorage.removeItem("gx_guest_mode");
+      localStorage.removeItem("gx_view_role");
+      return;
+    }
+    const deviceId = getDeviceId();
+    if (deviceId) {
+      await supabase
+        .from('device_sessions')
+        .delete()
+        .eq('device_id', deviceId);
+    }
     await supabase.auth.signOut();
     setUser(null);
     setIsGuest(false);
     localStorage.removeItem("gx_guest_mode");
-    sessionStorage.removeItem("gx_active_role");
+    localStorage.removeItem("gx_view_role");
   };
 
   const value = {
@@ -260,7 +510,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut: handleSignOut,
     setGuestMode,
     setActiveRole,
-    sandboxLogin
+    sandboxLogin,
+    refreshUserData
   };
 
   return (

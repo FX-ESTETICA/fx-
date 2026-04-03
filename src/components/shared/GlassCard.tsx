@@ -30,9 +30,7 @@ export const GlassCard = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+      initial={false}
       whileHover={hoverGlow ? { scale: 1.01, transition: { duration: 0.2 } } : {}}
       className={cn(
         "glass-effect rounded-2xl p-6 transition-all duration-300",

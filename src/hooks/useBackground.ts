@@ -2,26 +2,26 @@ import { useState, useEffect, useCallback, startTransition } from 'react';
 
 export const BACKGROUND_IMAGES = [
   'starry', // 默认纯星空
-  '/images/backgrounds/ChatGPT Image 2026年3月25日 00_06_27.png',
   '/images/backgrounds/p1.jpg'
 ];
 
 export function useBackground() {
-  const [bgIndex, setBgIndex] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gx_theme_bg_index');
-      if (saved !== null) {
-        const parsedIndex = parseInt(saved, 10);
-        if (parsedIndex >= 0 && parsedIndex < BACKGROUND_IMAGES.length) {
-          return parsedIndex;
-        } else {
-          localStorage.setItem('gx_theme_bg_index', '1');
-          return 1;
-        }
+  // Hydration 安全原点：SSR 和初始挂载强制为 0 (纯代码星空)
+  const [bgIndex, setBgIndex] = useState<number>(0); 
+
+  useEffect(() => {
+    // 客户端挂载后，再去读取真实的物理缓存
+    const saved = localStorage.getItem('gx_theme_bg_index');
+    if (saved !== null) {
+      const parsedIndex = parseInt(saved, 10);
+      if (parsedIndex >= 0 && parsedIndex < BACKGROUND_IMAGES.length) {
+        setBgIndex(parsedIndex);
+      } else {
+        localStorage.setItem('gx_theme_bg_index', '0');
+        setBgIndex(0);
       }
     }
-    return 1;
-  });
+  }, []);
 
   useEffect(() => {
     const handleBgChange = (e: Event) => {
