@@ -81,7 +81,6 @@ export function DualPaneBookingModal({
   onClose,
   initialDate,
   initialTime,
-  initialResourceId,
   editingBooking,
   staffs,
   categories,
