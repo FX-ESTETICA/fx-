@@ -883,7 +883,7 @@ export function DualPaneBookingModal({
                         "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] overflow-hidden",
                         activePaneMode === 'service' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
                       )}
-                      onClick={(e) => {
+                      onClick={() => {
                         // 终极修复：由于内部的胶囊 (button) 已经有了 e.stopPropagation()，
                         // 能走到这一层的点击，必然是点在了空白处、透明输入框、或者提示文字上。
                         // 因此不需要任何 if 判断，无条件切回服务面板。
