@@ -61,7 +61,7 @@ function useNebulaData(bossId: string | undefined) {
       const { data, error } = await supabase
         .from('v_nebula_nodes')
         .select('*')
-        .eq('boss_id', validPrincipalId); // 使用 principal_id 查询
+        .eq('principal_id', validPrincipalId); // 致命修复：从错误的 boss_id 纠正为真实的列名 principal_id
 
       if (error) throw error;
 
