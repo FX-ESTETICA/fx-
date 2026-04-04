@@ -1,0 +1,33 @@
+{
+  "Index": {
+    "title": "VERIFICA IDENTITÀ & PROTOCOLLO",
+    "description": "IL MIGLIOR CONCIERGE PRIVATO"
+  },
+  "Auth": {
+    "title": "Autenticazione GX",
+    "subtitle": "Sistema di Accesso Galaxy",
+    "emailLabel": "Identità di Sicurezza (Email)",
+    "passwordLabel": "Chiave di Accesso (Password)",
+    "otpLabel": "Codice di Verifica",
+    "submit": "Stabilisci Connessione",
+    "authenticating": "Autenticazione...",
+    "or": "OPPURE",
+    "google": "Accedi con Google",
+    "guest": "Accesso Ospite",
+    "reset": "Resetta Chiave",
+    "register": "Inizializza Nuova Entità",
+    "security": "Trasferimento crittografato da Edge Network // ID: GX-AUTH-v2.0",
+    "error": "Accesso Negato: Controlla chiave o rete",
+    "emailPlaceholder": "identity@example.com",
+    "passwordPlaceholder": "••••••••",
+    "otpPlaceholder": "Inserisci il codice a 6 cifre",
+    "otpError": "Codice errato, riprova",
+    "passwordError": "Password errata, riprova",
+    "magicLinkSuccess": "Codice/link inviato, controlla la tua email",
+    "switchToPassword": "Passa alla password",
+    "switchToOtp": "Passa al codice email",
+    "getOtp": "Ottieni codice email",
+    "resendOtp": "Invia di nuovo ({seconds}s)",
+    "loginWithPassword": "Accedi con Password"
+  }
+}

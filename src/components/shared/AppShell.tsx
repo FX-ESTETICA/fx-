@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cn } from "@/utils/cn";
 import { Home, Compass, User } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { PWAInstallPrompt } from "./PWAInstallPrompt";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="relative min-h-screen bg-transparent flex flex-col">
+      <PWAInstallPrompt />
       <div className="flex-1">
         {children}
       </div>
@@ -36,7 +38,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
             className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" 
             style={{ background: 'linear-gradient(to top, rgba(0,0,0, 0.9) 0%, rgba(0,0,0, 0) 100%)' }} 
           />
-          <div className="mx-auto max-w-[900px] px-4 pb-[env(safe-area-inset-bottom)] relative pointer-events-auto">
+          <div className="mx-auto w-[clamp(320px,60vw,900px)] px-4 pb-[env(safe-area-inset-bottom)] relative pointer-events-auto">
             {/* 彻底去除背景与边框，实现幽灵态全息悬浮 */}
             <div className="flex items-center justify-around p-2 bg-transparent">
               {tabRoutes.map(({ href, label, icon: Icon }) => {

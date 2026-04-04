@@ -53,16 +53,16 @@ export default function BossApprovalsPage() {
   const handleApprove = async (app: MerchantApplication) => {
     setProcessingId(app.id);
     try {
-      // 1. 物理寻址：通过 user_id 获取该用户在 principals 表里的真实主键 ID
+      // 1. 物理寻址：通过 user_id 获取该用户在 profiles 表里的真实主键 ID
       const { data: principal, error: pError } = await supabase
-        .from('principals')
+        .from('profiles')
         .select('id')
-        .eq('user_id', app.user_id)
+        .eq('id', app.user_id)
         .single();
 
       if (pError || !principal) {
-        console.error("Failed to find principal for user:", pError);
-        throw new Error("无法定位申请人的物理身份 (Principal ID)，请确保该用户已初始化基础档案");
+        console.error("Failed to find profile for user:", pError);
+        throw new Error("无法定位申请人的物理身份 (Profile ID)，请确保该用户已初始化基础档案");
       }
 
       // 2. 铸造实体：在 shops 表中创建实体，并注入底层物理基因锁

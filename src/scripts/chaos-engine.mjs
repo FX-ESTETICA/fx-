@@ -30,8 +30,8 @@ async function runChaosEngine() {
   
   console.log(`📅 锁定攻击日期: ${dateStr}`);
 
-  // 获取真实的 resource_id (UUID) 从 principals 表
-  const { data: resources, error: resourcesError } = await supabase.from('principals').select('id').limit(2);
+  // 获取真实的 resource_id (UUID) 从 profiles 表
+  const { data: resources, error: resourcesError } = await supabase.from('profiles').select('id').limit(2);
   let staff1 = null;
   let staff2 = null;
   

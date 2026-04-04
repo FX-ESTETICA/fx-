@@ -6,6 +6,8 @@ import { AuthProvider } from "@/features/auth/hooks/useAuth";
 import { ShopProvider } from "@/features/shop/ShopContext";
 import { AppShell } from "@/components/shared/AppShell";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,27 +70,32 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="zh"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
-        <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">
-          <NebulaBackground />
-        </div>
-        <AuthProvider>
-          <ShopProvider>
-            <AppShell>
-              {children}
-            </AppShell>
-          </ShopProvider>
-        </AuthProvider>
+        <NextIntlClientProvider messages={messages}>
+          <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">
+            <NebulaBackground />
+          </div>
+          <AuthProvider>
+            <ShopProvider>
+              <AppShell>
+                {children}
+              </AppShell>
+            </ShopProvider>
+          </AuthProvider>
+        </NextIntlClientProvider>
         <Script
           id="sw-register"
           strategy="afterInteractive"

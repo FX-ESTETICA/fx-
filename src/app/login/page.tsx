@@ -3,10 +3,14 @@
 import { Suspense } from 'react';
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { GlassCard } from "@/components/shared/GlassCard";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { Fingerprint } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 export default function LoginPage() {
+  const t = useTranslations("Index");
+
   return (
     <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       
@@ -42,10 +46,10 @@ export default function LoginPage() {
               <Fingerprint className="w-8 h-8 text-gx-cyan opacity-80" />
             </div>
             <h2 className="text-center text-xl font-bold tracking-tight uppercase">
-              身份验证与协议签署
+              {t("title")}
             </h2>
             <p className="mt-2 text-center text-[11px] text-white/40 font-mono">
-              IDENTITY VERIFICATION & PROTOCOL
+              {t("description")}
             </p>
           </div>
           
@@ -57,13 +61,15 @@ export default function LoginPage() {
       </div>
 
       {/* 底部 Footer */}
-      <div className="absolute bottom-8 w-full flex flex-col items-center gap-3 z-10">
-        <div className="flex gap-4 text-[10px] text-white/30 font-mono tracking-widest">
+      <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 z-10">
+        <div className="flex items-center gap-6 text-[10px] text-white/30 font-mono tracking-widest">
           <a href="#" className="hover:text-gx-cyan transition-colors">PRIVACY</a>
           <span>/</span>
           <a href="#" className="hover:text-gx-cyan transition-colors">TERMS</a>
           <span>/</span>
           <a href="#" className="hover:text-gx-cyan transition-colors">CONTACT</a>
+          <span>/</span>
+          <LanguageSwitcher />
         </div>
         <p className="text-[9px] text-white/20 font-mono">
           © 2026 GX CONCIERGE. ALL RIGHTS RESERVED.

@@ -1,0 +1,33 @@
+{
+  "Index": {
+    "title": "IDENTITY VERIFICATION & PROTOCOL",
+    "description": "SUPREME LIFE CONCIERGE"
+  },
+  "Auth": {
+    "title": "GX Authentication",
+    "subtitle": "Galaxy Experience Access System",
+    "emailLabel": "Security Identity (Email)",
+    "passwordLabel": "Access Key (Password)",
+    "otpLabel": "Verification Code",
+    "submit": "Establish Connection",
+    "authenticating": "Authenticating...",
+    "or": "OR",
+    "google": "Sync with Google Account",
+    "guest": "Guest Access",
+    "reset": "Reset Key",
+    "register": "Initialize New Entity",
+    "security": "Encrypted transfer by Edge Network // ID: GX-AUTH-v2.0",
+    "error": "Auth Failed: Check key or network",
+    "emailPlaceholder": "identity@example.com",
+    "passwordPlaceholder": "••••••••",
+    "otpPlaceholder": "Enter 6-digit code",
+    "otpError": "Incorrect verification code, please try again",
+    "passwordError": "Incorrect password, please try again",
+    "magicLinkSuccess": "Verification code/link sent, please check your email",
+    "switchToPassword": "Switch to Password Login",
+    "switchToOtp": "Switch to Email OTP",
+    "getOtp": "Get Email Code",
+    "resendOtp": "Resend ({seconds}s)",
+    "loginWithPassword": "Login with Password"
+  }
+}

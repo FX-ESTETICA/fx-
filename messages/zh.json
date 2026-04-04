@@ -1,0 +1,33 @@
+{
+  "Index": {
+    "title": "身份验证与协议签署",
+    "description": "极 致 私 人 管 家"
+  },
+  "Auth": {
+    "title": "GX 身份验证",
+    "subtitle": "银河体验接入系统",
+    "emailLabel": "安全标识 (邮箱)",
+    "passwordLabel": "访问密钥 (密码)",
+    "otpLabel": "验证码",
+    "submit": "建立连接",
+    "authenticating": "身份验证中...",
+    "or": "或",
+    "google": "使用 Google 登录",
+    "guest": "以游客身份进入",
+    "reset": "重置密钥",
+    "register": "初始化新实体",
+    "security": "加密传输由边缘网络提供 // ID: GX-AUTH-v2.0",
+    "error": "验证失败：请检查密钥或网络",
+    "emailPlaceholder": "identity@example.com",
+    "passwordPlaceholder": "••••••••",
+    "otpPlaceholder": "输入 6 位验证码",
+    "otpError": "验证码错误，请重新输入",
+    "passwordError": "密码错误，请重新输入",
+    "magicLinkSuccess": "已发送邮箱验证码/链接，请查收邮件并完成登录",
+    "switchToPassword": "切换为密码登录",
+    "switchToOtp": "切换为获取邮箱验证码",
+    "getOtp": "获取邮箱验证码",
+    "resendOtp": "重新获取（{seconds}s）",
+    "loginWithPassword": "使用密码登录"
+  }
+}

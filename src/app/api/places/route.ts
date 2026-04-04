@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+// 声明 Edge Runtime，适配 Vercel 边缘节点计算与缓存
+export const runtime = "edge";
+
 type PlacesTextSearchRequest = {
   textQuery: string;
   maxResultCount: number;
@@ -28,16 +31,17 @@ type PlacesTextSearchResponse = {
   error?: { message?: string };
 };
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
-    const body = (await req.json()) as {
-      lat?: number;
-      lng?: number;
-      category?: string;
-      subCategory?: string;
-      sortBy?: "POPULARITY" | "DISTANCE" | "RATING" | string;
-    };
-    const { lat, lng, category, subCategory = "all", sortBy = "POPULARITY" } = body;
+    const { searchParams } = new URL(req.url);
+    const latParam = searchParams.get("lat");
+    const lngParam = searchParams.get("lng");
+    const category = searchParams.get("category") || "all";
+    const subCategory = searchParams.get("subCategory") || "all";
+    const sortBy = searchParams.get("sortBy") || "POPULARITY";
+
+    const lat = latParam ? parseFloat(latParam) : undefined;
+    const lng = lngParam ? parseFloat(lngParam) : undefined;
 
     if (!lat || !lng || !category) {
       return NextResponse.json(
@@ -75,7 +79,8 @@ export async function POST(req: Request) {
         dining: { query: "Top rated restaurants, cafes, bakeries, and fine dining" },
         beauty: { query: "Top rated beauty salons, spas, hair care, and nail salons" },
         hotel: { query: "Best luxury hotels, resorts, and high-quality lodging" },
-        nightlife: { query: "Top rated bars, nightclubs, and nightlife venues" },
+        nightlife: { query: "Top rated nightclubs and nightlife venues" },
+        bar: { query: "Top rated bars, bistros, pubs, and cocktail lounges" },
         fitness: { query: "Best gyms, fitness centers, and yoga studios" },
         all: { query: "Top rated popular places and experiences" }
       };
@@ -160,11 +165,11 @@ export async function POST(req: Request) {
     const GLOBAL_AVERAGE_RATING = 4.3;
     const CONFIDENCE_PRIOR = 50; // 信任基数：50 个评论
     
-    // 1. 先计算距离并执行物理截断 (过滤掉 > 3000 米的放飞自我数据)
+    // 1. 先计算距离并执行物理截断 (过滤掉 > 5000 米的放飞自我数据)
     const processedPlaces = places.map((p) => {
       const distanceKm = (p.lat !== undefined && p.lng !== undefined) ? getDistanceKm(lat, lng, p.lat, p.lng) : 999;
       return { ...p, distanceKm };
-    }).filter((p) => p.distanceKm <= 3.0); // 绝对物理栅栏：只留 3km 内的
+    }).filter((p) => p.distanceKm <= 5.0); // 绝对物理栅栏：放宽至 5km 以解决 POPULARITY 模式下高分商户数量不足的问题
 
     // 2. 对留下来的“本地真实数据”进行真理法庭算分
     const placesWithScore = processedPlaces.map((p) => {
@@ -202,7 +207,17 @@ export async function POST(req: Request) {
       placesWithScore.sort((a, b) => b.gxScore - a.gxScore);
     }
 
-    return NextResponse.json({ places: placesWithScore });
+    // 启用 Vercel Edge Cache 的 stale-while-revalidate 机制
+    // s-maxage=3600 (CDN节点缓存1小时)
+    // stale-while-revalidate=86400 (在24小时内，优先返回旧缓存并后台静默刷新)
+    return NextResponse.json(
+      { places: placesWithScore },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        },
+      }
+    );
   } catch (error) {
     console.error("Error fetching places:", error);
     return NextResponse.json(

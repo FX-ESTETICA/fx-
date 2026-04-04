@@ -1,12 +1,13 @@
 "use client";
 
 import { useAuth, SandboxUser } from "@/features/auth/hooks/useAuth";
+import { cn } from "@/utils/cn";
 import { CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html, Sphere, Billboard, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { useEffect, useState, useRef } from "react";
-import { ShieldCheck, X, UserPlus, UserMinus, Calendar, LineChart, Trash2, Search, Loader2, Maximize2, Zap, Rocket, ArrowLeft } from "lucide-react";
+import { ShieldCheck, X, Calendar, LineChart, Trash2, Search, Loader2, Zap, Rocket, ArrowLeft, Lock, Activity, Sparkles, UserMinus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext"; // 引入 ShopContext
@@ -44,62 +45,63 @@ function useNebulaData(bossId: string | undefined) {
     if (!bossId) return;
     setIsLoading(true);
     try {
-      // 1. 获取当前 Boss 的合法的 Principal ID
+      // 1. 获取当前 Boss 的合法的 Profile ID
       const { data: principalData, error: principalError } = await supabase
-        .from('principals')
+        .from('profiles')
         .select('id')
-        .eq('user_id', bossId)
+        .eq('id', bossId)
         .single();
         
       if (principalError) {
-         console.warn("[Nebula] 未找到对应的 principal_id，可能是首次进入或测试账号", principalError);
+         console.warn("[Nebula] 未找到对应的 profiles id，可能是首次进入或测试账号", principalError);
       }
       
       const validPrincipalId = principalData?.id || bossId; // 降级回退
 
       // 2. 从我们设计的视图中拉取数据
+      // 注意：真实数据库中并没有 v_nebula_nodes 视图，或者该视图缺少 shop 的基础信息。
+      // 我们直接连表查询 shop_bindings 和 shops，实现零视图依赖！
       const { data, error } = await supabase
-        .from('v_nebula_nodes')
-        .select('*')
-        .eq('principal_id', validPrincipalId); // 致命修复：从错误的 boss_id 纠正为真实的列名 principal_id
+        .from('shop_bindings')
+        .select(`
+          shop_id,
+          role,
+          shops (
+            id,
+            name,
+            industry,
+            nebula_status,
+            theme_color
+          )
+        `)
+        .eq('user_id', validPrincipalId); // 通过 user_id 找到这个人绑定的所有店铺
 
       if (error) throw error;
 
-      // --- 新增：提取所有存在的 manager_gx_id，去 profiles 表查真实姓名 ---
-      const managerIds = (data || []).map((n: any) => n.manager_gx_id).filter(Boolean);
-      let profilesMap: Record<string, { name: string; role: string }> = {};
-      
-      if (managerIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('gx_id, name, role')
-          .in('gx_id', managerIds);
-          
-        if (profilesData) {
-          profilesMap = profilesData.reduce((acc, p) => {
-            acc[p.gx_id] = { name: p.name || 'Unknown', role: p.role };
-            return acc;
-          }, {} as Record<string, { name: string; role: string }>);
-        }
-      }
+      // --- 降维解析：直接从连表结果中映射出我们需要的数据 ---
+      const realNodes = (data || []).map((binding: any) => {
+        const shop = Array.isArray(binding.shops) ? binding.shops[0] : binding.shops;
+        if (!shop) return null;
 
-      // 将数据库真实节点映射到我们的前端 10 个轨道插槽上，并缝合真实姓名
-      const realNodes = (data || []).map((node: any) => ({
-        id: node.shop_id,
-        key: (node.color_key as CyberThemeColor) || 'cyan',
-        name: node.name || '筹备中',
-        status: (node.status as NodeStatus) || 'pending',
-        industry: node.industry,
-        managerId: node.manager_gx_id,
-        managerName: node.manager_gx_id ? profilesMap[node.manager_gx_id]?.name : null,
-        managerRole: node.manager_gx_id ? profilesMap[node.manager_gx_id]?.role : null
-      }));
+        return {
+          id: shop.id,
+          key: (shop.theme_color as CyberThemeColor) || 'cyan',
+          name: shop.name || '筹备中',
+          status: (shop.nebula_status as NodeStatus) || 'pending',
+          industry: shop.industry,
+          managerId: null, // 如果需要店长信息，后期再单独查
+          managerName: null,
+          managerRole: null
+        };
+      }).filter(Boolean);
 
       // 如果不足 10 个，生成虚拟节点填充轨道
       const filledPlanets: PlanetData[] = [];
       for (let i = 0; i < 10; i++) {
         if (i < realNodes.length) {
-          filledPlanets.push(realNodes[i]);
+          if (realNodes[i]) {
+            filledPlanets.push(realNodes[i] as PlanetData);
+          }
         } else {
           // 生成虚拟的筹备中节点
           filledPlanets.push({
@@ -132,16 +134,16 @@ function useNebulaData(bossId: string | undefined) {
       console.log("[Nebula] 准备更新节点，收到的 ID:", id, "更新内容:", updates);
       
       // 关键修复：获取合法的 owner_principal_id
-      // 因为 bossId 是 user_id，我们需要找到对应的 principal_id
+      // 因为 bossId 是 user_id，我们需要找到对应的 profiles id
       const { data: principalData, error: pErr } = await supabase
-        .from('principals')
+        .from('profiles')
         .select('id')
-        .eq('user_id', bossId)
+        .eq('id', bossId)
         .single();
         
       if (pErr) {
-        console.error("[Nebula] 严重错误：在 principals 表中找不到当前账号的记录", pErr);
-        alert("致命错误：您的最高管理员账号在数据库底层缺乏 Principal 实体，请联系系统架构师补充。");
+        console.error("[Nebula] 严重错误：在 profiles 表中找不到当前账号的记录", pErr);
+        alert("致命错误：您的最高管理员账号在数据库底层缺乏 Profile 实体，请联系系统架构师补充。");
         return null;
       }
         
@@ -171,6 +173,19 @@ function useNebulaData(bossId: string | undefined) {
         }
         console.log("[Nebula] 新节点创建成功:", data);
         newPlanetId = data.id; // 记录真实返回的 UUID
+
+        // 【核心闭环修复】：自动将创建者绑定为该店的 OWNER，消灭孤魂野鬼数据
+        const { error: bindError } = await supabase
+          .from('shop_bindings')
+          .insert({
+            shop_id: newPlanetId,
+            user_id: validPrincipalId,
+            role: 'OWNER'
+          });
+          
+        if (bindError) {
+          console.error("[Nebula] 绑定老板权限失败:", bindError);
+        }
       } else {
         // 如果是真实存在的 UUID，执行 UPDATE
         console.log("[Nebula] 正在更新现有真实节点...");
@@ -442,12 +457,14 @@ function NodeManagementHUD({
   const [industryInput, setIndustryInput] = useState(planet.industry || '');
   const [managerInput, setManagerInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<'control' | 'financial'>('control');
 
   // 当星球切换时，重置表单
   useEffect(() => {
     setNameInput(planet.name === '筹备中' ? '' : planet.name);
     setIndustryInput(planet.industry || '');
     setManagerInput('');
+    setViewMode('control'); // 切换星球时，强制重置为基础控制面板
   }, [planet]);
 
   const handleActivate = async () => {
@@ -516,224 +533,393 @@ function NodeManagementHUD({
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="w-full max-w-md bg-black/80 border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-gx-cyan/10 relative">
+    <div className="absolute inset-0 z-50 flex items-center justify-center p-4 sm:p-8 pointer-events-none">
+      {/* 核心全息控制舱 (Holographic Command Pod) */}
+      <div className="relative w-full max-w-4xl bg-[#0a0a0a]/60 backdrop-blur-2xl ring-1 ring-white/5 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] rounded-3xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-300">
         
-        {/* 顶部流光线 */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gx-cyan to-transparent opacity-50" />
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/5">
-          <div className="flex items-center space-x-3">
-            <div className={`w-2 h-2 rounded-full ${isPending ? 'bg-white/20' : 'bg-gx-cyan animate-pulse'}`} />
-            <h2 className="text-sm font-mono tracking-widest text-white/80">NODE CONTROL PANEL</h2>
+        {/* 四角折角装饰 (Cyber Brackets) */}
+        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/10 rounded-tl-3xl" />
+        <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/10 rounded-tr-3xl" />
+        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/10 rounded-bl-3xl" />
+        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/10 rounded-br-3xl" />
+
+        {/* 顶部关闭按钮 */}
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors z-50"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        {/* --- 顶部穹顶 (The Zenith Dome) --- */}
+        <div className="pt-8 pb-4 flex flex-col items-center justify-center relative">
+          <div className="text-xl md:text-2xl font-black tracking-[0.3em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-300 to-white/50 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] mb-2 select-none flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] animate-pulse" />
+            GX 私人管家
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition-colors">
-            <X className="w-4 h-4 text-white/50" />
-          </button>
+          <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
+            Nebula Node Command Pod
+          </div>
+          {/* 分割能量线 */}
+          <div className="absolute bottom-0 w-full h-px bg-gradient-to-r from-transparent via-gx-cyan/50 to-transparent" />
         </div>
 
-        <div className="p-6 space-y-8">
-          
-          {planet.isCore ? (
-            <div className="space-y-8">
-              <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                <ShieldCheck className="w-16 h-16 text-gx-cyan opacity-80" />
-                <h3 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan to-purple-400">
-                  {planet.name}
-                </h3>
-                <p className="text-xs font-mono text-white/50">ENTERPRISE CORE // 企业中枢</p>
-              </div>
-              
-              <div className="pt-4 mt-4 border-t border-red-500/20">
-                {onObliterate && (
-                  <button
-                    onClick={async () => {
-                      if (confirm("【绝对警告】此操作将引爆整个企业联邦，所有分公司、日历、订单数据将瞬间灰飞烟灭，且无法恢复！您的账号将重置为普通用户。是否确认引爆？")) {
-                        setIsSubmitting(true);
-                        await onObliterate();
-                        setIsSubmitting(false);
-                      }
-                    }}
-                    disabled={isSubmitting}
-                    className="w-full flex items-center justify-center space-x-2 bg-red-500/20 border border-red-500 text-white shadow-[0_0_15px_rgba(255,0,0,0.5)] text-xs font-black tracking-[0.1em] uppercase hover:bg-red-500/40 hover:shadow-[0_0_25px_rgba(255,0,0,0.8)] transition-all rounded px-4 py-3 animate-pulse disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>ABYSSAL COLLAPSE (解散联邦)</span>
-                  </button>
-                )}
-              </div>
-            </div>
+        {/* --- 主体双舱矩阵 (Dual-Pane Matrix) / 状态机折叠 --- */}
+        <div className="relative min-h-[400px]" style={{ perspective: 2000 }}>
+          <AnimatePresence mode="wait">
+            {viewMode === 'control' ? (
+              <motion.div 
+                key="control"
+                initial={{ opacity: 0, rotateY: -10, scale: 0.95 }}
+                animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+                exit={{ opacity: 0, rotateY: 10, scale: 0.95 }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
+                className="flex flex-col md:flex-row h-full min-h-[400px]"
+              >
+                {planet.isCore ? (
+             <div className="w-full p-8 flex flex-col items-center justify-center space-y-8">
+               <ShieldCheck className="w-16 h-16 text-gx-cyan opacity-80" />
+               <h3 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan to-purple-400">
+                 {planet.name}
+               </h3>
+               <p className="text-xs font-mono text-white/50">ENTERPRISE CORE // 企业中枢</p>
+               
+               <div className="pt-8 mt-4 w-full max-w-md">
+                 {onObliterate && (
+                   <button
+                     onClick={async () => {
+                       if (confirm("【绝对警告】此操作将引爆整个企业联邦，所有分公司、日历、订单数据将瞬间灰飞烟灭，且无法恢复！您的账号将重置为普通用户。是否确认引爆？")) {
+                         setIsSubmitting(true);
+                         await onObliterate();
+                         setIsSubmitting(false);
+                       }
+                     }}
+                     disabled={isSubmitting}
+                     className="w-full flex items-center justify-center space-x-2 bg-red-500/20 border border-red-500 text-white shadow-[0_0_15px_rgba(255,0,0,0.5)] text-xs font-black tracking-[0.1em] uppercase hover:bg-red-500/40 hover:shadow-[0_0_25px_rgba(255,0,0,0.8)] transition-all rounded-xl px-4 py-3 animate-pulse disabled:opacity-50"
+                   >
+                     <Trash2 className="w-4 h-4" />
+                     <span>ABYSSAL COLLAPSE (解散联邦)</span>
+                   </button>
+                 )}
+               </div>
+             </div>
           ) : (
             <>
-              {/* 基础档案区 (Data Core) */}
-              <div className="space-y-4">
-                <h3 className="text-[10px] uppercase text-white/40 tracking-[0.2em] mb-2 border-b border-white/5 pb-1">DATA CORE // 基础档案</h3>
-                
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[10px] text-white/40 uppercase mb-1 block">NODE DESIGNATION</label>
-                    {isPending ? (
+              {/* 左舱：核心操控 (Operations Matrix) - 60% */}
+              <div className="w-full md:w-[60%] p-8 flex flex-col justify-between">
+                <div className="space-y-8">
+                  
+                  {/* 第一行：名字 (2/3) + 行业 (1/3) */}
+                  <div className="flex items-end gap-4">
+                    <div className="flex-1 group relative">
                       <input 
                         type="text" 
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-gx-cyan focus:outline-none transition-colors"
-                        placeholder="e.g. 洛圣都一号店"
+                        placeholder={isPending ? "INITIALIZING..." : "ENTER NODE NAME"}
+                        className={cn(
+                          "w-full bg-transparent border-none outline-none text-2xl md:text-3xl font-black tracking-tight transition-all",
+                          isPending ? "text-white/50 placeholder:text-white/30 animate-pulse" : "text-gx-cyan drop-shadow-[0_0_15px_rgba(0,242,255,0.4)] placeholder:text-white/20"
+                        )}
                       />
-                    ) : (
-                      <div className="w-full bg-gx-cyan/5 border border-gx-cyan/30 rounded px-3 py-2 text-sm text-gx-cyan font-bold tracking-wider shadow-[0_0_15px_rgba(0,242,255,0.1)]">
-                        {planet.name}
+                      {/* 悬浮聚焦下划线 */}
+                      <div className={cn(
+                        "absolute -bottom-2 left-0 w-full h-px transition-all duration-300",
+                        isPending ? "bg-gx-cyan/40 shadow-[0_0_10px_rgba(0,242,255,0.5)] animate-pulse" : "bg-white/10 group-focus-within:bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0)] group-focus-within:shadow-[0_0_10px_rgba(0,242,255,0.5)]"
+                      )} />
+                    </div>
+
+                    <div className="w-[160px] shrink-0">
+                      <div className="relative group">
+                        <select
+                          value={industryInput}
+                          onChange={(e) => setIndustryInput(e.target.value)}
+                          disabled={!isPending}
+                          className="w-full appearance-none bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full px-4 py-2.5 text-xs font-bold text-white tracking-widest cursor-pointer outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <option value="" disabled className="bg-black text-white/50">Select DNA</option>
+                          {INDUSTRY_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value} className="bg-black text-white">{opt.label}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 group-hover:text-white/80 transition-colors">
+                          <Zap className="w-3 h-3" />
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="text-[10px] text-white/40 uppercase mb-1 block">INDUSTRY DNA</label>
-                    {isPending ? (
-                      <select 
-                        value={industryInput}
-                        onChange={(e) => setIndustryInput(e.target.value)}
-                        className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-gx-cyan focus:outline-none transition-colors appearance-none"
-                      >
-                        <option value="" disabled>Select Industry Template</option>
-                        {INDUSTRY_OPTIONS.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white/80">
-                        {INDUSTRY_OPTIONS.find(o => o.value === planet.industry)?.label || planet.industry}
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   {isPending && (
-                    <button 
-                      onClick={handleActivate}
-                      disabled={isSubmitting}
-                      className="w-full flex items-center justify-center space-x-2 bg-gx-cyan/10 hover:bg-gx-cyan/20 border border-gx-cyan/30 hover:border-gx-cyan text-gx-cyan rounded px-4 py-3 text-sm font-bold tracking-widest transition-all group shadow-[0_0_20px_rgba(0,242,255,0.1)] hover:shadow-[0_0_30px_rgba(0,242,255,0.3)] disabled:opacity-50 mt-4"
-                    >
-                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 group-hover:scale-110 transition-transform" />}
-                      <span>ACTIVATE NODE (激活节点)</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* 激活后的运营区域 */}
-              {!isPending && (
-                <>
-                  {/* 人员管辖区 (Personnel Command) */}
-                  <div className="space-y-4 animate-in slide-in-from-bottom-2">
-                    <h3 className="text-[10px] uppercase text-white/40 tracking-[0.2em] mb-2 border-b border-white/5 pb-1">COMMAND // 人员管辖</h3>
-                    
-                    {planet.managerId ? (
-                      <div className="bg-gx-cyan/5 border border-gx-cyan/20 rounded p-4 flex flex-col space-y-3 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-16 h-16 bg-gx-cyan/10 rounded-full blur-xl -mr-8 -mt-8" />
-                        
-                        <div className="flex items-start justify-between relative z-10">
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <ShieldCheck className="w-4 h-4 text-gx-cyan" />
-                              <span className="text-sm font-bold text-white tracking-wider">STORE MANAGER</span>
-                            </div>
-                            <div className="text-[10px] text-white/50 font-mono pl-6">
-                              ID: {planet.managerId}
-                            </div>
-                            <div className="text-xs text-gx-cyan font-bold pl-6 pt-1">
-                              {planet.managerName ? `${planet.managerName} | ${planet.managerRole === 'merchant' ? '商户' : '管理员'}` : '同步中...'}
-                            </div>
-                          </div>
-                          
-                          <button 
-                            onClick={() => handleRevoke()}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded transition-all flex items-center justify-center"
-                            title="撤销店长权限"
-                          >
-                            <UserMinus className="w-4 h-4" />
-                          </button>
+                    <div className="pt-4">
+                      <button 
+                        onClick={handleActivate}
+                        disabled={isSubmitting}
+                        className="w-full relative overflow-hidden group bg-gx-cyan/10 border border-gx-cyan/30 rounded-xl p-4 transition-all hover:border-gx-cyan hover:shadow-[0_0_30px_rgba(0,242,255,0.2)] disabled:opacity-50"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gx-cyan/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                        <div className="relative z-10 flex items-center justify-center gap-3 text-gx-cyan font-bold tracking-[0.2em]">
+                          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+                          <span>ACTIVATE NODE</span>
                         </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 第二行：人员管辖 (Command) */}
+                  <div className={cn(
+                    "animate-in fade-in slide-in-from-left-4 duration-500 delay-100 mt-4",
+                    isPending && "opacity-30 grayscale pointer-events-none select-none"
+                  )}>
+                    <div className="text-[10px] uppercase text-white/30 tracking-[0.2em] mb-2 font-mono flex items-center gap-2">
+                      Command // 人员管辖
+                      {isPending && <Lock className="w-3 h-3 text-white/50" />}
+                    </div>
+                    {planet.managerId ? (
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:bg-white/10 transition-all">
+                        <div>
+                          <div className="text-sm font-bold text-white group-hover:text-gx-cyan transition-colors">{planet.managerName || 'UNKNOWN'}</div>
+                          <div className="text-[10px] text-white/40 font-mono mt-0.5">{planet.managerId}</div>
+                        </div>
+                        <button 
+                          onClick={handleRevoke}
+                          disabled={isSubmitting}
+                          className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded border border-red-500/20 transition-all uppercase tracking-widest flex items-center gap-2"
+                        >
+                          <UserMinus className="w-3 h-3" />
+                          <span>Revoke</span>
+                        </button>
                       </div>
                     ) : (
-                      <div className="flex space-x-2">
+                      <div className="flex bg-black/50 ring-1 ring-white/10 focus-within:ring-gx-cyan/50 rounded-xl overflow-hidden transition-all shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
+                        <div className="pl-4 pr-2 py-3 text-gx-cyan/50 font-mono select-none flex items-center">{'>_'}</div>
                         <input 
-                          type="text" 
+                          type="text"
                           value={managerInput}
                           onChange={(e) => setManagerInput(e.target.value)}
-                          className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-gx-cyan focus:outline-none transition-colors font-mono"
                           placeholder="Input ID (e.g. GX-UR-123)"
+                          className="flex-1 bg-transparent border-none outline-none text-white text-sm font-mono placeholder:text-white/20"
+                          onKeyDown={(e) => e.key === 'Enter' && handleAuthorize()}
                         />
                         <button 
                           onClick={handleAuthorize}
-                          disabled={isSubmitting}
-                          className="flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded px-4 py-2 text-sm transition-all whitespace-nowrap disabled:opacity-50 font-bold"
+                          disabled={isSubmitting || !managerInput}
+                          className="px-6 bg-transparent text-gx-cyan hover:text-white hover:bg-gx-cyan/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gx-cyan transition-all flex items-center gap-2 font-bold tracking-widest text-xs border-l border-white/10"
                         >
-                          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                          <span>AUTHORIZE</span>
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>GRANT</span>
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* 核心流转矩阵 (Operation Matrix) */}
-                  <div className="space-y-4 animate-in slide-in-from-bottom-2">
-                    <h3 className="text-[10px] uppercase text-white/40 tracking-[0.2em] mb-2 border-b border-white/5 pb-1">MATRIX // 核心流转</h3>
-                    
-                    <div className="grid grid-cols-1 gap-2">
+                  {/* 第三行：矩阵入口 (Matrix) */}
+                  <div className={cn(
+                    "mt-8 pt-6 border-t border-white/5",
+                    isPending && "opacity-30 grayscale pointer-events-none select-none"
+                  )}>
+                    <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 relative">
+                      {isPending && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center">
+                          <Lock className="w-8 h-8 text-white/50 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                        </div>
+                      )}
+                      
+                      {/* 星云下钻 (左) */}
                       <button 
                         onClick={onDive}
-                        className="flex items-center justify-between bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded p-4 transition-all group overflow-hidden relative"
+                        className="flex-1 relative overflow-hidden group bg-purple-900/20 border border-purple-500/20 rounded-xl p-4 hover:border-purple-400 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] transition-all"
                       >
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-purple-500/0 -translate-x-full group-hover:translate-x-full duration-1000 transition-transform" />
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-purple-500/20 rounded-lg">
-                            <Rocket className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-                          </div>
-                          <div className="flex flex-col items-start">
-                            <span className="text-sm font-bold text-purple-100 tracking-wider">NEBULA DIVE</span>
-                            <span className="text-[10px] text-purple-400/60 font-mono">星云下钻 / 局部星系视图</span>
-                          </div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative z-10 flex flex-col items-center justify-center gap-2">
+                          <Rocket className="w-6 h-6 text-purple-400 group-hover:scale-110 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+                          <span className="text-xs text-purple-300 font-bold tracking-widest">NEBULA DIVE</span>
                         </div>
-                        <Maximize2 className="w-4 h-4 text-purple-400/50 group-hover:text-purple-400" />
                       </button>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <button 
-                          onClick={handleEnterCalendar}
-                          className="flex flex-col items-center justify-center space-y-2 bg-white/5 hover:bg-gx-cyan/10 border border-white/10 hover:border-gx-cyan/30 rounded p-4 transition-all group"
-                        >
-                          <Calendar className="w-5 h-5 text-white/50 group-hover:text-gx-cyan transition-colors" />
-                          <span className="text-[11px] font-bold text-white/70 group-hover:text-white tracking-widest">ENTER MATRIX</span>
-                        </button>
-                        
-                        <button 
-                          onClick={() => alert("[沙盒拦截] 准备展开全息 AI 财务面板")}
-                          className="flex flex-col items-center justify-center space-y-2 bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 rounded p-4 transition-all group"
-                        >
-                          <LineChart className="w-5 h-5 text-white/50 group-hover:text-emerald-400 transition-colors" />
-                          <span className="text-[11px] font-bold text-white/70 group-hover:text-white tracking-widest">AI FINANCIALS</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 mt-4 border-t border-white/5 space-y-3">
+                      {/* 进入日历 (右 - 主入口) */}
                       <button 
-                        onClick={handlePurge}
-                        disabled={isSubmitting}
-                        className="w-full flex items-center justify-center space-x-2 bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 hover:border-red-500/50 text-red-500/80 hover:text-red-400 rounded px-4 py-3 text-[10px] tracking-widest transition-all group"
+                        onClick={handleEnterCalendar}
+                        className="flex-[1.5] relative overflow-hidden group bg-gx-cyan/10 border border-gx-cyan/30 rounded-xl p-4 hover:border-gx-cyan hover:shadow-[0_0_30px_rgba(0,242,255,0.2)] transition-all"
                       >
-                        <Trash2 className="w-3 h-3 group-hover:scale-110 transition-transform" />
-                        <span>PURGE NODE DATA (终极清洗)</span>
+                        {/* 常驻流光背景 */}
+                        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-gx-cyan/0 via-gx-cyan/10 to-gx-cyan/0" />
+                        <div className="relative z-10 flex flex-col items-center justify-center gap-2">
+                          <Calendar className="w-6 h-6 text-gx-cyan group-hover:scale-110 transition-transform" />
+                          <span className="text-xs text-white font-bold tracking-widest group-hover:text-gx-cyan transition-colors">ENTER MATRIX</span>
+                        </div>
                       </button>
                     </div>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
+
+              {/* 右舱：AI 洞察域 (AI Financials Core) - 40% */}
+              <div className="w-full md:w-[40%] relative border-t md:border-t-0 flex flex-col items-center justify-center overflow-hidden min-h-[250px] bg-black/20">
+                {/* 左侧垂直渐变分割线 */}
+                <div className="hidden md:block absolute left-0 top-[10%] bottom-[10%] w-px bg-gradient-to-b from-transparent via-gx-cyan/20 to-transparent" />
+
+                {/* 微弱的背景跳动动画 */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none">
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_40%,transparent_100%)] animate-[pulse_4s_ease-in-out_infinite]" />
+                </div>
+
+                {/* 扫描线动画 (Data Stream) - 增强休眠态科技感 */}
+                <div className="absolute inset-0 pointer-events-none opacity-30 mix-blend-screen">
+                  <div className="absolute top-0 left-0 w-full h-full bg-[length:100%_200%] animate-[shimmer_3s_linear_infinite] bg-gradient-to-b from-transparent via-gx-cyan/10 to-transparent" />
+                </div>
+
+                {/* AI 财务按钮卡片 / 四宫格降维快照 */}
+                {isPending ? (
+                  <button 
+                    disabled={isPending}
+                    className="relative z-10 group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-sm transition-all duration-500 opacity-30 grayscale cursor-not-allowed"
+                  >
+                    <div className="absolute inset-0 z-20 flex items-center justify-center">
+                      <Lock className="w-10 h-10 text-white/30" />
+                    </div>
+                    <div className="w-16 h-16 rounded-full bg-black/50 border border-white/10 flex items-center justify-center relative">
+                      <LineChart className="w-6 h-6 text-white/50" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-bold text-white tracking-[0.2em]">AI FINANCIALS</div>
+                      <div className="text-[10px] text-white/30 font-mono mt-1">Awaiting Node Activation</div>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="relative z-10 w-full h-full flex flex-col p-6">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+                      <span className="text-[10px] font-mono text-emerald-400/80 uppercase tracking-widest">Live Node Snapshot</span>
+                    </div>
+
+                    {/* 四宫格数据区 */}
+                    <div className="grid grid-cols-2 gap-3 mb-6 flex-1">
+                      <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Total Revenue</span>
+                        <span className="text-xl font-black text-emerald-400 mt-1 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">¥ 45,200</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Total Members</span>
+                        <span className="text-xl font-black text-white mt-1">128</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Walk-ins</span>
+                        <span className="text-xl font-black text-white mt-1">45</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Services</span>
+                        <span className="text-xl font-black text-white mt-1">312</span>
+                      </div>
+                    </div>
+
+                    {/* 原地翻转下钻按钮 */}
+                    <button 
+                      onClick={() => setViewMode('financial')}
+                      className="w-full relative overflow-hidden group bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 transition-all hover:border-emerald-400 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-400/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                      <div className="relative z-10 flex items-center justify-center gap-2 text-emerald-400 font-bold tracking-[0.1em] text-xs">
+                        <LineChart className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span>ACCESS FULL DATASLATE</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
-        </div>
+          {/* 只有在 Control 模式下，非母星才显示深渊清洗按钮 */}
+          {!planet.isCore && (
+            <div className="absolute bottom-[-16px] left-1/2 -translate-x-1/2 w-full max-w-[250px] flex justify-center z-50">
+              <button 
+                onClick={handlePurge}
+                disabled={isSubmitting}
+                className="group flex items-center gap-2 px-6 py-2 text-[10px] font-mono tracking-widest text-red-500/30 hover:text-red-400 transition-all duration-300 rounded-full hover:bg-red-500/10 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] bg-transparent border border-transparent hover:border-red-500/20"
+              >
+                <Trash2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span>PURGE NODE DATA</span>
+              </button>
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        <motion.div
+          key="financial"
+          initial={{ opacity: 0, rotateY: -10, scale: 0.95 }}
+          animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+          exit={{ opacity: 0, rotateY: 10, scale: 0.95 }}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+          className="flex flex-col h-full min-h-[400px] w-full p-8 relative overflow-hidden"
+        >
+          {/* 全尺寸 AI 财务详细报表 */}
+          <div className="flex items-center justify-between mb-8 z-10 relative">
+            <button
+              onClick={() => setViewMode('control')}
+              className="flex items-center gap-2 text-emerald-400/60 hover:text-emerald-400 transition-colors group px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-xs font-bold tracking-widest uppercase">BACK TO COMMAND</span>
+            </button>
+            <div className="text-xs font-mono text-emerald-400/50 uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+              {planet.name} // FINANCIAL DATASLATE
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center z-10 relative">
+            <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+               <div className="col-span-2 bg-black/40 border border-white/5 rounded-2xl p-6 h-56 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+                 <div className="text-xs text-white/40 font-mono tracking-widest uppercase mb-4 flex justify-between">
+                   <span>Revenue Trend (7 Days)</span>
+                   <span className="text-emerald-400 font-bold">+12.4%</span>
+                 </div>
+                 <div className="flex items-end gap-2 h-32 w-full">
+                    {[40, 70, 45, 90, 65, 80, 100].map((h, i) => (
+                      <div key={i} className="flex-1 bg-gradient-to-t from-emerald-500/10 to-emerald-400/60 rounded-t-sm group-hover:to-emerald-400/80 transition-colors" style={{ height: `${h}%` }} />
+                    ))}
+                 </div>
+                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:100%_20px] pointer-events-none" />
+               </div>
+
+               <div className="col-span-1 bg-black/40 border border-white/5 rounded-2xl p-6 h-56 flex flex-col justify-between group hover:border-emerald-500/30 transition-colors">
+                 <div className="text-xs text-white/40 font-mono tracking-widest uppercase mb-4 flex items-center gap-2">
+                   <Sparkles className="w-3 h-3 text-emerald-400" />
+                   AI Insight
+                 </div>
+                 <p className="text-sm text-white/80 leading-relaxed font-medium">
+                   <span className="text-emerald-400 font-bold text-lg mr-1">"</span>
+                   当前节点运转良好，下午 14:00-16:00 存在 2 小时运力闲置，建议通过矩阵推送限时折扣。
+                   <span className="text-emerald-400 font-bold text-lg ml-1">"</span>
+                 </p>
+                 <div className="text-[10px] text-emerald-400/50 font-mono mt-2">- Nexus AI Engine</div>
+               </div>
+            </div>
+
+            <div className="w-full bg-black/40 border border-white/5 rounded-2xl p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
+                   <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                 </div>
+                 <div>
+                   <div className="text-white text-sm font-bold tracking-widest">FINANCIAL DATA SYNCED</div>
+                   <div className="text-xs text-white/40 font-mono">Last updated: LIVE</div>
+                 </div>
+              </div>
+              <button className="px-6 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase rounded-xl transition-all border border-emerald-500/20 hover:border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                Export Report
+              </button>
+            </div>
+          </div>
+
+          {/* 全息扫描线背景 */}
+          <div className="absolute inset-0 pointer-events-none opacity-20 mix-blend-screen">
+            <div className="absolute top-0 left-0 w-full h-full bg-[length:100%_200%] animate-[shimmer_5s_linear_infinite] bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent" />
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+    </div>
       </div>
     </div>
   );
@@ -895,7 +1081,11 @@ function NebulaSubSystem({ targetPlanet }: { targetPlanet: PlanetData }) {
           size={2.5} // 略微缩小，让出更多空间给卫星
           colorHex={CYBER_COLOR_DICTIONARY[targetPlanet.key as CyberThemeColor]?.hex || '#ffffff'}
           labelTitle={targetPlanet.name}
-          labelSubtitle={targetPlanet.industry?.toUpperCase() + " NODE"}
+          labelSubtitle={
+            targetPlanet.status === 'active'
+              ? (targetPlanet.managerId ? `🟢 店长ID: ${targetPlanet.managerId}` : "🟡 请指派经理")
+              : "筹备中"
+          }
         />
       </group>
 
@@ -1034,7 +1224,11 @@ function PlanetNode({
         size={0.8}
         colorHex={colorConfig.hex}
         labelTitle={planet.name}
-        labelSubtitle={planet.status === 'active' ? (planet.industry + " NODE") : "筹备中"}
+        labelSubtitle={
+          planet.status === 'active' 
+            ? (planet.managerId ? `🟢 店长ID: ${planet.managerId}` : "🟡 请指派经理") 
+            : "筹备中"
+        }
         isDimmed={planet.status !== 'active'}
         glowColor={colorConfig.hex}
         onClick={(e) => { e.stopPropagation(); onClick(planet); }}

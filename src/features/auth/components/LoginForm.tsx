@@ -6,11 +6,11 @@ import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { useState, useEffect } from "react";
 import { UserCircle } from "lucide-react";
-import { cn } from "@/utils/cn";
 import { AuthService } from "../api/auth";
 import { useAuth, SandboxUser } from "../hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isMockMode } from "@/lib/supabase";
+import { useTranslations } from "next-intl";
 
 // --- 沙盒 Mock 账号库 ---
 const MOCK_ACCOUNTS: Record<string, SandboxUser> = {
@@ -43,10 +43,10 @@ export const LoginForm = () => {
   const [otp, setOtp] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
-  const [lang, setLang] = useState<"zh" | "en" | "it">("zh");
   const [mode, setMode] = useState<"otp" | "password">("otp");
   const [cooldown, setCooldown] = useState(0);
   const [awaitingOtp, setAwaitingOtp] = useState(false);
+  const t = useTranslations("Auth");
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
@@ -63,7 +63,7 @@ export const LoginForm = () => {
         await AuthService.verifyEmailOtp(email, otp);
         router.push(nextParam || "/home");
       } catch {
-        setOtpError("验证码错误，请重新输入");
+        setOtpError(t("otpError"));
         setOtp("");
         setAwaitingOtp(true);
       } finally {
@@ -72,70 +72,6 @@ export const LoginForm = () => {
     };
     autoVerify();
   }, [otp, awaitingOtp, mode, email, router, nextParam]);
-
-  const t: Record<"zh" | "en" | "it", {
-    title: string;
-    subtitle: string;
-    emailLabel: string;
-    passwordLabel: string;
-    submit: string;
-    authenticating: string;
-    or: string;
-    google: string;
-    guest: string;
-    reset: string;
-    register: string;
-    security: string;
-    error: string;
-  }> = {
-    zh: {
-      title: "GX 身份验证",
-      subtitle: "银河体验接入系统",
-      emailLabel: "安全标识 (邮箱)",
-      passwordLabel: "访问密钥 (密码)",
-      submit: "建立连接",
-      authenticating: "身份验证中...",
-      or: "或",
-      google: "使用 Google 账号同步",
-      guest: "以游客身份进入",
-      reset: "重置密钥",
-      register: "初始化新实体",
-      security: "加密传输由边缘网络提供 // ID: GX-AUTH-v2.0",
-      error: "验证失败：请检查密钥或网络"
-    },
-    en: {
-      title: "GX Authentication",
-      subtitle: "Galaxy Experience Access System",
-      emailLabel: "Security Identity (Email)",
-      passwordLabel: "Access Key (Password)",
-      submit: "Establish Connection",
-      authenticating: "Authenticating...",
-      or: "OR",
-      google: "Sync with Google Account",
-      guest: "Guest Access",
-      reset: "Reset Key",
-      register: "Initialize New Entity",
-      security: "Encrypted transfer by Edge Network // ID: GX-AUTH-v2.0",
-      error: "Auth Failed: Check key or network"
-    },
-    it: {
-      title: "Autenticazione GX",
-      subtitle: "Sistema di Accesso Galaxy",
-      emailLabel: "Identità di Sicurezza (Email)",
-      passwordLabel: "Chiave di Accesso (Password)",
-      submit: "Stabilisci Connessione",
-      authenticating: "Autenticazione...",
-      or: "OPPURE",
-      google: "Sincronizza con Google",
-      guest: "Accesso Ospite",
-      reset: "Resetta Chiave",
-      register: "Inizializza Nuova Entità",
-      security: "Trasferimento crittografato da Edge Network // ID: GX-AUTH-v2.0",
-      error: "Accesso Negato: Controlla chiave o rete"
-    }
-  };
-
-  const current = t[lang] || t.zh;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +95,7 @@ export const LoginForm = () => {
       await AuthService.signInWithEmail(email, password);
       router.push(nextParam || "/home");
     } catch {
-      setPasswordError("密码错误，请重新输入");
+      setPasswordError(t("passwordError"));
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +106,7 @@ export const LoginForm = () => {
     try {
       await AuthService.signInWithGoogle(nextParam);
     } catch (err) {
-      const message = err instanceof Error ? err.message : current.error;
+      const message = err instanceof Error ? err.message : t("error");
       setError(message);
       setIsLoading(false);
     }
@@ -182,9 +118,9 @@ export const LoginForm = () => {
     setMessage(null);
     try {
       await AuthService.signInWithMagicLink(email, nextParam);
-      setMessage("已发送邮箱验证码/链接，请查收邮件并完成登录");
+      setMessage(t("magicLinkSuccess"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : current.error;
+      const message = err instanceof Error ? err.message : t("error");
       setError(message);
     } finally {
       setIsLoading(false);
@@ -220,22 +156,7 @@ export const LoginForm = () => {
         </div>
       )}
 
-      {/* Language Switcher */}
-      <div className="absolute -top-12 right-0 flex items-center space-x-4">
-        {(["zh", "en", "it"] as const).map((l) => (
-          <button
-            key={l}
-            type="button"
-            onClick={() => setLang(l)}
-            className={cn(
-              "text-[10px] font-mono uppercase tracking-widest transition-colors",
-              lang === l ? "text-gx-cyan" : "text-white/20 hover:text-white/60"
-            )}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+      {/* Language Switcher 已经被移除，由 layout 或外部控制 */}
 
       <GlassCard glowColor="none" hoverGlow={false} className="p-8 space-y-8 backdrop-blur-xl bg-white/10 border-white/15">
         <div className="text-center">
@@ -256,24 +177,24 @@ export const LoginForm = () => {
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >
-            使用 Google 登录
+            {t("google")}
           </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input 
-            label={"邮箱"} 
+            label={t("emailLabel")} 
             type="email" 
-            placeholder="identity@example.com"
+            placeholder={t("emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
           />
           <Input 
-            label={mode === "password" ? current.passwordLabel : "验证码"} 
+            label={mode === "password" ? t("passwordLabel") : t("otpLabel")} 
             type={mode === "password" ? "password" : "text"} 
-            placeholder={mode === "password" ? "••••••••" : "输入 6 位验证码"}
+            placeholder={mode === "password" ? t("passwordPlaceholder") : t("otpPlaceholder")}
             value={mode === "password" ? password : otp}
             onChange={(e) => (mode === "password" ? setPassword(e.target.value) : setOtp(e.target.value))}
             required={mode === "password"}
@@ -286,7 +207,7 @@ export const LoginForm = () => {
               onClick={() => setMode(mode === "otp" ? "password" : "otp")}
               className="text-[10px] font-mono uppercase tracking-widest text-white/30 hover:text-gx-cyan transition-colors"
             >
-              {mode === "otp" ? "切换为密码登录" : "切换为获取邮箱验证码"}
+              {mode === "otp" ? t("switchToPassword") : t("switchToOtp")}
             </button>
           </div>
           <div className="pt-2">
@@ -299,7 +220,7 @@ export const LoginForm = () => {
                 className="w-full h-12 text-white border-white/15 hover:bg-white/10 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs"
                 disabled={isLoading || !email || cooldown > 0}
               >
-                {cooldown > 0 ? `重新获取（${cooldown}s）` : "获取邮箱验证码"}
+                {cooldown > 0 ? t("resendOtp", { seconds: cooldown }) : t("getOtp")}
               </Button>
             ) : (
               <Button 
@@ -309,7 +230,7 @@ export const LoginForm = () => {
                 className="w-full h-12 text-white border-white/15 hover:bg-white/10 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs"
                 isLoading={isLoading}
               >
-                使用密码登录
+                {t("loginWithPassword")}
               </Button>
             )}
           </div>
@@ -320,7 +241,7 @@ export const LoginForm = () => {
             <div className="w-full border-t border-white/5"></div>
           </div>
           <span className="relative px-4 text-[10px] text-white/20 font-mono uppercase tracking-widest">
-            {current.or}
+            {t("or")}
           </span>
         </div>
 
@@ -334,7 +255,7 @@ export const LoginForm = () => {
             disabled={isLoading}
           >
             <UserCircle className="w-4 h-4 text-white/40" />
-            <span>{current.guest}</span>
+            <span>{t("guest")}</span>
           </Button>
         </div>
       </GlassCard>
@@ -346,7 +267,7 @@ export const LoginForm = () => {
         transition={{ delay: 0.6 }}
         className="mt-6 text-center text-[9px] font-mono text-white/20 uppercase tracking-[0.3em]"
       >
-        {current.security}
+        {t("security")}
       </motion.p>
     </motion.div>
   );
