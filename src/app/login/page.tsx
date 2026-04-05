@@ -22,13 +22,13 @@ export default function LoginPage() {
       {/* 顶部 Brand Identity */}
       <div className="absolute top-8 w-full flex justify-center z-10 pointer-events-none">
         <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 -translate-x-2">
             <span className="text-4xl font-bold tracking-tighter">
-              GX<span className="align-super text-2xl text-gx-cyan">⁺</span>
+              GX<span className="align-super text-2xl text-gx-cyan -ml-1">⁺</span>
             </span>
             <span className="text-3xl font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">私人管家</span>
           </div>
-          <p className="text-[10px] font-mono tracking-[0.2em] text-white/40">SUPREME LIFE CONCIERGE</p>
+          <p className="text-[10px] font-mono tracking-[0.2em] text-white/40 pl-[0.2em]">SUPREME LIFE CONCIERGE</p>
         </div>
       </div>
       
