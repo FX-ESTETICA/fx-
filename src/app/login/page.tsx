@@ -2,13 +2,9 @@
 
 import { Suspense } from 'react';
 import { LoginForm } from "@/features/auth/components/LoginForm";
-import { Fingerprint } from "lucide-react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
 
 export default function LoginPage() {
-  const t = useTranslations("Index");
-
   return (
     <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       
@@ -38,19 +34,6 @@ export default function LoginPage() {
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 mt-16">
         <div className="py-8 px-4 sm:px-10">
-          <div className="flex flex-col items-center mb-12">
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative group">
-              <div className="absolute inset-0 rounded-full border border-gx-cyan/30 scale-110 opacity-0 group-hover:opacity-100 group-hover:scale-150 transition-all duration-700" />
-              <Fingerprint className="w-8 h-8 text-gx-cyan opacity-80" />
-            </div>
-            <h2 className="text-center text-xl font-bold tracking-tight uppercase">
-              {t("title")}
-            </h2>
-            <p className="mt-2 text-center text-[11px] text-white/40 font-mono">
-              {t("description")}
-            </p>
-          </div>
-          
           <Suspense fallback={<div className="text-center text-white/50 text-sm font-mono">Loading authentication module...</div>}>
             <LoginForm />
           </Suspense>
