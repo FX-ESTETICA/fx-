@@ -493,8 +493,18 @@
   "types": {},
   "route": {},
   "auth": {},
-  "LoginForm": {},
+  "LoginForm": {
+    "txt_b05e70": "Private Concierge"
+  },
   "booking": {},
   "adapter": {},
-  "utils": {}
+  "utils": {},
+  "useMapRouter": {},
+  "MapRouterModal": {
+    "txt_4dffc7": "Launch Google Maps",
+    "txt_979a49": "Select for smoother navigation in native app, or stay on web.",
+    "txt_d67bde": "Engage App (Recommended)",
+    "txt_d484e5": "Continue on Web",
+    "txt_8a2ef6": "Remember my choice, no prompt next time"
+  }
 }

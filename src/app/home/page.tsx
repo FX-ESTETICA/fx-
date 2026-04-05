@@ -26,6 +26,8 @@ import useSWR, { preload } from "swr";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useMapRouter } from "@/hooks/useMapRouter";
+import { MapRouterModal } from "@/components/shared/MapRouterModal";
 
 type PlaceCategory = "dining" | "beauty" | "hotel" | "nightlife" | "fitness" | "all";
 
@@ -141,6 +143,8 @@ const fetcher = async (url: string) => {
 
 export default function HomePage() {
   const t = useTranslations("Home");
+  const { openGoogleMaps, showMapModal, handleMapModalChoice } = useMapRouter();
+  
   const [activeTab, setActiveTab] = useState<"merchant" | "service">("merchant");
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeSubCategory, setActiveSubCategory] = useState("all");
@@ -623,7 +627,7 @@ export default function HomePage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: (idx % 5) * 0.05 }}
-                      onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}`, '_blank')}
+                      onClick={() => openGoogleMaps(place.name)}
                       className="cursor-pointer"
                     >
                     <GlassCard 
@@ -907,6 +911,8 @@ export default function HomePage() {
           </div>
         )}
       </AnimatePresence>
+
+      <MapRouterModal isOpen={showMapModal} onChoice={handleMapModalChoice} />
     </main>
   );
 }

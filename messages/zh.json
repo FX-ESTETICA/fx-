@@ -494,8 +494,18 @@
   "types": {},
   "route": {},
   "auth": {},
-  "LoginForm": {},
+  "LoginForm": {
+    "txt_b05e70": "私人管家"
+  },
   "booking": {},
   "adapter": {},
-  "utils": {}
+  "utils": {},
+  "useMapRouter": {},
+  "MapRouterModal": {
+    "txt_4dffc7": "打开谷歌地图",
+    "txt_979a49": "选择以原生 APP 体验更流畅的导航，或保留在网页端。",
+    "txt_d67bde": "打开 APP (推荐)",
+    "txt_d484e5": "继续使用网页版",
+    "txt_8a2ef6": "记住我的选择，下次不再提示"
+  }
 }

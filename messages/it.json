@@ -493,8 +493,18 @@
   "types": {},
   "route": {},
   "auth": {},
-  "LoginForm": {},
+  "LoginForm": {
+    "txt_b05e70": "Concierge Privato"
+  },
   "booking": {},
   "adapter": {},
-  "utils": {}
+  "utils": {},
+  "useMapRouter": {},
+  "MapRouterModal": {
+    "txt_4dffc7": "Avvia Google Maps",
+    "txt_979a49": "Seleziona per una navigazione più fluida nell'app nativa, o rimani sul web.",
+    "txt_d67bde": "Attiva App (Consigliato)",
+    "txt_d484e5": "Continua sul Web",
+    "txt_8a2ef6": "Ricorda la mia scelta, nessun avviso la prossima volta"
+  }
 }
