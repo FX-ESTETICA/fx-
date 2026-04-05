@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useTranslations } from "next-intl";
 
 interface OrbitalPossessionProfileProps {
   bossName?: string;
@@ -25,6 +26,7 @@ export const OrbitalPossessionProfile = ({
   shopId,
   onNavigateHome
 }: OrbitalPossessionProfileProps) => {
+    const t = useTranslations('OrbitalPossessionProfile');
   // 当前处于大位 (主导地位) 的角色
   const [displayRole, setDisplayRole] = useState<'boss' | 'manager'>('boss');
   
@@ -128,7 +130,7 @@ export const OrbitalPossessionProfile = ({
         <div 
           onClick={onNavigateHome}
           className="flex items-center gap-3 p-3 rounded-xl bg-transparent border border-white/10 cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group"
-          title="返回个人看板"
+          title={t('txt_36386d')}
         >
           <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white group-hover:scale-110 transition-transform overflow-hidden">
             {bossData.avatar ? (
@@ -146,7 +148,7 @@ export const OrbitalPossessionProfile = ({
         {shopName && (
           <div className="flex items-center gap-2 mt-2 ml-4 text-[10px] font-mono text-white/40">
             <div className="w-px h-4 bg-white/20" />
-            <span className="truncate max-w-[150px]">监视节点: {shopName}</span>
+            <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>
           </div>
         )}
       </div>
@@ -167,7 +169,7 @@ export const OrbitalPossessionProfile = ({
       <div 
         onClick={onNavigateHome}
         className="flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer hover:bg-white/5 transition-all group"
-        title="返回个人看板"
+        title={t('txt_36386d')}
       >
         {/* 左侧：星轨容器 */}
         <div className="relative w-10 h-10 flex items-center justify-center pointer-events-none">
@@ -245,7 +247,7 @@ export const OrbitalPossessionProfile = ({
       {shopName && (
         <div className="flex items-center gap-2 mt-1 ml-6 text-[10px] font-mono text-white/40">
           <div className="w-px h-4 bg-white/20" />
-          <span className="truncate max-w-[150px]">监视节点: {shopName}</span>
+          <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/shared/Button";
 import { CheckCircle, Calendar, Clock, ArrowRight, Download, Share2 } from "lucide-react";
 import { BookingDetails } from "../types";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface BookingSuccessProps {
   details: BookingDetails;
@@ -14,6 +15,7 @@ interface BookingSuccessProps {
 }
 
 export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
+    const t = useTranslations('BookingSuccess');
   const fallbackIdSeed = useId();
   const fallbackId = `GX-${fallbackIdSeed.replace(/[^a-z0-9]/gi, "").slice(0, 9).toUpperCase()}`;
   const bookingId = details.id ? `GX-${details.id.split("-")[0].toUpperCase()}` : fallbackId;
@@ -31,8 +33,8 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
         </motion.div>
         
         <div className="space-y-2">
-          <h2 className="text-4xl font-bold tracking-tight">预约成功 / Confirmed!</h2>
-          <p className="text-white/40 text-lg">您的预约已成功提交并获系统确认。</p>
+          <h2 className="text-4xl font-bold tracking-tight">{t('txt_b179be')}</h2>
+          <p className="text-white/40 text-lg">{t('txt_1e93c8')}</p>
         </div>
       </div>
 
@@ -92,15 +94,13 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
               className="flex-1 gap-2"
               onClick={onDone}
             >
-              完成并返回 / Done
-            </Button>
+              {t('txt_a60715')}</Button>
             <Link href="/dashboard" className="flex-1" prefetch={false}>
               <Button
                 variant="ghost"
                 className="w-full border-white/10 gap-2"
               >
-                查看我的预约 / View All
-                <ArrowRight className="w-4 h-4" />
+                {t('txt_33638a')}<ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
           </div>

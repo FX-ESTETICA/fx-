@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useShop } from "./ShopContext";
 import { Zap, ChevronDown, Store, CheckCircle2 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 export const NexusSwitcher = () => {
+    const t = useTranslations('NexusSwitcher');
   const { activeShopId, setActiveShopId, availableShops } = useShop();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -37,7 +39,7 @@ export const NexusSwitcher = () => {
             className="absolute top-full right-0 mt-3 w-64 bg-black/80 border border-white/10 backdrop-blur-xl rounded-xl p-2 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="px-3 py-2 border-b border-white/5 mb-2">
-              <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">联邦矩阵节点 / Nexus Nodes</span>
+              <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">{t('txt_e628fe')}</span>
             </div>
             <div className="space-y-1 max-h-[50vh] overflow-y-auto scrollbar-hide">
               {availableShops.map((shop) => (

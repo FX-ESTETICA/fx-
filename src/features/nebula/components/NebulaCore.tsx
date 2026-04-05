@@ -6,6 +6,7 @@ import { NebulaNode as NebulaNodeType } from "../types";
 import { Button } from "@/components/shared/Button";
 import { ChevronLeft, Maximize2, Users, Activity } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 // Mock Hierarchy Data
 const MOCK_NEBULA_DATA: NebulaNodeType = {
@@ -47,6 +48,7 @@ const MOCK_NEBULA_DATA: NebulaNodeType = {
 };
 
 export const NebulaCore = () => {
+    const t = useTranslations('NebulaCore');
   const [history, setHistory] = useState<NebulaNodeType[]>([MOCK_NEBULA_DATA]);
   const currentLevel = history[history.length - 1];
 
@@ -70,8 +72,7 @@ export const NebulaCore = () => {
           {history.length > 1 && (
             <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2">
               <ChevronLeft className="w-4 h-4" />
-              返回 / Back
-            </Button>
+              {t('txt_fd5def')}</Button>
           )}
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tighter uppercase">{currentLevel.name}</h2>
@@ -84,8 +85,7 @@ export const NebulaCore = () => {
         <div className="flex gap-4">
           <Button variant="ghost" size="sm" className="gap-2 text-white/40">
             <Maximize2 className="w-4 h-4" />
-            全屏 / Expand
-          </Button>
+            {t('txt_b02de4')}</Button>
         </div>
       </div>
 
@@ -108,7 +108,7 @@ export const NebulaCore = () => {
             <div className="w-48 h-48 rounded-full bg-black border-2 border-gx-cyan/30 flex flex-col items-center justify-center gap-2 shadow-[0_0_50px_rgba(0,242,255,0.15)] group-hover:border-gx-cyan transition-all duration-500 cursor-default">
               <Activity className="w-8 h-8 text-gx-cyan animate-pulse" />
               <div className="text-center">
-                <div className="text-sm font-mono text-white/40 uppercase">当前指标 / Metric</div>
+                <div className="text-sm font-mono text-white/40 uppercase">{t('txt_6ee5ac')}</div>
                 <div className="text-2xl font-bold text-white tracking-tighter">{currentLevel.value}</div>
               </div>
             </div>

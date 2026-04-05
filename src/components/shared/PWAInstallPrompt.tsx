@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Share, X, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -14,6 +15,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export const PWAInstallPrompt = () => {
+    const t = useTranslations('PWAInstallPrompt');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(true); // default true to avoid hydration mismatch flashes
@@ -97,8 +99,8 @@ export const PWAInstallPrompt = () => {
                 <Zap className="w-5 h-5 text-gx-cyan" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-bold text-white tracking-widest">系统链路就绪</h3>
-                <p className="text-[10px] text-white/60 font-mono">一键接入物理节点，获取最高权限</p>
+                <h3 className="text-sm font-bold text-white tracking-widest">{t('txt_46b6bb')}</h3>
+                <p className="text-[10px] text-white/60 font-mono">{t('txt_c2f42d')}</p>
               </div>
               <button
                 onClick={handleInstall}
@@ -129,11 +131,10 @@ export const PWAInstallPrompt = () => {
                 <Share className="w-5 h-5 text-white/80" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white tracking-widest mb-1">获取完整 GX 沉浸体验</h3>
+                <h3 className="text-sm font-bold text-white tracking-widest mb-1">{t('txt_07e125')}</h3>
                 <p className="text-xs text-white/50 leading-relaxed">
-                  系统已就绪。请激活底部 <span className="text-white font-bold mx-1">分享</span> 链路，<br/>
-                  选择 <span className="text-white font-bold mx-1">添加到主屏幕</span> 注入物理桌面。
-                </p>
+                  {t('txt_391968')}<span className="text-white font-bold mx-1">{t('txt_c31f48')}</span> {t('txt_55165d')}<br/>
+                  {t('txt_153fa6')}<span className="text-white font-bold mx-1">{t('txt_2d94a4')}</span> {t('txt_2fbaf0')}</p>
               </div>
             </div>
 

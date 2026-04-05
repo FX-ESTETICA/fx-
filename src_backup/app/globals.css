@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@theme {
+  /* GX 赛博极简色系 */
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  
+  /* 科技发光色值 (Glow Colors) */
+  --color-gx-cyan: #00f2ff;
+  --color-gx-blue: #0066ff;
+  --color-gx-purple: #bc00ff;
+  --color-gx-pink: #ff00ea;
+  --color-gx-red: #ff003c;
+  
+  /* 玻璃质感边框色 */
+  --color-gx-glass-border: rgba(255, 255, 255, 0.1);
+  --color-gx-glass-bg: rgba(255, 255, 255, 0.05);
+
+  /* 动画曲线优化 */
+  --ease-gx-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-gx-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* 动画定义 */
+  --animate-gradient: gradient 2s linear infinite;
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  
+  /* 兼容旧版变量引用 */
+  --gx-cyan: #00f2ff;
+  --gx-blue: #0066ff;
+  --gx-purple: #bc00ff;
+}
+
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  /* 极致毛玻璃效果 (Ultra Glassmorphism) */
+  .glass-effect {
+    @apply backdrop-blur-xl bg-white/5 border border-white/10;
+  }
+  
+  /* 赛博发光边框 (Cyber Glow Border) */
+  .glow-border-cyan {
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+    border: 1px solid rgba(0, 242, 255, 0.5);
+  }
+  
+  .glow-border-purple {
+    box-shadow: 0 0 15px rgba(188, 0, 255, 0.3);
+    border: 1px solid rgba(188, 0, 255, 0.5);
+  }
+
+  /* 科技感文字渐变 */
+  .text-gradient-cyan {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gx-cyan to-gx-blue;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-nebula {
+    background: radial-gradient(circle at 50% 50%, rgba(10, 10, 15, 1) 0%, rgba(0, 0, 0, 1) 100%);
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+/* 赛博朋克全局滚动条优化 */
+::-webkit-scrollbar {
+  width: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gx-cyan);
+  box-shadow: 0 0 10px var(--gx-cyan);
+}

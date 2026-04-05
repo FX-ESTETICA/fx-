@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { TrendingUp, TrendingDown, Minus, MessageSquareText, Sparkles } from "lucide-react";
 import { PlatformMetric, AIInsight, Platform } from "../types";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 interface AnalyticsDashboardProps {
   metrics: PlatformMetric[];
@@ -34,6 +35,8 @@ const PlatformIcon = ({ platform }: { platform: Platform }) => {
 };
 
 export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProps) => {
+  const t = useTranslations('AnalyticsDashboard');
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
       {/* 平台指标流 */}
@@ -41,8 +44,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold tracking-tighter flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-gx-cyan" />
-            多平台数据流 / Platform Streams
-          </h3>
+            {t('txt_414a0a')}</h3>
           <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
             Live Sync: 200ms
           </span>
@@ -87,8 +89,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
       <div className="space-y-6">
         <h3 className="text-xl font-bold tracking-tighter flex items-center gap-2">
           <MessageSquareText className="w-5 h-5 text-gx-purple" />
-          AI 自动化复盘 / AI Insights
-        </h3>
+          {t('txt_c43c54')}</h3>
 
         <div className="space-y-4">
           {insights.map((insight, idx) => (

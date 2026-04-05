@@ -7,6 +7,7 @@ import * as tus from "tus-js-client";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/shared/Button";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 interface UGCUploadModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface UGCUploadModalProps {
 }
 
 export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalProps) => {
+    const t = useTranslations('UGCUploadModal');
   const [step, setStep] = useState<"camera" | "review">("camera");
   const [mode, setMode] = useState<"photo" | "video">("photo");
   const [isRecording, setIsRecording] = useState(false);
@@ -300,14 +302,12 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                     onClick={() => setMode("photo")}
                     className={cn("transition-colors", mode === "photo" ? "text-gx-cyan font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" : "text-white/50")}
                   >
-                    拍照 / Photo
-                  </button>
+                    {t('txt_fb8804')}</button>
                   <button 
                     onClick={() => setMode("video")}
                     className={cn("transition-colors", mode === "video" ? "text-gx-cyan font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" : "text-white/50")}
                   >
-                    录像 / Video
-                  </button>
+                    {t('txt_4b9210')}</button>
                 </div>
 
                 {/* Action Row */}
@@ -394,7 +394,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="写句标题吸引人吧..."
+                    placeholder={t('txt_e4205f')}
                     disabled={uploading}
                     className="w-full bg-transparent border-b border-white/20 pb-4 text-xl font-bold text-white placeholder:text-white/40 focus:outline-none focus:border-gx-cyan transition-colors"
                   />
@@ -423,7 +423,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                       </>
                     ) : (
                       <>
-                        发布 / Publish <Send className="w-4 h-4" />
+                        {t('txt_920460')}<Send className="w-4 h-4" />
                       </>
                     )}
                   </Button>

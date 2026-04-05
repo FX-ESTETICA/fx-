@@ -21,27 +21,9 @@ function getLocale(request: NextRequest): string {
 }
 
 export function proxy(request: NextRequest) {
-  // Check if there is any supported locale in the pathname
-  // const { pathname } = request.nextUrl;
-  
-  // Check if NEXT_LOCALE cookie exists
-  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
-  
-  if (cookieLocale && locales.includes(cookieLocale)) {
-    return NextResponse.next();
-  }
-
-  // If no cookie, detect from Accept-Language
-  const detectedLocale = getLocale(request);
-  
-  const response = NextResponse.next();
-  response.cookies.set('NEXT_LOCALE', detectedLocale, {
-    path: '/',
-    maxAge: 365 * 24 * 60 * 60, // 1 year
-    sameSite: 'lax',
-  });
-  
-  return response;
+  // We no longer set or read NEXT_LOCALE cookie. 
+  // All language detection is handled statelessly in i18n/request.ts
+  return NextResponse.next();
 }
 
 export const config = {

@@ -5,8 +5,10 @@ import { PlatformMetric, AIInsight } from "@/features/analytics/types";
 import { Button } from "@/components/shared/Button";
 import { LayoutGrid, Download, RefreshCw, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function AnalyticsPage() {
+    const t = useTranslations('analytics');
   const mockMetrics: PlatformMetric[] = [
     { id: "1", platform: "douyin", metricName: "视频播放量 / Views", value: "1.2M", trend: 15.4, status: "growing" },
     { id: "2", platform: "ctrip", metricName: "预订转化率 / Conversion", value: "4.8%", trend: -2.1, status: "declining" },
@@ -50,23 +52,20 @@ export default function AnalyticsPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-3 text-gx-cyan">
               <Sparkles className="w-6 h-6" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.4em]">AI_ANALYTICS_V2 // 复盘系统</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.4em]">{t('txt_268892')}</span>
             </div>
-            <h1 className="text-4xl font-bold tracking-tighter">智能商业复盘 / AI Analytics</h1>
+            <h1 className="text-4xl font-bold tracking-tighter">{t('txt_8b6bfc')}</h1>
             <p className="text-white/40 text-sm max-w-xl">
-              深度集成抖音、携程、58同城与小红书多平台数据，通过 AI 自动化分析提供全域经营决策支持。
-            </p>
+              {t('txt_aec6ef')}</p>
           </div>
 
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" className="gap-2 text-white/40">
               <RefreshCw className="w-3 h-3" />
-              刷新 / Refresh
-            </Button>
+              {t('txt_5ad1a2')}</Button>
             <Button variant="cyan" size="sm" className="gap-2">
               <Download className="w-3 h-3" />
-              导出报告 / Export
-            </Button>
+              {t('txt_10bfac')}</Button>
           </div>
         </header>
 
@@ -77,8 +76,7 @@ export default function AnalyticsPage() {
         <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
           <Link href="/dashboard" className="hover:text-gx-cyan transition-colors flex items-center gap-2" prefetch={false}>
             <LayoutGrid className="w-3 h-3" />
-            返回仪表盘 / Dashboard
-          </Link>
+            {t('txt_7468bb')}</Link>
           <div className="flex gap-4">
             <span>Secured via Edge Network</span>
             <span>GX_CORE // 2026</span>

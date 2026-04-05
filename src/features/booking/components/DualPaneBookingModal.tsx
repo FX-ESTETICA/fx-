@@ -6,6 +6,7 @@ import Image from "next/image";
 import { cn } from "@/utils/cn";
 import { BookingService } from "@/features/booking/api/booking";
 import { useShop } from "@/features/shop/ShopContext";
+import { useTranslations } from "next-intl";
 
 interface DualPaneBookingModalProps {
   isOpen: boolean;
@@ -86,6 +87,7 @@ export function DualPaneBookingModal({
   categories,
   services
 }: DualPaneBookingModalProps) {
+    const t = useTranslations('DualPaneBookingModal');
   const { activeShopId } = useShop();
 
   // --- 结账模式状态 (Neon Core Checkout) ---
@@ -885,7 +887,7 @@ export function DualPaneBookingModal({
                 {/* 表单录入区 */}
                 <div className="flex flex-col gap-4 mt-1">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">服务内容</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">{t('txt_ef3505')}</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] overflow-hidden",
@@ -901,7 +903,7 @@ export function DualPaneBookingModal({
                     >
                       <div id="custom-service-input-container" className="flex-1 flex flex-wrap items-center gap-2 w-full h-full">
                         {selectedServices.length === 0 && customServiceText === "" && (
-                          <span className="text-[11px] text-white/20 absolute pointer-events-none ml-1">选择服务项目或输入...</span>
+                          <span className="text-[11px] text-white/20 absolute pointer-events-none ml-1">{t('txt_1809c0')}</span>
                         )}
                         {selectedServices.map((s, index) => {
                           const staff = staffs.find(st => st.id === s.assignedEmployeeId);
@@ -922,7 +924,7 @@ export function DualPaneBookingModal({
                                   ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-pulse" 
                                   : "bg-white/5 border-white/10 hover:bg-white/10"
                               )}
-                              title="点击重新分配员工"
+                              title={t('txt_d0dea7')}
                             >
                                {/* 左侧颜色指示条 */}
                                <div 
@@ -965,7 +967,7 @@ export function DualPaneBookingModal({
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">会员信息</label>
+                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">{t('txt_32fd76')}</label>
                     <div 
                       className={cn(
                         "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center gap-2 cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] relative group",
@@ -993,7 +995,7 @@ export function DualPaneBookingModal({
                         <div className="flex-1 w-full h-full flex items-center justify-start pl-2">
                           <input 
                             type="text" 
-                            placeholder="输入主电话..." 
+                            placeholder={t('txt_9be070')} 
                             className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none -translate-y-[1px] text-left"
                             value={phoneTracks[0] || ""}
                             onChange={(e) => {
@@ -1013,7 +1015,7 @@ export function DualPaneBookingModal({
 
                 {/* 预约时空仪表盘 (Unified Time/Date Dashboard) */}
                 <div className="mt-2 space-y-1.5">
-                  <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">预约安排</label>
+                  <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">{t('txt_5b32fe')}</label>
                   <div className="bg-black/40 border border-white/10 rounded-xl p-1.5 flex flex-col gap-1 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                     {/* 上半部分：日期与时间 (并排) */}
                     <div className="flex gap-1">
@@ -1321,7 +1323,7 @@ export function DualPaneBookingModal({
                                 {editingPhoneIndex === index ? (
                                   <input 
                                     type="text" 
-                                    placeholder="输入电话..." 
+                                    placeholder={t('txt_f3a023')} 
                                     className="bg-transparent border-b border-gx-cyan/50 outline-none text-sm font-mono text-white placeholder:text-white/20 w-32"
                                     value={phone}
                                     onChange={(e) => {
@@ -1395,14 +1397,13 @@ export function DualPaneBookingModal({
                             <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-gx-cyan/30 rounded-xl p-4 transition-all">
                               <div className="flex items-center gap-6 w-[60%]">
                                 <span className="text-sm font-mono text-white/60 group-hover:text-white transition-colors">02.28</span>
-                                <span className="text-sm font-bold text-white truncate">高级染发 + 护理</span>
+                                <span className="text-sm font-bold text-white truncate">{t('txt_3c767c')}</span>
                               </div>
                               <div className="flex items-center gap-4">
                                 <span className="text-xs font-mono text-gx-cyan font-bold">¥ 880</span>
                                 {/* 间隔天数提醒 */}
                                 <span className="text-[10px] font-mono bg-gx-cyan/10 text-gx-cyan px-2 py-1 rounded border border-gx-cyan/20 whitespace-nowrap">
-                                  距今 25 天
-                                </span>
+                                  {t('txt_0a7538')}</span>
                               </div>
                             </div>
                           </div>
@@ -1413,14 +1414,13 @@ export function DualPaneBookingModal({
                             <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-red-500/30 rounded-xl p-4 transition-all opacity-70 hover:opacity-100">
                               <div className="flex items-center gap-6 w-[60%]">
                                 <span className="text-sm font-mono text-white/40">01.15</span>
-                                <span className="text-sm font-bold text-white/40 line-through">洗剪吹</span>
+                                <span className="text-sm font-bold text-white/40 line-through">{t('txt_93efd5')}</span>
                               </div>
                               <div className="flex items-center gap-4">
                                 <span className="text-xs font-mono text-white/20">--</span>
                                 {/* 爽约印记 */}
                                 <span className="text-[10px] font-black bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/30 whitespace-nowrap uppercase tracking-widest">
-                                  爽约
-                                </span>
+                                  {t('txt_e49d53')}</span>
                               </div>
                             </div>
                           </div>
@@ -1431,11 +1431,11 @@ export function DualPaneBookingModal({
                             <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-white/20 rounded-xl p-4 transition-all">
                               <div className="flex items-center gap-6 w-[60%]">
                                 <span className="text-sm font-mono text-white/60">12.01</span>
-                                <span className="text-sm font-bold text-white">洗剪吹</span>
+                                <span className="text-sm font-bold text-white">{t('txt_93efd5')}</span>
                               </div>
                               <div className="flex items-center gap-4">
                                 <span className="text-xs font-mono text-white/80">¥ 120</span>
-                                <span className="text-[10px] opacity-0 px-2 py-1">占位</span> {/* 保持对齐 */}
+                                <span className="text-[10px] opacity-0 px-2 py-1">{t('txt_d4f32e')}</span> {/* 保持对齐 */}
                               </div>
                             </div>
                           </div>
@@ -1454,7 +1454,7 @@ export function DualPaneBookingModal({
                               </span>
                             </div>
                           ) : (
-                            <span className="text-xs font-mono text-white/20 uppercase tracking-widest">No History / 新客建档</span>
+                            <span className="text-xs font-mono text-white/20 uppercase tracking-widest">{t('txt_6700c4')}</span>
                           )}
                         </div>
                       )}
@@ -1485,7 +1485,7 @@ export function DualPaneBookingModal({
                       {/* 单行备注 */}
                       <div className="relative">
                         <textarea 
-                          placeholder="添加客户偏好备注 (如：喜欢安静、对染发剂过敏)..."
+                          placeholder={t('txt_bf9b52')}
                           className="w-full bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 resize-none h-8 leading-8 px-1 custom-scrollbar overflow-x-hidden whitespace-nowrap"
                           rows={1}
                           style={{ whiteSpace: 'nowrap' }} // 强制单行横向滚动
@@ -1908,8 +1908,7 @@ export function DualPaneBookingModal({
                   onClick={handleMarkAsNoShow}
                   className="w-32 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
                 >
-                  爽约 / NO SHOW
-                </button>
+                  {t('txt_81c4b2')}</button>
               )}
               <button 
                 onClick={handleConfirmBooking}
@@ -1927,8 +1926,7 @@ export function DualPaneBookingModal({
                 onClick={handleClose}
                 className="w-40 py-3 rounded-xl bg-black/60 border border-gx-cyan/30 text-white hover:border-gx-cyan transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
               >
-                取消 / CANCEL
-              </button>
+                {t('txt_8fc52a')}</button>
             </div>
 
             {/* Global styles for custom scrollbar */}

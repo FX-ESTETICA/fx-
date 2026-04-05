@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { getCroppedImg } from "@/utils/cropImage";
+import { useTranslations } from "next-intl";
 
 interface AvatarCropModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface AvatarCropModalProps {
 }
 
 export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: AvatarCropModalProps) => {
+    const t = useTranslations('AvatarCropModal');
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -53,8 +55,7 @@ export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: Avata
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/50 z-10">
               <span className="text-sm font-bold tracking-widest uppercase text-white/80">
-                调整全息特征 / Adjust Hologram
-              </span>
+                {t('txt_aeabe1')}</span>
               <button 
                 onClick={onClose}
                 disabled={isProcessing}
@@ -108,13 +109,11 @@ export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: Avata
                 {isProcessing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    正在同步节点 / SYNCING...
-                  </>
+                    {t('txt_b46794')}</>
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    确认捕获 / CONFIRM
-                  </>
+                    {t('txt_95f550')}</>
                 )}
               </Button>
             </div>

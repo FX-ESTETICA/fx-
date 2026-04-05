@@ -30,6 +30,7 @@ import { PhoneAuthBar } from "./PhoneAuthBar";
 import { IndustryType } from "@/features/calendar/types";
 
 import { useShop } from "@/features/shop/ShopContext";
+import { useTranslations } from "next-intl";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -107,6 +108,7 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
  * 采用 Admin Red (#FF2D55) 视觉规范
  */
 export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDashboardProps) => {
+    const t = useTranslations('MerchantDashboard');
   const { activeShopId } = useShop();
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed" | "all">("pending");
@@ -245,19 +247,19 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatsCard 
-            label="待处理 / Pending" 
+            label={t('txt_f49d92')} 
             value={bookings.filter(b => b.status === "pending").length} 
             icon={<Clock className="w-5 h-5" />}
             color="red"
           />
           <StatsCard 
-            label="已确认 / Confirmed" 
+            label={t('txt_733f4a')} 
             value={bookings.filter(b => b.status === "confirmed").length} 
             icon={<CheckCircle2 className="w-5 h-5" />}
             color="cyan"
           />
           <StatsCard 
-            label="今日预约 / Today" 
+            label={t('txt_5af2c6')} 
             value={0} 
             icon={<Calendar className="w-5 h-5" />}
             color="gold"
@@ -277,7 +279,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-8">
               <Clock className="w-4 h-4 text-white/40" />
-              <h3 className="text-xs font-bold tracking-widest uppercase">时间矩阵 / Time Matrix</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase">{t('txt_56374a')}</h3>
             </div>
             
             <div className="space-y-6">
@@ -329,7 +331,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
           <div className="relative z-10 h-full flex flex-col">
             <div className="flex items-center gap-3 mb-6">
               <Settings className="w-4 h-4 text-white/40" />
-              <h3 className="text-xs font-bold tracking-widest uppercase">服务节点 / Service Nodes</h3>
+              <h3 className="text-xs font-bold tracking-widest uppercase">{t('txt_3697a3')}</h3>
             </div>
             
             <div className="flex flex-wrap gap-3 flex-1 content-start">
@@ -368,7 +370,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
                     <Calendar className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold tracking-tight">日历后台 / Calendar</h3>
+                    <h3 className="text-lg font-bold tracking-tight">{t('txt_b170b6')}</h3>
                     <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">Manage Bookings & Slots</p>
                   </div>
                 </div>
@@ -387,7 +389,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
                   <Sparkles className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold tracking-tight">星云入口 / Nebula</h3>
+                  <h3 className="text-lg font-bold tracking-tight">{t('txt_9f7256')}</h3>
                   <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">WebGL Visual Engine</p>
                 </div>
               </div>
@@ -408,15 +410,15 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
               <LayoutDashboard className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tighter uppercase">预约看板 / Live Feed</h2>
+              <h2 className="text-xl font-bold tracking-tighter uppercase">{t('txt_932519')}</h2>
               <p className="text-white/40 text-[10px] font-mono">GX-LIVE-SYNC: ACTIVE</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 p-1 bg-white/5 rounded-lg border border-white/10">
-            <TabButton active={activeTab === "pending"} onClick={() => setActiveTab("pending")}>待处理</TabButton>
-            <TabButton active={activeTab === "confirmed"} onClick={() => setActiveTab("confirmed")}>已确认</TabButton>
-            <TabButton active={activeTab === "all"} onClick={() => setActiveTab("all")}>全部</TabButton>
+            <TabButton active={activeTab === "pending"} onClick={() => setActiveTab("pending")}>{t('txt_047109')}</TabButton>
+            <TabButton active={activeTab === "confirmed"} onClick={() => setActiveTab("confirmed")}>{t('txt_4113e7')}</TabButton>
+            <TabButton active={activeTab === "all"} onClick={() => setActiveTab("all")}>{t('txt_a8b0c2')}</TabButton>
           </div>
         </div>
 
@@ -436,7 +438,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
                 <div className="w-16 h-16 mx-auto rounded-full bg-white/5 flex items-center justify-center text-white/20">
                   <Filter className="w-8 h-8" />
                 </div>
-                <p className="text-white/40 text-sm font-light">暂无相关预约记录 / No bookings found</p>
+                <p className="text-white/40 text-sm font-light">{t('txt_afddef')}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -450,21 +452,21 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tighter uppercase">人员绑定 / Staff Binding</h2>
+            <h2 className="text-xl font-bold tracking-tighter uppercase">{t('txt_2882c0')}</h2>
             <p className="text-white/40 text-[10px] font-mono">DYNAMIC_AUTH_SYSTEM</p>
           </div>
         </div>
         
         <div className="space-y-4 max-w-md">
           <div className="space-y-2">
-            <label className="text-xs text-white/60 uppercase font-mono">前端绑定 ID / Frontend ID</label>
+            <label className="text-xs text-white/60 uppercase font-mono">{t('txt_ab459e')}</label>
             <Input 
-              placeholder="例如: GX_USR_1001" 
+              placeholder={t('txt_5cd6e4')} 
               value={bindUserId}
               onChange={(e) => setBindUserId(e.target.value)}
               className="font-mono"
             />
-            <p className="text-[10px] text-white/40">绑定后该用户可直接在其「我的」界面进入专属管理日历。</p>
+            <p className="text-[10px] text-white/40">{t('txt_c95928')}</p>
           </div>
           
           <Button 

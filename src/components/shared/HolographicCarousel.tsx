@@ -5,6 +5,7 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 // 模拟 5 条顶级推荐数据 (符合 10 家以内的人工精选徽章机制，避免硬性排名)
 const CAROUSEL_ITEMS = [
@@ -48,6 +49,7 @@ const CAROUSEL_ITEMS = [
 const DRAG_RANGE = 250; // 物理滑动阈值基准
 
 const CarouselCard = ({ item, offset, dragX }: { item: any; offset: number; dragX: any }) => {
+    const t = useTranslations('HolographicCarousel');
   // 核心公式：将物理像素位移 (dragX) 映射为归一化进度 (-1 到 1)
   const progress = useTransform(dragX, (v: number) => v / DRAG_RANGE);
 
@@ -119,7 +121,7 @@ const CarouselCard = ({ item, offset, dragX }: { item: any; offset: number; drag
             </p>
           </div>
           <div className="hidden md:flex shrink-0 items-center gap-1.5 text-yellow-400 font-bold text-xs bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20 backdrop-blur-md hover:bg-yellow-500/20 transition-colors cursor-pointer shadow-[0_0_10px_rgba(255,215,0,0.1)]">
-            <span>立即预约</span>
+            <span>{t('txt_3ed720')}</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </div>
         </div>

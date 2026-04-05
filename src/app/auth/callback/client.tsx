@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useTranslations } from "next-intl";
 
 type EmailOtpType = "signup" | "magiclink" | "recovery" | "invite" | "email_change";
 
 const EMAIL_OTP_TYPES = new Set<EmailOtpType>(["signup", "magiclink", "recovery", "invite", "email_change"]);
 
 export function AuthCallbackClient() {
+    const t = useTranslations('client');
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +61,12 @@ export function AuthCallbackClient() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-red-500 bg-red-500/10 px-6 py-4 rounded-lg border border-red-500/20">
-          认证失败: {error}
+          {t('txt_3048f0')}{error}
           <button 
             onClick={() => router.push('/login')}
             className="block mt-4 text-gx-cyan underline"
           >
-            返回登录
-          </button>
+            {t('txt_977deb')}</button>
         </div>
       </div>
     );

@@ -5,6 +5,7 @@ import { Database, Network, ShieldAlert, Lock, Box, Terminal, ChevronLeft, PenTo
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 const NAVIGATION_LINKS = [
   { id: "01", label: "核心矩阵 / Core Matrix", icon: <Database className="w-5 h-5" />, href: "/calendar", glow: "text-gx-cyan", status: "ONLINE" },
@@ -29,6 +30,8 @@ type CardItemProps = {
 };
 
 export default function Home() {
+  const t = useTranslations('spatial');
+
   const [activeId, setActiveId] = useState("01");
   const [isMobile, setIsMobile] = useState(false);
   const carouselRotation = useMotionValue(0);
@@ -103,8 +106,7 @@ export default function Home() {
           >
             <div className="w-2 h-2 rounded-full bg-gx-cyan animate-pulse" />
             <span className="text-gx-cyan font-mono tracking-widest text-[10px] md:text-xs uppercase">
-              空间驾驶舱 / SPATIAL COCKPIT
-            </span>
+              {t('txt_dbd94b')}</span>
           </motion.div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -182,6 +184,8 @@ export default function Home() {
 
 // 为了确保平滑替换，我们需要重构 CardItem 适配新的 NAVIGATION_LINKS 数据结构
 const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: CardItemProps) => {
+  const t = useTranslations('spatial');
+
   const [isMounted] = useState(() => typeof window !== "undefined");
 
   const angle = (index / total) * 360;
@@ -273,7 +277,7 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
             "w-full py-3 rounded-lg text-xs font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2",
             isActive ? "bg-white text-black hover:bg-white/90" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
           )}>
-            进入协议 / Enter <ChevronLeft className="w-4 h-4 rotate-180" />
+            {t('txt_a70c9c')}<ChevronLeft className="w-4 h-4 rotate-180" />
           </button>
         </Link>
       </div>

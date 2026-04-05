@@ -5,8 +5,10 @@ import { motion } from "framer-motion";
 import { Building2, Rocket, ShieldCheck, Zap, ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function OnboardingPage() {
+    const t = useTranslations('onboarding');
   const router = useRouter();
 
   const benefits = [
@@ -36,7 +38,7 @@ export default function OnboardingPage() {
           className="flex items-center gap-2 text-white/40 hover:text-gx-cyan transition-colors mb-12 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-xs font-mono uppercase tracking-widest">返回 / BACK</span>
+          <span className="text-xs font-mono uppercase tracking-widest">{t('txt_7513ca')}</span>
         </button>
 
         <div className="space-y-16">
@@ -47,7 +49,7 @@ export default function OnboardingPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-gx-cyan/10 border border-gx-cyan/20 rounded-full"
             >
               <Building2 className="w-4 h-4 text-gx-cyan" />
-              <span className="text-[10px] font-mono text-gx-cyan uppercase tracking-[0.2em]">Node_Application // 节点申请</span>
+              <span className="text-[10px] font-mono text-gx-cyan uppercase tracking-[0.2em]">{t('txt_5eb15b')}</span>
             </motion.div>
             
             <motion.h1 
@@ -66,9 +68,7 @@ export default function OnboardingPage() {
               transition={{ delay: 0.2 }}
               className="text-white/40 text-lg max-w-xl leading-relaxed"
             >
-              加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。
-              利用赛博时代的流量杠杆，触达极致清醒的消费群体。
-            </motion.p>
+              {t('txt_ed5102')}</motion.p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -101,8 +101,7 @@ export default function OnboardingPage() {
               className="w-full md:w-auto px-12 py-5 bg-gx-cyan text-black font-bold uppercase tracking-widest rounded-2xl hover:shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:scale-105 transition-all duration-500 flex items-center justify-center gap-3"
               prefetch={false}
             >
-              立即入驻 / JOIN NOW
-              <ArrowRight className="w-5 h-5" />
+              {t('txt_f9c0f6')}<ArrowRight className="w-5 h-5" />
             </Link>
             
             <div className="flex items-center gap-4 text-white/20">

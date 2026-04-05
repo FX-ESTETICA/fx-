@@ -18,6 +18,7 @@ import {
 import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
+import { useTranslations } from "next-intl";
 
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
 
@@ -130,6 +131,7 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
 const MOCK_POSTS: DiscoveryPost[] = [];
 
 export default function DiscoveryPage() {
+    const t = useTranslations('discovery');
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [posts, setPosts] = useState<DiscoveryPost[]>(MOCK_POSTS);
@@ -181,8 +183,7 @@ export default function DiscoveryPage() {
                 )}
               >
                 <Flame className="w-3 h-3" />
-                最热
-              </button>
+                {t('txt_4d2d97')}</button>
               <button 
                 onClick={() => setFilter("new")}
                 className={cn(
@@ -191,8 +192,7 @@ export default function DiscoveryPage() {
                 )}
               >
                 <Clock className="w-3 h-3" />
-                最新
-              </button>
+                {t('txt_8818d4')}</button>
               <button 
                 onClick={() => setFilter("near")}
                 className={cn(
@@ -201,8 +201,7 @@ export default function DiscoveryPage() {
                 )}
               >
                 <Navigation className="w-3 h-3" />
-                附近
-              </button>
+                {t('txt_6688f2')}</button>
             </div>
           </div>
         </header>

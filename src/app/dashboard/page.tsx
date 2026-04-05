@@ -17,8 +17,10 @@ import { useRouter } from "next/navigation";
 import { useBackground } from "@/hooks/useBackground";
 import { PhoneAuthBar } from "@/features/profile/components/PhoneAuthBar";
 import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
+import { useTranslations } from "next-intl";
 
 export default function DashboardPage() {
+    const t = useTranslations('dashboard');
   const { user, isLoading, activeRole, setActiveRole, signOut } = useAuth();
   const { activeShopId } = useShop();
   const { cycleBackground } = useBackground();
@@ -150,8 +152,8 @@ export default function DashboardPage() {
                         <LayoutDashboard className="w-8 h-8" />
                       </div>
                       <div>
-                        <h3 className="text-2xl font-bold tracking-tighter">全景驾驶舱 / Spatial Cockpit</h3>
-                        <p className="text-white/40 text-sm mt-2">最高管理权限，监控所有节点运行状态。</p>
+                        <h3 className="text-2xl font-bold tracking-tighter">{t('txt_cbfd59')}</h3>
+                        <p className="text-white/40 text-sm mt-2">{t('txt_ec7573')}</p>
                       </div>
                     </div>
                   </GlassCard>
@@ -165,7 +167,7 @@ export default function DashboardPage() {
                       <Mail className="w-5 h-5 text-white/50" />
                     </div>
                     <div>
-                      <div className="text-sm font-bold">登录邮箱</div>
+                      <div className="text-sm font-bold">{t('txt_8f0aa2')}</div>
                       <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{currentProfile.email}</div>
                     </div>
                   </div>
@@ -175,8 +177,7 @@ export default function DashboardPage() {
                     className="text-[10px] uppercase tracking-widest"
                     onClick={() => navigator.clipboard?.writeText(currentProfile.email || "")}
                   >
-                    复制
-                  </Button>
+                    {t('txt_79d3ab')}</Button>
                 </GlassCard>
 
                 <GlassCard className="p-6 flex items-center justify-between">
@@ -185,7 +186,7 @@ export default function DashboardPage() {
                       <Key className="w-5 h-5 text-white/50" />
                     </div>
                     <div>
-                      <div className="text-sm font-bold">初始化登录密码</div>
+                      <div className="text-sm font-bold">{t('txt_913aff')}</div>
                       <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
                         {showAdminPwd ? adminPassword : "•".repeat(Math.max(8, adminPassword.length || 8))}
                       </div>
@@ -208,8 +209,7 @@ export default function DashboardPage() {
                       onClick={() => navigator.clipboard?.writeText(adminPassword || "")}
                       disabled={!adminPassword}
                     >
-                      复制
-                    </Button>
+                      {t('txt_79d3ab')}</Button>
                   </div>
                 </GlassCard>
 
@@ -221,24 +221,21 @@ export default function DashboardPage() {
                     onClick={cycleBackground}
                   >
                     <ImageIcon className="w-3 h-3" />
-                    切换全局背景
-                  </Button>
+                    {t('txt_09b3cd')}</Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-[10px] uppercase tracking-widest"
                     onClick={() => setActiveRole("merchant")}
                   >
-                    切换为商户视图
-                  </Button>
+                    {t('txt_23013e')}</Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-[10px] uppercase tracking-widest"
                     onClick={() => setActiveRole("user")}
                   >
-                    切换为用户视图
-                  </Button>
+                    {t('txt_dbe983')}</Button>
                   <Button
                     variant="danger"
                     size="sm"
@@ -248,8 +245,7 @@ export default function DashboardPage() {
                       router.replace("/login");
                     }}
                   >
-                    退出系统
-                  </Button>
+                    {t('txt_732906')}</Button>
                 </div>
               </div>
             )}

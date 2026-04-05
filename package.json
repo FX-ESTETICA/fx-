@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "i18n:sync": "node scripts/i18n-pipeline.mjs"
   },
   "dependencies": {
     "@formatjs/intl-localematcher": "^0.8.2",
@@ -39,11 +40,13 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.0",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4",
+    "ts-morph": "^27.0.2",
     "typescript": "^5"
   }
 }

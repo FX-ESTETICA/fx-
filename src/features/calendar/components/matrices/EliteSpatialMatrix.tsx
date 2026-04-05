@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LayoutGrid, Plus } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA } from "../../types";
+import { useTranslations } from "next-intl";
 
 export interface EliteSpatialMatrixProps {
   industry: IndustryType;
@@ -30,6 +31,7 @@ type LegendItem = {
  * X: 桌位, Y: 时间轴 + 全域桌位雷达
  */
 export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) => {
+    const t = useTranslations('EliteSpatialMatrix');
   const timeSlots = Array.from({ length: 14 }, (_, i: number) => `${(i + 10).toString().padStart(2, '0')}:00`);
   const tables: TableInfo[] = [
     { id: 'T1', name: '靠窗 01', type: '2人桌', status: 'occupied' },
@@ -84,8 +86,7 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
         </div>
         <div className="flex items-center gap-3 relative z-10">
           <button className="px-6 py-2.5 rounded-xl bg-white/5 text-white/40 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all backdrop-blur-md">
-            楼层图
-          </button>
+            {t('txt_154261')}</button>
           <button className="px-6 py-2.5 rounded-xl bg-gx-cyan/5 text-gx-cyan text-[10px] font-black uppercase tracking-[0.2em] hover:bg-gx-cyan hover:text-black transition-all shadow-[0_0_25px_rgba(0,240,255,0.15)] backdrop-blur-md">
             {industry === 'dining' ? '智能寻位' : '智能排班'} / Smart Search
           </button>
@@ -129,14 +130,14 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
                       {/* 模拟状态占位 */}
                       {timeIdx === 2 && table.id === 'T1' && (
                         <div className="absolute inset-1 rounded-lg bg-red-500/10 flex flex-col items-center justify-center gap-1 backdrop-blur-sm group-hover:bg-red-500/20 transition-all">
-                          <span className="text-[9px] font-black text-red-400">已开台</span>
-                          <span className="text-[7px] font-mono text-red-400/60">#8829 - 4人</span>
+                          <span className="text-[9px] font-black text-red-400">{t('txt_65f899')}</span>
+                          <span className="text-[7px] font-mono text-red-400/60">{t('txt_c1b815')}</span>
                         </div>
                       )}
                       {timeIdx === 5 && table.id === 'T3' && (
                         <div className="absolute inset-1 rounded-lg bg-orange-500/10 flex flex-col items-center justify-center gap-1 backdrop-blur-sm group-hover:bg-orange-500/20 transition-all">
-                          <span className="text-[9px] font-black text-orange-400">已预约</span>
-                          <span className="text-[7px] font-mono text-orange-400/60">18:00 - 张先生</span>
+                          <span className="text-[9px] font-black text-orange-400">{t('txt_44209e')}</span>
+                          <span className="text-[7px] font-mono text-orange-400/60">{t('txt_c71976')}</span>
                         </div>
                       )}
                       {/* 空位引导 */}

@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext"; // 引入 ShopContext
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 // --- Types & State ---
 type NodeStatus = 'pending' | 'active';
@@ -409,6 +410,7 @@ const INDUSTRY_OPTIONS = [
 // --- 2D HUD Components ---
 
 function GlobalSearchHUD({ onSearch }: { onSearch: (term: string) => void }) {
+    const t = useTranslations('nebula');
   return (
     <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
       <div className="relative group">
@@ -417,7 +419,7 @@ function GlobalSearchHUD({ onSearch }: { onSearch: (term: string) => void }) {
           <Search className="w-4 h-4 text-white/50 mr-3" />
           <input 
             type="text" 
-            placeholder="搜索分公司或节点名称..." 
+            placeholder={t('txt_27474a')} 
             className="flex-1 bg-transparent text-sm text-white placeholder-white/30 outline-none font-mono tracking-wider"
             onChange={(e) => onSearch(e.target.value)}
           />
@@ -448,6 +450,7 @@ function NodeManagementHUD({
   onDive: () => void;
   onObliterate?: () => Promise<void>;
 }) {
+    const t = useTranslations('nebula');
   const router = useRouter();
   const { setActiveShopId } = useShop(); // 引入全局店铺上下文
 
@@ -555,8 +558,7 @@ function NodeManagementHUD({
         <div className="pt-8 pb-4 flex flex-col items-center justify-center relative">
           <div className="text-xl md:text-2xl font-black tracking-[0.3em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-300 to-white/50 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] mb-2 select-none flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] animate-pulse" />
-            GX 私人管家
-          </div>
+            {t('txt_10ab83')}</div>
           <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
             Nebula Node Command Pod
           </div>
@@ -582,13 +584,14 @@ function NodeManagementHUD({
                <h3 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan to-purple-400">
                  {planet.name}
                </h3>
-               <p className="text-xs font-mono text-white/50">ENTERPRISE CORE // 企业中枢</p>
+               <p className="text-xs font-mono text-white/50">{t('txt_41d106')}</p>
                
                <div className="pt-8 mt-4 w-full max-w-md">
                  {onObliterate && (
                    <button
                      onClick={async () => {
-                       if (confirm("【绝对警告】此操作将引爆整个企业联邦，所有分公司、日历、订单数据将瞬间灰飞烟灭，且无法恢复！您的账号将重置为普通用户。是否确认引爆？")) {
+                                                      const t = useTranslations('nebula');
+                       if (confirm(t('txt_491f90'))) {
                          setIsSubmitting(true);
                          await onObliterate();
                          setIsSubmitting(false);
@@ -598,7 +601,7 @@ function NodeManagementHUD({
                      className="w-full flex items-center justify-center space-x-2 bg-red-500/20 border border-red-500 text-white shadow-[0_0_15px_rgba(255,0,0,0.5)] text-xs font-black tracking-[0.1em] uppercase hover:bg-red-500/40 hover:shadow-[0_0_25px_rgba(255,0,0,0.8)] transition-all rounded-xl px-4 py-3 animate-pulse disabled:opacity-50"
                    >
                      <Trash2 className="w-4 h-4" />
-                     <span>ABYSSAL COLLAPSE (解散联邦)</span>
+                     <span>{t('txt_eb495f')}</span>
                    </button>
                  )}
                </div>
@@ -671,8 +674,7 @@ function NodeManagementHUD({
                     isPending && "opacity-30 grayscale pointer-events-none select-none"
                   )}>
                     <div className="text-[10px] uppercase text-white/30 tracking-[0.2em] mb-2 font-mono flex items-center gap-2">
-                      Command // 人员管辖
-                      {isPending && <Lock className="w-3 h-3 text-white/50" />}
+                      {t('txt_2adf8d')}{isPending && <Lock className="w-3 h-3 text-white/50" />}
                     </div>
                     {planet.managerId ? (
                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:bg-white/10 transition-all">
@@ -889,8 +891,7 @@ function NodeManagementHUD({
                  </div>
                  <p className="text-sm text-white/80 leading-relaxed font-medium">
                    <span className="text-emerald-400 font-bold text-lg mr-1">"</span>
-                   当前节点运转良好，下午 14:00-16:00 存在 2 小时运力闲置，建议通过矩阵推送限时折扣。
-                   <span className="text-emerald-400 font-bold text-lg ml-1">"</span>
+                   {t('txt_e8ec21')}<span className="text-emerald-400 font-bold text-lg ml-1">"</span>
                  </p>
                  <div className="text-[10px] text-emerald-400/50 font-mono mt-2">- Nexus AI Engine</div>
                </div>
@@ -1029,6 +1030,8 @@ function CyberSphere({
 
 // --- 子星系视图组件 (Nebula SubSystem) ---
 function NebulaSubSystem({ targetPlanet }: { targetPlanet: PlanetData }) {
+  const t = useTranslations('nebula');
+
   const [staffs, setStaffs] = useState<any[]>([]);
   const orbitGroupRef = useRef<THREE.Group>(null);
   
@@ -1083,8 +1086,8 @@ function NebulaSubSystem({ targetPlanet }: { targetPlanet: PlanetData }) {
           labelTitle={targetPlanet.name}
           labelSubtitle={
             targetPlanet.status === 'active'
-              ? (targetPlanet.managerId ? `🟢 店长ID: ${targetPlanet.managerId}` : "🟡 请指派经理")
-              : "筹备中"
+              ? (targetPlanet.managerId ? `🟢 店长ID: ${targetPlanet.managerId}` : t('txt_ba090e'))
+              : t('txt_4db67e')
           }
         />
       </group>
@@ -1212,6 +1215,7 @@ function PlanetNode({
   total: number,
   onClick: (planet: PlanetData) => void
 }) {
+    const t = useTranslations('nebula');
   const colorConfig = CYBER_COLOR_DICTIONARY[planet.key as CyberThemeColor];
   
   // 绝对等分轨道
@@ -1226,8 +1230,8 @@ function PlanetNode({
         labelTitle={planet.name}
         labelSubtitle={
           planet.status === 'active' 
-            ? (planet.managerId ? `🟢 店长ID: ${planet.managerId}` : "🟡 请指派经理") 
-            : "筹备中"
+            ? (planet.managerId ? `🟢 店长ID: ${planet.managerId}` : t('txt_ba090e')) 
+            : t('txt_4db67e')
         }
         isDimmed={planet.status !== 'active'}
         glowColor={colorConfig.hex}
@@ -1319,6 +1323,7 @@ function NebulaUniverse({
 }
 
 export default function NebulaPage() {
+
   const { user, activeRole } = useAuth();
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
   

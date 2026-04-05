@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, RefreshCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { BookingService, BookingRecord } from '@/features/booking/api/booking';
+import { useTranslations } from "next-intl";
 
 export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, onClose: () => void, shopId: string }) {
+    const t = useTranslations('RecycleBinModal');
   const [voidedBookings, setVoidedBookings] = useState<BookingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,7 +48,7 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/50">
           <div className="flex items-center gap-3">
             <Trash2 className="w-5 h-5 text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-            <span className="text-lg font-black tracking-widest uppercase text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">回收站 / Void Archive</span>
+            <span className="text-lg font-black tracking-widest uppercase text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{t('txt_494437')}</span>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
             <X className="w-5 h-5" />

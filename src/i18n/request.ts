@@ -1,16 +1,28 @@
 import { getRequestConfig } from 'next-intl/server';
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
+import { match } from '@formatjs/intl-localematcher';
+import Negotiator from 'negotiator';
 
 export const locales = ['en', 'zh', 'it'];
 export const defaultLocale = 'en';
 
 export default getRequestConfig(async () => {
-  // First, check the cookie
-  const cookieStore = await cookies();
-  let locale = cookieStore.get('NEXT_LOCALE')?.value;
+  const headersList = await headers();
+  const acceptLanguage = headersList.get('accept-language');
+  
+  let locale = defaultLocale;
+  
+  if (acceptLanguage) {
+    try {
+      const languages = new Negotiator({ headers: { 'accept-language': acceptLanguage } }).languages();
+      locale = match(languages, locales, defaultLocale);
+    } catch {
+      locale = defaultLocale;
+    }
+  }
 
-  // If the locale is invalid or missing, fallback to the default locale
-  if (!locale || !locales.includes(locale as any)) {
+  // Double check if the locale is actually supported
+  if (!locales.includes(locale)) {
     locale = defaultLocale;
   }
 

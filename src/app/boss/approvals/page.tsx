@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { CheckCircle2, Clock, ShieldAlert, ArrowLeft, Building2, Store } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 type MerchantApplication = {
   id: string;
@@ -20,6 +21,7 @@ type MerchantApplication = {
 };
 
 export default function BossApprovalsPage() {
+    const t = useTranslations('approvals');
   const [applications, setApplications] = useState<MerchantApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -170,8 +172,7 @@ export default function BossApprovalsPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tighter text-red-500 flex items-center gap-3">
                 <ShieldAlert className="w-6 h-6" />
-                入驻审批台
-              </h1>
+                {t('txt_f79337')}</h1>
               <p className="text-[10px] font-mono tracking-[0.2em] text-white/40 mt-1 uppercase">Ascension Command Center // NEXUS</p>
             </div>
           </div>
@@ -184,7 +185,7 @@ export default function BossApprovalsPage() {
         ) : applications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
             <CheckCircle2 className="w-12 h-12 text-white/20 mb-4" />
-            <p className="text-sm text-white/40 font-mono tracking-widest">目前没有待审批的入驻申请</p>
+            <p className="text-sm text-white/40 font-mono tracking-widest">{t('txt_772970')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
@@ -247,16 +248,14 @@ export default function BossApprovalsPage() {
                         disabled={processingId === app.id}
                         className="px-4 py-2 rounded-lg bg-black border border-white/10 text-white/60 hover:text-white hover:bg-white/5 transition-all text-xs font-bold tracking-widest uppercase disabled:opacity-50"
                       >
-                        驳回
-                      </button>
+                        {t('txt_325254')}</button>
                       <button 
                         onClick={() => handleApprove(app)}
                         disabled={processingId === app.id}
                         className="px-6 py-2 rounded-lg bg-red-500/20 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all text-xs font-bold tracking-widest uppercase disabled:opacity-50 flex items-center gap-2"
                       >
                         {processingId === app.id ? <Clock className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                        批准 / APPROVE
-                      </button>
+                        {t('txt_b20cc6')}</button>
                     </>
                   ) : (
                     <div className="px-4 py-2 rounded text-xs font-mono tracking-widest text-white/30 border border-white/5 bg-black/50">

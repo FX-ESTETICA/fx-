@@ -3,6 +3,7 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { CheckCircle, AlertTriangle, ShieldCheck, MapPin, Calendar, Clock, CreditCard, User } from "lucide-react";
 import { BookingDetails } from "../types";
+import { useTranslations } from "next-intl";
 
 interface BookingConfirmationProps {
   details: BookingDetails;
@@ -12,6 +13,7 @@ interface BookingConfirmationProps {
 }
 
 export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: BookingConfirmationProps) => {
+    const t = useTranslations('BookingConfirmation');
   const [termsAgreed, setTermsAgreed] = useState(false);
 
   return (
@@ -20,8 +22,8 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
         <div className="inline-flex p-3 rounded-full bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan mb-2">
           <ShieldCheck className="w-8 h-8" />
         </div>
-        <h2 className="text-3xl font-bold tracking-tight">核对并提交 / Review & Confirm</h2>
-        <p className="text-white/40 text-sm">请最后核对您的预约详情。提交后系统将为您锁定名额。</p>
+        <h2 className="text-3xl font-bold tracking-tight">{t('txt_f8ce3d')}</h2>
+        <p className="text-white/40 text-sm">{t('txt_c4043e')}</p>
       </header>
 
       <GlassCard className="p-8 border-white/10 bg-white/[0.03]" glowColor="cyan">
@@ -34,7 +36,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">预约日期 / DATE</p>
+                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">{t('txt_77480b')}</p>
                   <p className="text-sm font-medium">{details.date}</p>
                 </div>
               </div>
@@ -44,7 +46,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">预约时段 / TIME</p>
+                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">{t('txt_ac3930')}</p>
                   <p className="text-sm font-mono">{details.timeSlot}</p>
                 </div>
               </div>
@@ -56,7 +58,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">服务名称 / SERVICE</p>
+                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">{t('txt_3c116d')}</p>
                   <p className="text-sm font-medium">{details.serviceName}</p>
                 </div>
               </div>
@@ -66,7 +68,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">预计费用 / PRICE</p>
+                  <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">{t('txt_63fb41')}</p>
                   <p className="text-sm font-mono text-gx-cyan">¥{details.price || '待确认'}</p>
                 </div>
               </div>
@@ -76,8 +78,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
           {/* 客户信息 */}
           <div className="space-y-4 py-4">
             <h4 className="text-[10px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
-              <User className="w-3 h-3" /> 联系人详情 / CONTACT DETAILS
-            </h4>
+              <User className="w-3 h-3" /> {t('txt_8fa0a1')}</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                 <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">NAME</p>
@@ -101,8 +102,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
             <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 text-orange-400/80">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <p className="text-[10px] leading-relaxed font-mono uppercase tracking-tight">
-                温馨提示：预约成功后如需更改或取消，请提前至少 24 小时在系统中进行操作。
-              </p>
+                {t('txt_40d678')}</p>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer group">
@@ -116,8 +116,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                 <CheckCircle className="absolute w-3 h-3 text-black opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
               </div>
               <span className="text-[11px] text-white/40 group-hover:text-white/60 transition-colors select-none">
-                我已确认预约信息准确无误，并同意相关预约协议 / I agree to terms.
-              </span>
+                {t('txt_b87e42')}</span>
             </label>
           </div>
 
@@ -128,8 +127,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
               onClick={onBack}
               disabled={isLoading}
             >
-              返回修改 / Edit
-            </Button>
+              {t('txt_49999e')}</Button>
             <Button
               variant="cyan"
               className="flex-1 gap-2"
@@ -137,8 +135,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
               isLoading={isLoading}
               disabled={!termsAgreed || isLoading}
             >
-              确认提交 / Submit Booking
-            </Button>
+              {t('txt_099af3')}</Button>
           </div>
         </div>
       </GlassCard>

@@ -37,6 +37,7 @@ import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
 import { Trash2 } from "lucide-react";
 import { RecycleBinModal } from "./RecycleBinModal";
+import { useTranslations } from "next-intl";
 
 export interface OperatingHour {
   id: string;
@@ -119,6 +120,8 @@ const CyberClock = () => {
 };
 
 export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }: AuroraSchedulerProps) => {
+  const t = useTranslations('IndustryCalendar');
+
   const [industry] = useState<IndustryType>(initialIndustry);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -617,7 +620,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-white/30 text-[9px] font-mono uppercase tracking-widest ml-4 mb-1">
                   <div className="w-px h-3 bg-white/20" />
-                  <span>隶属总部: SYSTEM_CORE</span>
+                  <span>{t('txt_5aec8c')}</span>
                 </div>
                 {/* 已经合并到了上面的 boss || merchant 判断中，这块重复的可以删除 */}
               </div>
@@ -626,14 +629,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             {currentUserRole === 'user' && (
               <div className="space-y-1 relative">
                 <div className="flex flex-col gap-1 text-white/20 text-[9px] font-mono uppercase tracking-widest ml-4 mb-2">
-                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/20"/>总部: SYSTEM_CORE</div>
-                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/20"/>指挥官: STORE_OWNER</div>
+                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/20"/>{t('txt_c145c6')}</div>
+                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/20"/>{t('txt_b08822')}</div>
                 </div>
                 <div className="absolute left-4 top-2 bottom-6 w-px bg-white/10" />
                 <div 
                   onClick={() => router.push('/me')}
                   className="flex items-center gap-3 p-3 rounded-xl bg-transparent border border-white/10 ml-6 relative cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group"
-                  title="返回个人主页"
+                  title={t('txt_5bcc6c')}
                 >
                   <div className="absolute -left-2.5 top-1/2 w-2.5 h-px bg-white/10" />
                   <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white font-black text-xs group-hover:scale-110 transition-transform overflow-hidden">
@@ -658,8 +661,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             {/* 核心统计 (Mock) */}
             <div className="grid grid-cols-2 gap-2 pt-8 pointer-events-none">
               {[
-                { label: '今日预约', value: '24', trend: '+12%', color: 'text-gx-cyan' },
-                { label: '待处理', value: '08', trend: 'Critical', color: 'text-red-500' }
+                { label: t('txt_3353f0'), value: '24', trend: '+12%', color: 'text-gx-cyan' },
+                { label: t('txt_047109'), value: '08', trend: 'Critical', color: 'text-red-500' }
               ].map(stat => (
                 <div key={stat.label} className="p-3 rounded-xl bg-white/5 border border-white/5 transition-all">
                   <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{stat.label}</span>
@@ -706,7 +709,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <div 
                     className="flex items-baseline gap-3 md:gap-4 cursor-pointer group hover:opacity-80 transition-opacity"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    title="点击切换左侧边栏"
+                    title={t('txt_84e0cd')}
                   >
                     <h3 suppressHydrationWarning className={cn("text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none font-mono transition-all", CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className)} style={{ textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}b3` }}>
                       {phantomDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {phantomDate.getDate()}
@@ -777,7 +780,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         <button 
                           onClick={() => setIsRecycleBinOpen(true)}
                           className="p-2 ml-2 rounded-lg transition-all opacity-60 hover:opacity-100 hover:bg-red-500/10 group flex items-center justify-center text-red-400"
-                          title="回收站 (Void Archive)"
+                          title={t('txt_6508a1')}
                         >
                           <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                         </button>
@@ -785,7 +788,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                           onClick={() => setIsConfigOpen(true)}
                           className="p-2 rounded-lg transition-all opacity-60 hover:opacity-100 group flex items-center justify-center"
                           style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
-                          title="全局运营配置 (Nebula Config Hub)"
+                          title={t('txt_677a64')}
                         >
                           <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
                         </button>
@@ -831,7 +834,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                                 res.metadata?.isNoShowColumn ? "text-red-400/60" : "text-cyan-400/40 group-hover:text-cyan-400/80"
                               )}>{res.role}</span>
                               {res.metadata?.originalStatus === 'on_leave' && (
-                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">休假</span>
+                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">{t('txt_62a8cf')}</span>
                               )}
                             </div>
                           </div>
@@ -843,7 +846,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               )}
               {viewMode !== 'day' && dna.pivot === 'resource' && (
                 <div className="flex bg-transparent px-6 py-4 items-center gap-4 overflow-x-auto no-scrollbar">
-                  <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest shrink-0">筛选人员 / Filter</span>
+                  <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest shrink-0">{t('txt_8b62d9')}</span>
                   {resources.map(res => (
                     <button
                       key={res.id}
@@ -950,8 +953,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               {/* 非日视图且非资源类型时回退到网格 */}
               {viewMode !== "day" && dna.pivot !== "timeline" && dna.pivot !== "resource" && (
                 <div className="p-12 h-full flex items-center justify-center text-white/5 font-black text-4xl uppercase tracking-[1em] relative z-20">
-                  即将推出
-                </div>
+                  {t('txt_0aece4')}</div>
               )}
             </div>
           </motion.div>

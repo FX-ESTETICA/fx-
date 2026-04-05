@@ -53,6 +53,8 @@ export const NebulaConfigHub = ({
   services,
   onGlobalSave
 }: NebulaConfigHubProps) => {
+  const t = useTranslations('NebulaConfigHub');
+
   type MainTab = "staff" | "services" | "hours" | "visual";
   const [activeTab, setActiveTab] = useState<MainTab>("hours");
   const panelKey = `panel-${isOpen ? 'open' : 'closed'}-${operatingHours.length}-${staffs.length}-${categories.length}-${services.length}`;
@@ -137,7 +139,7 @@ export const NebulaConfigHub = ({
                   <Settings className="w-4 h-4 text-gx-cyan animate-spin-slow" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest">全局运营配置</h2>
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest">{t('txt_406bc4')}</h2>
                   <p className="text-[10px] font-mono text-white/40 uppercase mt-1">
                     {industryLabel}
                   </p>
@@ -154,10 +156,10 @@ export const NebulaConfigHub = ({
             {/* 导航 Tabs */}
             <div className="flex p-4 gap-2 border-b border-white/5 shrink-0 overflow-x-auto no-scrollbar">
               {[
-                { id: "hours", label: "营业时间", icon: Clock },
-                { id: "staff", label: "人员/资源", icon: Users },
-                { id: "services", label: "服务项目", icon: Scissors },
-                { id: "visual", label: "视觉层级", icon: MonitorPlay },
+                { id: "hours", label: t('txt_cc3307'), icon: Clock },
+                { id: "staff", label: t('txt_bf9e5e'), icon: Users },
+                { id: "services", label: t('txt_01295d'), icon: Scissors },
+                { id: "visual", label: t('txt_5b4c03'), icon: MonitorPlay },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -223,13 +225,12 @@ export const NebulaConfigHub = ({
                     onClick={handleContextualCancel}
                     className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest hover:bg-white/10 transition-all text-xs"
                   >
-                    取消
-                  </button>
+                    {t('txt_625fb2')}</button>
                   <button
                     onClick={handleContextualSave}
                     className="flex-[2] py-4 rounded-2xl bg-gx-cyan text-black font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-all text-xs"
                   >
-                    {editingContext.type === 'staff' ? '保存人员配置' : '确认修改'}
+                    {editingContext.type === 'staff' ? t('txt_dc8d03') : t('txt_49e56c')}
                   </button>
                 </div>
               ) : (
@@ -237,8 +238,7 @@ export const NebulaConfigHub = ({
                   onClick={handleGlobalSave}
                   className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest hover:bg-gx-cyan hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-all text-xs"
                 >
-                  保存全局配置并重载引擎
-                </button>
+                  {t('txt_13fe40')}</button>
               )}
             </div>
           </motion.div>
@@ -251,6 +251,8 @@ export const NebulaConfigHub = ({
 // --- 子面板组件 ---
 
 const VisualSettingsConfig = () => {
+  const t = useTranslations('NebulaConfigHub');
+
   const { settings, updateSettings, isLoaded } = useVisualSettings();
 
   if (!isLoaded) return null;
@@ -259,7 +261,7 @@ const VisualSettingsConfig = () => {
     <div className="space-y-6">
       {/* 图层开关区 */}
       <div className="space-y-4">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">背景层级控制 (Background Layers)</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">{t('txt_acbc2d')}</h3>
         
         {/* 星空开关 */}
         <div 
@@ -267,8 +269,8 @@ const VisualSettingsConfig = () => {
           onClick={() => updateSettings({ showNebula: !settings.showNebula })}
         >
           <div className="space-y-1">
-            <span className="text-xs font-bold text-white block">3D 星云动效 (Nebula Particles)</span>
-            <span className="text-[10px] text-white/40 font-mono">底层全息星空渲染，关闭可提升性能</span>
+            <span className="text-xs font-bold text-white block">{t('txt_ea97c1')}</span>
+            <span className="text-[10px] text-white/40 font-mono">{t('txt_203d7a')}</span>
           </div>
           <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showNebula ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
             <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showNebula ? "bg-gx-cyan" : "bg-white/40")} />
@@ -281,8 +283,8 @@ const VisualSettingsConfig = () => {
           onClick={() => updateSettings({ showWallpaper: !settings.showWallpaper })}
         >
           <div className="space-y-1">
-            <span className="text-xs font-bold text-white block">静态壁纸层 (Static Wallpaper)</span>
-            <span className="text-[10px] text-white/40 font-mono">显示您自定义或同步的背景图片</span>
+            <span className="text-xs font-bold text-white block">{t('txt_162afa')}</span>
+            <span className="text-[10px] text-white/40 font-mono">{t('txt_5e50ed')}</span>
           </div>
           <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showWallpaper ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
             <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showWallpaper ? "bg-gx-cyan" : "bg-white/40")} />
@@ -292,7 +294,7 @@ const VisualSettingsConfig = () => {
 
       {/* 矩阵背板控制区 */}
       <div className="space-y-4 pt-4 border-t border-white/10">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">矩阵背板控制 (Matrix Shield)</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">{t('txt_5f9d47')}</h3>
         
         {/* 背板总开关 */}
         <div 
@@ -300,8 +302,8 @@ const VisualSettingsConfig = () => {
           onClick={() => updateSettings({ enableGlassShield: !settings.enableGlassShield })}
         >
           <div className="space-y-1">
-            <span className="text-xs font-bold text-white block">启用毛玻璃背板 (Enable Glass Shield)</span>
-            <span className="text-[10px] text-white/40 font-mono">在日历与背景之间添加视觉隔离层</span>
+            <span className="text-xs font-bold text-white block">{t('txt_f21741')}</span>
+            <span className="text-[10px] text-white/40 font-mono">{t('txt_eeb6ca')}</span>
           </div>
           <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.enableGlassShield ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
             <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.enableGlassShield ? "bg-gx-cyan" : "bg-white/40")} />
@@ -320,7 +322,7 @@ const VisualSettingsConfig = () => {
               {/* 透明度滑块 */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">黑色遮罩浓度 (Opacity)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_d1483c')}</label>
                   <span className="text-xs font-mono text-gx-cyan">{settings.shieldOpacity}%</span>
                 </div>
                 <input 
@@ -335,7 +337,7 @@ const VisualSettingsConfig = () => {
               {/* 模糊度滑块 */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">毛玻璃模糊度 (Blur)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_1d0c44')}</label>
                   <span className="text-xs font-mono text-gx-cyan">{settings.shieldBlur}px</span>
                 </div>
                 <input 
@@ -353,12 +355,12 @@ const VisualSettingsConfig = () => {
 
       {/* 赛博全息主题色控制区 */}
       <div className="space-y-4 pt-4 border-t border-white/10">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">全息主题色映射 (Hologram Theme)</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">{t('txt_aaa577')}</h3>
         
         {/* 顶部大标题颜色 */}
         <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">顶部日期标题色</label>
+            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">{t('txt_c94255')}</label>
             <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.headerTitleColorTheme].className)}>
               {CYBER_COLOR_DICTIONARY[settings.headerTitleColorTheme].label}
             </span>
@@ -385,7 +387,7 @@ const VisualSettingsConfig = () => {
         {/* 员工表头颜色 */}
         <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">员工表头字体色</label>
+            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">{t('txt_f4fb3b')}</label>
             <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].className)}>
               {CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].label}
             </span>
@@ -412,7 +414,7 @@ const VisualSettingsConfig = () => {
         {/* 时间轴颜色 */}
         <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">时间轴字体色</label>
+            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">{t('txt_893c8f')}</label>
             <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].className)}>
               {CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].label}
             </span>
@@ -441,6 +443,7 @@ const VisualSettingsConfig = () => {
 };
 
 const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h: OperatingHour[]) => void }) => {
+    const t = useTranslations('NebulaConfigHub');
   const idSeed = useRef(0);
   const handleAdd = () => {
     idSeed.current += 1;
@@ -466,14 +469,12 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
     <div className="space-y-6">
       <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-white">常规营业时间段</span>
+          <span className="text-xs font-black text-white">{t('txt_c19d9e')}</span>
           <button onClick={handleAdd} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
-            <Plus className="w-3 h-3" /> 添加时段
-          </button>
+            <Plus className="w-3 h-3" /> {t('txt_8fb3bc')}</button>
         </div>
         <p className="text-[10px] font-mono text-white/40">
-          添加多个时段可自动生成休息时间。日历引擎将智能折叠非营业时间，并在有跨界预约时弹性展开。
-        </p>
+          {t('txt_0bb77d')}</p>
         
         <div className="space-y-3">
           <AnimatePresence>
@@ -528,8 +529,10 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
 };
 
 import { useShop } from "@/features/shop/ShopContext";
+import { useTranslations } from "next-intl";
 
 const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[] }) => {
+    const t = useTranslations('NebulaConfigHub');
   const [editingStaff, setEditingStaff] = useState<StaffItem | null>(null);
   const staffIdSeed = useRef(0);
   const { activeShopId } = useShop();
@@ -586,8 +589,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
         onClick={() => setEditingStaff({ id: "", name: "", role: "", status: "active", calendarView: "self", nebulaAccess: false, operationRights: "view", financialVisibility: "self", services: [] })}
         className="w-full py-3 rounded-xl border border-dashed border-white/20 text-white/60 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 text-[11px] font-black tracking-widest"
       >
-        <Plus className="w-4 h-4" /> 新增人员/资源
-      </button>
+        <Plus className="w-4 h-4" /> {t('txt_3fb42e')}</button>
       
       {staffs.map((staff) => (
         <div key={staff.id} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors group cursor-pointer" onClick={() => setEditingStaff(staff)}>
@@ -605,8 +607,8 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className={cn("text-xs font-black", staff.status === "resigned" ? "text-white/40 line-through" : "text-white")}>{staff.name}</span>
-                {staff.status === "on_leave" && <span className="px-1.5 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 font-bold border border-yellow-500/30">休假</span>}
-                {staff.status === "resigned" && <span className="px-1.5 py-0.5 rounded text-[8px] bg-red-500/20 text-red-500 font-bold border border-red-500/30">离职</span>}
+                {staff.status === "on_leave" && <span className="px-1.5 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 font-bold border border-yellow-500/30">{t('txt_62a8cf')}</span>}
+                {staff.status === "resigned" && <span className="px-1.5 py-0.5 rounded text-[8px] bg-red-500/20 text-red-500 font-bold border border-red-500/30">{t('txt_583e79')}</span>}
               </div>
               <span className="text-[10px] font-mono text-white/40 mt-0.5 flex items-center gap-1">
                 {staff.role} 
@@ -614,7 +616,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
               </span>
             </div>
           </div>
-          <button className="text-[10px] font-bold text-white/40 group-hover:text-white underline underline-offset-4 transition-colors">配置</button>
+          <button className="text-[10px] font-bold text-white/40 group-hover:text-white underline underline-offset-4 transition-colors">{t('txt_224e2c')}</button>
         </div>
       ))}
     </div>
@@ -622,6 +624,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
 };
 
 const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [] }: { staff: StaffItem, onBack: () => void, onSave: (data: StaffItem) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: ServiceItem[] }) => {
+    const t = useTranslations('NebulaConfigHub');
   type StaffTab = "basic" | "finance" | "access";
   const [activeTab, setActiveTab] = useState<StaffTab>("basic");
   const [formData, setFormData] = useState({
@@ -692,17 +695,16 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-white/5">
         <button onClick={onBack} className="flex items-center gap-1 text-[10px] font-bold text-white/40 hover:text-white transition-colors">
-          <ChevronLeft className="w-4 h-4" /> 返回列表
-        </button>
-        <span className="text-xs font-black text-white">{staff.id ? "编辑人员配置" : "新增人员/资源"}</span>
+          <ChevronLeft className="w-4 h-4" /> {t('txt_adcd1d')}</button>
+        <span className="text-xs font-black text-white">{staff.id ? t('txt_d03a9c') : t('txt_3fb42e')}</span>
       </div>
 
       {/* Internal Tabs */}
       <div className="flex p-1 bg-white/5 rounded-lg border border-white/10">
         {[
-          { id: "basic", label: "基础与通信", icon: User },
-          { id: "finance", label: "薪酬架构", icon: CreditCard },
-          { id: "access", label: "权限与调度", icon: Shield },
+          { id: "basic", label: t('txt_754801'), icon: User },
+          { id: "finance", label: t('txt_03b5ea'), icon: CreditCard },
+          { id: "access", label: t('txt_d930d1'), icon: Shield },
         ].map(tab => (
           <button
             key={tab.id}
@@ -744,12 +746,12 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
               </div>
               <div className="flex-1 space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">姓名 / Name</label>
-                  <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-transparent border-b border-white/10 text-white text-sm pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder="输入员工姓名" />
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_a140c4')}</label>
+                  <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-transparent border-b border-white/10 text-white text-sm pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder={t('txt_a6a423')} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">职位头衔 / Title</label>
-                  <input type="text" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-transparent border-b border-white/10 text-white text-sm pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder="如：高级总监" />
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_60f114')}</label>
+                  <input type="text" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-transparent border-b border-white/10 text-white text-sm pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder={t('txt_480054')} />
                 </div>
               </div>
             </div>
@@ -757,7 +759,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             {/* Colors */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">专属颜色标识 / Theme Color</label>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_d9f234')}</label>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: formData.color }} />
                   <span className="text-[10px] font-mono text-white/60">{formData.color}</span>
@@ -780,12 +782,12 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
 
             {/* Status */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">当前状态 / Status</label>
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_70240b')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: "active", label: "在职 (接单)", color: "text-green-400 border-green-400/20 bg-green-400/10" },
-                  { id: "on_leave", label: "休假 (锁单)", color: "text-yellow-400 border-yellow-400/20 bg-yellow-400/10" },
-                  { id: "resigned", label: "离职 (隐藏)", color: "text-red-400 border-red-400/20 bg-red-400/10" },
+                  { id: "active", label: t('txt_238a27'), color: "text-green-400 border-green-400/20 bg-green-400/10" },
+                  { id: "on_leave", label: t('txt_538024'), color: "text-yellow-400 border-yellow-400/20 bg-yellow-400/10" },
+                  { id: "resigned", label: t('txt_151a99'), color: "text-red-400 border-red-400/20 bg-red-400/10" },
                 ].map(s => (
                   <button
                     key={s.id}
@@ -806,19 +808,19 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             <div className="space-y-4 p-4 rounded-xl border border-gx-cyan/20 bg-gx-cyan/5">
               <div className="flex items-center gap-2 text-gx-cyan">
                 <LinkIcon className="w-4 h-4" />
-                <span className="text-xs font-black uppercase">系统关联 (System Link)</span>
+                <span className="text-xs font-black uppercase">{t('txt_dab60d')}</span>
               </div>
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">前端绑定 ID / Frontend ID</label>
-                  <input type="text" value={formData.frontendId} onChange={e => setFormData({...formData, frontendId: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-md text-white text-xs p-2 focus:outline-none focus:border-gx-cyan transition-colors font-mono placeholder:text-white/20" placeholder="如：GX_USR_10023 (可选)" />
-                  <p className="text-[8px] text-white/30 font-mono mt-1">绑定后该用户可直接在小程序「我的」中进入管理后台日历。</p>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_ab459e')}</label>
+                  <input type="text" value={formData.frontendId} onChange={e => setFormData({...formData, frontendId: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-md text-white text-xs p-2 focus:outline-none focus:border-gx-cyan transition-colors font-mono placeholder:text-white/20" placeholder={t('txt_80c5c7')} />
+                  <p className="text-[8px] text-white/30 font-mono mt-1">{t('txt_1e10a4')}</p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">联系电话 / Phone</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_f6da71')}</label>
                   <div className="relative">
                     <Smartphone className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40" />
-                    <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-md text-white text-xs py-2 pl-7 pr-2 focus:outline-none focus:border-gx-cyan transition-colors font-mono placeholder:text-white/20" placeholder="用于接收预约通知" />
+                    <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-md text-white text-xs py-2 pl-7 pr-2 focus:outline-none focus:border-gx-cyan transition-colors font-mono placeholder:text-white/20" placeholder={t('txt_5c0b15')} />
                   </div>
                 </div>
               </div>
@@ -830,12 +832,12 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
           <div className="space-y-5 animate-in fade-in">
             <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">基础底薪 / Base Salary (¥)</label>
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_761c91')}</label>
                 <input type="number" value={formData.baseSalary} onChange={e => setFormData({...formData, baseSalary: Number(e.target.value)})} className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder="0" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
-                  <span>提成比例 / Commission Rate (%)</span>
+                  <span>{t('txt_44100b')}</span>
                 </label>
                 <div className="relative">
                   <input type="number" value={formData.commissionRate} onChange={e => setFormData({...formData, commissionRate: Number(e.target.value)})} className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder="0" max="100" />
@@ -850,10 +852,9 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                 <Settings className="w-4 h-4" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-xs font-bold text-white">AI 动态目标引擎已接管</h4>
+                <h4 className="text-xs font-bold text-white">{t('txt_db0a2c')}</h4>
                 <p className="text-[10px] text-white/50 leading-relaxed">
-                  系统将根据底薪自动折算该员工的【保本目标额度】并在前端工作台动态展示。超复杂阶梯提成等财务报表将在月底由 AI 统一核算。
-                </p>
+                  {t('txt_c2fab9')}</p>
               </div>
             </div>
           </div>
@@ -863,11 +864,11 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
           <div className="space-y-6 animate-in fade-in">
             {/* Calendar Access */}
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><CalendarIcon className="w-3 h-3"/> 日历视图权限</label>
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><CalendarIcon className="w-3 h-3"/> {t('txt_461577')}</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: "self", label: "仅看自己", desc: "私密隔离" },
-                  { id: "all", label: "查看全部", desc: "全局统筹" }
+                  { id: "self", label: t('txt_c71868'), desc: t('txt_cd5e70') },
+                  { id: "all", label: t('txt_0467cc'), desc: t('txt_319cc2') }
                 ].map(opt => (
                   <div key={opt.id} onClick={() => setFormData({...formData, calendarView: opt.id})} className={cn("p-3 rounded-xl border cursor-pointer transition-all", formData.calendarView === opt.id ? "bg-gx-cyan/10 border-gx-cyan/30" : "bg-white/[0.02] border-white/5 hover:border-white/20")}>
                     <div className="flex items-center justify-between mb-1">
@@ -882,20 +883,20 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
 
             {/* Operation Rights */}
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><Shield className="w-3 h-3"/> 操作与改价权限</label>
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><Shield className="w-3 h-3"/> {t('txt_773712')}</label>
               <select value={formData.operationRights} onChange={e => setFormData({...formData, operationRights: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg text-white text-xs p-3 focus:outline-none focus:border-gx-cyan transition-colors appearance-none cursor-pointer">
-                <option value="view">Lv.1 仅查看与核销 (只读)</option>
-                <option value="edit">Lv.2 允许修改订单排期 (编辑)</option>
-                <option value="edit_price">Lv.3 拥有改价/打折权限 (高级)</option>
+                <option value="view">{t('txt_7781d9')}</option>
+                <option value="edit">{t('txt_2878a0')}</option>
+                <option value="edit_price">{t('txt_823d26')}</option>
               </select>
             </div>
 
             {/* Financial Visibility */}
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><Eye className="w-3 h-3"/> 财务数据可见性</label>
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><Eye className="w-3 h-3"/> {t('txt_db3e82')}</label>
               <select value={formData.financialVisibility} onChange={e => setFormData({...formData, financialVisibility: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg text-white text-xs p-3 focus:outline-none focus:border-gx-cyan transition-colors appearance-none cursor-pointer">
-                <option value="self">仅可见个人提成与业绩</option>
-                <option value="store">可见全店总营业额 (店长级)</option>
+                <option value="self">{t('txt_2091de')}</option>
+                <option value="store">{t('txt_395559')}</option>
               </select>
             </div>
 
@@ -903,10 +904,10 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             <div className="flex items-center justify-between p-4 rounded-xl border border-gx-purple/20 bg-gx-purple/5 cursor-pointer" onClick={() => setFormData({...formData, nebulaAccess: !formData.nebulaAccess})}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white">星云系统准入</span>
+                  <span className="text-xs font-bold text-white">{t('txt_c4b9ca')}</span>
                   <span className="px-1.5 py-0.5 rounded text-[8px] bg-gx-purple/20 text-gx-purple border border-gx-purple/30 font-mono uppercase">Nebula</span>
                 </div>
-                <p className="text-[9px] text-white/40">允许该员工进入高级数字孪生沙盘</p>
+                <p className="text-[9px] text-white/40">{t('txt_45b088')}</p>
               </div>
               <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", formData.nebulaAccess ? "bg-gx-purple/30 border-gx-purple/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
                 <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", formData.nebulaAccess ? "bg-gx-purple" : "bg-white/40")} />
@@ -916,8 +917,8 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             {/* Assigned Services (Capabilities Workflow) */}
             <div className="pt-4 border-t border-white/10 space-y-3">
               <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
-                <span className="flex items-center gap-1"><Briefcase className="w-3 h-3"/> 可提供服务/技能绑定</span>
-                <span className="text-gx-cyan cursor-pointer hover:text-white transition-colors" onClick={() => setIsServicesModalOpen(true)}>修改</span>
+                <span className="flex items-center gap-1"><Briefcase className="w-3 h-3"/> {t('txt_149023')}</span>
+                <span className="text-gx-cyan cursor-pointer hover:text-white transition-colors" onClick={() => setIsServicesModalOpen(true)}>{t('txt_8347a9')}</span>
               </label>
               <div className="p-3 bg-white/5 rounded-xl border border-white/5 min-h-[60px] flex flex-wrap gap-2">
                 {formData.services.length > 0 ? (
@@ -934,10 +935,10 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                     );
                   })
                 ) : (
-                  <span className="text-xs text-white/20 my-auto">尚未绑定任何技能，前端客户无法预约该员工</span>
+                  <span className="text-xs text-white/20 my-auto">{t('txt_fe642f')}</span>
                 )}
               </div>
-              <p className="text-[9px] text-gx-cyan/60">💡 当客户在前端预约特定服务时，只有绑定了该服务的员工会显示在可用列表中。结合5分钟自动接单流。</p>
+              <p className="text-[9px] text-gx-cyan/60">{t('txt_c7f632')}</p>
             </div>
           </div>
         )}
@@ -948,7 +949,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
         {isServicesModalOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
-              <h3 className="text-sm font-black text-white">绑定服务技能</h3>
+              <h3 className="text-sm font-black text-white">{t('txt_070091')}</h3>
               <div className="space-y-2 max-h-[40vh] overflow-y-auto no-scrollbar">
                 {availableServices.map(svc => (
                   <div key={svc.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/5 cursor-pointer hover:bg-white/10" onClick={() => {
@@ -966,8 +967,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                 ))}
               </div>
               <button onClick={() => setIsServicesModalOpen(false)} className="w-full py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors">
-                确定 (Confirm)
-              </button>
+                {t('txt_3fdf2d')}</button>
             </motion.div>
           </motion.div>
         )}
@@ -987,6 +987,7 @@ const ServicesConfig = ({
   onCategoriesChange: (c: CategoryItem[]) => void, 
   onServicesChange: (s: ServiceItem[]) => void 
 }) => {
+    const t = useTranslations('NebulaConfigHub');
   const [globalInput, setGlobalInput] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(categories.length > 0 ? categories[0].id : null);
   
@@ -1231,17 +1232,17 @@ const ServicesConfig = ({
       <div className="bg-gx-cyan/10 border border-gx-cyan/20 p-4 rounded-xl flex items-start gap-3">
         <Settings className="w-4 h-4 text-gx-cyan mt-0.5 shrink-0" />
         <div className="space-y-1">
-          <h4 className="text-xs font-bold text-gx-cyan">极客输入模式 (Omni-Input Core)</h4>
+          <h4 className="text-xs font-bold text-gx-cyan">{t('txt_ae382f')}</h4>
           <p className="text-[10px] text-white/60 leading-relaxed">
-            1. 底部输入 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">#分类名</span> 锁定上下文。<br/>
-            2. 极速建档 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">名称 基准价 耗时</span> (如：Ms 35 45)。<br/>
-            3. GUI 贴胶囊：在卡片上点击 <span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">+</span> 添加变体价格。
-          </p>
+            {t('txt_6f6203')}<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">{t('txt_8a665b')}</span> {t('txt_d73ec2')}<br/>
+            {t('txt_82dab0')}<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">{t('txt_04777f')}</span> {t('txt_9fbe2a')}<br/>
+            {t('txt_9ac55f')}<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">+</span> {t('txt_fdd97a')}</p>
         </div>
       </div>
 
       {/* 分类与服务列表 */}
       {categories.map((cat) => {
+          const t = useTranslations('NebulaConfigHub');
         const catServices = services.filter(s => s.categoryId === cat.id);
         const isActive = cat.id === activeCategoryId;
         
@@ -1271,7 +1272,7 @@ const ServicesConfig = ({
                       setActiveCategoryId(cat.id);
                     }
                   }}
-                  title={isActive ? "点击重命名分类" : "点击激活该分类"}
+                  title={isActive ? t('txt_a0cb83') : t('txt_78345c')}
                 >
                   {isActive && <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse" />}
                   {cat.name}
@@ -1279,7 +1280,7 @@ const ServicesConfig = ({
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleRemoveCategory(cat.id); }}
                       className="text-white/20 hover:text-red-500 opacity-0 group-hover/header:opacity-100 transition-opacity ml-2"
-                      title="解散空分类"
+                      title={t('txt_1837b2')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1365,7 +1366,7 @@ const ServicesConfig = ({
                                   onBlur={() => handleAddVariant(service.id)}
                                   autoFocus
                                   className="w-10 text-[10px] bg-black/60 border border-gx-cyan/50 rounded px-1 py-0.5 text-white font-mono outline-none"
-                                  placeholder="价格"
+                                  placeholder={t('txt_0e9fd9')}
                                 />
                               ) : (
                                 <button 
@@ -1387,7 +1388,7 @@ const ServicesConfig = ({
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-[10px] font-mono text-white/40 mt-1">
-                          <span>默认耗时: {service.duration || 60} 分钟</span>
+                          <span>{t('txt_f7ff14')}{service.duration || 60} {t('txt_3a17b7')}</span>
                         </div>
                       </>
                     )}
@@ -1417,7 +1418,7 @@ const ServicesConfig = ({
             <div 
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gx-cyan/10 border border-gx-cyan/20 shrink-0 cursor-pointer hover:bg-gx-cyan/20 transition-colors"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              title="点击切换或新建分类"
+              title={t('txt_236222')}
             >
               <span className="text-[10px] font-black text-gx-cyan uppercase tracking-wider max-w-[80px] truncate">
                 {activeCategoryName}
@@ -1443,7 +1444,7 @@ const ServicesConfig = ({
                 >
                   <div className="max-h-40 overflow-y-auto no-scrollbar py-1">
                     {categories.length === 0 && (
-                      <div className="px-3 py-2 text-[10px] text-white/30 text-center font-mono">暂无分类</div>
+                      <div className="px-3 py-2 text-[10px] text-white/30 text-center font-mono">{t('txt_2d32b1')}</div>
                     )}
                     {categories.map(cat => (
                       <div
@@ -1472,7 +1473,7 @@ const ServicesConfig = ({
                           setIsDropdownOpen(false);
                         }
                       }}
-                      placeholder="+ 新建分类 (Enter)"
+                      placeholder={t('txt_ba4eed')}
                       className="w-full bg-white/5 border border-white/10 focus:border-gx-cyan/50 rounded text-white text-[10px] px-2 py-1.5 outline-none font-mono placeholder:text-white/30 transition-colors"
                       autoFocus
                     />
@@ -1487,7 +1488,7 @@ const ServicesConfig = ({
             value={globalInput}
             onChange={(e) => setGlobalInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="项目名称 价格 耗时 (如：Ms 35 45)"
+            placeholder={t('txt_f0cd9f')}
             className="flex-1 bg-transparent text-white text-sm px-3 py-2 outline-none placeholder:text-white/20 font-mono"
           />
 
@@ -1496,7 +1497,7 @@ const ServicesConfig = ({
             <button 
               onClick={() => {}} // 预留 OCR 接口
               className="w-8 h-8 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-              title="全息扫描 (Camera Scan)"
+              title={t('txt_ebe2ed')}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </button>
