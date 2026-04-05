@@ -50,7 +50,8 @@
     "aggregating": "Scansione...",
     "search": "Cerca",
     "searchPlaceholder": "Cerca posti...",
-    "empty": "Nessun nodo trovato"
+    "empty": "Nessun nodo trovato",
+    "uploadRealPhoto": "Carica Foto Reale"
   },
   "notfound": {
     "txt_bfb989": "[IT] Connection Lost // 页面不存在"

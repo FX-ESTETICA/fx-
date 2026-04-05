@@ -50,7 +50,8 @@
     "aggregating": "Scanning...",
     "search": "Search",
     "searchPlaceholder": "Search places...",
-    "empty": "No nodes found"
+    "empty": "No nodes found",
+    "uploadRealPhoto": "Upload Real Photo"
   },
   "notfound": {
     "txt_bfb989": "[EN] Connection Lost // 页面不存在"

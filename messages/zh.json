@@ -50,7 +50,8 @@
     "aggregating": "扫描中...",
     "search": "搜索",
     "searchPlaceholder": "搜索店铺或分类",
-    "empty": "未发现符合协议的节点"
+    "empty": "未发现符合协议的节点",
+    "uploadRealPhoto": "上传真实照片"
   },
   "notfound": {
     "txt_bfb989": "Connection Lost // 页面不存在"
