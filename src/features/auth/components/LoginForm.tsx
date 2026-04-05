@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { useState, useEffect } from "react";
@@ -158,22 +157,13 @@ export const LoginForm = () => {
 
       {/* Language Switcher 已经被移除，由 layout 或外部控制 */}
 
-      <GlassCard glowColor="none" hoverGlow={false} className="p-8 space-y-8 backdrop-blur-xl bg-white/10 border-white/15">
-        <div className="text-center">
-          <div className="inline-flex items-baseline gap-2 justify-center">
-            <span className="text-3xl font-bold tracking-tighter">
-              GX<span className="align-super text-xl text-gx-cyan">⁺</span>
-            </span>
-            <span className="text-2xl font-bold tracking-tighter">私人管家</span>
-          </div>
-        </div>
-
+      <div className="w-full space-y-8">
         <div className="pt-2">
           <Button 
             variant="ghost"
             glow={false}
             type="button" 
-            className="w-full h-12 text-white border-white/15 hover:bg-white/10 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-sm"
+            className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-sm bg-transparent"
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >
@@ -181,7 +171,7 @@ export const LoginForm = () => {
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <Input 
             label={t("emailLabel")} 
             type="email" 
@@ -190,6 +180,7 @@ export const LoginForm = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
+            variant="ghost"
           />
           <Input 
             label={mode === "password" ? t("passwordLabel") : t("otpLabel")} 
@@ -200,6 +191,7 @@ export const LoginForm = () => {
             required={mode === "password"}
             disabled={isLoading || (mode === "otp" && !awaitingOtp)}
             error={mode === "password" ? passwordError ?? undefined : otpError ?? undefined}
+            variant="ghost"
           />
           <div className="pt-1 text-center">
             <button
@@ -210,14 +202,14 @@ export const LoginForm = () => {
               {mode === "otp" ? t("switchToPassword") : t("switchToOtp")}
             </button>
           </div>
-          <div className="pt-2">
+          <div className="pt-4">
             {mode === "otp" ? (
               <Button 
                 variant="ghost"
                 glow={false}
                 type="button"
                 onClick={async () => { await handleMagicLink(); setCooldown(60); setAwaitingOtp(true); setOtp(""); }}
-                className="w-full h-12 text-white border-white/15 hover:bg-white/10 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs"
+                className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs bg-transparent"
                 disabled={isLoading || !email || cooldown > 0}
               >
                 {cooldown > 0 ? t("resendOtp", { seconds: cooldown }) : t("getOtp")}
@@ -227,7 +219,7 @@ export const LoginForm = () => {
                 variant="ghost"
                 glow={false}
                 type="submit" 
-                className="w-full h-12 text-white border-white/15 hover:bg-white/10 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs"
+                className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs bg-transparent"
                 isLoading={isLoading}
               >
                 {t("loginWithPassword")}
@@ -238,9 +230,9 @@ export const LoginForm = () => {
 
         <div className="relative flex items-center justify-center py-2">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/5"></div>
+            <div className="w-full border-t border-white/10"></div>
           </div>
-          <span className="relative px-4 text-[10px] text-white/20 font-mono uppercase tracking-widest">
+          <span className="relative px-4 text-[10px] text-white/40 font-mono uppercase tracking-widest backdrop-blur-md rounded-full">
             {t("or")}
           </span>
         </div>
@@ -250,7 +242,7 @@ export const LoginForm = () => {
             variant="ghost" 
             glow={false}
             type="button"
-            className="w-full h-12 space-x-3 text-xs uppercase tracking-widest text-white border-white/15 hover:bg-white/10 focus:ring-2 focus:ring-gx-cyan/50"
+            className="w-full h-12 space-x-3 text-xs uppercase tracking-widest text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 bg-transparent"
             onClick={handleGuestLogin}
             disabled={isLoading}
           >
@@ -258,7 +250,7 @@ export const LoginForm = () => {
             <span>{t("guest")}</span>
           </Button>
         </div>
-      </GlassCard>
+      </div>
 
       {/* Security Info */}
       <motion.p 

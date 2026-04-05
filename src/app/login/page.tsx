@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import { LoginForm } from "@/features/auth/components/LoginForm";
-import { GlassCard } from "@/components/shared/GlassCard";
 import { Fingerprint } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -37,9 +36,9 @@ export default function LoginPage() {
         </div>
       </div>
       
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 mt-8">
-        <GlassCard className="py-8 px-4 shadow-2xl sm:rounded-3xl sm:px-10 border border-white/5 bg-black/40 backdrop-blur-2xl">
-          <div className="flex flex-col items-center mb-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 mt-16">
+        <div className="py-8 px-4 sm:px-10">
+          <div className="flex flex-col items-center mb-12">
             <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative group">
               <div className="absolute inset-0 rounded-full border border-gx-cyan/30 scale-110 opacity-0 group-hover:opacity-100 group-hover:scale-150 transition-all duration-700" />
               <Fingerprint className="w-8 h-8 text-gx-cyan opacity-80" />
@@ -56,7 +55,7 @@ export default function LoginPage() {
             <LoginForm />
           </Suspense>
           
-        </GlassCard>
+        </div>
       </div>
 
       {/* 底部 Footer */}
