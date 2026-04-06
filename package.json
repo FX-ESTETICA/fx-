@@ -11,6 +11,12 @@
     "i18n:sync": "node scripts/i18n-pipeline.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "@capacitor/status-bar": "^8.0.2",
     "@formatjs/intl-localematcher": "^0.8.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",

@@ -6,6 +6,7 @@ import { AuthProvider } from "@/features/auth/hooks/useAuth";
 import { ShopProvider } from "@/features/shop/ShopContext";
 import { AppShell } from "@/components/shared/AppShell";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
+import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
@@ -84,6 +85,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
+        <NativeBridgeProvider />
         <NextIntlClientProvider messages={messages}>
           <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">
             <NebulaBackground />

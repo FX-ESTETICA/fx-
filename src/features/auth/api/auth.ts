@@ -1,4 +1,6 @@
-import { supabase, isMockMode } from "@/lib/supabase";
+import { supabase, isMockMode } from '@/lib/supabase';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Session } from "@supabase/supabase-js";
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "499755740@qq.com";
@@ -54,13 +56,39 @@ export const AuthService = {
   },
 
   /**
-   * Google OAuth 登录
+   * Google OAuth 登录 (双轨制：Native App 与 Web 浏览器自动适配)
    */
   async signInWithGoogle(next?: string) {
     if (isMockMode) {
       console.log("[GX-SANDBOX] Mocking signInWithGoogle...");
       return { data: { url: "#" } };
     }
+
+    // --- 轨道一：原生 App 登录 (避免外部浏览器回调死锁) ---
+    if (Capacitor.isNativePlatform()) {
+      try {
+        console.log("[Native Auth] Initiating native Google Sign-In...");
+        // 唤起原生底层谷歌账户选择面板
+        const googleUser = await GoogleAuth.signIn();
+        
+        // 拿到原生令牌后，直接与 Supabase 后端交换 Session，完全不离开 App
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: googleUser.authentication.idToken,
+        });
+        
+        if (error) throw error;
+        
+        // 原生模式下不需要回调重定向，直接手动触发跳转
+        window.location.href = next || "/home";
+        return data;
+      } catch (error) {
+        console.error("[Native Auth] Google Sign-In failed:", error);
+        throw error;
+      }
+    }
+
+    // --- 轨道二：普通 Web 浏览器登录 (保留原本重定向逻辑) ---
     const nextParam = next || (() => {
       try {
         const url = new URL(window.location.href);
