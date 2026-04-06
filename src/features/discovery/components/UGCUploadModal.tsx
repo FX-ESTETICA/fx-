@@ -4,7 +4,6 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Image as ImageIcon, RefreshCw, ChevronLeft, Send } from "lucide-react";
 import * as tus from "tus-js-client";
-import { cn } from "@/utils/cn";
 import { Button } from "@/components/shared/Button";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
