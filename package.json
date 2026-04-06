@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
-    "i18n:sync": "node scripts/i18n-pipeline.mjs"
+    "i18n:sync": "node scripts/i18n-pipeline.mjs",
+    "preinstall": "npm config set legacy-peer-deps true"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
