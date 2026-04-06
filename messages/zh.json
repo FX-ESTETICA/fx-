@@ -6,7 +6,7 @@
   "Auth": {
     "title": "GX 身份验证",
     "subtitle": "银河体验接入系统",
-    "emailLabel": "安全标识 (邮箱)",
+    "emailLabel": "邮箱",
     "passwordLabel": "访问密钥 (密码)",
     "otpLabel": "验证码",
     "submit": "建立连接",

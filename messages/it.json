@@ -6,7 +6,7 @@
   "Auth": {
     "title": "Autenticazione GX",
     "subtitle": "Sistema di Accesso Galaxy",
-    "emailLabel": "Identità di Sicurezza (Email)",
+    "emailLabel": "Email",
     "passwordLabel": "Chiave di Accesso (Password)",
     "otpLabel": "Codice di Verifica",
     "submit": "Stabilisci Connessione",
