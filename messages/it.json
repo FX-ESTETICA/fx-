@@ -486,9 +486,10 @@
     "txt_8f4166": "Aggiorna & Riconnetti",
     "txt_533aa5": "GX Seleziona (Commercianti Onboarding) Cambio Vista Riservato",
     "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
-    "txt_3d1c77": "Collegamento Satellitare Negato",
-    "txt_1e5d7a": "Coordinate",
-    "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare"
+    "txt_0b8755": "ACCESSO NEGATO",
+    "txt_a92d4f": "CONNESSIONE SATELLITARE RIFIUTATA",
+    "txt_6f7f8f": "Posizione",
+    "txt_15c54d": "TOCCA 🔒 NELLA BARRA DEGLI INDIRIZZI"
   },
   "login": {
     "txt_b05e70": "Concierge Privato"
