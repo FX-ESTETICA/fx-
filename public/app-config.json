@@ -1,0 +1,8 @@
+{
+  "android": {
+    "min_version": "1.0.0",
+    "latest_version": "1.0.0",
+    "download_url": "https://fx-rapallo.vercel.app/gx-core.apk",
+    "release_notes": "系统底层引擎已进行世界级架构升级（v1.0.0）：\n1. 完美透明沉浸式状态栏与全息UI\n2. 原生级物理返回键平滑接管\n3. GPS 底层精准定位与硬件相机接入\n\n为了保证您的极客体验，请立即下载并覆盖安装最新版本。"
+  }
+}
