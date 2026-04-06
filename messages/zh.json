@@ -51,7 +51,12 @@
     "search": "搜索",
     "searchPlaceholder": "搜索店铺或分类",
     "empty": "未发现符合协议的节点",
-    "uploadRealPhoto": "上传真实照片"
+    "uploadRealPhoto": "上传真实照片",
+    "txt_0b8755": "拒绝访问",
+    "txt_a92d4f": "卫星连接遭拒",
+    "txt_6f7f8f": "位置",
+    "txt_15c54d": "点击地址栏 🔒 图标解锁",
+    "txt_refresh": "刷新重连"
   },
   "notfound": {
     "txt_bfb989": "Connection Lost // 页面不存在"
@@ -487,10 +492,9 @@
     "txt_8f4166": "刷新重连 (REFRESH)",
     "txt_533aa5": "GX 精选 (入驻商家) 视图切换预留",
     "txt_24482a": "UGC 照片上传功能即将开放",
-    "txt_0b8755": "ACCESS DENIED",
-    "txt_a92d4f": "卫星连接遭拒",
-    "txt_6f7f8f": "位置 (Location)",
-    "txt_15c54d": "点击地址栏 🔒 图标解锁"
+    "txt_3d1c77": "卫星连接遭拒",
+    "txt_1e5d7a": "位置 (Location)",
+    "txt_bf2093": "点击地址栏 🔒 图标解锁"
   },
   "login": {
     "txt_b05e70": "私人管家"

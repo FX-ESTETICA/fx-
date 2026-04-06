@@ -18,9 +18,6 @@ interface UGCUploadModalProps {
 export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalProps) => {
     const t = useTranslations('UGCUploadModal');
   const [step, setStep] = useState<"camera" | "review">("camera");
-  const [mode, setMode] = useState<"photo" | "video">("photo");
-  const [isRecording, setIsRecording] = useState(false);
-  
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -29,48 +26,12 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Initialize camera
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" }, 
-        audio: true 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.warn("Camera access denied or unavailable", err);
-      // fallback to just letting user pick from gallery
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && step === "camera") {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [isOpen, step]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Handle Modal Close
   const handleClose = () => {
-    stopCamera();
     setStep("camera");
     setFile(null);
     setPreviewUrl(null);
@@ -81,7 +42,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
     onClose();
   };
 
-  // Gallery Selection
+  // Generic File Selection Handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -106,69 +67,6 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
     setPreviewUrl(URL.createObjectURL(selectedFile));
     setStep("review");
     setError("");
-  };
-
-  // Capture Photo
-  const takePhoto = () => {
-    if (!videoRef.current) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth || 1080;
-    canvas.height = videoRef.current.videoHeight || 1920;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    
-    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const f = new File([blob], "capture.jpg", { type: "image/jpeg" });
-      setFile(f);
-      setPreviewUrl(URL.createObjectURL(f));
-      setStep("review");
-    }, "image/jpeg", 0.9);
-  };
-
-  // Record Video
-  const startRecording = () => {
-    if (!streamRef.current) return;
-    recordedChunksRef.current = [];
-    const mediaRecorder = new MediaRecorder(streamRef.current);
-    mediaRecorderRef.current = mediaRecorder;
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        recordedChunksRef.current.push(e.data);
-      }
-    };
-
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(recordedChunksRef.current, { type: "video/mp4" });
-      const f = new File([blob], "record.mp4", { type: "video/mp4" });
-      setFile(f);
-      setPreviewUrl(URL.createObjectURL(f));
-      setStep("review");
-      setIsRecording(false);
-    };
-
-    mediaRecorder.start();
-    setIsRecording(true);
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-    }
-  };
-
-  const handleShutterClick = () => {
-    if (mode === "photo") {
-      takePhoto();
-    } else {
-      if (isRecording) {
-        stopRecording();
-      } else {
-        startRecording();
-      }
-    }
   };
 
   // Original Upload Logic
@@ -266,92 +164,77 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
           transition={{ type: "spring", damping: 25, stiffness: 200 }}
           className="fixed inset-0 z-[100] bg-black flex flex-col"
         >
-          {/* Step 1: Camera Pod */}
+          {/* Step 1: Selection Pod (Native Camera Access) */}
           {step === "camera" && (
-            <div className="relative w-full h-full flex flex-col bg-black">
-              {/* Camera Feed */}
-              <video 
-                ref={videoRef}
-                autoPlay 
-                playsInline 
-                muted 
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              
-              {/* Overlay Gradients */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
-
-              {/* Top Bar */}
-              <div className="relative z-10 flex justify-between items-center p-6 pt-12">
-                <button onClick={handleClose} className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white/80 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-                <div className="flex gap-4">
-                  <button className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white/80 hover:text-white transition-colors">
-                    <RefreshCw className="w-5 h-5" />
-                  </button>
-                </div>
+            <div className="relative w-full h-full flex flex-col items-center justify-center bg-black gap-12 p-8">
+              <div className="text-center space-y-4">
+                <h2 className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                  {t('txt_fb8804')} / {t('txt_4b9210')}
+                </h2>
+                <p className="text-sm text-white/40 font-mono">HIGH_RES_CAPTURE_MODE</p>
               </div>
 
-              {/* Bottom Controls */}
-              <div className="absolute bottom-0 left-0 right-0 pb-12 pt-20 px-8 flex flex-col items-center gap-8 z-10">
-                
-                {/* Mode Switcher */}
-                <div className="flex items-center gap-8 text-[12px] font-mono tracking-widest uppercase bg-black/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/10">
-                  <button 
-                    onClick={() => setMode("photo")}
-                    className={cn("transition-colors", mode === "photo" ? "text-gx-cyan font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" : "text-white/50")}
-                  >
-                    {t('txt_fb8804')}</button>
-                  <button 
-                    onClick={() => setMode("video")}
-                    className={cn("transition-colors", mode === "video" ? "text-gx-cyan font-bold drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" : "text-white/50")}
-                  >
-                    {t('txt_4b9210')}</button>
-                </div>
+              <div className="grid grid-cols-2 gap-6 w-full max-w-sm">
+                {/* 隐藏的原生输入框 */}
+                <input
+                  type="file"
+                  ref={photoInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  ref={videoInputRef}
+                  onChange={handleFileChange}
+                  accept="video/*"
+                  capture="environment"
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  ref={galleryInputRef}
+                  onChange={handleFileChange}
+                  accept="video/mp4,video/quicktime,video/x-m4v,image/jpeg,image/png,image/webp"
+                  className="hidden"
+                />
 
-                {/* Action Row */}
-                <div className="flex items-center justify-between w-full max-w-sm">
-                  {/* Left Spacer */}
-                  <div className="w-12 h-12" />
-
-                  {/* Center: Shutter */}
-                  <button 
-                    onClick={handleShutterClick}
-                    className="relative w-20 h-20 flex items-center justify-center rounded-full border-4 border-white/30 hover:border-white/60 transition-all group"
-                  >
-                    <div className={cn(
-                      "w-16 h-16 bg-white rounded-full transition-all duration-300 group-hover:scale-95",
-                      isRecording && "bg-red-500 scale-50 rounded-lg"
-                    )} />
-                    {/* Recording Ring Indicator */}
-                    {isRecording && (
-                      <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
-                        <circle cx="36" cy="36" r="34" fill="none" stroke="#ef4444" strokeWidth="4" strokeDasharray="213" strokeDashoffset="0" className="animate-[spin_15s_linear_forwards]" />
-                      </svg>
-                    )}
-                  </button>
-
-                  {/* Right: Gallery Portal */}
-                  <div className="flex flex-col items-center gap-2">
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center overflow-hidden hover:border-gx-cyan/50 transition-colors"
-                    >
-                      <ImageIcon className="w-5 h-5 text-white/80" />
-                    </button>
+                <button 
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-4 aspect-square rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-gx-cyan/50 transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ImageIcon className="w-8 h-8 text-white/80 group-hover:text-gx-cyan" />
                   </div>
-                  
-                  {/* Hidden File Input */}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="video/mp4,video/quicktime,video/x-m4v,image/jpeg,image/png,image/webp"
-                    className="hidden"
-                  />
-                </div>
+                  <span className="text-xs font-bold tracking-widest text-white/60 group-hover:text-white uppercase">{t('txt_fb8804')}</span>
+                </button>
+
+                <button 
+                  onClick={() => videoInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-4 aspect-square rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-red-500/50 transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-6 h-6 rounded-full border-2 border-white/80 group-hover:border-red-500 group-hover:bg-red-500/20" />
+                  </div>
+                  <span className="text-xs font-bold tracking-widest text-white/60 group-hover:text-white uppercase">{t('txt_4b9210')}</span>
+                </button>
               </div>
+
+              <button 
+                onClick={() => galleryInputRef.current?.click()}
+                className="mt-8 px-8 py-3 rounded-full bg-white/5 text-white/60 hover:text-white hover:bg-white/10 text-xs font-bold tracking-widest uppercase transition-all"
+              >
+                从相册选择 / Gallery
+              </button>
+
+              {/* Close Button */}
+              <button 
+                onClick={handleClose} 
+                className="absolute top-12 right-8 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md text-white/80 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           )}
 

@@ -39,6 +39,7 @@ export async function GET(req: Request) {
     const category = searchParams.get("category") || "all";
     const subCategory = searchParams.get("subCategory") || "all";
     const sortBy = searchParams.get("sortBy") || "POPULARITY";
+    const searchQuery = searchParams.get("q") || "";
 
     const lat = latParam ? parseFloat(latParam) : undefined;
     const lng = lngParam ? parseFloat(lngParam) : undefined;
@@ -71,35 +72,35 @@ export async function GET(req: Request) {
     let textQuery = "";
 
     // 构建核心意图词
-    if (subCategory !== "all") {
-      textQuery = `Best ${subCategory}`;
+    if (searchQuery) {
+      textQuery = searchQuery;
+    } else if (subCategory !== "all") {
+      textQuery = subCategory;
     } else {
-      // 映射大类意图 - 放开 includedType 限制，完全拥抱语义搜索以避免误杀
+      // 映射大类意图 - 恢复极简、中性、高召回率的语义词
       const categoryMap: Record<string, { query: string }> = {
-        dining: { query: "Top rated restaurants, cafes, bakeries, and fine dining" },
-        beauty: { query: "Top rated beauty salons, spas, hair care, and nail salons" },
-        hotel: { query: "Best luxury hotels, resorts, and high-quality lodging" },
-        nightlife: { query: "Top rated nightclubs and nightlife venues" },
-        bar: { query: "Top rated bars, bistros, pubs, and cocktail lounges" },
-        fitness: { query: "Best gyms, fitness centers, and yoga studios" },
-        all: { query: "Top rated popular places and experiences" }
+        dining: { query: "restaurants, cafes, food, bakeries, dining" },
+        beauty: { query: "beauty salons, spas, hair care, nail salons, barbershop" },
+        hotel: { query: "hotels, motels, resorts, lodging" },
+        nightlife: { query: "nightclubs, nightlife, late night" },
+        bar: { query: "bars, pubs, cocktail lounges, bistros" },
+        fitness: { query: "gyms, fitness centers, yoga, pilates" },
+        all: { query: "popular places, point of interest, things to do" }
       };
       
       const mapped = categoryMap[category] || categoryMap.all;
       textQuery = mapped.query;
-      // 移除 includedType 的刚性绑定，让 Google NLP 自己去理解并召回所有相关品类
     }
 
     // 组装 Payload
-    // 回退到 locationBias 以兼容 searchText 引擎，避免 400 报错
     requestBody = {
       textQuery: textQuery,
       maxResultCount: 20,
-      minRating: 4.0, // 黄金漏斗：斩杀线，只返回 4.0 分以上的优质店铺
+      // 移除 minRating: 4.0 斩杀线，全量召回
       locationBias: {
         circle: {
           center: { latitude: lat, longitude: lng },
-          radius: 3000 // 双轨制策略：扩大物理捞取圈至 3000 米，保证优质基数池
+          radius: 5000 // 扩大物理捞取圈至 5000 米
         }
       }
     };
@@ -161,57 +162,26 @@ export async function GET(req: Request) {
       return R * c;
     };
 
-    // 为每个 place 计算真理法庭 GX_Score 并执行内存级物理截断
-    const GLOBAL_AVERAGE_RATING = 4.3;
-    const CONFIDENCE_PRIOR = 50; // 信任基数：50 个评论
-    
-    // 1. 先计算距离并执行物理截断 (过滤掉 > 5000 米的放飞自我数据)
+    // 仅补充前端需要的 distanceKm 字段，移除本地强制截断
     const processedPlaces = places.map((p) => {
       const distanceKm = (p.lat !== undefined && p.lng !== undefined) ? getDistanceKm(lat, lng, p.lat, p.lng) : 999;
       return { ...p, distanceKm };
-    }).filter((p) => p.distanceKm <= 5.0); // 绝对物理栅栏：放宽至 5km 以解决 POPULARITY 模式下高分商户数量不足的问题
-
-    // 2. 对留下来的“本地真实数据”进行真理法庭算分
-    const placesWithScore = processedPlaces.map((p) => {
-      const R = p.rating;
-      const v = p.user_ratings_total;
-      
-      // 贝叶斯平滑评分
-      const bayesianRating = (v * R + CONFIDENCE_PRIOR * GLOBAL_AVERAGE_RATING) / (v + CONFIDENCE_PRIOR);
-      
-      // 口碑基数对数收益
-      const popularityBonus = v > 0 ? Math.log10(v) * 0.2 : 0;
-      
-      // 距离惩罚：双轨制分段惩罚
-      const distanceKm = p.distanceKm;
-      let distancePenalty = 0;
-      if (distanceKm > 2.0) {
-        distancePenalty = 0.5 + (distanceKm - 2.0) * 1.0; 
-      } else if (distanceKm > 1.0) {
-        distancePenalty = (distanceKm - 1.0) * 0.5;
-      } else {
-        distancePenalty = 0;
-      }
-      
-      const gxScore = bayesianRating + popularityBonus - distancePenalty;
-      
-      return { ...p, gxScore };
     });
 
-    // 排序路由拦截
-    if (sortBy === "RATING") {
-      placesWithScore.sort((a, b) => b.gxScore - a.gxScore);
-    } else if (sortBy === "DISTANCE") {
-      placesWithScore.sort((a, b) => a.distanceKm - b.distanceKm);
-    } else {
-      placesWithScore.sort((a, b) => b.gxScore - a.gxScore);
+    // 废弃魔改的 gxScore 算法，尊重 Google NLP 原生的相关性或距离排序
+    // API 请求时已经通过 rankPreference 参数（DISTANCE 或 RELEVANCE）告诉了 Google
+    // 这里只需根据前端的请求做一个兜底的简单排序保证
+    if (sortBy === "DISTANCE") {
+      processedPlaces.sort((a, b) => a.distanceKm - b.distanceKm);
+    } else if (sortBy === "RATING") {
+      processedPlaces.sort((a, b) => b.rating - a.rating);
     }
 
     // 启用 Vercel Edge Cache 的 stale-while-revalidate 机制
     // s-maxage=3600 (CDN节点缓存1小时)
     // stale-while-revalidate=86400 (在24小时内，优先返回旧缓存并后台静默刷新)
     return NextResponse.json(
-      { places: placesWithScore },
+      { places: processedPlaces },
       {
         headers: {
           "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",

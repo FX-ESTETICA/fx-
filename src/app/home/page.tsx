@@ -149,6 +149,8 @@ export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeSubCategory, setActiveSubCategory] = useState("all");
   const [sortBy] = useState<"POPULARITY" | "DISTANCE" | "RATING">("POPULARITY");
+  const [inputValue, setInputValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   
   // 冷启动聚合模式状态
   const [isAggregating, setIsAggregating] = useState(false);
@@ -265,10 +267,11 @@ export default function HomePage() {
       lng: userLocation.lng.toString(),
       category: activeCategory,
       subCategory: activeSubCategory,
-      sortBy: sortBy
+      sortBy: sortBy,
+      ...(searchQuery ? { q: searchQuery } : {})
     });
     return `/api/places?${params.toString()}`;
-  }, [userLocation, activeTab, activeCategory, activeSubCategory, sortBy]);
+  }, [userLocation, activeTab, activeCategory, activeSubCategory, sortBy, searchQuery]);
 
   // 3. SWR 核心接管：并发请求与 Edge Cache 支持
   const { data: placesData, error: placesError, isLoading: isPlacesLoading } = useSWR(
@@ -411,13 +414,23 @@ export default function HomePage() {
                 <Search className="w-4 h-4 text-white/30 group-focus-within:text-gx-cyan transition-colors" />
                 <input 
                   type="text" 
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setSearchQuery(inputValue);
+                    }
+                  }}
                   placeholder={t("searchPlaceholder")} 
                   className="flex-1 bg-transparent h-full pl-3 pr-4 text-sm font-light focus:outline-none text-white placeholder:text-white/30"
                 />
               </div>
               
               {/* 右侧渐变赛博指令字 */}
-              <button className="h-full px-4 flex items-center justify-center transition-all active:scale-95">
+              <button 
+                onClick={() => setSearchQuery(inputValue)}
+                className="h-full px-4 flex items-center justify-center transition-all active:scale-95"
+              >
                 <span className="text-sm font-bold bg-gradient-to-r from-gx-cyan to-blue-400 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(0,240,255,0.4)] group-focus-within:drop-shadow-[0_0_12px_rgba(0,240,255,0.8)]">
                   {t("search")}
                 </span>
@@ -526,6 +539,8 @@ export default function HomePage() {
                     setActiveCategory(cat.id);
                     // 彻底干掉二级分类，选中一级分类后直接触发该大类的综合搜索
                     setActiveSubCategory("all");
+                    setSearchQuery("");
+                    setInputValue("");
                   }}
                   onMouseEnter={() => {
                     // 预加载幽灵机制 (Hover Prefetching)
@@ -535,7 +550,8 @@ export default function HomePage() {
                       lng: userLocation.lng.toString(),
                       category: cat.id,
                       subCategory: "all",
-                      sortBy: sortBy
+                      sortBy: sortBy,
+                      ...(searchQuery ? { q: searchQuery } : {})
                     });
                     preload(`/api/places?${params.toString()}`, fetcher);
                   }}
@@ -864,17 +880,14 @@ export default function HomePage() {
                 <X className="w-5 h-5" />
               </button>
 
-              <h2 className="text-xl font-black text-white tracking-widest mt-4 mb-2 uppercase">
-                {t('txt_0b8755') || 'ACCESS DENIED'}
-              </h2>
-              <p className="text-xs font-mono text-white/40 tracking-widest mb-10 uppercase">
+              <h2 className="text-xl font-black text-white tracking-widest mt-4 mb-8 uppercase">
                 {t('txt_a92d4f') || '卫星连接遭拒'}
-              </p>
+              </h2>
 
               {/* 全息浏览器地址栏骨架模拟 (Holographic Browser UI) */}
-              <div className="relative w-full max-w-[280px] mb-12">
+              <div className="w-full max-w-[280px] mb-8 flex flex-col gap-2 relative z-10">
                 {/* 伪地址栏 */}
-                <div className="relative flex items-center justify-center h-12 w-full bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <div className="relative flex items-center justify-center h-12 w-full bg-white/5 border border-white/10 rounded-xl overflow-hidden shrink-0">
                   
                   {/* 左侧固定区：锁图标与点击波纹 */}
                   <div className="absolute left-4 flex items-center justify-center w-6 h-6">
@@ -898,16 +911,16 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                {/* 下拉权限菜单模拟 */}
+                {/* 下拉权限菜单模拟 - 回归文档流物理占位 */}
                 <motion.div 
-                  className="absolute top-[56px] left-2 w-48 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-2xl p-3 flex flex-col gap-3 text-left origin-top-left"
+                  className="w-full max-w-[192px] ml-2 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-2xl p-3 flex flex-col gap-3 text-left origin-top-left shrink-0 relative z-20"
                   animate={{ opacity: [0, 1, 1, 0], scale: [0.95, 1, 1, 0.95] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-white/80 flex items-center gap-2">
                       <MapPin className="w-3 h-3" />
-                      {t('txt_6f7f8f') || '位置 (Location)'}
+                      {t('txt_6f7f8f')}
                     </span>
                     {/* 模拟开关 Toggle 被打开 */}
                     <div className="w-7 h-4 rounded-full bg-gx-cyan/20 p-0.5 flex items-center justify-end border border-gx-cyan/50">
@@ -918,7 +931,7 @@ export default function HomePage() {
               </div>
 
               <p className="text-xs text-white/60 font-mono tracking-widest mb-6">
-                {t('txt_15c54d') || '点击地址栏 🔒 图标解锁'}
+                {t('txt_15c54d')}
               </p>
 
               <button 
@@ -928,7 +941,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative z-10 flex items-center justify-center gap-2 text-red-500 font-bold tracking-widest">
                   <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span>刷新重连 (REFRESH)</span>
+                  <span>{t('txt_refresh')}</span>
                 </div>
               </button>
             </motion.div>

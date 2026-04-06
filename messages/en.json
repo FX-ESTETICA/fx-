@@ -51,7 +51,12 @@
     "search": "Search",
     "searchPlaceholder": "Search places...",
     "empty": "No nodes found",
-    "uploadRealPhoto": "Upload Real Photo"
+    "uploadRealPhoto": "Upload Real Photo",
+    "txt_0b8755": "ACCESS DENIED",
+    "txt_a92d4f": "Satellite Connection Denied",
+    "txt_6f7f8f": "Location",
+    "txt_15c54d": "Click the 🔒 icon in the address bar to unlock",
+    "txt_refresh": "Refresh"
   },
   "notfound": {
     "txt_bfb989": "[EN] Connection Lost // 页面不存在"
@@ -486,10 +491,9 @@
     "txt_8f4166": "Refresh & Reconnect",
     "txt_533aa5": "GX Select (Onboarding Merchants) View Switch Reserved",
     "txt_24482a": "UGC Photo Upload Feature Coming Soon",
-    "txt_0b8755": "ACCESS DENIED",
-    "txt_a92d4f": "SATELLITE LINK DENIED",
-    "txt_6f7f8f": "Location",
-    "txt_15c54d": "TAP ADDRESS BAR 🔒 TO UNLOCK"
+    "txt_3d1c77": "Satellite Link Denied",
+    "txt_1e5d7a": "Coordinates",
+    "txt_bf2093": "Tap Address Bar 🔒 to Unlock"
   },
   "login": {
     "txt_b05e70": "Private Concierge"
