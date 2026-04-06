@@ -165,6 +165,8 @@ export default function HomePage() {
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   
+  const [showAppBanner, setShowAppBanner] = useState(true);
+  
   // 冷启动聚合模式状态
   const [isAggregating, setIsAggregating] = useState(false);
   const [aggregatedPlaces, setAggregatedPlaces] = useState<AggregatedPlace[]>([]);
@@ -869,17 +871,45 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Sticky VIP Bar - 悬浮喜报舱 */}
-      <div className="fixed bottom-[80px] left-0 right-0 z-40 flex justify-center pointer-events-none px-4">
-        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-yellow-500/20 px-6 py-2 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.8)] pointer-events-auto">
-          <Sparkles className="w-3 h-3 text-yellow-500 animate-pulse" />
-          <div className="text-[10px] font-mono tracking-widest text-white/80 whitespace-nowrap overflow-hidden max-w-[250px] md:max-w-[400px]">
-            <div className="animate-[marquee_10s_linear_infinite] inline-block">
-              恭喜 [ 午夜霓虹赛博酒馆 ] 成功入驻 GX PRO 矩阵 // 恭喜 [ Lumina 医美中心 ] 开启全息预约通道 //
+      {/* Sticky App Open Banner - 全息下载唤醒舱 (盲开模式) */}
+      {!Capacitor.isNativePlatform() && showAppBanner && (
+        <div className="fixed bottom-[80px] left-0 right-0 z-40 flex justify-center px-4">
+          <div className="relative flex items-center justify-between w-full max-w-sm bg-black/60 backdrop-blur-xl border border-gx-cyan/30 pl-5 pr-2 py-2.5 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.8)] overflow-hidden group">
+            {/* 流光背景特效 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gx-cyan/10 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
+            
+            {/* 左侧和中间部分：点击唤醒 */}
+            <div 
+              className="flex items-center gap-3 flex-1 cursor-pointer z-10"
+              onClick={() => {
+                // 盲开逻辑
+                window.location.href = "intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;end";
+                setTimeout(() => {
+                  if (document.hasFocus()) {
+                    window.location.href = "https://fx-rapallo.vercel.app/gx-core.apk";
+                  }
+                }, 2000);
+              }}
+            >
+              <Sparkles className="w-4 h-4 text-gx-cyan animate-pulse" />
+              <span className="text-[11px] font-mono tracking-widest text-white/90">
+                ✨ 体验完整全息视效，在 APP 中打开
+              </span>
             </div>
+
+            {/* 右侧关闭按钮 */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAppBanner(false);
+              }}
+              className="ml-3 p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors z-10"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 定位恢复：全息锁孔引导舱 (Holographic Unlock Matrix) */}
       <AnimatePresence>

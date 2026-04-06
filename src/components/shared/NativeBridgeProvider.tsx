@@ -10,6 +10,7 @@ import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 export function NativeBridgeProvider() {
   const router = useRouter();
   const [updateInfo, setUpdateInfo] = useState<{ needsUpdate: boolean; url: string; notes: string } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
@@ -123,10 +124,31 @@ export function NativeBridgeProvider() {
           </div>
           
           <button
-            onClick={() => { window.location.href = updateInfo.url; }}
-            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+            onClick={() => {
+              if (isDownloading) return;
+              setIsDownloading(true);
+              setTimeout(() => {
+                // 触发系统级下载，交由外部浏览器或系统下载器接管
+                window.open(updateInfo.url, '_system');
+                // 10秒后重置状态，允许用户重试
+                setTimeout(() => setIsDownloading(false), 10000);
+              }, 1500);
+            }}
+            disabled={isDownloading}
+            className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
+              isDownloading 
+                ? "bg-zinc-800 text-zinc-400 cursor-not-allowed border border-zinc-700" 
+                : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98]"
+            }`}
           >
-            立即更新体验
+            {isDownloading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></span>
+                正在接驳系统下载舱...
+              </span>
+            ) : (
+              "立即下载体验"
+            )}
           </button>
         </div>
       </div>
