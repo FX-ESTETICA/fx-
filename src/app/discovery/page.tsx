@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { motion } from "framer-motion";
 import { 
@@ -134,24 +135,55 @@ export default function DiscoveryPage() {
     const t = useTranslations('discovery');
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [posts, setPosts] = useState<DiscoveryPost[]>(MOCK_POSTS);
+  const [posts, setPosts] = useState<DiscoveryPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 核心拉取逻辑
+  const fetchPosts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('ugc_posts')
+        .select(`
+          *,
+          author:profiles(name, avatar_url)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      // 映射为前端所需的数据结构
+      const formattedPosts: DiscoveryPost[] = (data || []).map((p: any) => ({
+        id: p.id,
+        type: p.media_type,
+        title: p.title || "分享内容",
+        author: p.author?.name || "匿名行者",
+        avatar: p.author?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=user",
+        cover: p.media_type === "image" ? p.media_url : `${STREAM_BASE}/${p.video_id}/thumbnail.jpg`,
+        videoId: p.video_id,
+        likes: (p.likes_count || 0).toString(),
+        comments: (p.comments_count || 0).toString(),
+        tags: p.tags || [],
+        merchantId: p.merchant_id || ""
+      }));
+
+      setPosts(formattedPosts);
+    } catch (err) {
+      console.error("Failed to fetch discovery posts:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // 页面加载时自动拉取
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const handleUploadSuccess = (type: "video" | "image", url: string, videoId?: string) => {
-    // 这是一个临时的前端插入逻辑，未来应改为写入数据库并重新 fetch
-    const newPost = {
-      id: `p-${Date.now()}`,
-      type,
-      title: "刚刚发布的新内容",
-      author: "@Me",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=me",
-      cover: type === "image" ? url : `${STREAM_BASE}/${videoId}/thumbnail.jpg`,
-      videoId: videoId,
-      likes: "0",
-      comments: "0",
-      tags: ["#New"],
-      merchantId: "m1"
-    };
-    setPosts([newPost, ...posts]);
+    // 成功后重新拉取数据库最新内容，替代过去的伪造内存数据
+    fetchPosts();
   };
 
   return (

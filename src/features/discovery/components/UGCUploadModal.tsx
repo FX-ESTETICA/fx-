@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Image as ImageIcon, RefreshCw, ChevronLeft, Send } from "lucide-react";
 import * as tus from "tus-js-client";
@@ -15,7 +17,8 @@ interface UGCUploadModalProps {
 }
 
 export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalProps) => {
-    const t = useTranslations('UGCUploadModal');
+  const t = useTranslations('UGCUploadModal');
+  const { user } = useAuth();
   const [step, setStep] = useState<"camera" | "review">("camera");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -101,6 +104,16 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
+    // 真正入库逻辑：向 Supabase 写入动态记录
+    if (user?.id) {
+      await supabase.from("ugc_posts").insert({
+        author_id: user.id,
+        media_type: "image",
+        media_url: data.url,
+        title: title || "分享了一张照片",
+      });
+    }
+
     setUploading(false);
     onSuccess?.("image", data.url);
     handleClose();
@@ -138,7 +151,17 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
         const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
         setProgress(Number(percentage));
       },
-      onSuccess: () => {
+      onSuccess: async () => {
+        // 真正入库逻辑：向 Supabase 写入动态记录
+        if (user?.id) {
+          await supabase.from("ugc_posts").insert({
+            author_id: user.id,
+            media_type: "video",
+            media_url: "", // 视频暂无直接 url，使用 video_id 拼接
+            video_id: tokenData.videoId,
+            title: title || "分享了一段视频",
+          });
+        }
         setUploading(false);
         onSuccess?.("video", "", tokenData.videoId);
         handleClose();
