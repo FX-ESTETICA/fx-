@@ -129,8 +129,6 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
   );
 };
 
-const MOCK_POSTS: DiscoveryPost[] = [];
-
 export default function DiscoveryPage() {
     const t = useTranslations('discovery');
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
