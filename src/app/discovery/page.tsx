@@ -134,11 +134,9 @@ export default function DiscoveryPage() {
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [posts, setPosts] = useState<DiscoveryPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   // 核心拉取逻辑
   const fetchPosts = useCallback(async () => {
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('ugc_posts')
@@ -169,8 +167,6 @@ export default function DiscoveryPage() {
       setPosts(formattedPosts);
     } catch (err) {
       console.error("Failed to fetch discovery posts:", err);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
