@@ -251,16 +251,6 @@ export const LoginForm = () => {
           </Button>
         </div>
       </div>
-
-      {/* Security Info */}
-      <motion.p 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="mt-6 text-center text-[9px] font-mono text-white/20 uppercase tracking-[0.3em]"
-      >
-        {t("security")}
-      </motion.p>
     </motion.div>
   );
 };
