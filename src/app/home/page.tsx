@@ -146,6 +146,17 @@ const fetcher = async (url: string) => {
 export default function HomePage() {
   const t = useTranslations("Home");
   const { openGoogleMaps, showMapModal, handleMapModalChoice } = useMapRouter();
+
+  const handleOpenMaps = (placeName: string) => {
+    if (Capacitor.isNativePlatform()) {
+      // 在原生 App 中，使用底层 geo 协议瞬间拉起地图 App，避免跳应用商店
+      const encodedQuery = encodeURIComponent(placeName);
+      window.location.href = `geo:0,0?q=${encodedQuery}`;
+    } else {
+      // 网页端，保持原有的 openGoogleMaps 或直接打开网页版 Google Maps
+      openGoogleMaps(placeName);
+    }
+  };
   
   const [activeTab, setActiveTab] = useState<"merchant" | "service">("merchant");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -660,7 +671,7 @@ export default function HomePage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: (idx % 5) * 0.05 }}
-                      onClick={() => openGoogleMaps(place.name)}
+                      onClick={() => handleOpenMaps(place.name)}
                       className="cursor-pointer"
                     >
                     <GlassCard 

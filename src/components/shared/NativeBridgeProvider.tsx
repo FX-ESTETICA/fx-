@@ -72,11 +72,13 @@ export function NativeBridgeProvider() {
       initNative();
 
       // C. 接管安卓物理返回键（防止闪退，实现平滑回退）
-      CapacitorApp.addListener("backButton", ({ canGoBack }) => {
-        if (canGoBack) {
-          router.back();
-        } else {
+      CapacitorApp.addListener("backButton", () => {
+        const path = window.location.pathname;
+        // 如果在首页或登录页，则退出应用；否则返回上一页（相当于浏览器后退）
+        if (path === '/home' || path === '/' || path === '/login') {
           CapacitorApp.exitApp();
+        } else {
+          router.back();
         }
       });
 

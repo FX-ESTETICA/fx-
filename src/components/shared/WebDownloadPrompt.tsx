@@ -13,10 +13,11 @@ export function WebDownloadPrompt() {
       const isAndroid = /android/i.test(navigator.userAgent);
       const isMobile = /mobile/i.test(navigator.userAgent);
       
-      // 可以使用 localStorage 控制用户关闭后几天内不再显示，这里为了方便测试先每次都展示
-      const hasDismissed = sessionStorage.getItem("gx_web_prompt_dismissed");
+      // 检查 localStorage
+      const dismissedUntil = localStorage.getItem("gx_web_prompt_dismissed_until");
+      const now = Date.now();
       
-      if (isAndroid && isMobile && !hasDismissed) {
+      if (isAndroid && isMobile && (!dismissedUntil || now > parseInt(dismissedUntil, 10))) {
         // 延迟一点显示，让页面先渲染完
         const timer = setTimeout(() => {
           setShowPrompt(true);
@@ -27,7 +28,9 @@ export function WebDownloadPrompt() {
   }, []);
 
   const handleDismiss = () => {
-    sessionStorage.setItem("gx_web_prompt_dismissed", "true");
+    // 关闭后 30 天内不再打扰 (30天 * 24小时 * 60分 * 60秒 * 1000毫秒)
+    const thirtyDaysLater = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem("gx_web_prompt_dismissed_until", thirtyDaysLater.toString());
     setShowPrompt(false);
   };
 
