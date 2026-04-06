@@ -872,25 +872,30 @@ export default function HomePage() {
               </p>
 
               {/* 全息浏览器地址栏骨架模拟 (Holographic Browser UI) */}
-              <div className="relative w-full max-w-[260px] mb-12">
+              <div className="relative w-full max-w-[280px] mb-12">
                 {/* 伪地址栏 */}
-                <div className="relative flex items-center h-12 w-full bg-white/5 border border-white/10 rounded-xl px-4 overflow-hidden">
-                  <div className="flex items-center justify-center relative">
-                    <Lock className="w-4 h-4 text-gx-cyan" />
-                    {/* 锁图标的呼吸光晕 */}
-                    <div className="absolute inset-0 bg-gx-cyan/30 blur-md rounded-full animate-pulse" />
+                <div className="relative flex items-center justify-center h-12 w-full bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                  
+                  {/* 左侧固定区：锁图标与点击波纹 */}
+                  <div className="absolute left-4 flex items-center justify-center w-6 h-6">
+                    <div className="relative flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-gx-cyan relative z-10" />
+                      {/* 锁图标的呼吸光晕 */}
+                      <div className="absolute inset-0 bg-gx-cyan/30 blur-md rounded-full animate-pulse" />
+                      
+                      {/* 点击波纹光圈 (以锁为绝对圆心扩散) */}
+                      <motion.div 
+                        className="absolute inset-0 rounded-full border border-white/40 bg-white/10"
+                        animate={{ scale: [0.5, 2, 2], opacity: [0, 1, 0] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", times: [0, 0.2, 0.5] }}
+                      />
+                    </div>
                   </div>
-                  <span className="ml-3 text-xs font-mono text-white/30 tracking-wider">
+
+                  {/* 绝对居中区：域名文本 */}
+                  <span className="text-xs font-mono text-white/30 tracking-wider">
                     fx-rapallo.vercel.app
                   </span>
-                  
-                  {/* 点击波纹光圈 (模拟手势点击锁图标) */}
-                  <motion.div 
-                    className="absolute left-[22px] w-6 h-6 rounded-full border border-white/40 bg-white/10"
-                    style={{ x: "-50%", y: "-50%", top: "50%" }}
-                    animate={{ scale: [0.5, 1.5, 1.5], opacity: [0, 1, 0] }}
-                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", times: [0, 0.2, 0.5] }}
-                  />
                 </div>
 
                 {/* 下拉权限菜单模拟 */}
