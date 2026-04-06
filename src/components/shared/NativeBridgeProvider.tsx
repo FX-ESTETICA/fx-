@@ -6,11 +6,15 @@ import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import { useRouter } from "next/navigation";
 import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { FileTransfer } from "@capacitor/file-transfer";
+import { FileOpener } from "@capacitor-community/file-opener";
 
 export function NativeBridgeProvider() {
   const router = useRouter();
   const [updateInfo, setUpdateInfo] = useState<{ needsUpdate: boolean; url: string; notes: string } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
@@ -124,31 +128,71 @@ export function NativeBridgeProvider() {
           </div>
           
           <button
-            onClick={() => {
+            onClick={async () => {
               if (isDownloading) return;
-              setIsDownloading(true);
-              setTimeout(() => {
-                // 触发系统级下载，交由外部浏览器或系统下载器接管
+              try {
+                setIsDownloading(true);
+                setDownloadProgress(0);
+
+                // 1. 注册进度监听
+                const progressListener = await FileTransfer.addListener('progress', (progress: any) => {
+                  if (progress.lengthComputable && progress.type === 'download') {
+                    setDownloadProgress(Math.round((progress.bytes / progress.contentLength) * 100));
+                  }
+                });
+
+                // 2. 获取沙盒内的下载绝对路径
+                const { uri } = await Filesystem.getUri({ directory: Directory.Data, path: "update.apk" });
+
+                // 3. 开启二进制流真实下载
+                const downloadResult = await FileTransfer.downloadFile({
+                  url: updateInfo.url,
+                  path: uri,
+                  progress: true
+                });
+
+                progressListener.remove();
+
+                // 4. 原生唤醒系统安装器 (APK)
+                await FileOpener.open({
+                  filePath: downloadResult.path,
+                  contentType: 'application/vnd.android.package-archive',
+                  openWithDefault: true
+                });
+
+              } catch (e) {
+                console.error("[Native] Download failed:", e);
+                // 失败回退到系统浏览器
                 window.open(updateInfo.url, '_system');
-                // 10秒后重置状态，允许用户重试
-                setTimeout(() => setIsDownloading(false), 10000);
-              }, 1500);
+              } finally {
+                setIsDownloading(false);
+              }
             }}
             disabled={isDownloading}
-            className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
+            className={`relative w-full py-4 rounded-xl font-bold text-white transition-all overflow-hidden ${
               isDownloading 
-                ? "bg-zinc-800 text-zinc-400 cursor-not-allowed border border-zinc-700" 
+                ? "bg-zinc-800 border border-zinc-700" 
                 : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98]"
             }`}
           >
-            {isDownloading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></span>
-                正在接驳系统下载舱...
-              </span>
-            ) : (
-              "立即下载体验"
+            {/* 真实物理进度条 UI */}
+            {isDownloading && (
+              <div 
+                className="absolute left-0 top-0 bottom-0 bg-cyan-600/50 transition-all duration-300"
+                style={{ width: `${downloadProgress}%` }}
+              />
             )}
+            
+            <div className="relative z-10 flex items-center justify-center gap-2">
+              {isDownloading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></span>
+                  正在下载更新... {downloadProgress}%
+                </>
+              ) : (
+                "立即下载体验"
+              )}
+            </div>
           </button>
         </div>
       </div>
