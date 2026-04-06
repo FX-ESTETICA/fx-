@@ -175,7 +175,7 @@ export default function DiscoveryPage() {
     fetchPosts();
   }, [fetchPosts]);
 
-  const handleUploadSuccess = (type: "video" | "image", url: string, videoId?: string) => {
+  const handleUploadSuccess = () => {
     // 成功后重新拉取数据库最新内容，替代过去的伪造内存数据
     fetchPosts();
   };
