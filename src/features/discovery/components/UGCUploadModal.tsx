@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Image as ImageIcon, RefreshCw, ChevronLeft, Send } from "lucide-react";
 import * as tus from "tus-js-client";
