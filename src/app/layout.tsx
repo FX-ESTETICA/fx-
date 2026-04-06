@@ -86,6 +86,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
+        {/* Native environment bridge */}
         <NativeBridgeProvider />
         <NextIntlClientProvider messages={messages}>
           <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">
