@@ -52,7 +52,7 @@ export function NativeBridgeProvider() {
       // --- B. 初始化谷歌登录原生插件 ---
       try {
         GoogleAuth.initialize({
-          clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
+          clientId: "1082757635267-2f3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p.apps.googleusercontent.com",
           scopes: ["profile", "email"],
           grantOfflineAccess: true,
         });
