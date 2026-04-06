@@ -864,37 +864,56 @@ export default function HomePage() {
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="relative mb-8">
-                {/* 赛博全息锁孔 */}
-                <div className="w-24 h-24 rounded-full border-2 border-red-500/20 flex items-center justify-center relative">
-                  <div className="absolute inset-0 rounded-full border-t-2 border-red-500 animate-[spin_3s_linear_infinite]" />
-                  <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center backdrop-blur-sm border border-red-500/30">
-                    <Lock className="w-8 h-8 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+              <h2 className="text-xl font-black text-white tracking-widest mt-4 mb-2 uppercase">
+                {t('txt_0b8755') || 'ACCESS DENIED'}
+              </h2>
+              <p className="text-xs font-mono text-white/40 tracking-widest mb-10 uppercase">
+                {t('txt_a92d4f') || '卫星连接遭拒'}
+              </p>
+
+              {/* 全息浏览器地址栏骨架模拟 (Holographic Browser UI) */}
+              <div className="relative w-full max-w-[260px] mb-12">
+                {/* 伪地址栏 */}
+                <div className="relative flex items-center h-12 w-full bg-white/5 border border-white/10 rounded-xl px-4 overflow-hidden">
+                  <div className="flex items-center justify-center relative">
+                    <Lock className="w-4 h-4 text-gx-cyan" />
+                    {/* 锁图标的呼吸光晕 */}
+                    <div className="absolute inset-0 bg-gx-cyan/30 blur-md rounded-full animate-pulse" />
                   </div>
+                  <span className="ml-3 text-xs font-mono text-white/30 tracking-wider">
+                    fx-rapallo.vercel.app
+                  </span>
+                  
+                  {/* 点击波纹光圈 (模拟手势点击锁图标) */}
+                  <motion.div 
+                    className="absolute left-[22px] w-6 h-6 rounded-full border border-white/40 bg-white/10"
+                    style={{ x: "-50%", y: "-50%", top: "50%" }}
+                    animate={{ scale: [0.5, 1.5, 1.5], opacity: [0, 1, 0] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", times: [0, 0.2, 0.5] }}
+                  />
                 </div>
-                {/* 模拟浏览器地址栏点击的引导动画 (纯 CSS 组装) */}
+
+                {/* 下拉权限菜单模拟 */}
                 <motion.div 
-                  className="absolute -top-4 -right-8 w-6 h-6 rounded-full bg-white/20 border border-white/50 backdrop-blur-sm flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.5)] pointer-events-none"
-                  animate={{ 
-                    x: [-40, 0, 0, -40], 
-                    y: [40, 0, 0, 40],
-                    scale: [1, 1, 0.8, 1] 
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity,
-                    ease: "easeInOut" 
-                  }}
+                  className="absolute top-[56px] left-2 w-48 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-2xl p-3 flex flex-col gap-3 text-left origin-top-left"
+                  animate={{ opacity: [0, 1, 1, 0], scale: [0.95, 1, 1, 0.95] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
                 >
-                  <div className="w-1 h-1 bg-white rounded-full" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-white/80 flex items-center gap-2">
+                      <MapPin className="w-3 h-3" />
+                      {t('txt_6f7f8f') || '位置 (Location)'}
+                    </span>
+                    {/* 模拟开关 Toggle 被打开 */}
+                    <div className="w-7 h-4 rounded-full bg-gx-cyan/20 p-0.5 flex items-center justify-end border border-gx-cyan/50">
+                      <div className="w-3 h-3 rounded-full bg-gx-cyan shadow-[0_0_5px_#00f2ff]" />
+                    </div>
+                  </div>
                 </motion.div>
               </div>
 
-              <h2 className="text-xl font-black text-white tracking-widest mb-2">节点链路已锁死</h2>
-              <p className="text-sm text-white/60 leading-relaxed mb-8">
-                您的设备拒绝了卫星连接。<br/>
-                请点击浏览器顶部的 <strong className="text-white">🔒 锁图标</strong>，<br/>
-                手动开启位置权限以完成物理解锁。
+              <p className="text-xs text-white/60 font-mono tracking-widest mb-6">
+                {t('txt_15c54d') || '点击地址栏 🔒 图标解锁'}
               </p>
 
               <button 

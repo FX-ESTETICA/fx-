@@ -485,7 +485,10 @@
     "txt_c61e9f": "Manually enable location permissions to complete physical unlocking.",
     "txt_8f4166": "Refresh & Reconnect",
     "txt_533aa5": "GX Select (Onboarding Merchants) View Switch Reserved",
-    "txt_24482a": "UGC Photo Upload Feature Coming Soon"
+    "txt_24482a": "UGC Photo Upload Feature Coming Soon",
+    "txt_3d1c77": "Satellite Link Denied",
+    "txt_1e5d7a": "Coordinates",
+    "txt_bf2093": "Tap Address Bar 🔒 to Unlock"
   },
   "login": {
     "txt_b05e70": "Private Concierge"
