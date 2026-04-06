@@ -28,6 +28,8 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useMapRouter } from "@/hooks/useMapRouter";
 import { MapRouterModal } from "@/components/shared/MapRouterModal";
+import { Capacitor } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
 
 type PlaceCategory = "dining" | "beauty" | "hotel" | "nightlife" | "fitness" | "all";
 
@@ -226,37 +228,52 @@ export default function HomePage() {
 
   // 1. 获取真实位置 (仅在初次加载时执行一次)
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          
-          // 获取城市名称 (免费且无需 Key 的逆地理编码)
-          try {
-            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`, {
-                headers: { 'Accept-Language': 'zh-CN,en-US;q=0.9' }
-            });
-            const geoData = await geoRes.json();
-            const city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || "未知位置";
-            setLocationName(city);
-          } catch {
-            setLocationName("当前位置");
+    const fetchLocation = async () => {
+      try {
+        let lat, lng;
+
+        if (Capacitor.isNativePlatform()) {
+          // 原生环境：先检查/请求权限，再获取定位
+          const permission = await Geolocation.checkPermissions();
+          if (permission.location !== 'granted') {
+            const req = await Geolocation.requestPermissions();
+            if (req.location !== 'granted') throw new Error("Permission denied");
           }
-        },
-        (error) => {
-          console.warn("Geolocation failed or denied:", error.message);
-          setIsLocationDenied(true);
-          setLocationName("定位失败");
-          setUserLocation({ lat: 45.4642, lng: 9.1900 }); // Milan fallback
-        },
-        { timeout: 5000, enableHighAccuracy: false } // 快速获取粗略位置即可
-      );
-    } else {
-      setIsLocationDenied(true);
-      setLocationName("定位失败");
-      setUserLocation({ lat: 45.4642, lng: 9.1900 });
-    }
+          const position = await Geolocation.getCurrentPosition({ timeout: 5000, enableHighAccuracy: false });
+          lat = position.coords.latitude;
+          lng = position.coords.longitude;
+        } else {
+          // Web 环境：使用 HTML5 API
+          if (!navigator.geolocation) throw new Error("No geolocation support");
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: false });
+          });
+          lat = position.coords.latitude;
+          lng = position.coords.longitude;
+        }
+
+        setUserLocation({ lat, lng });
+
+        // 获取城市名称
+        try {
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`, {
+              headers: { 'Accept-Language': 'zh-CN,en-US;q=0.9' }
+          });
+          const geoData = await geoRes.json();
+          const city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || "未知位置";
+          setLocationName(city);
+        } catch {
+          setLocationName("当前位置");
+        }
+      } catch (error: any) {
+        console.warn("Geolocation failed or denied:", error.message);
+        setIsLocationDenied(true);
+        setLocationName("定位失败");
+        setUserLocation({ lat: 45.4642, lng: 9.1900 }); // Milan fallback
+      }
+    };
+
+    fetchLocation();
   }, []);
 
   // 2. 构建 SWR 查询 Key (当参数变化时自动重新发起请求)

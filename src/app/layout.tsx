@@ -7,6 +7,7 @@ import { ShopProvider } from "@/features/shop/ShopContext";
 import { AppShell } from "@/components/shared/AppShell";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
+import { WebDownloadPrompt } from "@/components/shared/WebDownloadPrompt";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
@@ -97,6 +98,7 @@ export default async function RootLayout({
               </AppShell>
             </ShopProvider>
           </AuthProvider>
+          <WebDownloadPrompt />
         </NextIntlClientProvider>
         <Script
           id="sw-register"
