@@ -6,9 +6,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'GX Core',
     description: 'GX - Galaxy Experience Access System',
     start_url: '/',
-    display: 'standalone',
+    display: 'browser',
     background_color: '#000000',
-    theme_color: '#00F2FF',
+    theme_color: '#000000',
     icons: [
       {
         src: '/icon-192.png',
