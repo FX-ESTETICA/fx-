@@ -54,10 +54,16 @@ export function NativeBridgeProvider() {
       };
       checkUpdate();
 
-      // --- B. 初始化谷歌登录原生插件 ---
+      // --- B. 初始化谷歌登录原生插件 (双轨制自适应) ---
       try {
+        // 核心突破：必须让 Android App 掏出 Android 身份证，Web 掏出 Web 身份证
+        // 否则底层 Google Play Service 会因为身份不符直接抛出 ApiException: 10 (Something went wrong)
+        const isAndroid = Capacitor.getPlatform() === 'android';
+        
         GoogleAuth.initialize({
-          clientId: "1082757635267-2f3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p.apps.googleusercontent.com",
+          clientId: isAndroid 
+            ? "1082757635267-iakugid03n6rf740fa945e8cdtkr0rqo.apps.googleusercontent.com" // Android Client ID (必须与打包证书 SHA-1 绑定)
+            : "1082757635267-2f3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p.apps.googleusercontent.com", // Web Client ID
           scopes: ["profile", "email"],
           grantOfflineAccess: true,
         });

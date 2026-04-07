@@ -242,47 +242,89 @@ export default function HomePage() {
   // 1. 获取真实位置 (仅在初次加载时执行一次)
   useEffect(() => {
     const fetchLocation = async () => {
+      // 穹顶第一层：光速读取缓存，0毫秒点亮UI
+      const cachedLoc = localStorage.getItem('gx_last_location');
+      const cachedCity = localStorage.getItem('gx_last_city');
+      if (cachedLoc) setUserLocation(JSON.parse(cachedLoc));
+      if (cachedCity) setLocationName(cachedCity);
+
       try {
-        let lat, lng;
+        // 穹顶第二层：网络基站 (IP定位兜底)，200毫秒
+        const networkPromise = fetch('https://ipapi.co/json/').then(r => r.json());
 
-        if (Capacitor.isNativePlatform()) {
-          // 原生环境：先检查/请求权限，再获取定位
-          const permission = await Geolocation.checkPermissions();
-          if (permission.location !== 'granted') {
-            const req = await Geolocation.requestPermissions();
-            if (req.location !== 'granted') throw new Error("Permission denied");
+        // 穹顶第三层：硬件卫星 (高精度 15秒)
+        const hardwarePromise = new Promise<{lat: number, lng: number}>(async (resolve, reject) => {
+          try {
+            let lat, lng;
+            if (Capacitor.isNativePlatform()) {
+              const permission = await Geolocation.checkPermissions();
+              if (permission.location !== 'granted') {
+                const req = await Geolocation.requestPermissions();
+                if (req.location !== 'granted') throw new Error("Permission denied");
+              }
+              const position = await Geolocation.getCurrentPosition({ timeout: 15000, enableHighAccuracy: true });
+              lat = position.coords.latitude;
+              lng = position.coords.longitude;
+            } else {
+              if (!navigator.geolocation) throw new Error("No geolocation support");
+              const position = await new Promise<GeolocationPosition>((res, rej) => {
+                navigator.geolocation.getCurrentPosition(res, rej, { timeout: 15000, enableHighAccuracy: true });
+              });
+              lat = position.coords.latitude;
+              lng = position.coords.longitude;
+            }
+            resolve({lat, lng});
+          } catch (err) {
+            reject(err);
           }
-          const position = await Geolocation.getCurrentPosition({ timeout: 5000, enableHighAccuracy: false });
-          lat = position.coords.latitude;
-          lng = position.coords.longitude;
-        } else {
-          // Web 环境：使用 HTML5 API
-          if (!navigator.geolocation) throw new Error("No geolocation support");
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: false });
-          });
-          lat = position.coords.latitude;
-          lng = position.coords.longitude;
+        });
+
+        // 竞速法则：谁快先用谁 (大概率 IP 定位 0.2秒抢跑)
+        const fastestData: any = await Promise.race([
+          hardwarePromise.catch(() => null), // 防止硬件错误导致 Promise 失败退出
+          networkPromise.catch(() => null)
+        ]);
+
+        if (fastestData) {
+          const lat = fastestData.latitude || fastestData.lat;
+          const lng = fastestData.longitude || fastestData.lng;
+          if (lat && lng) {
+            setUserLocation({ lat, lng });
+          }
+          if (fastestData.city) {
+            setLocationName(fastestData.city);
+            localStorage.setItem('gx_last_city', fastestData.city);
+          }
         }
 
-        setUserLocation({ lat, lng });
+        // 无论谁赢，静默等待卫星高精度定位完成，用米级坐标无缝覆盖粗略坐标
+        const preciseLoc = await hardwarePromise;
+        if (preciseLoc) {
+          setUserLocation({ lat: preciseLoc.lat, lng: preciseLoc.lng });
+          localStorage.setItem('gx_last_location', JSON.stringify({ lat: preciseLoc.lat, lng: preciseLoc.lng }));
 
-        // 获取城市名称
-        try {
-          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`, {
-              headers: { 'Accept-Language': 'zh-CN,en-US;q=0.9' }
-          });
-          const geoData = await geoRes.json();
-          const city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || "未知位置";
-          setLocationName(city);
-        } catch {
-          setLocationName("当前位置");
+          // 获取高精度城市名称
+          try {
+            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${preciseLoc.lat}&lon=${preciseLoc.lng}&zoom=10&addressdetails=1`, {
+                headers: { 'Accept-Language': 'zh-CN,en-US;q=0.9' }
+            });
+            const geoData = await geoRes.json();
+            const city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || "未知位置";
+            setLocationName(city);
+            localStorage.setItem('gx_last_city', city);
+          } catch {
+            // 静默失败，保持现有城市显示
+          }
         }
+
       } catch (error: any) {
-        console.warn("Geolocation failed or denied:", error.message);
-        setIsLocationDenied(true);
-        setLocationName("定位失败");
-        setUserLocation({ lat: 45.4642, lng: 9.1900 }); // Milan fallback
+        console.warn("Triple-Tier Geolocation Error:", error.message);
+        // 只有在没缓存、没网、没卫星的死地，才走降级
+        if (!localStorage.getItem('gx_last_location')) {
+          setIsLocationDenied(true);
+          setLocationName("定位失败");
+          setUserLocation({ lat: 45.4642, lng: 9.1900 }); // Milan fallback
+        }
       }
     };
 
