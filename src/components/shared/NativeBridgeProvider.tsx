@@ -57,10 +57,7 @@ export function NativeBridgeProvider() {
       // --- B. 初始化谷歌登录原生插件 (一键回退到纯净 Web ID) ---
       try {
         GoogleAuth.initialize({
-          // 绝对不能在这里放 Android Client ID！
-          // 这里的 clientId 是 serverClientId (也就是我们要把 token 交给谁验证)
-          // 无论是 Web 还是 App，后端都是同一个 Supabase (对应 Web ID)
-          clientId: "1082757635267-2f3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p.apps.googleusercontent.com",
+          clientId: "759484201665-h43394q58q16bv83veij84mmbbautl0g.apps.googleusercontent.com",
           scopes: ["profile", "email"],
           grantOfflineAccess: true,
         });
