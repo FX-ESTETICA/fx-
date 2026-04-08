@@ -16,7 +16,6 @@ import { BookingService } from "@/features/booking/api/booking";
 import { useRouter } from "next/navigation";
 import { useBackground } from "@/hooks/useBackground";
 import { PhoneAuthBar } from "@/features/profile/components/PhoneAuthBar";
-import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 import { useTranslations } from "next-intl";
 
 export default function DashboardPage() {
@@ -66,12 +65,28 @@ export default function DashboardPage() {
   const sUser = user as SandboxUser;
   
   // 决定可用角色切换
-  const availableRoles: UserRole[] = [];
+  const availableRoles: UserRole[] = ['user'];
   if (sUser?.role === 'boss') {
-    availableRoles.push('user', 'merchant', 'boss');
+    availableRoles.push('merchant', 'boss');
   } else if (sUser?.role === 'merchant') {
-    availableRoles.push('user', 'merchant');
+    availableRoles.push('merchant');
   }
+
+  // 角色展示配置
+  const getRoleDisplay = (role: string) => {
+    switch (role) {
+      case 'boss': return { label: 'BOSS', styleClass: 'text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-gx-gold drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]' };
+      case 'merchant': return { label: '智控', styleClass: 'text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan to-green-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]' };
+      case 'user':
+      default: return { label: '生活', styleClass: 'text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' };
+    }
+  };
+
+  const handleRoleCycle = () => {
+    const currentIndex = availableRoles.indexOf(activeRole as UserRole);
+    const nextRole = availableRoles[(currentIndex + 1) % availableRoles.length];
+    setActiveRole(nextRole);
+  };
 
   // (为了测试新 ID 渲染，临时注入 mock ID)
   const getMockIdForRole = (role: UserRole) => {
@@ -89,6 +104,8 @@ export default function DashboardPage() {
     role: activeRole as UserRole,
     avatar: sUser?.avatar || undefined, // 修复：确保直接读取全局 user.avatar
     createdAt: sUser?.created_at || "2024-01-01T00:00:00Z",
+    gender: sUser?.gender || undefined,
+    birthday: sUser?.birthday || undefined,
     privileges: boundShopId || sUser?.role === 'boss' ? ["calendar_access"] : [], 
     stats: []
   };
@@ -96,34 +113,17 @@ export default function DashboardPage() {
 
   // 决定可用角色切换
   return (
-    <main className="min-h-screen bg-transparent text-white px-6 py-6 md:px-12 md:pt-8 md:pb-12 relative overflow-hidden">
+    <main className="min-h-screen bg-transparent text-white relative overflow-hidden">
       
       {/* 背景光效 */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto relative z-10">
-        {/* 动态角色切换器 & 联邦星云切换舱 */}
-        <nav className="flex items-center justify-end mb-6">
-          <div className="flex items-center gap-3">
-            {/* 注入 Nexus Switcher */}
-            <NexusSwitcher />
-            
-            {availableRoles.length > 0 && (
-              <div className="hidden md:flex bg-white/5 p-1 rounded-lg border border-white/5">
-                {availableRoles.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setActiveRole(r)}
-                    className={`px-3 py-1 text-[10px] font-mono uppercase rounded-md transition-all ${
-                      activeRole === r ? "bg-white/10 text-white" : "text-white/20 hover:text-white/40"
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            )}
+      <div className="max-w-6xl mx-auto relative z-10 px-6 pb-6 md:px-12 md:pb-12 pt-0">
+        {/* 动态角色切换器 (单点循环模式) */}
+        <nav className="absolute top-6 right-6 md:top-8 md:right-12 z-50 pointer-events-none">
+          <div className="flex items-center gap-3 pointer-events-auto">
+            {/* 角色切换已下放至 ProfileHeader 内部的暗门交互中 */}
           </div>
         </nav>
 
@@ -131,7 +131,7 @@ export default function DashboardPage() {
         <ProfileHeader profile={currentProfile} />
 
         {/* Dashboard Content */}
-        <div className="mt-8">
+        <div>
           <AnimatePresence mode="wait">
             <motion.div
             key={activeRole}
@@ -143,10 +143,10 @@ export default function DashboardPage() {
             {activeRole === "user" && <UserDashboard profile={currentProfile} boundShopId={boundShopId} industry={shopIndustry} />}
             {activeRole === "merchant" && <MerchantDashboard merchantId={currentProfile.id} shopId={sUser?.shopId} industry={shopIndustry} onIndustrySet={setShopIndustry} />}
             {activeRole === "boss" && (
-              <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {/* Admin专属驾驶舱入口 */}
-                 <Link href="/spatial" prefetch={false}>
-                  <GlassCard glowColor="purple" className="p-8 group cursor-pointer relative overflow-hidden transition-all duration-500 hover:scale-[1.01]">
+                 <Link href="/spatial" prefetch={false} className="md:col-span-2 lg:col-span-3">
+                  <GlassCard glowColor="purple" className="p-8 group cursor-pointer relative overflow-hidden transition-all duration-500 hover:scale-[1.01] h-full">
                     <div className="flex items-center gap-6">
                       <div className="w-16 h-16 rounded-2xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple">
                         <LayoutDashboard className="w-8 h-8" />
@@ -159,7 +159,9 @@ export default function DashboardPage() {
                   </GlassCard>
                 </Link>
 
-                <PhoneAuthBar className="w-full" />
+                <div className="md:col-span-2 lg:col-span-3">
+                  <PhoneAuthBar className="w-full" />
+                </div>
 
                 <GlassCard className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -213,7 +215,7 @@ export default function DashboardPage() {
                   </div>
                 </GlassCard>
 
-                <div className="flex items-center justify-end gap-3 pt-2">
+                <div className="md:col-span-2 lg:col-span-3 flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-white/5 mt-4">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -221,21 +223,8 @@ export default function DashboardPage() {
                     onClick={cycleBackground}
                   >
                     <ImageIcon className="w-3 h-3" />
-                    {t('txt_09b3cd')}</Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] uppercase tracking-widest"
-                    onClick={() => setActiveRole("merchant")}
-                  >
-                    {t('txt_23013e')}</Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] uppercase tracking-widest"
-                    onClick={() => setActiveRole("user")}
-                  >
-                    {t('txt_dbe983')}</Button>
+                    {t('txt_09b3cd')}
+                  </Button>
                   <Button
                     variant="danger"
                     size="sm"
@@ -245,22 +234,14 @@ export default function DashboardPage() {
                       router.replace("/login");
                     }}
                   >
-                    {t('txt_732906')}</Button>
+                    {t('txt_732906')}
+                  </Button>
                 </div>
               </div>
             )}
           </motion.div>
         </AnimatePresence>
         </div>
-
-        {/* System Version Footer */}
-        <footer className="mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
-          <span>GX_CORE_DASHBOARD // 2026</span>
-          <div className="flex gap-4">
-            <span>Secured Identity</span>
-            <span>Encrypted Data</span>
-          </div>
-        </footer>
       </div>
     </main>
   );
