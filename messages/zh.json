@@ -64,11 +64,11 @@
   "app": {},
   "analytics": {
     "txt_268892": "AI_ANALYTICS_V2 // 复盘系统",
-    "txt_8b6bfc": "智能商业复盘 / AI Analytics",
+    "txt_8b6bfc": "智能商业复盘",
     "txt_aec6ef": "深度集成抖音、携程、58同城与小红书多平台数据，通过 AI 自动化分析提供全域经营决策支持。",
-    "txt_5ad1a2": "刷新 / Refresh",
-    "txt_10bfac": "导出报告 / Export",
-    "txt_7468bb": "返回仪表盘 / Dashboard"
+    "txt_5ad1a2": "刷新",
+    "txt_10bfac": "导出报告",
+    "txt_7468bb": "返回仪表盘"
   },
   "calendar": {},
   "dashboard": {
@@ -87,7 +87,10 @@
   "discovery": {
     "txt_4d2d97": "最热",
     "txt_8818d4": "最新",
-    "txt_6688f2": "附近"
+    "txt_6688f2": "附近",
+    "txt_5cd3c9": "去这家店",
+    "txt_4c0a3a": "关注",
+    "txt_342d42": "获取空间坐标"
   },
   "me": {
     "txt_146ea7": "登录 / 注册 成为尊贵会员",
@@ -105,14 +108,14 @@
     "txt_4db67e": "筹备中"
   },
   "onboarding": {
-    "txt_7513ca": "返回 / BACK",
+    "txt_7513ca": "返回",
     "txt_5eb15b": "Node_Application // 节点申请",
     "txt_ed5102": "加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。\n              利用赛博时代的流量杠杆，触达极致清醒的消费群体。",
-    "txt_f9c0f6": "立即入驻 / JOIN NOW"
+    "txt_f9c0f6": "立即入驻"
   },
   "spatial": {
-    "txt_dbd94b": "空间驾驶舱 / SPATIAL COCKPIT",
-    "txt_a70c9c": "进入协议 / Enter"
+    "txt_dbd94b": "空间驾驶舱",
+    "txt_a70c9c": "进入协议"
   },
   "AppShell": {
     "txt_07b181": "我的"
@@ -138,7 +141,8 @@
   "NexusSwitcher": {
     "txt_e628fe": "联邦矩阵节点 / Nexus Nodes",
     "txt_184813": "联邦星云 / Nexus",
-    "txt_4a4b78": "未知节点"
+    "txt_4a4b78": "未知节点",
+    "txt_ca9469": "联邦星云"
   },
   "ShopContext": {},
   "client": {
@@ -175,15 +179,15 @@
     "txt_2a2772": "待确认"
   },
   "BookingForm": {
-    "txt_432960": "确认预约信息 / Booking Details",
+    "txt_432960": "确认预约信息",
     "txt_1658db": "请核对您的预约服务及个人信息，确保准确无误。",
     "txt_97ad14": "预约服务",
     "txt_652e09": "预约时间",
-    "txt_a140c4": "姓名 / Name",
-    "txt_d73ae8": "电话 / Phone",
-    "txt_982cf5": "备注 / Notes",
-    "txt_6ae048": "取消 / Cancel",
-    "txt_a58aae": "下一步 / Next",
+    "txt_a140c4": "姓名",
+    "txt_d73ae8": "电话",
+    "txt_982cf5": "备注",
+    "txt_6ae048": "取消",
+    "txt_a58aae": "下一步",
     "txt_0ec7d3": "请输入您的真实姓名",
     "txt_135237": "如有特殊需求请在此输入...",
     "txt_8093e3": "请输入姓名",
@@ -192,8 +196,8 @@
   "BookingSuccess": {
     "txt_b179be": "预约成功 / Confirmed!",
     "txt_1e93c8": "您的预约已成功提交并获系统确认。",
-    "txt_a60715": "完成并返回 / Done",
-    "txt_33638a": "查看我的预约 / View All"
+    "txt_a60715": "完成并返回",
+    "txt_33638a": "查看我的预约"
   },
   "DualPaneBookingModal": {
     "txt_ef3505": "服务内容",
@@ -205,9 +209,9 @@
     "txt_93efd5": "洗剪吹",
     "txt_e49d53": "爽约",
     "txt_d4f32e": "占位",
-    "txt_6700c4": "No History / 新客建档",
-    "txt_81c4b2": "爽约 / NO SHOW",
-    "txt_8fc52a": "取消 / CANCEL",
+    "txt_6700c4": "新客建档",
+    "txt_81c4b2": "爽约",
+    "txt_8fc52a": "取消",
     "txt_d0dea7": "点击重新分配员工",
     "txt_9be070": "输入主电话...",
     "txt_f3a023": "输入电话...",
@@ -218,23 +222,23 @@
     "txt_774267": "银行卡",
     "txt_246874": "会员卡扣款",
     "txt_371c35": "赛博浪客 (备注: 王总)",
-    "txt_025971": "已匹配 C 端 / Linked",
+    "txt_025971": "已匹配 C 端",
     "txt_7c0795": "LV.4 先驱",
     "txt_a5c2b3": "无电话记录",
-    "txt_13e10b": "更新预约 / UPDATE",
-    "txt_1f4816": "确认预约 / CONFIRM"
+    "txt_13e10b": "更新预约",
+    "txt_1f4816": "确认预约"
   },
   "IndustryCalendar": {
     "txt_5aec8c": "隶属总部: SYSTEM_CORE",
     "txt_c145c6": "总部: SYSTEM_CORE",
     "txt_b08822": "指挥官: STORE_OWNER",
     "txt_62a8cf": "休假",
-    "txt_8b62d9": "筛选人员 / Filter",
+    "txt_8b62d9": "筛选人员",
     "txt_0aece4": "即将推出",
     "txt_5bcc6c": "返回个人主页",
     "txt_84e0cd": "点击切换左侧边栏",
-    "txt_6508a1": "回收站 (Void Archive)",
-    "txt_677a64": "全局运营配置 (Nebula Config Hub)",
+    "txt_6508a1": "回收站",
+    "txt_677a64": "全局运营配置",
     "txt_3353f0": "今日预约",
     "txt_047109": "待处理"
   },
@@ -242,17 +246,17 @@
     "txt_406bc4": "全局运营配置",
     "txt_625fb2": "取消",
     "txt_13fe40": "保存全局配置并重载引擎",
-    "txt_acbc2d": "背景层级控制 (Background Layers)",
-    "txt_ea97c1": "3D 星云动效 (Nebula Particles)",
+    "txt_acbc2d": "背景层级控制",
+    "txt_ea97c1": "3D 星云动效",
     "txt_203d7a": "底层全息星空渲染，关闭可提升性能",
-    "txt_162afa": "静态壁纸层 (Static Wallpaper)",
+    "txt_162afa": "静态壁纸层",
     "txt_5e50ed": "显示您自定义或同步的背景图片",
-    "txt_5f9d47": "矩阵背板控制 (Matrix Shield)",
-    "txt_f21741": "启用毛玻璃背板 (Enable Glass Shield)",
+    "txt_5f9d47": "矩阵背板控制",
+    "txt_f21741": "启用毛玻璃背板",
     "txt_eeb6ca": "在日历与背景之间添加视觉隔离层",
-    "txt_d1483c": "黑色遮罩浓度 (Opacity)",
-    "txt_1d0c44": "毛玻璃模糊度 (Blur)",
-    "txt_aaa577": "全息主题色映射 (Hologram Theme)",
+    "txt_d1483c": "黑色遮罩浓度",
+    "txt_1d0c44": "毛玻璃模糊度",
+    "txt_aaa577": "全息主题色映射",
     "txt_c94255": "顶部日期标题色",
     "txt_f4fb3b": "员工表头字体色",
     "txt_893c8f": "时间轴字体色",
@@ -264,14 +268,14 @@
     "txt_583e79": "离职",
     "txt_224e2c": "配置",
     "txt_adcd1d": "返回列表",
-    "txt_a140c4": "姓名 / Name",
-    "txt_60f114": "职位头衔 / Title",
-    "txt_d9f234": "专属颜色标识 / Theme Color",
-    "txt_70240b": "当前状态 / Status",
-    "txt_dab60d": "系统关联 (System Link)",
-    "txt_ab459e": "前端绑定 ID / Frontend ID",
+    "txt_a140c4": "姓名",
+    "txt_60f114": "职位头衔",
+    "txt_d9f234": "专属颜色标识",
+    "txt_70240b": "当前状态",
+    "txt_dab60d": "系统关联",
+    "txt_ab459e": "前端绑定 ID",
     "txt_1e10a4": "绑定后该用户可直接在小程序「我的」中进入管理后台日历。",
-    "txt_f6da71": "联系电话 / Phone",
+    "txt_f6da71": "联系电话",
     "txt_761c91": "基础底薪 / Base Salary (¥)",
     "txt_44100b": "提成比例 / Commission Rate (%)",
     "txt_db0a2c": "AI 动态目标引擎已接管",
@@ -291,7 +295,7 @@
     "txt_fe642f": "尚未绑定任何技能，前端客户无法预约该员工",
     "txt_c7f632": "💡 当客户在前端预约特定服务时，只有绑定了该服务的员工会显示在可用列表中。结合5分钟自动接单流。",
     "txt_070091": "绑定服务技能",
-    "txt_3fdf2d": "确定 (Confirm)",
+    "txt_3fdf2d": "确定",
     "txt_ae382f": "极客输入模式 (Omni-Input Core)",
     "txt_6f6203": "1. 底部输入",
     "txt_8a665b": "#分类名",
@@ -311,9 +315,9 @@
     "txt_1837b2": "解散空分类",
     "txt_0e9fd9": "价格",
     "txt_236222": "点击切换或新建分类",
-    "txt_ba4eed": "+ 新建分类 (Enter)",
+    "txt_ba4eed": "+ 新建分类",
     "txt_f0cd9f": "项目名称 价格 耗时 (如：Ms 35 45)",
-    "txt_ebe2ed": "全息扫描 (Camera Scan)",
+    "txt_ebe2ed": "全息扫描",
     "txt_cc3307": "营业时间",
     "txt_bf9e5e": "人员/资源",
     "txt_01295d": "服务项目",
@@ -348,7 +352,8 @@
     "txt_fb8804": "拍照 / Photo",
     "txt_4b9210": "录像 / Video",
     "txt_920460": "发布 / Publish",
-    "txt_e4205f": "写句标题吸引人吧..."
+    "txt_e4205f": "写句标题吸引人吧...",
+    "txt_b2ee45": "从相册选择 / Gallery"
   },
   "NebulaCore": {
     "txt_fd5def": "返回 / Back",
@@ -361,25 +366,30 @@
     "txt_95f550": "确认捕获 / CONFIRM"
   },
   "MerchantDashboard": {
-    "txt_56374a": "时间矩阵 / Time Matrix",
-    "txt_3697a3": "服务节点 / Service Nodes",
-    "txt_b170b6": "日历后台 / Calendar",
-    "txt_9f7256": "星云入口 / Nebula",
-    "txt_932519": "预约看板 / Live Feed",
+    "txt_56374a": "时间矩阵",
+    "txt_3697a3": "服务节点",
+    "txt_b170b6": "日历后台",
+    "txt_9f7256": "星云入口",
+    "txt_932519": "预约看板",
     "txt_047109": "待处理",
     "txt_4113e7": "已确认",
     "txt_a8b0c2": "全部",
-    "txt_afddef": "暂无相关预约记录 / No bookings found",
-    "txt_2882c0": "人员绑定 / Staff Binding",
-    "txt_ab459e": "前端绑定 ID / Frontend ID",
+    "txt_afddef": "暂无相关预约记录",
+    "txt_2882c0": "人员绑定",
+    "txt_ab459e": "前端绑定 ID",
     "txt_c95928": "绑定后该用户可直接在其「我的」界面进入专属管理日历。",
-    "txt_f49d92": "待处理 / Pending",
-    "txt_733f4a": "已确认 / Confirmed",
-    "txt_5af2c6": "今日预约 / Today",
+    "txt_f49d92": "待处理",
+    "txt_733f4a": "已确认",
+    "txt_5af2c6": "今日预约",
     "txt_5cd6e4": "例如: GX_USR_1001",
     "txt_edff9d": "绑定中...",
-    "txt_4a81e7": "建立系统关联 / Link",
-    "txt_330363": "成功"
+    "txt_4a81e7": "建立系统关联",
+    "txt_330363": "成功",
+    "txt_a75625": "管理预约与排班",
+    "txt_66cf43": "全息视觉引擎",
+    "txt_999d5c": "记忆碎片",
+    "txt_0467cc": "查看全部",
+    "txt_45c76d": "建立系统关联"
   },
   "PhoneAuthBar": {
     "txt_398180": "手机号绑定",
@@ -387,54 +397,80 @@
     "txt_cd8992": "验证",
     "txt_83a991": "激活",
     "txt_879792": "等待",
-    "txt_1535fc": "发送"
+    "txt_1535fc": "发送",
+    "txt_421f72": "身份标识:",
+    "txt_732906": "退出系统",
+    "txt_7d4d29": "输入手机号",
+    "txt_cc2ddc": "输入 6 位验证码",
+    "txt_1165ad": "长按左侧重置终端",
+    "txt_e83a25": "确认"
   },
-  "ProfileHeader": {},
+  "ProfileHeader": {
+    "txt_52e6ab": "已复制",
+    "txt_79d3ab": "复制"
+  },
   "UserDashboard": {
     "txt_950181": "[ 解析高维数据中... ]",
     "txt_d3a60f": "重塑您的",
     "txt_697bfe": "商业维度",
     "txt_d946ba": "GX 拒绝平庸。只有不到 5% 的申请能通过审核。我们正在寻找城市中最具美学与专业精神的实体空间。",
     "txt_76a4ee": "节点接入认证",
-    "txt_2211d3": "独立空间 (Indie Node)",
-    "txt_509ecd": "企业联邦 (Enterprise)",
-    "txt_2c1fcd": "01 / 基础身份 (Identity)",
-    "txt_7b7c43": "联系电话 / CONTACT",
-    "txt_133313": "业务类型 / Industry",
-    "txt_81f35c": "美业 / BEAUTY (Salon, Spa, Nails)",
-    "txt_2c5374": "餐饮 / DINING (Restaurant, Cafe)",
-    "txt_771f4a": "医疗 / MEDICAL (Clinic, Dental)",
-    "txt_2a34d1": "健身 / FITNESS (Gym, Yoga)",
-    "txt_e0e1b5": "专家 / EXPERT (Consulting)",
-    "txt_5c4f50": "住宿 / HOTEL (B&B, Resort)",
-    "txt_fe629b": "常规 / OTHER (General Booking)",
-    "txt_99ebed": "02 / 物理锚点 (Location)",
+    "txt_2211d3": "独立空间",
+    "txt_509ecd": "企业联邦",
+    "txt_2c1fcd": "01 / 基础身份",
+    "txt_7b7c43": "联系电话",
+    "txt_133313": "业务类型",
+    "txt_81f35c": "美业",
+    "txt_2c5374": "餐饮",
+    "txt_771f4a": "医疗",
+    "txt_2a34d1": "健身",
+    "txt_e0e1b5": "专家",
+    "txt_5c4f50": "住宿",
+    "txt_fe629b": "常规",
+    "txt_99ebed": "02 / 物理锚点",
     "txt_bd30a5": "请提供准确的 Google Maps 链接，系统将自动抓取坐标与公开评分。",
     "txt_288d4b": "上传超高清空间照片",
     "txt_89e530": "支持 JPG, PNG. 最多 3 张，用于展示您的审美特权。",
-    "txt_1c0987": "04 / 联邦集结 (Federation)",
-    "txt_047e19": "集团集结码 / Nexus Code",
+    "txt_1c0987": "04 / 联邦集结",
+    "txt_047e19": "集团集结码",
     "txt_715ff0": "不可修改",
     "txt_816c34": "若您属于某集团旗下门店，请在此输入大老板提供的起源代码 (Boss ID)。",
     "txt_a86a3c": "留空则代表您将建立一家独立的创始空间。",
     "txt_a2e766": "提交即代表您同意接受 GX 系统的严格审视。",
     "txt_461dd0": "NEXT NODE // 态势感知",
     "txt_0ec157": "进入专属空间日历",
-    "txt_060153": "审核中 / Auditing",
-    "txt_94eb25": "权限驳回 / Denied",
+    "txt_060153": "审核中",
+    "txt_94eb25": "权限驳回",
     "txt_961427": "未达到接入标准",
     "txt_59c21c": "权限已下发，请切换至商户视图",
     "txt_3db109": "成为认证空间",
-    "txt_9f091a": "请输入大老板的起源代码 (Boss ID)",
-    "txt_e5533f": "空间名称 / BRAND NAME",
-    "txt_12269d": "集团名称 / CONGLOMERATE NAME",
+    "txt_9f091a": "请输入大老板的起源代码",
+    "txt_e5533f": "空间名称",
+    "txt_12269d": "集团名称",
     "txt_f38beb": "输入您的店名...",
     "txt_82e20a": "输入您的企业/集团名称...",
-    "txt_ea2d0d": "03 / 核心视觉 (Visual Assets)",
-    "txt_6cbf43": "02 / 集团标志 (Corporate Identity)",
+    "txt_ea2d0d": "03 / 核心视觉",
+    "txt_6cbf43": "02 / 集团标志",
     "txt_0e8860": "您正在创建企业联邦。系统已自动将您的专属标识设为最高统摄集结码。",
     "txt_0b7da7": "解析中...",
-    "txt_8c53dc": "提交审核 / Submit to Boss"
+    "txt_8c53dc": "提交审核",
+    "txt_66d651": "空间跃迁协议启动",
+    "txt_c9c2c6": "资料录入",
+    "txt_e67844": "独立空间",
+    "txt_4ba0be": "企业联邦",
+    "txt_e47036": "01 / 基础身份",
+    "txt_c6dc08": "物理坐标",
+    "txt_d89194": "- 可选",
+    "txt_a2bc90": "- 系统生成",
+    "txt_999d5c": "记忆碎片",
+    "txt_0467cc": "查看全部",
+    "txt_5c7bd5": "空间名称",
+    "txt_3db766": "集团名称",
+    "txt_65a679": "03 / 核心视觉",
+    "txt_063a98": "02 / 集团标志",
+    "txt_a22e63": "系统异常",
+    "txt_646db0": "提交审核",
+    "txt_ed759e": "未知名称"
   },
   "CapacityFlow": {
     "txt_091d26": "当前客流",
@@ -494,7 +530,8 @@
     "txt_24482a": "UGC 照片上传功能即将开放",
     "txt_3d1c77": "卫星连接遭拒",
     "txt_1e5d7a": "位置 (Location)",
-    "txt_bf2093": "点击地址栏 🔒 图标解锁"
+    "txt_bf2093": "点击地址栏 🔒 图标解锁",
+    "txt_97e675": "✨ 体验完整全息视效，在 APP 中打开"
   },
   "login": {
     "txt_b05e70": "私人管家"
@@ -515,5 +552,53 @@
     "txt_d67bde": "打开 APP (推荐)",
     "txt_d484e5": "继续使用网页版",
     "txt_8a2ef6": "记住我的选择，下次不再提示"
-  }
+  },
+  "CyberOnboardingModal": {
+    "txt_c277e1": "初始化实体档案",
+    "txt_5dd7b2": "核心矩阵初始化",
+    "txt_60d045": "姓名",
+    "txt_ab4b97": "请输入您的姓名",
+    "txt_787b56": "性别",
+    "txt_36a490": "男",
+    "txt_87c835": "女",
+    "txt_d8782f": "保密",
+    "txt_abbe4b": "出生日期",
+    "txt_4366cd": "确认激活",
+    "txt_6c4783": "同步矩阵中...",
+    "txt_6da9ee": "档案同步完成",
+    "txt_22fc92": "系统授权通过"
+  },
+  "chat": {
+    "txt_71f8fd": "等待接入信号",
+    "txt_d9d041": "请在左侧雷达选择目标节点"
+  },
+  "NativeBridgeProvider": {
+    "txt_1bb828": "检测到新版本",
+    "txt_d8fbcd": "正在下载更新...",
+    "txt_afa6bb": "立即下载体验"
+  },
+  "WebDownloadPrompt": {
+    "txt_77f625": "使用 GX 专属原生 App",
+    "txt_389993": "享受沉浸式全息体验，完美原生物理返回键与无死角硬件支持。"
+  },
+  "SandboxChatWindow": {
+    "txt_b0a14d": "30天极速降解",
+    "txt_f8ea23": "发送加密信息..."
+  },
+  "ChatListUI": {
+    "txt_8fc78c": "正在扫描宇宙信号...",
+    "txt_5ac66f": "当前频道暂无通讯记录",
+    "txt_8a6e8e": "搜索信号 / 扫码 / 输入ID加人"
+  },
+  "ChatRoomUI": {
+    "txt_be6f6a": "信号稳定 (0ms)",
+    "txt_fad9fb": "等待接入信号...",
+    "txt_0bbdcf": "输入指令..."
+  },
+  "DataMatrixAssets": {},
+  "useChatStore": {},
+  "blurhash": {},
+  "imageCompression": {},
+  "useChatEngine": {},
+  "useRecentChats": {}
 }

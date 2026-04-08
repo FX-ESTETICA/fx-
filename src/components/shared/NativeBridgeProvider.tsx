@@ -9,8 +9,10 @@ import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { FileOpener } from "@capacitor-community/file-opener";
+import { useTranslations } from "next-intl";
 
 export function NativeBridgeProvider() {
+    const t = useTranslations('NativeBridgeProvider');
   const router = useRouter();
   const [updateInfo, setUpdateInfo] = useState<{ needsUpdate: boolean; url: string; notes: string } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -121,7 +123,7 @@ export function NativeBridgeProvider() {
             <span className="text-4xl">🚀</span>
           </div>
           
-          <h2 className="text-2xl font-bold mb-3 tracking-wide">检测到新版本</h2>
+          <h2 className="text-2xl font-bold mb-3 tracking-wide">{t('txt_1bb828')}</h2>
           
           <div className="text-zinc-400 mb-8 text-sm leading-relaxed whitespace-pre-wrap text-left w-full bg-black/40 p-4 rounded-2xl border border-white/5">
             {updateInfo.notes}
@@ -187,7 +189,7 @@ export function NativeBridgeProvider() {
               {isDownloading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></span>
-                  正在下载更新... {downloadProgress}%
+                  {t('txt_d8fbcd')}{downloadProgress}%
                 </>
               ) : (
                 "立即下载体验"

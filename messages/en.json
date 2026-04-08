@@ -138,7 +138,8 @@
   "NexusSwitcher": {
     "txt_e628fe": "[EN] 联邦矩阵节点 / Nexus Nodes",
     "txt_184813": "Federation Nebula / Nexus",
-    "txt_4a4b78": "Unknown Node"
+    "txt_4a4b78": "Unknown Node",
+    "txt_ca9469": "Nexus Nebula"
   },
   "ShopContext": {},
   "client": {
@@ -379,7 +380,8 @@
     "txt_5cd6e4": "[EN] 例如: GX_USR_1001",
     "txt_edff9d": "Binding...",
     "txt_4a81e7": "Establish System Link",
-    "txt_330363": "Success"
+    "txt_330363": "Success",
+    "txt_45c76d": "Establish System Link"
   },
   "PhoneAuthBar": {
     "txt_398180": "Phone Number Binding",
@@ -387,9 +389,14 @@
     "txt_cd8992": "Verify",
     "txt_83a991": "Activate",
     "txt_879792": "Waiting",
-    "txt_1535fc": "Send"
+    "txt_1535fc": "Send",
+    "txt_1165ad": "Long Press Left to Reset Terminal",
+    "txt_e83a25": "Confirm"
   },
-  "ProfileHeader": {},
+  "ProfileHeader": {
+    "txt_52e6ab": "Copied",
+    "txt_79d3ab": "Copy"
+  },
   "UserDashboard": {
     "txt_950181": "[EN] [ 解析高维数据中... ]",
     "txt_d3a60f": "[EN] 重塑您的",
@@ -434,7 +441,14 @@
     "txt_6cbf43": "02 / Corporate Logo (Corporate Identity)",
     "txt_0e8860": "You are creating a Corporate Federation. The system has automatically set your exclusive identifier as the highest governing assembly code.",
     "txt_0b7da7": "Parsing...",
-    "txt_8c53dc": "Submit for Review"
+    "txt_8c53dc": "Submit for Review",
+    "txt_5c7bd5": "Space Name",
+    "txt_3db766": "Group Name",
+    "txt_65a679": "03 / Core Visuals",
+    "txt_063a98": "02 / Group Logo",
+    "txt_a22e63": "System Error",
+    "txt_646db0": "Submit for Review",
+    "txt_ed759e": "Unknown Name"
   },
   "CapacityFlow": {
     "txt_091d26": "[EN] 当前客流",
@@ -493,7 +507,8 @@
     "txt_24482a": "UGC Photo Upload Feature Coming Soon",
     "txt_3d1c77": "Satellite Link Denied",
     "txt_1e5d7a": "Coordinates",
-    "txt_bf2093": "Tap Address Bar 🔒 to Unlock"
+    "txt_bf2093": "Tap Address Bar 🔒 to Unlock",
+    "txt_97e675": "✨ Experience Full Holo-Visuals in APP"
   },
   "login": {
     "txt_b05e70": "Private Concierge"
@@ -514,5 +529,34 @@
     "txt_d67bde": "Engage App (Recommended)",
     "txt_d484e5": "Continue on Web",
     "txt_8a2ef6": "Remember my choice, no prompt next time"
-  }
+  },
+  "CyberOnboardingModal": {
+    "txt_c277e1": "Initialize Entity Profile",
+    "txt_5dd7b2": "CORE MATRIX INITIALIZATION // GX",
+    "txt_60d045": "Name",
+    "txt_ab4b97": "Please enter your name",
+    "txt_787b56": "Gender",
+    "txt_36a490": "Male",
+    "txt_87c835": "Female",
+    "txt_d8782f": "Secret",
+    "txt_abbe4b": "Birthday",
+    "txt_4366cd": "ACTIVATE",
+    "txt_6c4783": "SYNCING...",
+    "txt_6da9ee": "Sync Complete",
+    "txt_22fc92": "ACCESS GRANTED"
+  },
+  "useChatStore": {},
+  "blurhash": {},
+  "imageCompression": {},
+  "chat": {},
+  "NativeBridgeProvider": {
+    "txt_afa6bb": "Download Now"
+  },
+  "WebDownloadPrompt": {},
+  "SandboxChatWindow": {},
+  "ChatListUI": {},
+  "ChatRoomUI": {},
+  "useChatEngine": {},
+  "useRecentChats": {},
+  "DataMatrixAssets": {}
 }

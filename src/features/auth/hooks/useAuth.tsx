@@ -19,6 +19,9 @@ export interface SandboxUser extends Omit<User, 'created_at'> {
   created_at: string;
   // 新增：支持多门店绑定
   bindings?: { shopId: string; role: string; industry: string; shopName?: string }[];
+  // 核心升级：增加性别与生日，用于强阻断拦截
+  gender?: string | null;
+  birthday?: string | null;
 }
 
 type ShopBindingRow = {
@@ -213,6 +216,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             avatar: actualAvatar,
             phone: profile.phone,
             name: actualName,
+            gender: profile.gender || "unknown", // 核心补全：读取性别
+            birthday: profile.birthday || null,  // 核心补全：读取生日
             bindings: shopBindings
           } as SandboxUser;
           
@@ -365,6 +370,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           avatar: actualAvatar,
           phone: profile.phone,
           name: actualName,
+          gender: profile.gender || "unknown", // 刷新时重新读取
+          birthday: profile.birthday || null,  // 刷新时重新读取
           bindings: shopBindings
         } as SandboxUser;
         

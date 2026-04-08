@@ -17,7 +17,10 @@ import {
   Wand2,
   Droplets,
   Zap,
-  Power
+  Power,
+  Play,
+  Eye,
+  X
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { BookingDetails } from "@/features/booking/types";
@@ -28,7 +31,9 @@ import { Input } from "@/components/shared/Input";
 import { Users } from "lucide-react";
 import { PhoneAuthBar } from "./PhoneAuthBar";
 import { IndustryType } from "@/features/calendar/types";
+import { UserProfile } from "../types";
 
+import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 
@@ -37,6 +42,7 @@ interface MerchantDashboardProps {
   shopId?: string;
   industry?: string | null;
   onIndustrySet?: (industry: string) => void;
+  profile?: UserProfile;
 }
 
 type ServiceInfo = {
@@ -107,7 +113,7 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
  * MerchantDashboard - 商家端管理看板
  * 采用 Admin Red (#FF2D55) 视觉规范
  */
-export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDashboardProps) => {
+export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: MerchantDashboardProps) => {
     const t = useTranslations('MerchantDashboard');
   const { activeShopId } = useShop();
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
@@ -138,6 +144,14 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
     );
   };
 
+  // MOCK 数据：数字印记 (Digital Footprints) 视频缩略图
+  const mockFootprints = [
+    { id: "1", title: "赛博空间漫游", views: "1.2W", duration: "00:15", cover: "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?q=80&w=600&auto=format&fit=crop" },
+    { id: "2", title: "霓虹下的美学", views: "8.5K", duration: "00:30", cover: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=600&auto=format&fit=crop" },
+    { id: "3", title: "深渊咖啡馆打卡", views: "45K", duration: "01:05", cover: "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=600&auto=format&fit=crop" },
+    { id: "4", title: "未来医美体验", views: "3.2K", duration: "00:45", cover: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=600&auto=format&fit=crop" },
+    { id: "5", title: "机械臂理疗", views: "900", duration: "00:20", cover: "https://images.unsplash.com/photo-1584820927498-cafe2c1c7669?q=80&w=600&auto=format&fit=crop" },
+  ];
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -220,10 +234,10 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
     setBindMessage("");
     try {
       await BookingService.bindUserToShop(bindUserId.trim(), shopId);
-      setBindMessage("绑定成功 / Bound successfully!");
+      setBindMessage("绑定成功");
       setBindUserId("");
-    } catch {
-      setBindMessage("绑定失败 / Binding failed");
+    } catch (err: any) {
+      setBindMessage(`绑定失败: ${err.message}`);
     } finally {
       setIsBinding(false);
     }
@@ -371,7 +385,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
                   </div>
                   <div>
                     <h3 className="text-lg font-bold tracking-tight">{t('txt_b170b6')}</h3>
-                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">Manage Bookings & Slots</p>
+                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">{t('txt_a75625')}</p>
                   </div>
                 </div>
                 <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 transition-all" />
@@ -390,7 +404,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
                 </div>
                 <div>
                   <h3 className="text-lg font-bold tracking-tight">{t('txt_9f7256')}</h3>
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">WebGL Visual Engine</p>
+                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">{t('txt_66cf43')}</p>
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-gx-purple group-hover:translate-x-1 transition-all" />
@@ -398,9 +412,6 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
           </GlassCard>
         </Link>
       </div>
-
-      {/* 手机号绑定区域 */}
-      <PhoneAuthBar className="w-full" />
 
       {/* 实时列表区域 */}
       <GlassCard className="p-6 border-gx-admin-red/20">
@@ -445,6 +456,61 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
         </div>
       </GlassCard>
 
+      {/* 数字印记 (Digital Footprints) - 0成本动态横滑列表 */}
+      <div className="w-full space-y-3">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-white/50">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+            <span>{t('txt_999d5c')}</span>
+          </div>
+          <button className="text-[9px] font-mono text-gx-cyan uppercase tracking-widest hover:text-white transition-colors">
+            {t('txt_0467cc')}</button>
+        </div>
+
+        {/* 滑动视口：极致阻尼与隐藏滚动条 */}
+        <div className="w-full overflow-x-auto snap-x snap-mandatory no-scrollbar pb-2 -mx-2 px-2">
+          <div className="flex gap-3 min-w-max">
+            {mockFootprints.map((video) => (
+              <div 
+                key={video.id}
+                className="relative w-28 md:w-32 aspect-[9/16] shrink-0 snap-center rounded-xl overflow-hidden cursor-pointer group bg-black/20 border border-white/5 hover:border-white/20 transition-all duration-500 shadow-[0_4px_15px_rgba(0,0,0,0.5)]"
+              >
+                {/* 背景封面层：使用 img 标签模拟极低成本的 WebP 缩略图 */}
+                <img 
+                  src={video.cover} 
+                  alt={video.title}
+                  className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                />
+                
+                {/* 底部信息遮罩层 */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+
+                {/* 中央播放诱导元件 */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-110 group-hover:bg-gx-cyan/20 group-hover:border-gx-cyan/50 transition-all duration-300">
+                  <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" />
+                </div>
+
+                {/* 数据锚点挂载区 */}
+                <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1.5 pointer-events-none">
+                  <span className="text-[10px] font-bold text-white leading-tight line-clamp-1 drop-shadow-md">
+                    {video.title}
+                  </span>
+                  <div className="flex items-center justify-between text-[9px] font-mono text-white/70">
+                    <div className="flex items-center gap-1">
+                      <Eye className="w-2.5 h-2.5" />
+                      <span>{video.views}</span>
+                    </div>
+                    <span className="bg-black/50 px-1 rounded backdrop-blur-sm border border-white/10">
+                      {video.duration}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* 员工绑定管理区 */}
       <GlassCard className="p-6 border-gx-cyan/20">
         <div className="flex items-center gap-4 mb-6">
@@ -475,16 +541,21 @@ export const MerchantDashboard = ({ merchantId, shopId, industry }: MerchantDash
             disabled={isBinding || !bindUserId.trim()}
             className="w-full md:w-auto"
           >
-            {isBinding ? "绑定中..." : "建立系统关联 / Link"}
+            {isBinding ? t('txt_e19eb4') : "建立系统关联"}
           </Button>
           
           {bindMessage && (
             <p className={cn("text-xs font-mono mt-2", bindMessage.includes("成功") ? "text-gx-cyan" : "text-gx-admin-red")}>
-              {bindMessage}
+              {bindMessage.replace(/ \/ .*/, '')}
             </p>
           )}
         </div>
       </GlassCard>
+
+      {/* 系统底层锚点 (System Anchor) - 融合胶囊 */}
+      <div className="pt-6 pb-6 w-full flex items-center justify-center px-2">
+        <PhoneAuthBar initialPhone={profile?.phone || ""} className="max-w-none mx-0 w-auto" />
+      </div>
     </div>
   );
 };
@@ -566,7 +637,7 @@ const BookingItem = ({ booking }: { booking: BookingDetails }) => (
           booking.status === "pending" ? "bg-gx-admin-red/10 border-gx-admin-red/20 text-gx-admin-red" :
           "bg-gx-cyan/10 border-gx-cyan/20 text-gx-cyan"
         )}>
-          {booking.status === "pending" ? "待处理 / Pending" : "已确认 / Confirmed"}
+          {booking.status === "pending" ? "待处理" : "已确认"}
         </div>
         
         <div className="flex items-center gap-2">

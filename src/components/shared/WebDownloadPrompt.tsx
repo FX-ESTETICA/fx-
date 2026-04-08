@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { X, Download } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function WebDownloadPrompt() {
+    const t = useTranslations('WebDownloadPrompt');
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
@@ -52,11 +54,9 @@ export function WebDownloadPrompt() {
         {/* 中间文字 */}
         <div className="flex-1">
           <h3 className="text-white font-bold text-sm leading-tight mb-1">
-            使用 GX 专属原生 App
-          </h3>
+            {t('txt_77f625')}</h3>
           <p className="text-zinc-400 text-xs line-clamp-2 leading-snug">
-            享受沉浸式全息体验，完美原生物理返回键与无死角硬件支持。
-          </p>
+            {t('txt_389993')}</p>
         </div>
 
         {/* 右侧按钮组 */}

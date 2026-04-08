@@ -18,16 +18,16 @@ export const NexusSwitcher = () => {
   const activeShop = availableShops.find(s => s.shopId === activeShopId);
 
   return (
-    <div className="relative z-50">
+    <div className="relative z-50 flex items-center">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 px-4 py-2 bg-black/40 border border-white/10 rounded-full backdrop-blur-md hover:bg-white/5 hover:border-gx-purple/50 transition-all"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="flex items-center text-[10px] font-mono uppercase tracking-widest text-gx-cyan/60 hover:text-gx-cyan transition-all hover:drop-shadow-[0_0_8px_rgba(0,242,255,0.8)] group"
       >
-        <Zap className="w-4 h-4 text-gx-purple drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
-        <span className="text-xs font-mono tracking-widest text-white/80">
-          {activeShop?.shopName || "联邦星云 / Nexus"}
-        </span>
-        <ChevronDown className={cn("w-3 h-3 text-white/40 transition-transform", isOpen && "rotate-180")} />
+        <span className="truncate max-w-[120px]">{activeShop?.shopName || "联邦星云"}</span>
       </button>
 
       <AnimatePresence>
@@ -36,7 +36,7 @@ export const NexusSwitcher = () => {
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full right-0 mt-3 w-64 bg-black/80 border border-white/10 backdrop-blur-xl rounded-xl p-2 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+            className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-64 bg-black/80 border border-white/10 backdrop-blur-xl rounded-xl p-2 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="px-3 py-2 border-b border-white/5 mb-2">
               <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">{t('txt_e628fe')}</span>
@@ -52,18 +52,18 @@ export const NexusSwitcher = () => {
                   className={cn(
                     "w-full flex items-center justify-between p-3 rounded-lg text-left transition-all",
                     activeShopId === shop.shopId 
-                      ? "bg-gx-purple/10 border border-gx-purple/30 text-white" 
+                      ? "bg-gx-cyan/10 border border-gx-cyan/30 text-white" 
                       : "hover:bg-white/5 border border-transparent text-white/60 hover:text-white"
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <Store className={cn("w-4 h-4", activeShopId === shop.shopId ? "text-gx-purple" : "text-white/40")} />
+                    <Store className={cn("w-4 h-4", activeShopId === shop.shopId ? "text-gx-cyan" : "text-white/40")} />
                     <div className="flex flex-col">
                       <span className="text-xs font-bold truncate max-w-[120px]">{shop.shopName || "未知节点"}</span>
                       <span className="text-[9px] font-mono text-white/30 uppercase">{shop.role} | {shop.industry}</span>
                     </div>
                   </div>
-                  {activeShopId === shop.shopId && <CheckCircle2 className="w-4 h-4 text-gx-purple drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />}
+                  {activeShopId === shop.shopId && <CheckCircle2 className="w-4 h-4 text-gx-cyan drop-shadow-[0_0_5px_rgba(0,242,255,0.5)]" />}
                 </button>
               ))}
             </div>

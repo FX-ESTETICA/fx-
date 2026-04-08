@@ -138,7 +138,8 @@
   "NexusSwitcher": {
     "txt_e628fe": "[IT] 联邦矩阵节点 / Nexus Nodes",
     "txt_184813": "Nebulosa della Federazione / Nexus",
-    "txt_4a4b78": "Nodo Sconosciuto"
+    "txt_4a4b78": "Nodo Sconosciuto",
+    "txt_ca9469": "Nebulosa Nexus"
   },
   "ShopContext": {},
   "client": {
@@ -379,7 +380,8 @@
     "txt_5cd6e4": "[IT] 例如: GX_USR_1001",
     "txt_edff9d": "Collegamento...",
     "txt_4a81e7": "Stabilisci Collegamento di Sistema",
-    "txt_330363": "Successo"
+    "txt_330363": "Successo",
+    "txt_45c76d": "Stabilisci Collegamento di Sistema"
   },
   "PhoneAuthBar": {
     "txt_398180": "Collegamento Numero di Telefono",
@@ -387,9 +389,14 @@
     "txt_cd8992": "Verifica",
     "txt_83a991": "Attiva",
     "txt_879792": "In Attesa",
-    "txt_1535fc": "Invia"
+    "txt_1535fc": "Invia",
+    "txt_1165ad": "Tieni Premuto a Sinistra per Ripristinare il Terminale",
+    "txt_e83a25": "Conferma"
   },
-  "ProfileHeader": {},
+  "ProfileHeader": {
+    "txt_52e6ab": "Copiato",
+    "txt_79d3ab": "Copia"
+  },
   "UserDashboard": {
     "txt_950181": "[IT] [ 解析高维数据中... ]",
     "txt_d3a60f": "[IT] 重塑您的",
@@ -434,7 +441,14 @@
     "txt_6cbf43": "02 / Logo Aziendale (Identità Aziendale)",
     "txt_0e8860": "Stai creando una Federazione Aziendale. Il sistema ha automaticamente impostato il tuo identificatore esclusivo come il codice di assemblea governativa più alto.",
     "txt_0b7da7": "Parsing...",
-    "txt_8c53dc": "Invia per Revisione"
+    "txt_8c53dc": "Invia per Revisione",
+    "txt_5c7bd5": "Nome dello Spazio",
+    "txt_3db766": "Nome del Gruppo",
+    "txt_65a679": "03 / Visivi Centrali",
+    "txt_063a98": "02 / Logo del Gruppo",
+    "txt_a22e63": "Errore di Sistema",
+    "txt_646db0": "Invia per Revisione",
+    "txt_ed759e": "Nome Sconosciuto"
   },
   "CapacityFlow": {
     "txt_091d26": "[IT] 当前客流",
@@ -493,7 +507,8 @@
     "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
     "txt_3d1c77": "Collegamento Satellitare Negato",
     "txt_1e5d7a": "Coordinate",
-    "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare"
+    "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare",
+    "txt_97e675": "✨ Esperienza Completa di Ologrammi nell'APP"
   },
   "login": {
     "txt_b05e70": "Concierge Privato"
@@ -514,5 +529,34 @@
     "txt_d67bde": "Attiva App (Consigliato)",
     "txt_d484e5": "Continua sul Web",
     "txt_8a2ef6": "Ricorda la mia scelta, nessun avviso la prossima volta"
-  }
+  },
+  "CyberOnboardingModal": {
+    "txt_c277e1": "Inizializza Profilo",
+    "txt_5dd7b2": "INIZIALIZZAZIONE NUCLEO // GX",
+    "txt_60d045": "Nome",
+    "txt_ab4b97": "Inserisci il tuo nome",
+    "txt_787b56": "Genere",
+    "txt_36a490": "Uomo",
+    "txt_87c835": "Donna",
+    "txt_d8782f": "Segreto",
+    "txt_abbe4b": "Data di Nascita",
+    "txt_4366cd": "ATTIVA",
+    "txt_6c4783": "SINCRONIZZAZIONE...",
+    "txt_6da9ee": "Sincronizzazione Completata",
+    "txt_22fc92": "ACCESSO CONSENTITO"
+  },
+  "useChatStore": {},
+  "blurhash": {},
+  "imageCompression": {},
+  "chat": {},
+  "NativeBridgeProvider": {
+    "txt_afa6bb": "Scarica Ora"
+  },
+  "WebDownloadPrompt": {},
+  "SandboxChatWindow": {},
+  "ChatListUI": {},
+  "ChatRoomUI": {},
+  "useChatEngine": {},
+  "useRecentChats": {},
+  "DataMatrixAssets": {}
 }

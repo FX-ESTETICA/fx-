@@ -6,6 +6,7 @@ import { UserProfile } from "../types";
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AvatarCropModal } from "./AvatarCropModal";
+import { DataMatrixAssets } from "./DataMatrixAssets";
 import { supabase, isMockMode } from "@/lib/supabase";
 import Image from "next/image";
 import { cn } from "@/utils/cn";
@@ -15,7 +16,7 @@ interface ProfileHeaderProps {
 }
 
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
-  const { user } = useAuth();
+  const { user, activeRole, setActiveRole } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -31,12 +32,28 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   }, [profile.avatar]);
   
   const roleLabels = {
-    user: { zh: "普通用户", color: "text-gx-cyan", icon: <User className="w-4 h-4" /> },
-    merchant: { zh: "商户 / 老板", color: "text-gx-purple", icon: <ShieldCheck className="w-4 h-4" /> },
-    boss: { zh: "系统管理员", color: "text-gx-red", icon: <ShieldCheck className="w-4 h-4" /> },
+    user: { zh: "生活", color: "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" },
+    merchant: { zh: "智控", color: "text-gx-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.7)]" },
+    boss: { zh: "BOSS", color: "text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" },
   };
 
-  const currentRole = roleLabels[profile.role];
+  const currentRole = roleLabels[activeRole] || roleLabels[profile.role];
+
+  // 决定可用角色切换逻辑 (与顶层 Dashboard 保持一致)
+  const availableRoles: ("user" | "merchant" | "boss")[] = ['user'];
+  if (user?.role === 'boss') {
+    availableRoles.push('merchant', 'boss');
+  } else if (user?.role === 'merchant') {
+    availableRoles.push('merchant');
+  }
+
+  const handleRoleCycle = () => {
+    if (availableRoles.length <= 1) return;
+    const currentIndex = availableRoles.indexOf(activeRole);
+    const nextRole = availableRoles[(currentIndex + 1) % availableRoles.length];
+    setActiveRole(nextRole);
+  };
+
   const profileGxId = (profile as UserProfile & { gx_id?: string; gxId?: string }).gx_id
     ?? (profile as UserProfile & { gx_id?: string; gxId?: string }).gxId;
 
@@ -61,14 +78,74 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     const now = new Date();
     const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
     
-    if (daysDiff < 10) return { level: "LV.0", title: "启航 / Awakening", color: "border-white/20", glow: "shadow-[0_0_10px_rgba(255,255,255,0.1)]" };
-    if (daysDiff < 30) return { level: "LV.1", title: "适应 / Adapted", color: "border-gx-cyan/30", glow: "shadow-[0_0_15px_rgba(0,242,255,0.2)]" };
-    if (daysDiff < 180) return { level: "LV.2", title: "资深 / Veteran", color: "border-gx-cyan/60", glow: "shadow-[0_0_20px_rgba(0,242,255,0.4)]" };
-    if (daysDiff < 365) return { level: "LV.3", title: "核心 / Core", color: "border-dashed border-gx-cyan", glow: "shadow-[0_0_25px_rgba(0,242,255,0.5)]" };
-    if (daysDiff < 730) return { level: "LV.4", title: "先驱 / Pioneer", color: "border-gx-pink/60", glow: "shadow-[0_0_30px_rgba(255,0,234,0.4)]" };
-    if (daysDiff < 1825) return { level: "LV.5", title: "传奇 / Legend", color: "border-gx-purple/80", glow: "shadow-[0_0_40px_rgba(188,0,255,0.5)]" };
-    return { level: "LV.6", title: "远古实体 / Ancient Entity", color: "border-white", glow: "shadow-[0_0_50px_rgba(255,255,255,0.8)]" };
+    if (daysDiff < 10) return { level: "LV.0", title: "启航", color: "border-white/20", glow: "shadow-[0_0_10px_rgba(255,255,255,0.1)]" };
+    if (daysDiff < 30) return { level: "LV.1", title: "适应", color: "border-gx-cyan/30", glow: "shadow-[0_0_15px_rgba(0,242,255,0.2)]" };
+    if (daysDiff < 180) return { level: "LV.2", title: "资深", color: "border-gx-cyan/60", glow: "shadow-[0_0_20px_rgba(0,242,255,0.4)]" };
+    if (daysDiff < 365) return { level: "LV.3", title: "核心", color: "border-dashed border-gx-cyan", glow: "shadow-[0_0_25px_rgba(0,242,255,0.5)]" };
+    if (daysDiff < 730) return { level: "LV.4", title: "先驱", color: "border-gx-pink/60", glow: "shadow-[0_0_30px_rgba(255,0,234,0.4)]" };
+    if (daysDiff < 1825) return { level: "LV.5", title: "传奇", color: "border-gx-purple/80", glow: "shadow-[0_0_40px_rgba(188,0,255,0.5)]" };
+    return { level: "LV.6", title: "远古实体", color: "border-white", glow: "shadow-[0_0_50px_rgba(255,255,255,0.8)]" };
   }, [profile.role, profile.createdAt]);
+
+  // 动态推算年龄和星座
+  const calculateAge = (birthday?: string) => {
+    if (!birthday) return null;
+    const birthDate = new Date(birthday);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getZodiacInfo = (birthday?: string) => {
+    if (!birthday) return null;
+    const date = new Date(birthday);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return { en: "ARIES", zh: "白羊座" };
+    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return { en: "TAURUS", zh: "金牛座" };
+    if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return { en: "GEMINI", zh: "双子座" };
+    if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return { en: "CANCER", zh: "巨蟹座" };
+    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return { en: "LEO", zh: "狮子座" };
+    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return { en: "VIRGO", zh: "处女座" };
+    if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return { en: "LIBRA", zh: "天秤座" };
+    if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return { en: "SCORPIO", zh: "天蝎座" };
+    if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return { en: "SAGITTARIUS", zh: "射手座" };
+    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return { en: "CAPRICORN", zh: "摩羯座" };
+    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return { en: "AQUARIUS", zh: "水瓶座" };
+    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return { en: "PISCES", zh: "双鱼座" };
+    return null;
+  };
+
+  const getGenderColorInfo = (gender?: string) => {
+    if (gender === 'male' || gender === '男') {
+      return {
+        className: "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,242,255,0.8)]",
+        color: "rgb(0, 242, 255)",
+        shadow: "rgba(0, 242, 255, 0.8)"
+      };
+    }
+    if (gender === 'female' || gender === '女') {
+      return {
+        className: "text-fuchsia-400 drop-shadow-[0_0_8px_rgba(232,121,249,0.8)]",
+        color: "rgb(232, 121, 249)",
+        shadow: "rgba(232, 121, 249, 0.8)"
+      };
+    }
+    return {
+      className: "text-white/60 drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]",
+      color: "rgba(255, 255, 255, 0.6)",
+      shadow: "rgba(255, 255, 255, 0.4)"
+    };
+  };
+
+  const age = calculateAge(profile.birthday);
+  const zodiac = getZodiacInfo(profile.birthday);
+  const genderColorInfo = getGenderColorInfo(profile.gender);
 
   // 提取上传逻辑 (切换为 Supabase Storage 直连上传)
   const handleUploadCroppedFile = async (file: File) => {
@@ -128,37 +205,157 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   };
 
   return (
-    <div className="relative flex flex-col items-center text-center gap-6 pb-8 border-b border-white/5 w-full">
-      {/* 方案一：动态星云与全息投影环 (Nebula Hologram & Giant Watermark) */}
-      
-      {/* 1. 巨型水印背景 */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px] md:text-[200px] font-bold tracking-tighter text-white/[0.02] pointer-events-none select-none uppercase font-mono whitespace-nowrap z-0 leading-none">
-        {profile.role}
-      </div>
+    <div className="relative flex flex-col items-center text-center pt-10 pb-[5px] w-full overflow-visible">
+      {/* 前景内容区 */}
+      <div className="relative z-10 flex flex-col items-center w-full max-w-4xl mx-auto">
+        
+        {/* 2. 居中巨型头像与星轨 (作为名字的全息锚点) */}
+        <div className="relative group mb-6 flex flex-col items-center">
+          
+          {/* 左侧僚机 (原生物理区: 星图 + 星座 + 年龄) - 底部锚定 */}
+          {(zodiac || age !== null) && (
+            <div 
+              className="absolute bottom-2 left-0 -translate-x-[calc(100%+32px)] z-10 flex flex-col items-end gap-1"
+              style={{ 
+                transform: 'perspective(1000px) rotateY(15deg) rotateX(5deg) translateZ(-20px)',
+                transformOrigin: 'right bottom'
+              }}
+            >
+              {/* 星图 SVG 示意图 (动态生成连线与星点) - 高亮色彩共振版 */}
+              {zodiac && (
+                <div 
+                  className="relative w-16 h-16 mb-1"
+                  style={{
+                    filter: `drop-shadow(0 0 8px ${genderColorInfo.shadow})`
+                  }}
+                >
+                  <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
+                    {/* 星轨连线 */}
+                    <polyline points="20,80 40,50 70,40 85,15" fill="none" stroke={genderColorInfo.color} strokeWidth="1" opacity="0.6" />
+                    <polyline points="40,50 60,75 90,60" fill="none" stroke={genderColorInfo.color} strokeWidth="1" opacity="0.6" />
+                    
+                    {/* 发光星点 (核心节点放大、呼吸、带发光色) */}
+                    <circle cx="20" cy="80" r="2" fill="#fff" filter="blur(0.5px)" />
+                    <circle cx="40" cy="50" r="3.5" fill="#fff" filter="blur(1px)" className="animate-pulse" style={{ fill: genderColorInfo.color }} />
+                    <circle cx="70" cy="40" r="2" fill="#fff" filter="blur(0.5px)" />
+                    <circle cx="85" cy="15" r="3" fill="#fff" filter="blur(1px)" style={{ fill: genderColorInfo.color }} />
+                    <circle cx="60" cy="75" r="2" fill="#fff" filter="blur(0.5px)" />
+                    <circle cx="90" cy="60" r="3.5" fill="#fff" filter="blur(1px)" className="animate-pulse" style={{ fill: genderColorInfo.color }} />
+                  </svg>
+                </div>
+              )}
+              
+              {/* 星座英文缩写 & 年龄组合 - 色彩共振版 */}
+              <div className="flex items-center gap-2">
+                {age !== null && (
+                  <span 
+                    className="text-[12px] font-bold tracking-[0.3em] pointer-events-none select-none whitespace-nowrap leading-none transition-colors duration-500"
+                    style={{
+                      color: genderColorInfo.color,
+                      WebkitTextStroke: `0.5px ${genderColorInfo.shadow}`,
+                      textShadow: `0 0 10px ${genderColorInfo.shadow}`,
+                    }}
+                  >
+                    {age}
+                  </span>
+                )}
+                {zodiac && (
+                  <div 
+                    className="text-[12px] font-bold tracking-[0.3em] pointer-events-none select-none whitespace-nowrap uppercase leading-none transition-colors duration-500"
+                    style={{
+                      color: genderColorInfo.color,
+                      WebkitTextStroke: `0.5px ${genderColorInfo.shadow}`,
+                      textShadow: `0 0 10px ${genderColorInfo.shadow}`,
+                    }}
+                  >
+                    {zodiac.en}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-      {/* 2. 深层星云光晕 */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-gx-cyan/10 via-transparent to-gx-purple/10 blur-[80px] rounded-full animate-pulse transform-gpu" style={{ animationDuration: '8s', willChange: 'opacity' }} />
-      </div>
+          {/* 右侧僚机 (数字社会区: 名字 + 身份 + ID) - 底部锚定 */}
+          <div 
+            className="absolute bottom-2 right-0 translate-x-[calc(100%+32px)] z-10 flex flex-col items-start gap-1"
+            style={{ 
+              transform: 'perspective(1000px) rotateY(-15deg) rotateX(5deg) translateZ(-20px)',
+              transformOrigin: 'left bottom'
+            }}
+          >
+            {/* 名字投影 */}
+            <div 
+              className="text-[24px] md:text-[36px] font-black tracking-widest pointer-events-none select-none whitespace-nowrap uppercase leading-none mb-1"
+              style={{
+                color: 'rgba(255, 255, 255, 0.6)',
+                WebkitTextStroke: '0.5px rgba(0, 242, 255, 0.5)',
+                textShadow: '0 0 10px rgba(0, 242, 255, 0.4)',
+                filter: 'blur(0.2px)',
+              }}
+            >
+              {profile.name}
+            </div>
 
-      {/* 前景内容区 (提升 z-index 确保在光效之上) */}
-      <div className="relative z-10 flex flex-row items-center gap-6">
-        <div className="relative group">
-          {/* 3. 全息阵列 (围绕在头像背后) */}
+            {/* 角色暗门切换器 */}
+            <button 
+              onClick={handleRoleCycle}
+              className={cn(
+                "relative flex items-center text-[11px] font-bold tracking-widest uppercase transition-all duration-300 text-left leading-none pointer-events-auto pr-2",
+                availableRoles.length > 1 ? "cursor-pointer hover:opacity-80" : "cursor-default",
+                currentRole.color
+              )}
+            >
+              {currentRole.zh}
+            </button>
+
+            {/* 赛博钢印 ID */}
+            <div 
+              className={cn(
+                "relative flex items-center text-[10px] font-mono tracking-widest transition-all duration-500 cursor-pointer group leading-none pointer-events-auto mt-0.5",
+                profile.id !== "GX-GUEST-0000" && "hover:opacity-100 opacity-70"
+              )}
+              onMouseEnter={() => copyState === "idle" && setCopyState("hover")}
+              onMouseLeave={() => copyState === "hover" && setCopyState("idle")}
+              onClick={handleCopyId}
+            >
+              <div className="relative flex items-center whitespace-nowrap pr-2">
+                {/* 原始 ID 渲染 - 同步左侧流光 */}
+                <div className={cn(
+                  "flex items-center transition-all duration-300 font-bold whitespace-nowrap",
+                  currentRole.color,
+                  copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative group-hover:brightness-125"
+                )}>
+                  ID: {profile.id === "GX-GUEST-0000" ? profile.id : profile.id.split('-').length >= 3 ? profile.id.split('-')[0] + '·' + profile.id.split('-')[1] + '·' + profile.id.split('-')[2] : profile.id}
+                </div>
+
+                {/* 复制反馈状态 - 保持高亮白/青色 */}
+                <div className={cn(
+                  "flex items-center gap-1 transition-all duration-300 font-bold",
+                  copyState === "copied" ? "opacity-100 relative text-gx-cyan drop-shadow-[0_0_5px_rgba(0,240,255,0.8)]" : "opacity-0 absolute",
+                  copyState === "hover" && "text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"
+                )}>
+                  {copyState === "copied" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {copyState === "copied" ? "已复制" : "复制"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 全息阵列 (围绕在头像背后) */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 pointer-events-none z-0 opacity-30">
             <motion.div 
               animate={{ rotate: 360 }} 
-              transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
               className="absolute inset-0 rounded-full border border-dashed border-gx-cyan/30" 
             />
             <motion.div 
               animate={{ rotate: -360 }} 
-              transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-4 rounded-full border border-gx-purple/20" 
+              transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-6 rounded-full border border-gx-purple/20" 
             />
           </div>
 
-          {/* 动态角色头像框 (移除额外的进场动画，仅保留 hover 放大和本身样式) */}
+          {/* 动态角色头像框 (尺寸缩小为 w-24 h-24 96px) */}
           <div 
             className={`w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-xl transition-transform duration-500 relative cursor-pointer group-hover:scale-105 ${
               profile.role === "boss" 
@@ -169,14 +366,12 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             }`}
             onClick={() => {
               if (isUploading) return;
-              // 触发原生文件选择器进行头像上传
               const input = document.createElement('input');
               input.type = 'file';
               input.accept = 'image/*';
               input.onchange = async (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) {
-                  // 读取文件为 Data URL，唤起裁剪舱
                   const reader = new FileReader();
                   reader.onload = () => {
                     setSelectedImageSrc(reader.result as string);
@@ -189,9 +384,32 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             }}
           >
             
+            {/* 性别能量环 (双边框外环) */}
+            <div 
+              className="absolute inset-[-5px] rounded-full border-[1.5px] pointer-events-none z-0 transition-all duration-500 opacity-80"
+              style={{
+                borderColor: genderColorInfo.color,
+                boxShadow: `0 0 10px ${genderColorInfo.shadow}, inset 0 0 4px ${genderColorInfo.shadow}`
+              }}
+            >
+              {/* 环绕的性别能量粒子 */}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-[-1.5px] rounded-full"
+              >
+                <div 
+                  className="absolute top-0 left-1/2 w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full" 
+                  style={{ 
+                    backgroundColor: genderColorInfo.color,
+                    boxShadow: `0 0 10px 2px ${genderColorInfo.color}`
+                  }} 
+                />
+              </motion.div>
+            </div>
+
             {/* 内部图标与图片渲染 */}
             <div className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
-              {/* 骨架屏占位符 (全息脉冲环) - 在真实图片加载完成前显示 */}
               {localAvatar && !imageLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                   <motion.div 
@@ -207,21 +425,21 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   src={localAvatar}
                   alt="avatar"
                   fill
-                  sizes="96px"
+                  sizes="128px"
                   className={cn(
                     "w-full h-full object-cover transition-opacity duration-1000",
                     imageLoaded ? "opacity-100" : "opacity-0"
                   )}
                   unoptimized={isLocalAvatar}
-                  priority={false} // 撤销最高优先级，让位于 3D 星空渲染
+                  priority={false}
                   onLoad={() => setImageLoaded(true)}
                 />
               ) : profile.role === "boss" ? (
-                <ShieldCheck className="w-12 h-12 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
+                <ShieldCheck className="w-16 h-16 text-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]" />
               ) : profile.role === "merchant" ? (
-                <ShieldCheck className="w-12 h-12 text-gx-purple drop-shadow-[0_0_15px_rgba(188,0,255,0.8)]" />
+                <ShieldCheck className="w-16 h-16 text-gx-purple drop-shadow-[0_0_20px_rgba(188,0,255,0.8)]" />
               ) : (
-                <User className="w-12 h-12 text-white/60 group-hover:text-white transition-colors" />
+                <User className="w-16 h-16 text-white/60 group-hover:text-white transition-colors" />
               )}
             </div>
 
@@ -234,96 +452,58 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center z-20 backdrop-blur-sm"
                 >
-                  <RefreshCw className="w-6 h-6 text-gx-cyan animate-spin" />
+                  <RefreshCw className="w-8 h-8 text-gx-cyan animate-spin" />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* 附加特效层 (仅保留持续旋转动画，无进场动画) */}
+            {/* 附加特效层 */}
             {profile.role === "boss" && (
               <motion.div 
                 animate={{ rotate: 360 }}
                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-[-4px] rounded-full border border-dashed border-red-500/50 pointer-events-none"
+                className="absolute inset-[-10px] rounded-full border border-dashed border-red-500/50 pointer-events-none"
               />
             )}
             {profile.role === "merchant" && (
-              <div className="absolute inset-[-6px] rounded-full border-[1px] border-gx-purple/30 rotate-45 pointer-events-none" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} />
+              <div className="absolute inset-[-10px] rounded-full border-[1px] border-gx-purple/30 rotate-45 pointer-events-none" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} />
             )}
           </div>
         </div>
-        
-        <div className="space-y-1 text-left">
-          <h1 className="text-2xl font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-            {profile.name}
-          </h1>
-          <div className="flex flex-wrap items-center justify-start gap-2 mt-2">
-            <span className={`text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 ${currentRole.color}`}>
-              {currentRole.icon}
-              {currentRole.zh}
-            </span>
-            <span className="text-white/10">|</span>
+
+        {/* 3. 全息共面流光带 (Holographic Piercing Flow) - 分界线重构 */}
+        <div className="relative w-full max-w-2xl flex flex-col items-center justify-center mb-0">
+          
+          {/* --- 第一层：线上方（静态身份阵列） --- */}
+          {/* 已重构至左右僚机，此层留白净化 */}
+          <div className="relative flex items-center justify-center z-10 px-4 h-4"></div>
+
+          {/* --- 第二层：流光线分割 --- */}
+          <div className="relative w-full h-[1px]">
+            {/* 绝对定位的底层暗线 (贯穿整个容器) */}
+            <div className="absolute top-1/2 left-0 right-0 h-[1px] -translate-y-1/2 bg-gradient-to-r from-transparent via-white/10 to-transparent z-0" />
             
-            {/* 赛博钢印 ID 渲染 与 复制交互 */}
-            <div 
-              className={cn(
-                "flex items-center text-[10px] font-mono tracking-widest relative overflow-hidden rounded px-1 -mx-1 transition-colors cursor-pointer group",
-                profile.id !== "GX-GUEST-0000" && "hover:bg-white/10"
-              )}
-              onMouseEnter={() => copyState === "idle" && setCopyState("hover")}
-              onMouseLeave={() => copyState === "hover" && setCopyState("idle")}
-              onClick={handleCopyId}
-            >
-              <span className="text-white/40 mr-1">ID:</span>
-              
-              <div className="relative w-full h-full flex items-center">
-                {/* 原始 ID 渲染 (在 copied 状态下隐藏) */}
-                <div className={cn(
-                  "flex items-center transition-opacity duration-200",
-                  copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative"
-                )}>
-                  {profile.id === "GX-GUEST-0000" ? (
-                    <span className="text-white/40">{profile.id}</span>
-                  ) : profile.role === "boss" ? (
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-600 font-bold drop-shadow-[0_0_5px_rgba(234,179,8,0.5)]">
-                      {profile.id}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="text-white font-bold">{profile.id.split('-')[0]}</span>
-                      <span className="text-white/20 mx-1">·</span>
-                      <span className="text-white/80 font-bold">{profile.id.split('-')[1]}</span>
-                      <span className="text-white/20 mx-1">·</span>
-                      <span className="text-white/60">{profile.id.split('-')[2]}</span>
-                    </>
-                  )}
-                </div>
-
-                {/* 悬浮提示 (Hover) */}
-                <div className={cn(
-                  "absolute inset-0 flex items-center gap-1 text-gx-cyan transition-all duration-200 bg-black/80",
-                  copyState === "hover" && profile.id !== "GX-GUEST-0000" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-                )}>
-                  <Copy className="w-3 h-3" />
-                  <span>COPY ID</span>
-                </div>
-
-                {/* 复制成功 (Copied) */}
-                <div className={cn(
-                  "flex items-center gap-1 text-green-400 font-bold transition-all duration-200",
-                  copyState === "copied" ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute pointer-events-none"
-                )}>
-                  <Check className="w-3 h-3" />
-                  <span>COPIED</span>
-                </div>
-              </div>
+            {/* 绝对定位的脉冲流光 (穿梭于所有元素底部) */}
+            <div className="absolute top-1/2 left-0 right-0 h-[1px] -translate-y-1/2 z-0 overflow-hidden">
+              <motion.div 
+                animate={{ x: ["-200%", "200%"] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                className="absolute top-0 bottom-0 left-0 w-[40%] bg-gradient-to-r from-transparent via-gx-cyan to-transparent shadow-[0_0_15px_2px_rgba(0,242,255,0.8)]"
+              />
             </div>
           </div>
+
+          {/* --- 第三层：线下方（动态日志舱 Holographic Ticker） --- */}
+          <div className="relative w-full max-w-lg z-20 mt-1 mb-0">
+            <DataMatrixAssets />
+          </div>
+
         </div>
+
       </div>
 
       {profile.stats && profile.stats.length > 0 && (
-        <div className="relative z-10 flex flex-wrap justify-center gap-3">
+        <div className="relative z-10 flex flex-wrap justify-center gap-3 mt-4">
           {profile.stats.map((stat) => (
             <div
               key={stat.label}

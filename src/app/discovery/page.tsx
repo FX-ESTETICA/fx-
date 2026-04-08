@@ -9,7 +9,8 @@ import {
   Navigation,
   Volume2,
   VolumeX,
-  Plus
+  Plus,
+  ChevronLeft
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
@@ -181,18 +182,28 @@ export default function DiscoveryPage() {
       {/* 顶部悬浮导航 (Overlay) */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between p-4 pt-safe md:pt-8 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none">
         
-        {/* 左上角/居中 Tab 切换 */}
-        <div className="flex items-center gap-6 pointer-events-auto ml-2 md:ml-8 mt-2">
+        {/* 左上角: 逃生舱按钮 (返回大厅) */}
+        <div className="pointer-events-auto mt-2">
+          <button 
+            onClick={() => window.history.back()}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* 居中 Tab 切换 */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-4 pt-safe md:pt-8 flex items-center gap-6 pointer-events-auto mt-2">
           <button 
             onClick={() => setFilter("near")}
-            className={cn("text-[17px] font-bold transition-all drop-shadow-md", filter === "near" ? "text-white" : "text-white/50")}
+            className={cn("text-[17px] font-bold transition-all drop-shadow-md", filter === "near" ? "text-white scale-110" : "text-white/50")}
           >
             {t('txt_6688f2')}
           </button>
           <div className="w-[1px] h-3 bg-white/30" />
           <button 
             onClick={() => setFilter("hot")}
-            className={cn("text-[17px] font-bold transition-all drop-shadow-md", filter === "hot" ? "text-white" : "text-white/50")}
+            className={cn("text-[17px] font-bold transition-all drop-shadow-md", filter === "hot" ? "text-white scale-110" : "text-white/50")}
           >
             {t('txt_4d2d97')}
           </button>
@@ -214,77 +225,135 @@ export default function DiscoveryPage() {
             key={post.id} 
             className="w-full h-full snap-start snap-always relative shrink-0 flex justify-center items-center"
           >
-            {/* PC端全息居中剧场模式 / 手机端100%全屏 */}
-            <div className="relative w-full h-full md:max-w-[420px] md:h-[calc(100vh-80px)] md:my-10 md:rounded-[2.5rem] md:overflow-hidden md:border md:border-white/10 md:shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-black group/item">
+            {/* 手机端100%全屏 / 平板与PC端双栏剧场模式 (Fluid Morphing) */}
+            <div className="relative w-full h-full md:max-w-4xl lg:max-w-5xl md:h-[calc(100vh-80px)] md:my-10 md:rounded-[2.5rem] md:overflow-hidden md:border md:border-white/10 md:shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-black group/item flex flex-col md:flex-row">
               
-              {/* 媒体内容 */}
-              {post.type === "video" && post.videoId && STREAM_BASE ? (
-                <VideoPlayer videoId={post.videoId} coverUrl={post.cover} />
-              ) : (
-                <Image 
-                  src={post.cover} 
-                  alt={post.title} 
-                  fill 
-                  className="object-cover" 
-                  priority
-                />
-              )}
+              {/* 左侧：媒体内容区 (手机端100%，宽屏端60%) */}
+              <div className="relative w-full h-full md:w-[60%] shrink-0">
+                {post.type === "video" && post.videoId && STREAM_BASE ? (
+                  <VideoPlayer videoId={post.videoId} coverUrl={post.cover} />
+                ) : (
+                  <Image 
+                    src={post.cover} 
+                    alt={post.title} 
+                    fill 
+                    className="object-cover" 
+                    priority
+                  />
+                )}
 
-              {/* 底部暗场渐变 (确保文字清晰) */}
-              <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none z-10" />
+                {/* 底部暗场渐变 (仅手机端需要，宽屏端文字移到右侧了) */}
+                <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none z-10 md:hidden" />
 
-              {/* 左下角：作者信息与描述 */}
-              <div className="absolute bottom-6 md:bottom-8 left-4 right-16 z-20 pointer-events-auto">
-                <div className="flex items-center gap-3 mb-3">
-                  <h3 className="font-bold text-[17px] drop-shadow-md">@{post.author}</h3>
-                  {post.merchantId && (
-                    <button className="flex items-center gap-1 px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold text-gx-cyan hover:bg-white/30 transition-colors shadow-lg">
-                      <Navigation className="w-3 h-3" />
-                      去这家店
-                    </button>
+                {/* 左下角：作者信息与描述 (仅手机端显示) */}
+                <div className="absolute bottom-6 left-4 right-16 z-20 pointer-events-auto md:hidden">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="font-bold text-[17px] drop-shadow-md">@{post.author}</h3>
+                    {post.merchantId && (
+                      <button className="flex items-center gap-1 px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold text-gx-cyan hover:bg-white/30 transition-colors shadow-lg">
+                        <Navigation className="w-3 h-3" />
+                        {t('txt_5cd3c9')}</button>
+                    )}
+                  </div>
+                  <p className="text-[14px] leading-relaxed text-white/90 drop-shadow-md line-clamp-3 mb-3">
+                    {post.title}
+                  </p>
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {post.tags.map((tag: string) => (
+                        <span key={tag} className="text-[13px] font-bold text-white/60 drop-shadow-md">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <p className="text-[14px] leading-relaxed text-white/90 drop-shadow-md line-clamp-3 mb-3">
-                  {post.title}
-                </p>
-                {post.tags && post.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag: string) => (
-                      <span key={tag} className="text-[13px] font-bold text-white/60 drop-shadow-md">
-                        {tag}
-                      </span>
-                    ))}
+
+                {/* 右下角：悬浮交互控件 (头像、点赞、评论) - 仅手机端显示 */}
+                <div className="absolute bottom-6 right-3 z-20 flex flex-col items-center gap-6 pointer-events-auto md:hidden">
+                  {/* 悬浮头像 */}
+                  <div className="relative w-12 h-12 rounded-full border-2 border-white/80 overflow-visible mb-2 cursor-pointer hover:scale-105 transition-transform shadow-lg">
+                    <Image src={post.avatar} alt={post.author} fill className="object-cover rounded-full" />
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gx-cyan rounded-full flex items-center justify-center text-black font-black text-sm border-2 border-black">
+                      <Plus className="w-3 h-3" />
+                    </div>
                   </div>
-                )}
+
+                  {/* 悬浮点赞 */}
+                  <button className="flex flex-col items-center gap-1 group/btn transition-transform active:scale-90">
+                    <div className="p-3 bg-black/20 backdrop-blur-md rounded-full group-hover/btn:bg-white/10 transition-colors border border-white/5 shadow-lg">
+                      <Heart className="w-7 h-7 text-white drop-shadow-md" />
+                    </div>
+                    <span className="text-[12px] font-bold drop-shadow-md">{post.likes}</span>
+                  </button>
+
+                  {/* 悬浮评论 */}
+                  <button className="flex flex-col items-center gap-1 group/btn transition-transform active:scale-90">
+                    <div className="p-3 bg-black/20 backdrop-blur-md rounded-full group-hover/btn:bg-white/10 transition-colors border border-white/5 shadow-lg">
+                      <MessageCircle className="w-7 h-7 text-white drop-shadow-md" />
+                    </div>
+                    <span className="text-[12px] font-bold drop-shadow-md">{post.comments}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* 右下角：悬浮交互控件 (头像、点赞、评论) */}
-              <div className="absolute bottom-6 md:bottom-8 right-3 z-20 flex flex-col items-center gap-6 pointer-events-auto">
-                
-                {/* 悬浮头像 */}
-                <div className="relative w-12 h-12 rounded-full border-2 border-white/80 overflow-visible mb-2 cursor-pointer hover:scale-105 transition-transform shadow-lg">
-                  <Image src={post.avatar} alt={post.author} fill className="object-cover rounded-full" />
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gx-cyan rounded-full flex items-center justify-center text-black font-black text-sm border-2 border-black">
-                    <Plus className="w-3 h-3" />
+              {/* 右侧：信息舱与互动控制台 (宽屏端独占显示) */}
+              <div className="hidden md:flex flex-col flex-1 h-full bg-[#0a0a0a] border-l border-white/5 p-6 relative">
+                {/* 作者信息头 */}
+                <div className="flex items-center justify-between pb-4 border-b border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 rounded-full border-2 border-white/20 overflow-hidden">
+                      <Image src={post.avatar} alt={post.author} fill className="object-cover" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-white">@{post.author}</h3>
+                      <p className="text-xs text-white/40 font-mono">GX verified</p>
+                    </div>
                   </div>
+                  <button className="px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-sm font-bold text-white transition-colors">
+                    {t('txt_4c0a3a')}</button>
                 </div>
 
-                {/* 悬浮点赞 */}
-                <button className="flex flex-col items-center gap-1 group/btn transition-transform active:scale-90">
-                  <div className="p-3 bg-black/20 backdrop-blur-md rounded-full group-hover/btn:bg-white/10 transition-colors border border-white/5 shadow-lg">
-                    <Heart className="w-7 h-7 text-white drop-shadow-md" />
-                  </div>
-                  <span className="text-[12px] font-bold drop-shadow-md">{post.likes}</span>
-                </button>
+                {/* 描述流 */}
+                <div className="py-4 space-y-3 flex-1 overflow-y-auto no-scrollbar">
+                  <p className="text-[15px] leading-relaxed text-white/90">
+                    {post.title}
+                  </p>
+                  {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {post.tags.map((tag: string) => (
+                        <span key={tag} className="text-[12px] font-bold text-gx-cyan bg-gx-cyan/10 px-2 py-1 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {post.merchantId && (
+                    <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-colors">
+                      <div className="flex items-center gap-2 text-white/80">
+                        <Navigation className="w-4 h-4 text-gx-cyan" />
+                        <span className="text-sm font-bold">{t('txt_342d42')}</span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
+                    </div>
+                  )}
+                </div>
 
-                {/* 悬浮评论 */}
-                <button className="flex flex-col items-center gap-1 group/btn transition-transform active:scale-90">
-                  <div className="p-3 bg-black/20 backdrop-blur-md rounded-full group-hover/btn:bg-white/10 transition-colors border border-white/5 shadow-lg">
-                    <MessageCircle className="w-7 h-7 text-white drop-shadow-md" />
-                  </div>
-                  <span className="text-[12px] font-bold drop-shadow-md">{post.comments}</span>
-                </button>
-                
+                {/* 互动底座 */}
+                <div className="pt-4 border-t border-white/5 flex items-center justify-around shrink-0">
+                  <button className="flex flex-col items-center gap-1 group transition-transform active:scale-95">
+                    <div className="p-3 bg-white/5 rounded-full group-hover:bg-white/10 transition-colors">
+                      <Heart className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-[11px] font-bold text-white/60">{post.likes}</span>
+                  </button>
+                  <button className="flex flex-col items-center gap-1 group transition-transform active:scale-95">
+                    <div className="p-3 bg-white/5 rounded-full group-hover:bg-white/10 transition-colors">
+                      <MessageCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-[11px] font-bold text-white/60">{post.comments}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -247,8 +247,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                 onClick={() => galleryInputRef.current?.click()}
                 className="mt-8 px-8 py-3 rounded-full bg-white/5 text-white/60 hover:text-white hover:bg-white/10 text-xs font-bold tracking-widest uppercase transition-all"
               >
-                从相册选择 / Gallery
-              </button>
+                {t('txt_b2ee45')}</button>
 
               {/* Close Button */}
               <button 
