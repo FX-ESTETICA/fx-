@@ -11,7 +11,7 @@ import {
   MonitorSmartphone,
   LogOut
 } from "lucide-react";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect } from "react";
 import { BookingDetails } from "@/features/booking/types";
 import { BookingService } from "@/features/booking/api/booking";
 import { cn } from "@/utils/cn";
