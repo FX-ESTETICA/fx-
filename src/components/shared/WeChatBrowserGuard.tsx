@@ -12,13 +12,19 @@ export function WeChatBrowserGuard() {
     const ua = window.navigator.userAgent.toLowerCase();
     if (ua.includes("micromessenger")) {
       setIsWeChat(true);
+      // 物理级防穿透锁：锁死底层页面的滚动，制造“看得到摸不到”的饥饿感
+      document.body.style.overflow = "hidden";
     }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, []);
 
   if (!isWeChat) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center bg-black/95 backdrop-blur-xl px-6 pt-12 text-white">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center bg-black/40 backdrop-blur-sm px-6 pt-12 text-white pointer-events-auto">
       {/* 右上角指示箭头 */}
       <div className="absolute top-4 right-6 animate-bounce">
         <svg
@@ -37,12 +43,12 @@ export function WeChatBrowserGuard() {
         </svg>
       </div>
 
-      <div className="mt-16 w-full max-w-sm rounded-2xl border border-gx-cyan/30 bg-black/60 p-8 shadow-[0_0_30px_rgba(0,240,255,0.15)] text-center relative overflow-hidden">
+      <div className="mt-16 w-full max-w-sm rounded-2xl border border-gx-cyan/20 bg-black/20 backdrop-blur-2xl p-8 shadow-[0_0_40px_rgba(0,240,255,0.1)] text-center relative overflow-hidden ring-1 ring-white/5">
         {/* 流光渐变底座 */}
-        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-transparent via-gx-cyan/10 to-transparent" />
+        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-transparent via-gx-cyan/5 to-transparent pointer-events-none" />
         
         <div className="relative z-10 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-full border border-gx-cyan/50 flex items-center justify-center bg-black/80 shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+          <div className="w-16 h-16 rounded-full border border-gx-cyan/40 flex items-center justify-center bg-black/60 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
             <Compass className="w-8 h-8 text-gx-cyan animate-pulse" />
           </div>
           
