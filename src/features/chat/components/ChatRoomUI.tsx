@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Blurhash } from 'react-blurhash';
-import { ArrowLeft, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2 } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useTranslations } from "next-intl";
 
@@ -23,12 +23,14 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 自动滚动到最新消息
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (isInitial = false) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth' });
   };
 
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(isInitialMount.current);
+    isInitialMount.current = false;
   }, [messages]);
 
   const handleSend = async () => {
@@ -48,17 +50,14 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
       <div className="px-4 py-3 shrink-0 flex items-center justify-between z-20 border-b border-white/10 backdrop-blur-md bg-black/20">
         <button 
           onClick={onBack}
-          className="p-2 -ml-2 text-white/70 hover:text-cyan-400 transition-colors md:hidden"
+          className="p-2 -ml-2 text-white/70 hover:text-cyan-400 transition-colors flex items-center gap-1 group"
         >
-          <ArrowLeft className="w-6 h-6 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" />
+          <X className="w-6 h-6 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)] hidden md:block group-hover:rotate-90 transition-transform" />
+          <ArrowLeft className="w-6 h-6 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)] md:hidden" />
         </button>
         
         <div className="flex flex-col items-center flex-1">
-          <span className="text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]">{roomName}</span>
-          <div className="flex items-center space-x-1.5 mt-0.5">
-            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
-            <span className="text-[10px] text-green-400 tracking-wider">{t('txt_be6f6a')}</span>
-          </div>
+          <span className="text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] uppercase">{roomName}</span>
         </div>
 
         <button className="p-2 -mr-2 text-white/50 hover:text-white transition-colors">
@@ -68,14 +67,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
       {/* 2. 战场核心：全息字幕气泡区 */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 z-10 no-scrollbar">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-white/30 space-y-3">
-            <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center animate-pulse">
-               <span className="text-xl">📡</span>
-            </div>
-            <p className="text-sm tracking-widest">{t('txt_fad9fb')}</p>
-          </div>
-        )}
+
 
         {messages.map((msg) => {
           const isMe = msg.sender_id === currentUserId;

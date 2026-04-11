@@ -377,6 +377,170 @@ export const BookingService = {
     }
   },
 
+  async updateBookings(updates: any[]) {
+    // 保留给未来批量更新使用
+  },
+
+  async updateBookingResource(id: string, resourceId: string | null) {
+    if (isMockMode) return;
+
+    try {
+      // 获取当前数据以更新其 JSONB 内容
+      const { data: bData, error: bError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (bError) throw bError;
+      
+      // 如果分配给了明确的员工，强制洗掉 "未指定" (originalUnassigned) 的基因标记
+      // 反之，如果是退回“未指定池”，强制赋予其 originalUnassigned 基因，以便智能调度引擎捕捉
+      const isAssignedToPerson = resourceId !== null && resourceId !== 'UNASSIGNED_POOL';
+      const updatedData = { ...bData.data };
+      
+      if (isAssignedToPerson) {
+        updatedData.originalUnassigned = false;
+      } else {
+        updatedData.originalUnassigned = true;
+      }
+
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          resource_id: resourceId === 'UNASSIGNED_POOL' ? null : resourceId, 
+          status: 'CONFIRMED',
+          data: updatedData
+        })
+        .eq('id', id);
+        
+      if (error) throw error;
+    } catch (error) {
+      console.error("[BookingService] updateBookingResource Error:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * 终极物理深层剥离拆单 (Deep Physical Splitting - Batch)
+   * 从父订单中剥离出多个子项目，克隆为独立订单并指派给新员工
+   * @param bookingId 要拆分的原始订单 ID
+   * @param serviceAssignments 一个映射对象: { [serviceId]: targetEmployeeId }
+   */
+  async splitBookingServices(bookingId: string, serviceAssignments: Record<string, string | null>) {
+    if (isMockMode) return;
+
+    try {
+      const serviceIdsToSplit = Object.keys(serviceAssignments);
+      if (serviceIdsToSplit.length === 0) return;
+
+      // 1. 捞取原始订单
+      const { data: bData, error: bError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', bookingId)
+        .single();
+        
+      if (bError) throw bError;
+      if (!bData || !bData.data || !Array.isArray(bData.data.services)) return;
+
+      const services = bData.data.services;
+      
+      // 找出要剥离的服务和剩余的服务
+      const targetServices = services.filter((s: any) => serviceIdsToSplit.includes(s.id));
+      const remainingServices = services.filter((s: any) => !serviceIdsToSplit.includes(s.id));
+      
+      if (targetServices.length === 0) return; // 没找到目标服务
+      
+      if (remainingServices.length === 0) {
+        // 如果把所有服务都选了，实际上等于整个订单按分配结果换人
+        // 但如果是多个不同的人，我们需要将原始订单分配给其中一个人，剩下的创建新订单
+        // 为了安全起见，这里统一处理：将所有服务作为新订单创建，然后删除原订单
+        // 不过为了复用逻辑，这里直接进行后续流程，只是 remaining 变成了 0
+      }
+
+      // 2. 计算剥离后的剩余信息 (时长、名称)
+      const remainingDuration = remainingServices.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
+      const remainingName = remainingServices.map((s: any) => s.name || s.serviceName || 'Unknown').join(' + ');
+
+      // 3. 按目标员工对被剥离的服务进行分组
+      const servicesByEmployee = targetServices.reduce((acc: Record<string, any[]>, service: any) => {
+        const empId = serviceAssignments[service.id] || 'UNASSIGNED_POOL';
+        if (!acc[empId]) acc[empId] = [];
+        acc[empId].push(service);
+        return acc;
+      }, {});
+
+      // 4. 更新原始订单 (剔除这些服务，如果被完全掏空则直接删除)
+      if (remainingServices.length === 0) {
+        // 原订单被掏空，直接软删除
+        const { error: deleteError } = await supabase
+          .from('bookings')
+          .update({ status: 'VOID' })
+          .eq('id', bookingId);
+        if (deleteError) throw deleteError;
+      } else {
+        const updatedOriginalData = {
+          ...bData.data,
+          services: remainingServices,
+          serviceName: remainingName
+        };
+
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({
+            duration_min: remainingDuration,
+            data: updatedOriginalData
+          })
+          .eq('id', bookingId);
+
+        if (updateError) throw updateError;
+      }
+
+      // 5. 遍历每个目标员工，新建分裂出的订单
+      for (const [targetResourceId, groupServices] of Object.entries(servicesByEmployee)) {
+        const splitDuration = groupServices.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
+        const splitName = groupServices.map((s: any) => s.name || s.serviceName || 'Unknown').join(' + ');
+        
+        const isAssignedToPerson = targetResourceId !== 'UNASSIGNED_POOL' && targetResourceId !== 'null';
+        const finalResourceId = (targetResourceId === 'UNASSIGNED_POOL' || targetResourceId === 'null') ? null : targetResourceId;
+        
+        const newBookingData = {
+          ...bData.data,
+          services: groupServices,
+          serviceName: splitName,
+          // 继承主单号，维持连单关系
+          masterOrderId: bData.data.masterOrderId || bookingId,
+          order_no: `BKG-${Date.now()}-${Math.floor(Math.random() * 1000)}` // 赋予全新单号避免碰撞
+        };
+        
+        if (isAssignedToPerson) {
+          newBookingData.originalUnassigned = false;
+        } else {
+          newBookingData.originalUnassigned = true;
+        }
+
+        const { error: insertError } = await supabase
+          .from('bookings')
+          .insert({
+            shop_id: bData.shop_id,
+            date: bData.date,
+            start_time: bData.start_time,
+            duration_min: splitDuration,
+            resource_id: finalResourceId,
+            status: 'CONFIRMED',
+            data: newBookingData
+          });
+
+        if (insertError) throw insertError;
+      }
+
+    } catch (error) {
+      console.error("[BookingService] splitBookingServices Error:", error);
+      throw error;
+    }
+  },
+
   async deleteBookings(ids: string[]) {
     if (isMockMode) return;
     

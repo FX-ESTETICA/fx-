@@ -1,4 +1,3 @@
-import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
@@ -14,7 +13,7 @@ const supabaseHost = (() => {
   }
 })();
 
-const nextConfig: NextConfig = {
+const nextConfig: any = {
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -41,6 +40,7 @@ const nextConfig: NextConfig = {
       { source: '/6', destination: '/nebula' },
       { source: '/7', destination: '/calendar' },
       { source: '/8', destination: '/analytics' },
+      { source: '/9', destination: '/studio' },
     ];
   },
 };

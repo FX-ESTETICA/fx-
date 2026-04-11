@@ -98,6 +98,9 @@ export function DualPaneBookingModal({
   type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
   const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>(() => editingBooking ? 'member' : 'service');
 
+  // --- 悬浮审批舱状态 (AI PENDING) ---
+  const [isAIPending, setIsAIPending] = useState(() => editingBooking?.status === 'PENDING');
+
   // --- 服务项目状态 (支持多选与印章涂色) ---
   const [selectedServices, setSelectedServices] = useState<ServiceItem[]>(() => {
     if (!editingBooking?.services || editingBooking.services.length === 0) return [];
@@ -499,6 +502,10 @@ export function DualPaneBookingModal({
        targetShopId = new URLSearchParams(window.location.search).get('shopId') || targetShopId;
     }
     
+    // 如果是从 AI 的待确认状态转正过来的，我们将状态更新为已确认 (CONFIRMED)
+    // 其他情况保留原逻辑 (对于新建则是 CONFIRMED)
+    const finalStatus = (editingBooking?.status === 'PENDING') ? 'CONFIRMED' : (editingBooking?.status || 'CONFIRMED');
+
     // 遍历每个员工的服务组
     Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup], groupIndex) => {
       const groupDuration = servicesInGroup.reduce((sum, s) => sum + (s.duration || 0), 0);
@@ -528,7 +535,7 @@ export function DualPaneBookingModal({
         date: baseDate, // 【核心修复】：注入丢失的 date 字段，打破渲染隐形诅咒
         startTime: currentStartTimeStr, // 【核心修复】：恢复所有预约块的同一起始时间
         duration: finalDuration,
-        status: 'confirmed',
+        status: finalStatus,
         is_staff_requested: empId !== 'unassigned', // 如果分配了员工，就是强指定的；如果是 unassigned，就是非指定的
         services: servicesInGroup, // 原始服务数据，备用
         originalUnassigned: empId === 'unassigned', // 标记它原本是未指定的
@@ -865,10 +872,46 @@ export function DualPaneBookingModal({
             /* ===================== 常规双窗预约表单 ===================== */
             <div 
               key="form-pane"
-              className="relative z-10 w-full max-w-[800px] flex flex-col items-center px-4 md:px-0"
+              className={cn(
+                "relative w-full max-w-[800px] flex flex-col items-center px-4 md:px-0",
+                isAIPending ? "z-0 pointer-events-none" : "z-10"
+              )}
             >
+              {/* --- 真空悬浮审批台 (仅当 AI PENDING 时存在) --- */}
+              {isAIPending && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-auto">
+                  <div className="flex gap-8 md:gap-16">
+                    <button 
+                      onClick={async () => {
+                        if (!editingBooking) return;
+                        try {
+                          // 纯净网络预约：直接从数据库中物理抹除 (Hard Delete)
+                          await BookingService.purgeBookings([editingBooking.id as string]);
+                          window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                          onClose();
+                        } catch (e) {
+                          console.error("Reject failed:", e);
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-400 font-black tracking-widest text-3xl md:text-4xl drop-shadow-[0_0_20px_rgba(239,68,68,1)] transition-all hover:scale-110 hover:-translate-y-2 uppercase"
+                    >
+                      拒绝 / REJECT
+                    </button>
+                    <button 
+                      onClick={() => setIsAIPending(false)}
+                      className="text-[#39FF14] hover:text-green-400 font-black tracking-widest text-3xl md:text-4xl drop-shadow-[0_0_20px_rgba(57,255,20,1)] transition-all hover:scale-110 hover:-translate-y-2 uppercase"
+                    >
+                      同意 / APPROVE
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
-              <main className="w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border border-gx-cyan/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40">
+              <main className={cn(
+                "w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40 transition-all duration-300",
+                isAIPending ? "border-white/20 opacity-60 grayscale-[0.2]" : "border-gx-cyan/50"
+              )}>
                 {/* 右上角关闭按钮 */}
                 <button 
                   onClick={handleClose} 
@@ -1902,7 +1945,10 @@ export function DualPaneBookingModal({
               </main>
 
             {/* 底部悬浮按钮栏 (内部居中跨越双窗) */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50 pointer-events-auto">
+            <div className={cn(
+              "absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50 pointer-events-auto transition-opacity",
+              isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
+            )}>
               {editingBooking && (
                 <button 
                   onClick={handleMarkAsNoShow}

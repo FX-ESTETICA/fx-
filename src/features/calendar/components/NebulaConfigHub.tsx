@@ -10,7 +10,7 @@ import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/ho
 import { BookingService } from "@/features/booking/api/booking";
 
 export interface CategoryItem { id: string; name: string }
-export interface ServiceItem { id: string; categoryId: string; name: string; prices?: number[]; price?: number; duration: number }
+export interface ServiceItem { id: string; categoryId: string; name: string; fullName?: string; prices?: number[]; price?: number; duration: number }
 export interface StaffItem {
   id: string;
   name: string;
@@ -1242,9 +1242,9 @@ const ServicesConfig = ({
 
       {/* 分类与服务列表 */}
       {categories.map((cat) => {
-          const t = useTranslations('NebulaConfigHub');
         const catServices = services.filter(s => s.categoryId === cat.id);
         const isActive = cat.id === activeCategoryId;
+        
         
         return (
           <div key={cat.id} className={`space-y-3 p-4 rounded-xl transition-all border ${isActive ? 'bg-white/[0.02] border-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.05)]' : 'border-transparent'}`}>
@@ -1324,6 +1324,12 @@ const ServicesConfig = ({
                           >
                             {service.name}
                           </span>
+                          
+                          {/* 耗时移动到中间 */}
+                          <span className="text-[10px] font-mono text-white/40">
+                            {service.duration || 60} min
+                          </span>
+
                           <div className="flex items-center gap-3">
                             <div className="flex items-center flex-wrap justify-end gap-1.5">
                               {/* 基准价 */}
@@ -1387,8 +1393,16 @@ const ServicesConfig = ({
                             </button>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] font-mono text-white/40 mt-1">
-                          <span>{t('txt_f7ff14')}{service.duration || 60} {t('txt_3a17b7')}</span>
+                        <div className="flex items-center justify-between mt-1">
+                          <input 
+                            type="text"
+                            placeholder="AI 管家专属：输入全称/别名（如：Manicure 只修手）"
+                            value={service.fullName || ""}
+                            onChange={(e) => {
+                              onServicesChange(services.map(s => s.id === service.id ? { ...s, fullName: e.target.value } : s));
+                            }}
+                            className="w-full bg-transparent border-b border-white/10 focus:border-gx-cyan/50 text-[10px] text-white/60 placeholder:text-white/20 py-1 outline-none transition-colors"
+                          />
                         </div>
                       </>
                     )}

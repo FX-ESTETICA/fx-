@@ -10,7 +10,8 @@ import {
   Volume2,
   VolumeX,
   Plus,
-  ChevronLeft
+  ChevronLeft,
+  ArrowRight
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";

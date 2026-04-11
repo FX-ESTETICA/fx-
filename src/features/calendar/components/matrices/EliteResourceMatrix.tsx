@@ -10,6 +10,7 @@ import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSett
  
 
 import { BookingService } from "@/features/booking/api/booking";
+import { BookingScheduler } from "@/features/booking/utils/scheduler";
 
 export interface EliteResourceMatrixProps {
   industry: IndustryType;
@@ -191,6 +192,20 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   const startPointerRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDownAtRef = useRef<number | null>(null);
   const containerRectRef = useRef<DOMRect | null>(null);
+
+  // --- 拖拽与调度核心状态 ---
+  const [draggedBooking, setDraggedBooking] = React.useState<MatrixBooking | null>(null);
+  const [isHoveringVoid, setIsHoveringVoid] = React.useState(false);
+  const [pendingVoidBooking, setPendingVoidBooking] = React.useState<MatrixBooking | null>(null);
+  const voidRef = useRef<HTMLDivElement>(null);
+
+  // --- 极致交互法则：多方剥离拆单状态引擎 ---
+  const [implodedOrderId, setImplodedOrderId] = React.useState<string | null>(null);
+  const [splitActiveEmployeeId, setSplitActiveEmployeeId] = React.useState<string | null>(null);
+  // 改用映射表：记录每个子项目被分配给了哪个员工 { serviceId: targetEmployeeId }
+  const [splitServiceAssignments, setSplitServiceAssignments] = React.useState<Record<string, string>>({});
+  // 物理防抖锁：防止网络延迟时的多重点选
+  const [processingOrderId, setProcessingOrderId] = React.useState<string | null>(null);
 
 // --- 核心算法：时间切片瀑布流 (Cyber Time-Slice Waterfall) ---
   type WaterfallNode = {
@@ -495,11 +510,18 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     }
   };
 
-  // --- 世界顶端交互法则：黑洞拖拽删除引擎 (The Void Engine) ---
-  const [draggedBooking, setDraggedBooking] = React.useState<MatrixBooking | null>(null);
-  const [isHoveringVoid, setIsHoveringVoid] = React.useState(false);
-  const [pendingVoidBooking, setPendingVoidBooking] = React.useState<MatrixBooking | null>(null);
-  const voidRef = useRef<HTMLDivElement>(null);
+  // Close implosion on click outside
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      // If clicking outside the imploded area, close it
+      if (implodedOrderId && !(e.target as HTMLElement).closest('.implosion-container')) {
+        setImplodedOrderId(null);
+        setSplitActiveEmployeeId(null);
+      }
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, [implodedOrderId]);
 
   const checkVoidHover = (clientY: number, clientX: number) => {
     if (!voidRef.current) return false;
@@ -665,10 +687,24 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
             })}
             {/* 渲染资源列与卡片 (The Cyber Matrix Data Layer) */}
             <div className="absolute inset-0 flex pl-[0px] pb-20 pointer-events-none">
-              {resources.map((resource) => {
-                const colBookings = bookings.filter(b => b.resourceId === resource.id);
+              {resources.map((resource, idx) => {
+                const colBookings = bookings.filter(b => {
+                  // 【NEXUS 终极法则】：只捕获前端 AI 生成的待确认订单 (PENDING)
+                  if (resource.id === 'NEXUS') {
+                    return b.status === 'PENDING';
+                  }
+                  
+                  // 如果是爽约列 (NO)，捕获 resourceId 为 NO 的订单
+                  if (resource.id === 'NO') {
+                    return b.resourceId === 'NO';
+                  }
+
+                  // 正常实体员工列：必须严格匹配 resourceId
+                  return b.resourceId === resource.id;
+                });
+                
                 return (
-                  <div key={resource.id} className="flex-1 relative min-w-[120px] pointer-events-none">
+                  <div key={resource.id} className="flex-1 relative min-w-[120px] pointer-events-none" style={{ zIndex: colBookings.some(b => implodedOrderId === (b.masterOrderId || b.id)) ? 50 : 1 }}>
                     {colBookings.map(booking => {
                       if (!booking.startTime || !booking.duration || !booking.date) return null;
                       
@@ -697,25 +733,131 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       const isTiny = booking.duration <= 45;
                       const serviceTitle = booking.serviceName || '';
                       const isUnassigned = booking.originalUnassigned === true;
+                      const isPending = booking.status === 'PENDING'; // 检查是否是待确认预约
+                      
+                      // --- 生命周期的视觉降维法则 ---
+                      // 1. 动态获取系统当前时间，用于比对预约是否过期
+                      const now = new Date();
+                      let isPast = false;
+                      if (booking.startTime && booking.date) {
+                        const [hourStr, minStr] = booking.startTime.split(':');
+                        const bookingStart = new Date(booking.date);
+                        bookingStart.setHours(parseInt(hourStr, 10), parseInt(minStr, 10), 0, 0);
+                        // 服务时间完全结束 (EndTime < Now)
+                        const durationMs = booking.duration * 60000;
+                        const thresholdTime = new Date(bookingStart.getTime() + durationMs);
+                        isPast = now >= thresholdTime;
+                      }
+
+                      // 2. 判定是否已结账/结束 (彻底隐身)
+                      const isCheckedOut = booking.status === 'COMPLETED' || booking.status === 'CHECKED_OUT';
+
+                      // 恢复您的设计：未指定的散单保留青色，作为店长灵活调度的视觉锚点
                       const blockColor = isUnassigned ? '#00f0ff' : (resource.id === 'NO' ? '#ef4444' : (resource.themeColor || dna.themeColor));
                       const blockAccent = isUnassigned ? 'cyan' : (resource.id === 'NO' ? 'red' : dna.accent);
+
+                      // --- 快捷调度内爆形变与极速拆单法则 ---
+                      // 1. 判定当前订单是否为未分配的散单（比如 NEXUS/NO/青色块）
+                      const isUnassignedBlock = booking.originalUnassigned === true || !booking.resourceId || booking.resourceId === 'NEXUS';
+
+                      // 2. 右键内爆处理函数
+                      const handleContextMenu = (e: React.MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // 1. 如果有别的卡片正在拖拽/删除中，或者系统处于硬加载态，锁死右键。
+                        if (draggedBooking || pendingVoidBooking || processingOrderId === booking.id) return;
+                        
+                        // 2. 引爆当前靶向订单 (绝对原子化：永远只引爆自己，绝不跨列牵连兄弟)
+                        setImplodedOrderId(booking.id);
+                        setSplitActiveEmployeeId(null);
+                        setSplitServiceAssignments({}); // 每次重开右键菜单时，清空多方分配映射
+                      };
+
+                      // 当前卡片是否被引爆了？
+                      const isImploded = implodedOrderId === booking.id;
+                      
+                      // 3. 捞取所有需要参与这次操作的兄弟卡片
+                      // 绝对原子化：只有它自己参与。不再通过 masterOrderId 去跨列捞取连单。
+                      const activeSiblings = [booking];
+                      
+                      // 4. 判定是否开启“三分天下”的派单模式
+                      // 绝对原子化：判定基准是当前卡片内部包裹了几个子项目 (services.length > 1)
+                      // （目前你的卡片在矩阵里都是 1 个项目的切片，如果是这样，isSplitMode 就永远是 false，
+                      // 也就永远只走“一键换人”单列菜单，彻底消灭了图 3 那种复杂的项目列表层级）
+                      const isSplitMode = booking.services && booking.services.length > 1;
+
+                      // 5. 确保附加菜单在这次引爆行动中，只渲染一次
+                      const isFirstImploded = isImploded;
+
+                      // 6. 物理切割：动态计算宽度和位置（0 遮挡）
+                      let blockClass = "left-1 right-1";
+                      if (isImploded) {
+                        blockClass = isSplitMode ? "left-[66.6%] w-[33.3%]" : "left-[50%] w-[50%]";
+                      }
+                      
+                      // 7. 预览颜色注入 (Cyber Glow Resonance)
+                      // 【新交互法则】：大卡片保持原色，不随选定的员工发生形变和变色
+                      let finalBlockColor = blockColor;
+                      
+                      const isProcessing = processingOrderId === booking.id;
 
                       return (
                         <div 
                           key={booking.id} 
-                          className="absolute left-1 right-1 pointer-events-auto"
+                          id={`booking-block-${booking.id}`} // 【世界级靶向雷达】：植入 DOM ID 信标，供外层一键穿梭寻迹
+                          className={cn(
+                            "absolute pointer-events-auto implosion-container transition-all duration-300",
+                            blockClass,
+                            isProcessing ? "animate-pulse" : ""
+                          )}
                           style={{
                             top: topOffset,
                             height: Math.max(40, heightPx - 4),
-                            zIndex: draggedBooking?.id === booking.id ? 100 : 20,
-                            // 软删除待确认状态视觉反馈
-                            opacity: pendingVoidBooking?.id === booking.id ? 0.3 : 1,
-                            pointerEvents: pendingVoidBooking?.id === booking.id ? 'none' : 'auto'
+                            zIndex: draggedBooking?.id === booking.id ? 100 : (isImploded ? 50 : (isPending ? 30 : 20)),
+                            // 软删除待确认状态或处理中的视觉反馈
+                            opacity: (pendingVoidBooking?.id === booking.id || isProcessing) ? 0.3 : 1,
+                            pointerEvents: (pendingVoidBooking?.id === booking.id || isProcessing) ? 'none' : 'auto'
                           }}
+                          onContextMenu={handleContextMenu}
                         >
                           <EliteBookingBlock 
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isProcessing) return; // 物理级拦截多余点击
+                              
+                              if (isImploded) {
+                                // 如果正在拆单
+                                const assignedServicesCount = Object.keys(splitServiceAssignments).length;
+                                if (isSplitMode && assignedServicesCount > 0) {
+                                  // 批量深层剥离拆单 (基于最新的多方映射状态)
+                                  setProcessingOrderId(booking.id); // 锁死
+                                  BookingService.splitBookingServices(booking.id, splitServiceAssignments)
+                                    .then(async () => {
+                                      // 核心修复：移除 null 限制，无论指派给谁都强制全局唤醒智能排盘大脑
+                                      await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                      setImplodedOrderId(null);
+                                      setSplitServiceAssignments({});
+                                      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                    })
+                                    .catch(err => console.error("Batch split failed:", err))
+                                    .finally(() => setProcessingOrderId(null)); // 释放锁
+                                } else if (!isSplitMode && splitActiveEmployeeId) {
+                                  // 单个项目的卡片直接整个换人
+                                  const targetId = splitActiveEmployeeId === 'UNASSIGNED_POOL' ? null : splitActiveEmployeeId;
+                                  setProcessingOrderId(booking.id); // 锁死
+                                  BookingService.updateBookingResource(booking.id, targetId)
+                                    .then(async () => {
+                                      // 核心修复：移除 null 限制，无论指派给谁都强制全局唤醒智能排盘大脑
+                                      await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                      setImplodedOrderId(null);
+                                      setSplitServiceAssignments({});
+                                      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                    })
+                                    .catch(err => console.error("Update resource failed:", err))
+                                    .finally(() => setProcessingOrderId(null)); // 释放锁
+                                }
+                                return;
+                              }
                               if (onBookingClick) onBookingClick(booking);
                             }}
                             onDragStart={() => handleBookingDragStart(booking)}
@@ -724,11 +866,198 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                             title={serviceTitle}
                             time={`${booking.startTime} (${booking.duration}m)`}
                             client={formatMinimalId((booking.customerId || booking.customerName) || "")}
-                            color={blockColor}
+                            color={finalBlockColor}
                             accent={blockAccent as "cyan" | "purple" | "emerald" | "amber" | "red"}
                             height="100%" 
                             isTiny={isTiny}
+                            isPending={isPending} // 传递待确认标识，触发跑马灯
+                            isPast={isPast} // 跨过红线
+                            isCheckedOut={isCheckedOut} // 已结账
                           />
+
+                          {/* 渲染内爆菜单 (微缩派单器，只在第一个子订单处渲染) */}
+                          {isFirstImploded && (
+                            <div 
+                              className={cn(
+                                "absolute z-[60] flex flex-row gap-1 pointer-events-auto h-[240px] shadow-2xl",
+                                isSplitMode ? "-left-[200%] w-[200%]" : "-left-[100%] w-[100%]"
+                              )}
+                              style={{
+                                top: 0,
+                              }}
+                            >
+                              {/* 员工列表 (左侧 33.3% 或 50%) */}
+                              <div className={cn(
+                                "h-full bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-2xl flex flex-col gap-1 overflow-y-auto no-scrollbar",
+                                isSplitMode ? "w-1/2" : "w-full"
+                              )}>
+                                {/* 未指定选项 - 固定在最顶部 */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!isSplitMode) {
+                                      // 单项换人：退回未指定池 (null)
+                                      BookingService.updateBookingResource(booking.id, null)
+                                        .then(async () => {
+                                          // 触发智能重排算法
+                                          await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                          setImplodedOrderId(null);
+                                          window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                        });
+                                    } else {
+                                      // 多项拆单：激活“未指定”状态
+                                      setSplitActiveEmployeeId('UNASSIGNED_POOL' === splitActiveEmployeeId ? null : 'UNASSIGNED_POOL');
+                                    }
+                                  }}
+                                  className={cn(
+                                    "text-center px-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all shrink-0 border",
+                                    splitActiveEmployeeId === 'UNASSIGNED_POOL'
+                                      ? "scale-105"
+                                      : "border-transparent hover:border-white/20"
+                                  )}
+                                  style={{ 
+                                    color: '#00f0ff',
+                                    backgroundColor: 'transparent',
+                                    borderColor: splitActiveEmployeeId === 'UNASSIGNED_POOL' ? '#00f0ff' : 'transparent',
+                                    boxShadow: splitActiveEmployeeId === 'UNASSIGNED_POOL' ? `0 0 10px #00f0ff80, inset 0 0 5px #00f0ff40` : 'none'
+                                  }}
+                                >
+                                  <div>未指定</div>
+                                </button>
+                                
+                                {/* 员工列表 */}
+                                {resources.filter(r => r.id !== 'NEXUS' && r.id !== 'NO').map(res => (
+                                  <button
+                                    key={res.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isSplitMode) {
+                                        // 单项换人：直接分配并关闭
+                                        BookingService.updateBookingResource(booking.id, res.id)
+                                          .then(async () => {
+                                            // 强制全局唤醒智能排盘大脑，处理重叠
+                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                            setImplodedOrderId(null);
+                                            window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                          });
+                                      } else {
+                                        // 多项拆单：激活该员工，等待点击项目
+                                        setSplitActiveEmployeeId(res.id === splitActiveEmployeeId ? null : res.id);
+                                      }
+                                    }}
+                                    onDoubleClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isSplitMode) {
+                                        // 双击多项：整个订单直接换人（所有包裹的项目一起分配）
+                                        BookingService.updateBookingResource(booking.id, res.id)
+                                          .then(async () => {
+                                            // 强制全局唤醒智能排盘大脑，处理重叠
+                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                            setImplodedOrderId(null);
+                                            window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                          });
+                                      }
+                                    }}
+                                    className={cn(
+                                      "text-center px-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all shrink-0 border",
+                                      splitActiveEmployeeId === res.id 
+                                        ? "scale-105" 
+                                        : "border-transparent hover:border-white/20"
+                                    )}
+                                    style={{ 
+                                      color: res.themeColor || dna.themeColor,
+                                      backgroundColor: 'transparent',
+                                      borderColor: splitActiveEmployeeId === res.id ? (res.themeColor || dna.themeColor) : 'transparent',
+                                      boxShadow: splitActiveEmployeeId === res.id ? `0 0 10px ${res.themeColor || dna.themeColor}80, inset 0 0 5px ${res.themeColor || dna.themeColor}40` : 'none'
+                                    }}
+                                  >
+                                    <div>{res.name}</div>
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* 项目列表 (仅多项拆单时显示，中间 33.3%) */}
+                              {isSplitMode && booking.services && (
+                                <div className="w-1/2 h-full bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-2xl flex flex-col gap-1 overflow-y-auto no-scrollbar">
+                                  {booking.services.map((svc: any) => {
+                                    // 确定该项目当前被分配给谁
+                                    const assignedEmpId = splitServiceAssignments[svc.id];
+                                    
+                                    // 确定显示的基础颜色
+                                    let itemColor = '#666';
+                                    if (assignedEmpId) {
+                                      if (assignedEmpId === 'UNASSIGNED_POOL') {
+                                        itemColor = '#00f0ff';
+                                      } else {
+                                        const res = resources.find(r => r.id === assignedEmpId);
+                                        if (res?.themeColor) itemColor = res.themeColor;
+                                      }
+                                    } else {
+                                      // 如果还没被分配，显示原始订单颜色
+                                      if (booking.originalUnassigned === true || !booking.resourceId || booking.resourceId === 'NEXUS') {
+                                        itemColor = '#00f0ff'; // 未分配强制青色
+                                      } else {
+                                        const currentRes = resources.find(r => r.id === booking.resourceId);
+                                        if (currentRes?.themeColor) itemColor = currentRes.themeColor;
+                                      }
+                                    }
+
+                                    // 交互态：是否正准备被重新分配 (选中)
+                                    // 在这种模式下，“选中”就是当前被点击改变了映射，
+                                    // 为了视觉反馈，我们可以看它是否被分配了人，或者在 hover 时显示当前选中的画笔颜色
+                                    const isAssigned = !!assignedEmpId;
+                                    
+                                    // 这里保留 previewColor 逻辑以防鼠标悬浮或点击时需要发光
+                                    // 当前我们把被分配过（记录在字典里）的就视作选中并打上钩
+                                    let isPreviewing = isAssigned;
+                                    let previewColor = itemColor;
+                                    
+                                    return (
+                                      <button
+                                        key={svc.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (splitActiveEmployeeId) {
+                                            // 真正的画笔逻辑：将该项目涂上当前激活的员工颜色
+                                            setSplitServiceAssignments(prev => {
+                                              const newAssignments = { ...prev };
+                                              // 如果再次点击同样的员工，则取消分配（擦除）
+                                              if (newAssignments[svc.id] === splitActiveEmployeeId) {
+                                                delete newAssignments[svc.id];
+                                              } else {
+                                                newAssignments[svc.id] = splitActiveEmployeeId;
+                                              }
+                                              return newAssignments;
+                                            });
+                                          }
+                                        }}
+                                        className={cn(
+                                          "text-left px-2 py-2 rounded-lg text-xs font-bold transition-all border shrink-0 relative",
+                                          splitActiveEmployeeId ? "cursor-pointer" : "opacity-50 cursor-not-allowed",
+                                          isAssigned ? "scale-[1.02]" : ""
+                                        )}
+                                        style={{ 
+                                          backgroundColor: 'transparent', 
+                                          borderColor: isPreviewing ? previewColor : itemColor, 
+                                          boxShadow: isPreviewing 
+                                            ? `0 0 10px ${previewColor}80, inset 0 0 5px ${previewColor}40` 
+                                            : `0 0 5px ${itemColor}40`,
+                                          color: isPreviewing ? previewColor : itemColor
+                                        }}
+                                      >
+                                        {/* 被分配后的复选标记/印章 */}
+                                        {isAssigned && (
+                                          <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: previewColor, boxShadow: `0 0 8px ${previewColor}` }} />
+                                        )}
+                                        <div className="text-white truncate pr-3" title={svc.name || svc.serviceName}>{svc.name || svc.serviceName}</div>
+                                        <div className="text-[9px] text-white/50">{svc.duration || 60}m</div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

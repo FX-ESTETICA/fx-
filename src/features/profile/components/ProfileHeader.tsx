@@ -57,6 +57,18 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const profileGxId = (profile as UserProfile & { gx_id?: string; gxId?: string }).gx_id
     ?? (profile as UserProfile & { gx_id?: string; gxId?: string }).gxId;
 
+  // 名字复制与展开状态机
+  const [nameCopyState, setNameCopyState] = useState<"idle" | "copied">("idle");
+  const handleCopyName = () => {
+    if (!profile.name) return;
+    navigator.clipboard.writeText(profile.name).then(() => {
+      setNameCopyState("copied");
+      setTimeout(() => {
+        setNameCopyState("idle");
+      }, 2000);
+    });
+  };
+
   // 复制 ID 状态机
   const [copyState, setCopyState] = useState<"idle" | "hover" | "copied">("idle");
   const handleCopyId = () => {
@@ -283,17 +295,37 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               transformOrigin: 'left bottom'
             }}
           >
-            {/* 名字投影 */}
+            {/* 名字投影 - 点击展开并复制 */}
             <div 
-              className="text-[24px] md:text-[36px] font-black tracking-widest pointer-events-none select-none whitespace-nowrap uppercase leading-none mb-1"
+              onClick={handleCopyName}
+              className={cn(
+                "text-[18px] md:text-[24px] font-black tracking-widest select-none uppercase leading-none mb-1 transition-all duration-500 cursor-pointer pr-2 flex items-center group",
+                nameCopyState === "copied" 
+                  ? "whitespace-nowrap max-w-none text-gx-cyan" 
+                  : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:brightness-125"
+              )}
               style={{
-                color: 'rgba(255, 255, 255, 0.6)',
-                WebkitTextStroke: '0.5px rgba(0, 242, 255, 0.5)',
-                textShadow: '0 0 10px rgba(0, 242, 255, 0.4)',
-                filter: 'blur(0.2px)',
+                color: nameCopyState === "copied" ? 'rgb(0, 242, 255)' : 'rgba(255, 255, 255, 0.6)',
+                WebkitTextStroke: nameCopyState === "copied" ? '0.5px rgba(0, 242, 255, 0.8)' : '0.5px rgba(0, 242, 255, 0.5)',
+                textShadow: nameCopyState === "copied" ? '0 0 15px rgba(0, 242, 255, 0.8)' : '0 0 10px rgba(0, 242, 255, 0.4)',
+                filter: nameCopyState === "copied" ? 'none' : 'blur(0.2px)',
               }}
             >
               {profile.name}
+              
+              {/* 复制成功指示器 */}
+              <AnimatePresence>
+                {nameCopyState === "copied" && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5, x: -10 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.5, x: -5 }}
+                    className="ml-2 text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,1)]"
+                  >
+                    <Check className="w-4 h-4" strokeWidth={3} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* 角色暗门切换器 */}

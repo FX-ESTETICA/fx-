@@ -10,7 +10,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-key';
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: typeof window !== "undefined" ? window.sessionStorage : undefined,
+    // 移除自定义的 sessionStorage，让 Supabase 默认使用跨标签页的 localStorage
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,

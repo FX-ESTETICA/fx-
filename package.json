@@ -12,6 +12,8 @@
     "preinstall": "npm config set legacy-peer-deps true"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.52",
+    "@ai-sdk/react": "^3.0.156",
     "@capacitor-community/file-opener": "^8.0.0",
     "@capacitor/android": "^8.3.0",
     "@capacitor/app": "^8.1.0",
@@ -32,6 +34,7 @@
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.101.0",
     "@types/three": "^0.183.1",
+    "ai": "^6.0.154",
     "blurhash": "^2.0.5",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",

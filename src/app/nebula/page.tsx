@@ -39,6 +39,7 @@ const ORBIT_SLOTS: CyberThemeColor[] = [
 
 function useNebulaData(bossId: string | undefined) {
   const [planets, setPlanets] = useState<PlanetData[]>([]);
+  const [allPlanets, setAllPlanets] = useState<PlanetData[]>([]); // 存储所有星球，用于降维搜索
   const [isLoading, setIsLoading] = useState(true);
 
   // 获取数据
@@ -95,6 +96,8 @@ function useNebulaData(bossId: string | undefined) {
           managerRole: null
         };
       }).filter(Boolean);
+
+      setAllPlanets(realNodes as PlanetData[]);
 
       // 如果不足 10 个，生成虚拟节点填充轨道
       const filledPlanets: PlanetData[] = [];
@@ -391,6 +394,7 @@ function useNebulaData(bossId: string | undefined) {
 
   return {
     planets,
+    allPlanets,
     isLoading,
     updateNode,
     delegateManager,
@@ -409,8 +413,21 @@ const INDUSTRY_OPTIONS = [
 
 // --- 2D HUD Components ---
 
-function GlobalSearchHUD({ onSearch }: { onSearch: (term: string) => void }) {
-    const t = useTranslations('nebula');
+function GlobalSearchHUD({ 
+  allPlanets, 
+  onSelect 
+}: { 
+  allPlanets: PlanetData[];
+  onSelect: (planet: PlanetData) => void;
+}) {
+  const t = useTranslations('nebula');
+  const [term, setTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filtered = term.trim() === "" 
+    ? [] 
+    : allPlanets.filter(p => p.name.toLowerCase().includes(term.toLowerCase()));
+
   return (
     <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
       <div className="relative group">
@@ -419,11 +436,51 @@ function GlobalSearchHUD({ onSearch }: { onSearch: (term: string) => void }) {
           <Search className="w-4 h-4 text-white/50 mr-3" />
           <input 
             type="text" 
+            value={term}
             placeholder={t('txt_27474a')} 
             className="flex-1 bg-transparent text-sm text-white placeholder-white/30 outline-none font-mono tracking-wider"
-            onChange={(e) => onSearch(e.target.value)}
+            onChange={(e) => {
+              setTerm(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
           />
+          {term && (
+            <button onClick={() => { setTerm(""); setIsOpen(false); }} className="text-white/40 hover:text-white/80">
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
+        
+        {/* 搜索下拉结果 */}
+        <AnimatePresence>
+          {isOpen && filtered.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-full left-0 w-full mt-2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(0,240,255,0.1)] max-h-60 overflow-y-auto"
+            >
+              {filtered.map(planet => (
+                <div 
+                  key={planet.id}
+                  onClick={() => {
+                    setTerm("");
+                    setIsOpen(false);
+                    onSelect(planet);
+                  }}
+                  className="px-4 py-3 border-b border-white/5 hover:bg-gx-cyan/10 cursor-pointer transition-colors flex items-center justify-between group"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-white text-sm font-bold group-hover:text-gx-cyan transition-colors">{planet.name}</span>
+                    <span className="text-white/40 text-[10px] font-mono tracking-widest">{planet.id.split('-')[0]}...</span>
+                  </div>
+                  <Rocket className="w-4 h-4 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -1117,45 +1174,28 @@ function NebulaSubSystem({ targetPlanet }: { targetPlanet: PlanetData }) {
 }
 
 function CoreNode({ 
-  userAvatar, 
-  userName, 
-  userId,
   onClick 
 }: { 
-  userAvatar: string | null, 
-  userName: string, 
-  userId: string,
   onClick?: () => void
 }) {
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const [hovered, setHovered] = useState(false);
-
-  // 动态加载头像纹理，处理 CORS 和 null 回退
-  useEffect(() => {
-    if (userAvatar) {
-      const loader = new THREE.TextureLoader();
-      loader.setCrossOrigin("anonymous");
-      loader.load(
-        userAvatar,
-        (txt) => {
-          txt.colorSpace = THREE.SRGBColorSpace;
-          setTexture(txt);
-        },
-        undefined,
-        (err) => console.error("Failed to load avatar texture", err)
-      );
-    }
-  }, [userAvatar]);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   useEffect(() => {
     document.body.style.cursor = hovered ? 'pointer' : 'auto';
     return () => { document.body.style.cursor = 'auto'; };
   }, [hovered]);
 
+  // 实现极其纯净的全息玻璃流光 (Pure Holographic Glass)
+  useFrame(({ clock }) => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value = clock.getElapsedTime() * 0.15; // 极度平滑的色彩流转
+    }
+  });
+
   return (
     <group 
       onClick={(e) => {
-        // 阻止事件冒泡，防止触发背景的点击
         if (onClick) {
           e.stopPropagation();
           onClick();
@@ -1164,41 +1204,101 @@ function CoreNode({
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
       onPointerOut={(e) => { e.stopPropagation(); setHovered(false); }}
     >
-      {/* 核心恒星 - 使用 Billboard 确保头像永远正对摄像机 */}
-      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
-        {/* 真实的 3D 球体，贴上头像纹理，并添加交互反馈 */}
-        <Sphere args={[2, 64, 64]}>
-          <meshStandardMaterial 
-            map={texture || undefined} 
-            color={texture ? "#ffffff" : "#000000"} 
-            emissive={texture ? "#000000" : "#00f2ff"}
-            emissiveIntensity={texture ? 0 : 0.2}
-            roughness={0.2}
-            metalness={0.8}
-          />
-        </Sphere>
+      {/* 核心恒星 - 财务与数据中枢 */}
+      {/* 恢复自转，并应用自定义的纯净玻璃着色器 */}
+      <Sphere args={[2.5, 128, 128]}>
+        <shaderMaterial
+          ref={materialRef}
+          uniforms={{
+            uTime: { value: 0 }
+          }}
+          vertexShader={`
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
+            void main() {
+              vUv = uv;
+              vNormal = normalize(normalMatrix * normal);
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              vViewPosition = -mvPosition.xyz;
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `}
+          fragmentShader={`
+            uniform float uTime;
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            varying vec3 vViewPosition;
 
-        {/* 如果头像加载失败或没有头像，显示全息 Icon */}
-        {!texture && (
-          <Html position={[0, 0, 0]} center transform sprite zIndexRange={[100, 0]}>
-            <ShieldCheck className="w-12 h-12 text-gx-cyan drop-shadow-[0_0_15px_rgba(0,242,255,0.8)]" />
-          </Html>
-        )}
+            // 高级冰透色盘 (赛博青 -> 极光紫 -> 深空蓝)
+            vec3 palette( in float t ) {
+                vec3 a = vec3(0.1, 0.2, 0.4); // 深空蓝底色
+                vec3 b = vec3(0.3, 0.5, 0.8); // 青蓝过渡
+                vec3 c = vec3(1.0, 1.0, 1.0);
+                vec3 d = vec3(0.4, 0.6, 0.8); // 极光紫/青相移
+                return a + b*cos( 6.28318*(c*t+d) );
+            }
+
+            void main() {
+              vec3 viewDir = normalize(vViewPosition);
+              
+              // 1. 极致纯净的边缘高光 (Fresnel Effect) - 模拟玻璃反光
+              float fresnel = dot(vNormal, viewDir);
+              float rim = clamp(1.0 - fresnel, 0.0, 1.0);
+              
+              // 锐利的边缘高光
+              float intenseRim = pow(rim, 4.0); 
+              // 柔和的内部辉光过渡
+              float softRim = pow(rim, 1.5);    
+
+              // 2. 平滑的全息流光色彩
+              // 不使用任何斑块噪声，而是使用极低频的正弦波，让颜色像彩虹渐变一样在球体表面平滑扫过
+              float colorPhase = vUv.x * 0.5 + vUv.y * 0.5 + uTime;
+              vec3 baseGlowColor = palette(colorPhase);
+
+              // 3. 玻璃高光 (最边缘是极其刺眼的纯青蓝色)
+              vec3 glassRimColor = vec3(0.0, 0.95, 1.0) * intenseRim * 2.0;
+              
+              // 4. 内部全息辉光 (将流转的色彩应用在次边缘)
+              vec3 holographicGlow = baseGlowColor * softRim * 1.2;
+
+              // 最终颜色：边缘刺眼高光 + 内部柔和全息渐变
+              vec3 finalColor = glassRimColor + holographicGlow;
+              
+              // 5. 极致透明度控制
+              // 中心完全透明 (0.05)，边缘逐渐不透明 (0.9)，形成完美的空心水晶球质感
+              float alpha = mix(0.05, 0.9, rim);
+              
+              gl_FragColor = vec4(finalColor, alpha);
+            }
+          `}
+          transparent={true}
+          side={THREE.FrontSide}
+          blending={THREE.AdditiveBlending} // 加法混合，让它像真正的发光玻璃
+          depthWrite={false}
+        />
+      </Sphere>
+
+      {/* 中心图标保留 Billboard 确保永远正对摄像机 */}
+      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+        <Html position={[0, 0, 0]} center transform sprite zIndexRange={[100, 0]}>
+          <LineChart className="w-16 h-16 text-white drop-shadow-[0_0_20px_rgba(0,0,0,0.8)] animate-pulse" />
+        </Html>
       </Billboard>
 
-      {/* 身份标识 - 永远悬浮在核心下方，支持物理遮挡 */}
-      <Html position={[0, -3.5, 0]} center transform sprite zIndexRange={[100, 0]}>
-        {/* 添加 select-none 禁用文本选中，防止拖拽 3D 场景时误触原生高亮 */}
-        {/* 扩大 w-[600px] 容器宽度并使用 whitespace-nowrap 强制不换行 */}
-        <div className="flex flex-col items-center text-center space-y-2 w-[600px] pointer-events-none select-none">
-          <h1 className="text-4xl md:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan via-purple-400 to-gx-cyan bg-[length:200%_auto] animate-gradient drop-shadow-[0_0_20px_rgba(0,255,255,0.3)] whitespace-nowrap">
-            {userName}
-          </h1>
-          <div className="text-[10px] font-mono text-gx-cyan/80 tracking-[0.2em] border border-gx-cyan/30 px-3 py-1 rounded-full bg-gx-cyan/[0.05] backdrop-blur-md">
-            ID: {userId}
+      {/* 身份标识 - 永远悬浮在核心下方 */}
+      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+        <Html position={[0, -4.5, 0]} center transform sprite zIndexRange={[100, 0]}>
+          <div className="flex flex-col items-center text-center space-y-2 w-[600px] pointer-events-none select-none">
+            <h1 className="text-3xl md:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan via-purple-400 to-gx-cyan bg-[length:200%_auto] animate-gradient drop-shadow-[0_0_20px_rgba(0,255,255,0.3)] whitespace-nowrap">
+              财务与数据中枢
+            </h1>
+            <div className="text-[10px] font-mono text-gx-cyan/80 tracking-[0.2em] border border-gx-cyan/30 px-3 py-1 rounded-full bg-gx-cyan/[0.05] backdrop-blur-md">
+              SYSTEM CORE
+            </div>
           </div>
-        </div>
-      </Html>
+        </Html>
+      </Billboard>
     </group>
   );
 }
@@ -1271,14 +1371,11 @@ function NebulaUniverse({
 
       {/* 绝对中心：神枢 (不参与星系旋转，永远保持正对) */}
       <CoreNode 
-        userAvatar={userAvatar} 
-        userName={userName} 
-        userId={userId} 
         onClick={() => {
           // 构造一个代表母星的 PlanetData 对象并触发点击事件
           onPlanetClick({
             id: 'core',
-            name: userName,
+            name: '财务与数据中枢',
             industry: 'enterprise',
             status: 'active',
             key: 'core',
@@ -1346,6 +1443,7 @@ export default function NebulaPage() {
   // 使用自定义 Hook 拉取 Supabase 数据
   const { 
     planets, 
+    allPlanets,
     isLoading, 
     updateNode, 
     delegateManager, 
@@ -1451,7 +1549,12 @@ export default function NebulaPage() {
       </AnimatePresence>
 
       {/* 顶层全局搜索 HUD (在子星系隐藏) */}
-      {!diveState.isActive && <GlobalSearchHUD onSearch={handleSearch} />}
+      {!diveState.isActive && (
+        <GlobalSearchHUD 
+          allPlanets={allPlanets} 
+          onSelect={(planet) => setSelectedPlanet(planet)} 
+        />
+      )}
 
       {/* 2D 业务管理舱 HUD (当选中星球时出现) */}
       {selectedPlanet && !diveState.isActive && (

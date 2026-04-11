@@ -22,6 +22,8 @@ export interface SandboxUser extends Omit<User, 'created_at'> {
   // 核心升级：增加性别与生日，用于强阻断拦截
   gender?: string | null;
   birthday?: string | null;
+  // 核心升级：申请状态引擎，用于全站卡片隐藏与意图保持
+  applicationStatus?: 'idle' | 'pending' | 'approved' | 'rejected';
 }
 
 type ShopBindingRow = {
@@ -86,17 +88,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     return deviceId;
   }, []);
-  const getWindowId = useCallback(() => {
-    if (typeof window === "undefined") return null;
-    let windowId = sessionStorage.getItem("gx_window_id");
-    if (!windowId) {
-      windowId = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `gxw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      sessionStorage.setItem("gx_window_id", windowId);
-    }
-    return windowId;
-  }, []);
 
   const syncDeviceSession = useCallback(async (nextSession?: Session | null) => {
     if (isMockMode) return;
@@ -106,48 +97,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!currentSession?.user || !currentSession.access_token || !currentSession.expires_at) return;
     if (currentSession.expires_at * 1000 < Date.now()) return;
     const deviceId = getDeviceId();
-    const windowId = getWindowId();
-    if (!deviceId || !windowId) return;
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) return;
-    const { data, error } = await supabase
+    if (!deviceId) return;
+    
+    // 仅记录设备在线状态（Upsert），不再执行任何的 window_id 检查或互踢逻辑 (Option A)
+    const { error } = await supabase
       .from('device_sessions')
-      .select('user_id, window_id')
-      .eq('device_id', deviceId)
-      .eq('user_id', currentSession.user.id)
-      .limit(1);
+      .upsert({ 
+        device_id: deviceId, 
+        user_id: currentSession.user.id, 
+        updated_at: new Date().toISOString() 
+      }, { onConflict: 'device_id,user_id' });
+
     if (error) {
-      console.error("[AuthProvider] Device session query error:", error);
-      return;
+      console.error("[AuthProvider] Device session upsert error:", error);
     }
-    const record = Array.isArray(data) ? data[0] : null;
-    if (!record) {
-      await supabase
-        .from('device_sessions')
-        .upsert({ device_id: deviceId, user_id: currentSession.user.id, window_id: windowId, updated_at: new Date().toISOString() }, { onConflict: 'device_id,user_id' });
-      return;
-    }
-    if (record.user_id !== currentSession.user.id) {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setIsGuest(false);
-      return;
-    }
-    if (record.window_id && record.window_id !== windowId) {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setIsGuest(false);
-      return;
-    }
-    await supabase
-      .from('device_sessions')
-      .update({ user_id: currentSession.user.id, window_id: windowId, updated_at: new Date().toISOString() })
-      .eq('device_id', deviceId)
-      .eq('user_id', currentSession.user.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getDeviceId, getWindowId, hasConfirmedSession]);
+  }, [getDeviceId, hasConfirmedSession]);
 
   const hydrateSession = useCallback(async (nextSession: Session | null) => {
     if (isMockMode) {
@@ -175,6 +140,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const isBoss = nextSession.user.email === ADMIN_EMAIL;
         
+        // 【核心升级】：拉取全息申请状态 (消除闪烁与脏读)
+        let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = 'idle';
+        try {
+          const { data: appData } = await supabase
+            .from('merchant_applications')
+            .select('status')
+            .eq('user_id', nextSession.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (appData) {
+            appStatus = appData.status as 'pending' | 'approved' | 'rejected';
+          }
+        } catch (e) {
+          console.error("[AuthProvider] Failed to fetch application status", e);
+        }
+
         // 【核心升级】：如果是 Boss，强制接管并拉取所有名下门店
         if (isBoss) {
           try {
@@ -218,7 +200,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             name: actualName,
             gender: profile.gender || "unknown", // 核心补全：读取性别
             birthday: profile.birthday || null,  // 核心补全：读取生日
-            bindings: shopBindings
+            bindings: shopBindings,
+            applicationStatus: appStatus
           } as SandboxUser;
           
           setUser(extendedUser);
@@ -333,6 +316,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const isBoss = activeSession.user.email === ADMIN_EMAIL;
 
+      // 【核心升级】：同步刷新全局申请状态
+      let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = 'idle';
+      try {
+        const { data: appData } = await supabase
+          .from('merchant_applications')
+          .select('status')
+          .eq('user_id', activeSession.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (appData) {
+          appStatus = appData.status as 'pending' | 'approved' | 'rejected';
+        }
+      } catch (e) {
+        console.error("[AuthProvider] Failed to refresh application status", e);
+      }
+
       // 【核心升级】：如果是 Boss，强制接管并拉取所有名下门店 (Refresh 逻辑保持同步)
       if (isBoss) {
         try {
@@ -372,7 +372,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           name: actualName,
           gender: profile.gender || "unknown", // 刷新时重新读取
           birthday: profile.birthday || null,  // 刷新时重新读取
-          bindings: shopBindings
+          bindings: shopBindings,
+          applicationStatus: appStatus
         } as SandboxUser;
         
         setUser(extendedUser);
@@ -412,6 +413,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe();
       
+    // 监听商户申请状态变更 (实现秒级入驻闭环)
+    const applicationsSubscription = supabase
+      .channel(`public:merchant_applications:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'merchant_applications', filter: `user_id=eq.${user.id}` },
+        async (payload) => {
+          console.log("[AuthProvider] Application realtime update received:", payload);
+          await refreshUserData();
+        }
+      )
+      .subscribe();
+
     // 监听全局 shops 表的变动 (处理门店名称修改、删除等情况)
     // 注意：如果是普通用户可能没权限监听所有shops，但这里只用来触发刷新，所以不带 filter
     const shopsSubscription = supabase
@@ -430,6 +444,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       supabase.removeChannel(profileSubscription);
       supabase.removeChannel(bindingsSubscription);
+      supabase.removeChannel(applicationsSubscription);
       supabase.removeChannel(shopsSubscription);
     };
   }, [user, refreshUserData]); // 仅当 user 变化时重新订阅
@@ -448,17 +463,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    const intervalId = window.setInterval(async () => {
-      const { data: { session: nextSession } } = await supabase.auth.getSession();
-      await hydrateSession(nextSession);
-      if (nextSession?.user) {
-        await syncDeviceSession(nextSession);
-      }
-    }, 30000);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
-      window.clearInterval(intervalId);
     };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 

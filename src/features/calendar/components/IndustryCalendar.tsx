@@ -137,6 +137,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 必须等待云端数据拉取完毕，才允许前端发起任何保存请求，防止初始默认状态反杀数据库
   const [isCloudDataLoaded, setIsCloudDataLoaded] = useState(false);
   
+  // 新增：世界顶端的“靶向雷达”信标，用于控制跨期野单的瞬间物理位移
+  const [targetBookingId, setTargetBookingId] = useState<string | null>(null);
+
   // 新增背景控制 hook
   const { settings: visualSettings } = useVisualSettings();
   const searchParams = useSearchParams();
@@ -291,6 +294,34 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 控制左侧边栏显示状态
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端默认关闭，大屏可通过断点或 useEffect 控制，此处为了演示先默认关闭
+
+  // 【世界级靶向雷达】：监听 targetBookingId 信标
+  // 只要信标存在，我们就不断扫描 DOM 树，一旦找到目标元素，瞬间击发物理位移并销毁信标
+  useEffect(() => {
+    if (!targetBookingId) return;
+
+    // 因为 React 的渲染和 DOM 更新有微小延迟，我们设置一个极短的高频雷达轮询 (最多找 10 次，每次 50ms)
+    let attempts = 0;
+    const radarInterval = setInterval(() => {
+      const targetElement = document.getElementById(`booking-block-${targetBookingId}`);
+      if (targetElement) {
+        // 锁定目标！瞬间瞬移，没有任何中间动画，直接把色块钉死在屏幕中央！
+        targetElement.scrollIntoView({ behavior: 'instant', block: 'center' });
+        // 瞬间销毁信标
+        setTargetBookingId(null);
+        clearInterval(radarInterval);
+      } else {
+        attempts++;
+        if (attempts >= 10) {
+          // 找了半秒还没找到，可能目标在未渲染的视图里，放弃寻迹以防死循环
+          setTargetBookingId(null);
+          clearInterval(radarInterval);
+        }
+      }
+    }, 50);
+
+    return () => clearInterval(radarInterval);
+  }, [targetBookingId, currentDate, globalBookings]); // 依赖项改为 globalBookings，修复 ReferenceError
 
   // 翻页逻辑：每页 5 个员工
   const [currentStaffPage, setCurrentStaffPage] = useState(0);
@@ -523,9 +554,49 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         }));
     }
 
+    // 动态 NEXUS 网络预约列逻辑：
+    // 查询云端数据，如果今天存在 originalUnassigned 或 status: PENDING 的野单，则在最左侧强行挂载 NEXUS 列
+    let hasPendingToday = false;
+    try {
+      if (globalBookings && globalBookings.length > 0) {
+        // 【核心修复】：使用 YYYY-MM-DD 格式进行安全比对，避免时区偏差
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const currentDateStr = `${year}-${month}-${day}`;
+        
+        const shopId = searchParams.get('shopId');
+        
+        hasPendingToday = globalBookings.some((b) => {
+          // 容错：如果 date 包含 T，只取前半部分
+          const bDate = b.date?.split('T')[0];
+          return bDate === currentDateStr && 
+          b.status === 'PENDING' && 
+          (!shopId || b.shopId === shopId);
+        });
+      }
+    } catch (e) {
+      console.error("Failed to check NEXUS bookings:", e);
+    }
+
     // 分页截取逻辑 (Pagination)
     const startIndex = currentStaffPage * STAFFS_PER_PAGE;
     const paginatedResources = baseResources.slice(startIndex, startIndex + STAFFS_PER_PAGE);
+
+    // 强行挂载门神列 (在分页之后，保证始终在最左侧且不影响分页数学逻辑)
+    if (hasPendingToday) {
+      paginatedResources.unshift({
+        id: 'NEXUS',
+        name: 'NEXUS',
+        role: '网络枢纽',
+        themeColor: '#00f0ff',
+        status: 'available',
+        metadata: {
+          isPhantomColumn: true,
+          originalStatus: 'available'
+        }
+      });
+    }
 
     // 动态 No-Show 爽约列逻辑：
     // 查询云端数据，如果今天存在 resourceId 为 'NO' 的订单，则在末尾挂载 NO 列
@@ -605,7 +676,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             <div className="w-[260px] h-full flex flex-col">
           {/* --- 联邦制权限指挥链 (Chain of Command) --- */}
           <div className="px-8 pb-6 pt-8 flex flex-col gap-3">
-            {currentUserRole === 'boss' && (
+            {(currentUserRole === 'boss' || currentUserRole === 'merchant') && (
               <OrbitalPossessionProfile 
                 bossName={userName || 'BOSS'}
                 bossId={userGxId || 'GX88888888'}
@@ -614,16 +685,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 shopId={shopId}
                 onNavigateHome={() => router.push('/dashboard')}
               />
-            )}
-
-            {currentUserRole === 'merchant' && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-white/30 text-[9px] font-mono uppercase tracking-widest ml-4 mb-1">
-                  <div className="w-px h-3 bg-white/20" />
-                  <span>{t('txt_5aec8c')}</span>
-                </div>
-                {/* 已经合并到了上面的 boss || merchant 判断中，这块重复的可以删除 */}
-              </div>
             )}
 
             {currentUserRole === 'user' && (
@@ -658,20 +719,97 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
           {/* 行业切换区 (已移除，移至底部时钟下方) */}
           <div className="px-8 space-y-6 pt-0">
-            {/* 核心统计 (Mock) */}
-            <div className="grid grid-cols-2 gap-2 pt-8 pointer-events-none">
-              {[
-                { label: t('txt_3353f0'), value: '24', trend: '+12%', color: 'text-gx-cyan' },
-                { label: t('txt_047109'), value: '08', trend: 'Critical', color: 'text-red-500' }
-              ].map(stat => (
-                <div key={stat.label} className="p-3 rounded-xl bg-white/5 border border-white/5 transition-all">
-                  <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{stat.label}</span>
-                  <div className="flex items-end justify-between mt-1">
-                    <span className={cn("text-xl font-black tracking-tighter", stat.color)}>{stat.value}</span>
-                    <span className="text-[8px] font-mono text-white/40 font-bold mb-1">{stat.trend}</span>
-                  </div>
-                </div>
-              ))}
+            {/* 核心统计 (Dynamic) */}
+            <div className="grid grid-cols-2 gap-2 pt-8 pointer-events-auto relative z-50">
+              {(() => {
+                const shopIdStr = searchParams.get('shopId');
+                
+                const year = new Date().getFullYear();
+                const month = String(new Date().getMonth() + 1).padStart(2, '0');
+                const day = String(new Date().getDate()).padStart(2, '0');
+                const realTodayStr = `${year}-${month}-${day}`;
+
+                // 1. 今日预约数 (排除 PENDING 和 NO 的真实订单)
+                const todayBookingsCount = globalBookings.filter(b => {
+                  const bDate = b.date?.split('T')[0];
+                  return bDate === realTodayStr && b.status !== 'PENDING' && b.resourceId !== 'NO' && (!shopIdStr || b.shopId === shopIdStr);
+                }).length;
+
+                // 2. 原生今日待处理数 (未完成的真实订单，这里做简单 mock 过滤，比如非 completed 状态，暂且用原生占位或简单计算)
+                const todayPendingCount = globalBookings.filter(b => {
+                  const bDate = b.date?.split('T')[0];
+                  return bDate === realTodayStr && b.status !== 'PENDING' && b.status !== 'completed' && b.resourceId !== 'NO' && (!shopIdStr || b.shopId === shopIdStr);
+                }).length;
+
+                // 3. AI 跨期野单总数 (NEXUS ALERT) - 终极纯净版：仅捕获 PENDING 待确认订单
+                const allNexusBookings = globalBookings.filter(b => {
+                  return b.status === 'PENDING' && (!shopIdStr || b.shopId === shopIdStr);
+                }).sort((a, b) => {
+                  const dateA = a.date?.split('T')[0] || "";
+                  const dateB = b.date?.split('T')[0] || "";
+                  if (dateA !== dateB) return dateA.localeCompare(dateB);
+                  return (a.startTime || "").localeCompare(b.startTime || "");
+                });
+
+                const nexusCount = allNexusBookings.length;
+
+                return (
+                  <>
+                    {/* 原生卡片 1：今日预约 */}
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/5 transition-all">
+                      <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{t('txt_3353f0') || '今日预约'}</span>
+                      <div className="flex items-end justify-between mt-1">
+                        <span className={cn("text-xl font-black tracking-tighter", "text-gx-cyan")}>{todayBookingsCount.toString().padStart(2, '0')}</span>
+                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">ACTIVE</span>
+                      </div>
+                    </div>
+
+                    {/* 原生卡片 2：今日待处理 (业务待服务) */}
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/5 transition-all opacity-80">
+                      <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{t('txt_047109') || '待处理'}</span>
+                      <div className="flex items-end justify-between mt-1">
+                        <span className={cn("text-xl font-black tracking-tighter", "text-white/60")}>{todayPendingCount.toString().padStart(2, '0')}</span>
+                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">WAITING</span>
+                      </div>
+                    </div>
+
+                    {/* 专属卡片 3：新预约提醒 (NEXUS ALERT) - 占据整行 */}
+                    {nexusCount > 0 && (
+                      <div 
+                        onClick={() => {
+                          const nextPending = allNexusBookings[0];
+                          if (nextPending.date) {
+                            const targetDate = new Date(nextPending.date.split('T')[0]);
+                            setCurrentDate(targetDate);
+                            setPhantomDate(targetDate);
+                            // 【时空穿梭引擎启动】：发射靶向信标
+                            setTargetBookingId(nextPending.id);
+                            // 移除画蛇添足的侧边栏强制关闭逻辑，保持大屏工作流连贯
+                          }
+                        }}
+                        className="col-span-2 p-3 mt-2 rounded-xl transition-all relative overflow-hidden bg-gx-cyan/10 border border-gx-cyan/50 cursor-pointer hover:bg-gx-cyan/20 shadow-[0_0_15px_rgba(0,240,255,0.3)] hover:scale-[1.02]"
+                      >
+                        {/* 赛博脉冲背景光 */}
+                        <div className="absolute inset-0 bg-gx-cyan/10 animate-[pulse_2s_ease-in-out_infinite]" />
+                        <div className="relative z-10 flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-mono text-gx-cyan font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-ping" />
+                              新预约提醒
+                            </span>
+                            <span className="text-[8px] text-gx-cyan/60 mt-0.5">CLICK TO LOCATE</span>
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <span className="text-2xl font-black tracking-tighter text-gx-cyan drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]">
+                              {nexusCount.toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 

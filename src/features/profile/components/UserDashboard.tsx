@@ -3,7 +3,7 @@
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
-import { Calendar, MessageSquare, History, RefreshCw, ArrowRight, X, Sparkles, Image as ImageIcon, MapPin, Zap, Play, Eye } from "lucide-react";
+import { Calendar, RefreshCw, X, Sparkles, Play, Eye, LogOut } from "lucide-react";
 import Link from "next/link";
 import { UserProfile } from "../types";
 import { useEffect, useState } from "react";
@@ -11,33 +11,52 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { motion } from "framer-motion";
-import { BookingService } from "@/features/booking/api/booking";
 import { PhoneAuthBar } from "./PhoneAuthBar";
 import { useTranslations } from "next-intl";
 import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
+import { HoloAscensionCard } from "@/components/shared/HoloAscensionCard";
+
+import { useRouter } from "next/navigation";
 
 interface UserDashboardProps {
   profile: UserProfile;
   boundShopId?: string | null;
   industry?: string | null;
+  initialShowOnboarding?: boolean;
 }
 
-export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardProps) => {
+export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboarding = false }: UserDashboardProps) => {
     const t = useTranslations('UserDashboard');
-  const { user } = useAuth();
+  const { user, refreshUserData, signOut } = useAuth();
   // 如果绑定的商户 industry 为 'none'，则认为该用户没有日历权限
   const hasPrivilege = profile.privileges?.includes("calendar_access") && industry !== 'none';
   const calendarUrl = boundShopId ? `/calendar/${industry || 'beauty'}?shopId=${boundShopId}` : "/calendar/beauty";
-  const profileGxId = (profile as UserProfile & { gx_id?: string; gxId?: string }).gx_id 
-    ?? (profile as UserProfile & { gx_id?: string; gxId?: string }).gxId 
-    ?? (user as any)?.gxId // 尝试从 user 对象中直接提取
-    ?? "GX-PENDING"; // 降级处理
 
   // ------------------------------------------------------------------
   // 状态机 (The Core State Machine)
   // ------------------------------------------------------------------
-  const [showMerchantPortal, setShowMerchantPortal] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState<"idle" | "submitting" | "success" | "approved" | "rejected">("idle");
+  const [showMerchantPortal, setShowMerchantPortal] = useState(initialShowOnboarding);
+  const router = useRouter();
+
+  // ------------------------------------------------------------------
+  // 自动唤醒与无痕清理 (Auto-wake & Trace-clean)
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (initialShowOnboarding) {
+      // 抹除 URL 中的 action=onboard 参数，实现真正的“无痕拦截”
+      router.replace('/dashboard');
+    }
+  }, [initialShowOnboarding, router]);
+
+  // 从全局引擎获取最新申请状态，实现零闪烁 (Zero-Flicker)
+  const [applicationStatus, setApplicationStatus] = useState<"idle" | "submitting" | "success" | "approved" | "rejected">(() => {
+    const status = (user as any)?.applicationStatus;
+    if (status === 'pending') return 'success';
+    if (status === 'approved') return 'approved';
+    if (status === 'rejected') return 'rejected';
+    return 'idle';
+  });
+  
   const [ascensionMode, setAscensionMode] = useState<"indie" | "enterprise">("indie"); // 新增：身份分形开关
   const [formData, setFormData] = useState({
     brandName: "",
@@ -62,30 +81,15 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
     return () => clearTimeout(sinkTimer);
   }, []);
 
-  // 挂载时查询是否有历史申请 (引入 BookingService 单例防爆)
+  // 监听全局状态变更 (实现秒级闭环同步)
   useEffect(() => {
-    const checkExistingApplication = async () => {
-      if (!user) return;
-      try {
-        const { data } = await BookingService.getMerchantApplicationStatus(user.id);
-        
-        if (data) {
-          if (data.status === 'pending') {
-            setApplicationStatus('success');
-            setFormData(prev => ({ ...prev, brandName: data.brand_name }));
-          } else if (data.status === 'approved') {
-            setApplicationStatus('approved');
-          } else if (data.status === 'rejected') {
-            setApplicationStatus('rejected');
-          }
-        }
-      } catch (e) {
-        console.error("Error in checkExistingApplication:", e);
-      }
-    };
-    checkExistingApplication();
+    const status = (user as any)?.applicationStatus;
+    if (status === 'pending') setApplicationStatus('success');
+    else if (status === 'approved') setApplicationStatus('approved');
+    else if (status === 'rejected') setApplicationStatus('rejected');
+    else setApplicationStatus('idle');
   }, [user]);
-  
+
   // 处理入驻提交 (全真对接 Supabase)
   const handleAscensionSubmit = async () => {
     // 1. 极简校验 (Zero-Tolerance Validation)
@@ -93,8 +97,8 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
     if (!formData.brandName.trim()) errors.push("brandName");
     if (!formData.contact.trim()) errors.push("contact");
     
-    // 独立门店模式下必须填物理坐标
-    if (ascensionMode === "indie" && !formData.mapsLink.trim()) errors.push("mapsLink");
+    // 独立门店模式下必须填物理坐标 (由于 UI 降噪已剥离该输入框，这里必须切断底层拦截)
+    // if (ascensionMode === "indie" && !formData.mapsLink.trim()) errors.push("mapsLink");
     
     if (errors.length > 0) {
       setFormErrors(errors);
@@ -113,7 +117,9 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
 
     try {
       const fullPhone = `${formData.countryCode} ${formData.contact}`;
-      const { error } = await supabase
+      
+      // 2. 创建商户申请记录
+      const { error: appError } = await supabase
         .from('merchant_applications')
         .insert({
           user_id: user?.id,
@@ -122,10 +128,41 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
           maps_link: ascensionMode === "indie" ? formData.mapsLink : null,
           industry: ascensionMode === "indie" ? formData.industry : 'enterprise', // 企业模式专属标识
           genesis_code: formData.nexusCode || null, // 后端暂时复用 genesis_code 字段存储集结码
-          status: 'pending'
+          status: formData.nexusCode ? 'pending' : 'approved' // 有总公司ID则挂起，没有则秒批
         });
 
-      if (error) throw error;
+      if (appError) throw appError;
+
+      // 3. 如果是独立开店（没有填总公司 ID），执行“秒激活”物理链路
+      if (!formData.nexusCode) {
+        // a. 直接在 shops 表铸造星球，状态强制为 active
+        const { data: newShop, error: shopError } = await supabase
+          .from('shops')
+          .insert({
+            name: formData.brandName,
+            industry: formData.industry,
+            owner_principal_id: user?.id, // 当前用户就是造物主
+            nebula_status: 'active' // 【核心物理修改】：秒激活！
+          })
+          .select()
+          .single();
+
+        if (shopError) throw shopError;
+
+        // b. 建立物理绑定关系 (shop_bindings)
+        const { error: bindError } = await supabase
+          .from('shop_bindings')
+          .insert({
+            shop_id: newShop.id,
+            user_id: user?.id,
+            role: 'OWNER'
+          });
+
+        if (bindError) throw bindError;
+      }
+      
+      // 成功后，立刻触发全局引擎同步
+      await refreshUserData();
 
       await new Promise(resolve => setTimeout(resolve, 1200));
 
@@ -133,6 +170,7 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
       setApplicationStatus("success");
       setTimeout(() => {
         setShowMerchantPortal(false);
+        window.location.reload();
       }, 1500);
 
     } catch (e) {
@@ -219,25 +257,16 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
                 </div>
                 
                 <div className="space-y-6">
-                  {/* Identity Fission Switch */}
+                  {/* Identity Fission Switch - 已删除集团总部按钮 */}
                   <div className="flex bg-white/5 p-1 rounded-xl">
                     <button 
                       onClick={() => setAscensionMode("indie")}
                       className={cn(
                         "flex-1 py-3 text-xs font-bold tracking-widest transition-all rounded-lg",
-                        ascensionMode === "indie" ? "bg-white text-black shadow-md" : "text-white/40 hover:text-white/80"
+                        ascensionMode === "indie" ? "bg-white text-black shadow-md pointer-events-none" : "text-white/40 hover:text-white/80"
                       )}
                     >
-                      独立门店
-                    </button>
-                    <button 
-                      onClick={() => setAscensionMode("enterprise")}
-                      className={cn(
-                        "flex-1 py-3 text-xs font-bold tracking-widest transition-all rounded-lg",
-                        ascensionMode === "enterprise" ? "bg-gx-cyan text-black shadow-[0_0_15px_rgba(0,240,255,0.5)]" : "text-white/40 hover:text-white/80"
-                      )}
-                    >
-                      集团总部
+                      创建公司
                     </button>
                   </div>
 
@@ -288,59 +317,48 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
                     </div>
                   </div>
 
-                  {/* Industry */}
-                  {ascensionMode === "indie" && (
-                    <div className="space-y-2">
-                      <label className="text-xs text-white/40 tracking-widest">业务类型</label>
-                      <div className="relative">
-                        <select
-                          value={formData.industry}
-                          onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
-                          className="w-full bg-black/50 border border-white/10 rounded-lg px-3 text-white text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-14 tracking-widest"
-                        >
-                          <option value="beauty">美业</option>
-                          <option value="dining">餐饮</option>
-                          <option value="medical">医疗</option>
-                          <option value="fitness">健身</option>
-                          <option value="expert">专家</option>
-                          <option value="hotel">住宿</option>
-                          <option value="other">常规</option>
-                        </select>
-                      </div>
+                  {/* Industry - 已去除判断条件，因为只有门店一种模式 */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/40 tracking-widest">业务类型</label>
+                    <div className="relative">
+                      <select
+                        value={formData.industry}
+                        onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 text-white text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-14 tracking-widest"
+                      >
+                        <option value="beauty">美业</option>
+                        <option value="dining">餐饮</option>
+                        <option value="medical">医疗</option>
+                        <option value="fitness">健身</option>
+                        <option value="expert">专家</option>
+                        <option value="hotel">住宿</option>
+                        <option value="other">常规</option>
+                      </select>
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
 
-              {/* Section 2: 总公司 ID */}
+              {/* 物理分流器：总公司 ID (选填) */}
               <section className="space-y-8">
                 <div className="border-b border-white/5 pb-4">
                   <h3 className="text-2xl font-black tracking-tighter text-white">
-                    02 / 总公司 ID
+                    02 / 挂靠星系 (选填)
                   </h3>
                 </div>
                 
                 <div className="space-y-4">
-                  <label className="text-xs text-white/40 tracking-widest">总公司ID</label>
-                  {ascensionMode === "enterprise" ? (
-                    <div className="bg-black/50 p-4 rounded-xl border border-gx-gold/30 font-mono text-gx-gold flex items-center justify-between shadow-[inset_0_0_20px_rgba(255,184,0,0.1)]">
-                      <span className="tracking-widest text-lg">{profileGxId || "系统异常"}</span>
-                      <span className="text-[10px] text-gx-gold/40 border border-gx-gold/20 px-2 py-1 rounded tracking-widest">系统生成</span>
-                    </div>
-                  ) : (
-                    <Input 
-                      placeholder="请输入总公司ID" 
-                      value={formData.nexusCode}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
-                      className="bg-gx-gold/5 border-gx-gold/20 focus:border-gx-gold text-gx-gold placeholder:text-gx-gold/20 font-mono tracking-widest text-base h-14 text-center"
-                    />
-                  )}
+                  <label className="text-xs text-white/40 tracking-widest">总公司 ID</label>
+                  <Input 
+                    placeholder="请输入总公司ID (如: GX88888888)" 
+                    value={formData.nexusCode}
+                    onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
+                    className="bg-gx-gold/5 border-gx-gold/20 focus:border-gx-gold text-gx-gold placeholder:text-gx-gold/20 font-mono tracking-widest text-base h-14 text-center"
+                  />
                   <div className="bg-white/5 rounded-xl p-4 mt-6 border border-white/5">
                     <p className="text-xs text-white/50 leading-relaxed tracking-widest">
-                      {ascensionMode === "enterprise" 
-                        ? "您正在创建集团总部。系统已自动将您的专属ID设为最高权力总公司ID" 
-                        : <>若您属于某集团旗下门店，请在此输入总公司ID (Boss 账号的ID)。<br/><br/><span className="text-gx-gold/60">留空则代表您将建立一家独立的创始门店。</span></>
-                      }
+                      若您是加盟店或分公司，请填写总部 BOSS 的专属 ID，提交后需等待总部审核。<br/><br/>
+                      <span className="text-gx-cyan/80 font-bold">留空则代表您将创建一家独立运营的总公司（秒激活）。</span>
                     </p>
                   </div>
                 </div>
@@ -429,51 +447,10 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
             </div>
         </div>
       ) : applicationStatus === "approved" ? (
-        // 已通过状态卡片
-        <div className="relative overflow-hidden rounded-xl border border-gx-cyan/30 bg-black/20 backdrop-blur-sm transition-all duration-700 p-5 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
-           <h3 className="text-xs font-bold tracking-widest text-gx-cyan text-center drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">商户身份已激活</h3>
-        </div>
+        // 审批通过后，在生活页横幅区域彻底消失 (已降维迁移至智控页)
+        null
       ) : (
-        // 世界顶端：全息棱镜 (Holo-Prism) 赛博流光入驻卡片
-        <div 
-          onClick={() => setShowMerchantPortal(true)} 
-          className="group relative rounded-xl p-[1.5px] cursor-pointer transition-all duration-700 hover:scale-[1.02] shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_40px_rgba(139,92,246,0.6)]"
-        >
-          {/* 1. 七彩流光跑马灯边框 (底层动态渐变背景) */}
-          <div className="absolute inset-0 rounded-xl bg-[linear-gradient(90deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite]" />
-          
-          {/* 2. 内部核心黑胆 (遮罩底层，留出边框缝隙) */}
-          <div className="relative z-10 w-full h-full bg-black/80 backdrop-blur-xl rounded-[10px] overflow-hidden flex items-center justify-between p-5">
-            
-            {/* 内部极微弱的流光氛围背景 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-cyan-500/5 to-pink-500/10 bg-[length:200%_auto] animate-[shimmer_5s_linear_infinite] opacity-50" />
-
-            <div className="relative z-20 flex items-center gap-5">
-              {/* Icon 容器：悬浮多色发光 */}
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 group-hover:border-transparent transition-all duration-500">
-                {/* 旋转的光晕底座 */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 animate-spin-slow opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[2px]" />
-                <div className="absolute inset-[1px] rounded-full bg-black z-10" />
-                <Sparkles className="relative z-20 w-4 h-4 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] group-hover:text-cyan-300 transition-colors duration-500" />
-              </div>
-
-              {/* 文本区：动态渐变流光文字 */}
-              <div className="flex flex-col gap-1">
-                <h3 className="text-sm font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-purple-400 to-pink-400 bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite] drop-shadow-[0_2px_4px_rgba(0,0,0,1)] pr-1">
-                  入驻成为商户
-                </h3>
-                <p className="text-[10px] font-mono text-white/50 tracking-[0.15em] group-hover:text-white/80 transition-colors duration-500">
-                  发布服务，开启您的数字门店
-                </p>
-              </div>
-            </div>
-
-            {/* 右侧流光指示器 */}
-            <div className="relative z-20 w-8 h-8 rounded-full flex items-center justify-center bg-white/5 group-hover:bg-white/10 transition-colors duration-500">
-              <ArrowRight className="w-4 h-4 text-white/50 group-hover:text-white group-hover:translate-x-1.5 transition-all duration-500" />
-            </div>
-          </div>
-        </div>
+        <HoloAscensionCard onClick={() => setShowMerchantPortal(true)} />
       )}
     </motion.div>
   );
@@ -586,9 +563,23 @@ export const UserDashboard = ({ profile, boundShopId, industry }: UserDashboardP
       </motion.div>
 
       {/* 系统底层锚点 (System Anchor) */}
-      <motion.div layout className="pt-6 pb-6 w-full flex items-center justify-center px-2">
+      <motion.div layout className="pt-6 pb-6 w-full flex flex-col items-center justify-center px-2 gap-6">
         {/* 融合胶囊组件 */}
         <PhoneAuthBar initialPhone={profile.phone || ""} className="max-w-none mx-0 w-auto" />
+        
+        {/* 退出账号按钮 */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-[10px] text-white/30 hover:text-white/70 uppercase tracking-widest transition-colors flex items-center gap-1.5"
+          onClick={async () => {
+            await signOut();
+            window.location.href = "/login";
+          }}
+        >
+          <LogOut className="w-3 h-3" />
+          退出账号
+        </Button>
       </motion.div>
 
       {/* ------------------------------------------------------------------ */}

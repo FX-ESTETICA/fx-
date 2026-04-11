@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 // 模拟雷达星轨数据 (同城频道永远霸占第一)
 const mockContacts = [
   // isCityChannel 标识这是同城大群，享有最高级视觉特权
-  { id: 'city_current', name: '当前同城', avatar: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=150&h=150&fit=crop', isOnline: true, isCityChannel: true },
+  { id: 'city_current', name: 'RAPALLO', avatar: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=150&h=150&fit=crop', isOnline: true, isCityChannel: true },
   { id: 'c1', name: '李总', avatar: 'https://i.pravatar.cc/150?img=11', isOnline: true },
   { id: 'c2', name: '王设计', avatar: 'https://i.pravatar.cc/150?img=33', isOnline: true },
   { id: 'c3', name: 'Tony老师', avatar: 'https://i.pravatar.cc/150?img=15', isOnline: true },
-  { id: 'city_old', name: '异地同城', avatar: 'https://images.unsplash.com/photo-1548509925-0e543666d911?w=150&h=150&fit=crop', isOnline: true, isOldCityChannel: true }, // 曾经加入但已离开的城市
+  { id: 'city_old', name: 'MILANO', avatar: 'https://images.unsplash.com/photo-1548509925-0e543666d911?w=150&h=150&fit=crop', isOnline: true, isOldCityChannel: true }, // 曾经加入但已离开的城市
   { id: 'c5', name: '张三', avatar: 'https://i.pravatar.cc/150?img=8', isOnline: false },
   { id: 'c6', name: 'Lily', avatar: 'https://i.pravatar.cc/150?img=5', isOnline: false },
 ];
@@ -114,7 +114,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
               </div>
               {/* 名字 */}
               <span 
-                className={`text-[10px] truncate w-14 text-center tracking-wider 
+                className={`text-[10px] truncate w-14 text-center tracking-wider uppercase
                   ${contact.isCityChannel ? 'text-purple-300 drop-shadow-[0_0_5px_rgba(188,19,254,0.8)] font-bold' : ''}
                   ${contact.isOnline && !contact.isCityChannel && !contact.isOldCityChannel ? 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]' : ''}
                   ${contact.isOldCityChannel || !contact.isOnline ? 'text-gray-500' : ''}
@@ -134,10 +134,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             {t('txt_8fc78c')}</div>
         )}
         
-        {!isLoading && recentChats.length === 0 && (
-          <div className="flex justify-center items-center h-20 text-white/20 text-sm tracking-widest">
-            {t('txt_5ac66f')}</div>
-        )}
+
 
         {recentChats.map((chat) => (
           <div

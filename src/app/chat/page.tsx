@@ -7,9 +7,10 @@ import { NebulaBackground } from '@/components/shared/NebulaBackground';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useChatStore } from '@/store/useChatStore';
 import { useTranslations } from "next-intl";
+import { BottomNavBar } from '@/components/shared/BottomNavBar';
 
 export default function ChatListPage() {
-    const t = useTranslations('chat');
+  const t = useTranslations('chat');
   const { user } = useAuth();
   
   // 避免报错：如果用户没登录，给个占位符或者让他去登录
@@ -28,13 +29,18 @@ export default function ChatListPage() {
       </div>
       
       {/* 挂载极致清透的聊天枢纽（支持手机端单屏切换，平板/PC端分屏并列） */}
-      <div className="relative z-10 w-full h-full max-w-7xl mx-auto overflow-hidden flex">
+      <div className="relative z-10 w-full h-full overflow-hidden flex">
         {/* 左侧：雷达列表（手机端默认显示，如果选中了聊天则在手机端隐藏；平板/PC端始终显示） */}
-        <div className={`w-full md:w-[380px] lg:w-[420px] h-full shrink-0 border-r border-white/10 ${activeChat ? 'hidden md:block' : 'block'}`}>
-          <ChatListUI 
-            currentUserId={currentUserId}
-            onChatSelect={(chat) => setActiveChat(chat)} 
-          />
+        <div className={`relative w-full md:w-[380px] lg:w-[420px] h-full shrink-0 border-r border-white/10 flex flex-col ${activeChat ? 'hidden md:flex' : 'flex'}`}>
+          <div className="flex-1 overflow-hidden">
+            <ChatListUI 
+              currentUserId={currentUserId}
+              onChatSelect={(chat) => setActiveChat(chat)} 
+            />
+          </div>
+          
+          {/* 桌面端：底部导航栏只在左侧显示，且手机端未选中聊天时也在此处显示底栏 */}
+          <BottomNavBar className="absolute bottom-0 left-0 right-0" />
         </div>
 
         {/* 右侧：主战场（手机端如果没选中则隐藏；平板/PC端如果没选中则显示星云空场占位符） */}
@@ -43,10 +49,10 @@ export default function ChatListPage() {
             {activeChat ? (
               <motion.div
                 key={activeChat.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
                 className="absolute inset-0 w-full h-full bg-black/40 backdrop-blur-sm"
               >
                 <ChatRoomUI 

@@ -17,10 +17,12 @@ import { useRouter } from "next/navigation";
 import { useBackground } from "@/hooks/useBackground";
 import { PhoneAuthBar } from "@/features/profile/components/PhoneAuthBar";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 
 export default function DashboardPage() {
-    const t = useTranslations('dashboard');
-  const { user, isLoading, activeRole, setActiveRole, signOut } = useAuth();
+  const t = useTranslations('dashboard');
+  const searchParams = useSearchParams();
+  const { user, isLoading, activeRole, signOut } = useAuth();
   const { activeShopId } = useShop();
   const { cycleBackground } = useBackground();
   const [boundShopId] = useState<string | null>(null);
@@ -71,22 +73,6 @@ export default function DashboardPage() {
   } else if (sUser?.role === 'merchant') {
     availableRoles.push('merchant');
   }
-
-  // 角色展示配置
-  const getRoleDisplay = (role: string) => {
-    switch (role) {
-      case 'boss': return { label: 'BOSS', styleClass: 'text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-gx-gold drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]' };
-      case 'merchant': return { label: '智控', styleClass: 'text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan to-green-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]' };
-      case 'user':
-      default: return { label: '生活', styleClass: 'text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' };
-    }
-  };
-
-  const handleRoleCycle = () => {
-    const currentIndex = availableRoles.indexOf(activeRole as UserRole);
-    const nextRole = availableRoles[(currentIndex + 1) % availableRoles.length];
-    setActiveRole(nextRole);
-  };
 
   // (为了测试新 ID 渲染，临时注入 mock ID)
   const getMockIdForRole = (role: UserRole) => {
@@ -140,7 +126,7 @@ export default function DashboardPage() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            {activeRole === "user" && <UserDashboard profile={currentProfile} boundShopId={boundShopId} industry={shopIndustry} />}
+            {activeRole === "user" && <UserDashboard profile={currentProfile} boundShopId={boundShopId} industry={shopIndustry} initialShowOnboarding={searchParams.get('action') === 'onboard'} />}
             {activeRole === "merchant" && <MerchantDashboard merchantId={currentProfile.id} shopId={sUser?.shopId} industry={shopIndustry} onIndustrySet={setShopIndustry} />}
             {activeRole === "boss" && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

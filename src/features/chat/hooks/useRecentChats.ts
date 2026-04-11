@@ -51,7 +51,7 @@ export function useRecentChats(currentUserId: string) {
           if (msg.room_id) {
             targetId = msg.room_id;
             isGroup = true;
-            name = msg.room_id === 'city_current' ? '当前同城' : `空间群聊 ${targetId.substring(0,4)}`;
+            name = msg.room_id === 'city_current' ? 'RAPALLO' : `空间群聊 ${targetId.substring(0,4)}`;
             avatar = msg.room_id === 'city_current' 
               ? 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=150&h=150&fit=crop' 
               : 'https://i.pravatar.cc/150?img=50';
