@@ -87,7 +87,7 @@ export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: Avata
             {/* Controls */}
             <div className="p-6 bg-black/80 border-t border-white/5 z-10 space-y-6">
               <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-white/40">ZOOM</span>
+                <span className="text-xs font-mono text-white/40">{t('txt_05853d')}</span>
                 <input
                   type="range"
                   value={zoom}

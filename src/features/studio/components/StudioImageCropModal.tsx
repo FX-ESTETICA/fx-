@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { getCroppedImg } from "@/utils/cropImage";
+import { useTranslations } from "next-intl";
 
 interface StudioImageCropModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface StudioImageCropModalProps {
 }
 
 export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: StudioImageCropModalProps) => {
+    const t = useTranslations('StudioImageCropModal');
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -52,9 +54,11 @@ export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: 
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/50 z-10">
-              <span className="text-sm font-bold tracking-widest uppercase text-white/80">
-                自由裁剪 / Crop Image (16:9)
-              </span>
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse shadow-[0_0_10px_rgba(0,240,255,1)]" />
+                <h2 className="text-sm font-black tracking-[0.2em] text-white/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                  {t('txt_6d5d49')}</h2>
+              </div>
               <button 
                 onClick={onClose}
                 disabled={isProcessing}
@@ -86,7 +90,7 @@ export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: 
             {/* Controls */}
             <div className="p-6 bg-black/80 border-t border-white/5 z-10 space-y-6">
               <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-white/40">ZOOM</span>
+                <span className="text-xs font-mono text-white/40">{t('txt_05853d')}</span>
                 <input
                   type="range"
                   value={zoom}
@@ -108,13 +112,11 @@ export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: 
                 {isProcessing ? (
                   <>
                     <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                    处理中...
-                  </>
+                    {t('txt_2fb90b')}</>
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    确认裁剪并上传
-                  </>
+                    {t('txt_b8abb4')}</>
                 )}
               </Button>
             </div>

@@ -87,8 +87,8 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
-        <WeChatBrowserGuard />
         <NextIntlClientProvider messages={messages}>
+          <WeChatBrowserGuard />
           {/* Native environment bridge */}
           <NativeBridgeProvider />
           <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">

@@ -84,7 +84,7 @@ export default function DashboardPage() {
   // 严格映射当前角色与头像
   const currentProfile: UserProfile = {
     id: (sUser && 'gxId' in sUser && sUser.gxId) ? sUser.gxId : getMockIdForRole(activeRole as UserRole),
-    name: (sUser && 'name' in sUser && sUser.name) ? sUser.name : "未知实体 / Unknown",
+    name: (sUser && 'name' in sUser && sUser.name) ? sUser.name : "未知实体",
     email: sUser?.email || "unknown@gx.com",
     phone: (sUser && 'phone' in sUser) ? sUser.phone : undefined,
     role: activeRole as UserRole,
@@ -117,17 +117,17 @@ export default function DashboardPage() {
         <ProfileHeader profile={currentProfile} />
 
         {/* Dashboard Content */}
-        <div>
+        <div className="relative">
           <AnimatePresence mode="wait">
             <motion.div
             key={activeRole}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="w-full"
           >
             {activeRole === "user" && <UserDashboard profile={currentProfile} boundShopId={boundShopId} industry={shopIndustry} initialShowOnboarding={searchParams.get('action') === 'onboard'} />}
-            {activeRole === "merchant" && <MerchantDashboard merchantId={currentProfile.id} shopId={sUser?.shopId} industry={shopIndustry} onIndustrySet={setShopIndustry} />}
+            {activeRole === "merchant" && <MerchantDashboard merchantId={currentProfile.id} shopId={sUser?.shopId} industry={shopIndustry} onIndustrySet={setShopIndustry} profile={currentProfile} />}
             {activeRole === "boss" && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {/* Admin专属驾驶舱入口 */}

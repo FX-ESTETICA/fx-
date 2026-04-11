@@ -8,14 +8,14 @@ import { cn } from "@/utils/cn";
 import { useTranslations } from "next-intl";
 
 const NAVIGATION_LINKS = [
-  { id: "01", label: "核心矩阵 / Core Matrix", icon: <Database className="w-5 h-5" />, href: "/calendar", glow: "text-gx-cyan", status: "ONLINE" },
-  { id: "02", label: "星云引擎 / Nebula Engine", icon: <Network className="w-5 h-5" />, href: "/nebula", glow: "text-gx-purple", status: "SYNCING" },
-  { id: "03", label: "入驻审批台 / Ascension Console", icon: <ShieldAlert className="w-5 h-5" />, href: "/boss/approvals", glow: "text-red-500", status: "ACTION REQ" },
-  { id: "04", label: "联邦权限署 / Federation Auth", icon: <Lock className="w-5 h-5" />, href: "/auth", glow: "text-yellow-500", status: "LOCKED" },
-  { id: "05", label: "物理节点 / Spatial Nodes", icon: <Box className="w-5 h-5" />, href: "/discovery", glow: "text-white", status: "STANDBY" },
-  { id: "06", label: "深渊协议 / Abyss Protocol", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white/40", status: "CLASSIFIED" },
-  { id: "07", label: "日历设计舱 / Blueprint", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "text-emerald-400", status: "DESIGN_MODE" },
-  { id: "08", label: "沙盒实验区 / Sandbox", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "text-pink-500", status: "TESTING" },
+  { id: "01", label: "核心矩阵", icon: <Database className="w-5 h-5" />, href: "/calendar", glow: "text-gx-cyan", status: "在线" },
+  { id: "02", label: "星云引擎", icon: <Network className="w-5 h-5" />, href: "/nebula", glow: "text-gx-purple", status: "同步中" },
+  { id: "03", label: "入驻审批台", icon: <ShieldAlert className="w-5 h-5" />, href: "/boss/approvals", glow: "text-red-500", status: "需要操作" },
+  { id: "04", label: "联邦权限署", icon: <Lock className="w-5 h-5" />, href: "/auth", glow: "text-yellow-500", status: "已锁定" },
+  { id: "05", label: "物理节点", icon: <Box className="w-5 h-5" />, href: "/discovery", glow: "text-white", status: "待机" },
+  { id: "06", label: "深渊协议", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white/40", status: "机密" },
+  { id: "07", label: "日历设计舱", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "text-emerald-400", status: "设计模式" },
+  { id: "08", label: "沙盒实验区", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "text-pink-500", status: "测试中" },
 ];
 
 type NavigationLink = typeof NAVIGATION_LINKS[number];
@@ -115,7 +115,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-bold tracking-tighter"
             >
-              GX <span className="text-gradient-cyan">SPATIAL</span>
+              GX <span className="text-gradient-cyan">{t('txt_e18e82')}</span>
             </motion.h1>
           </div>
         </header>

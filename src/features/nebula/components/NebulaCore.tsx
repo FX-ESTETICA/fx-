@@ -11,37 +11,37 @@ import { useTranslations } from "next-intl";
 // Mock Hierarchy Data
 const MOCK_NEBULA_DATA: NebulaNodeType = {
   id: "GX-CORE",
-  name: "银河中枢 / Global Core",
+  name: "我的商业版图",
   type: "total",
-  value: "¥2.4M",
+  value: "¥1.2M",
   children: [
     {
       id: "IND-BEAUTY",
-      name: "美业连锁 / Beauty Chain",
+      name: "美业连锁",
       type: "branch",
       value: "2 店面",
       children: [
-        { id: "B-001", name: "静安店 / Jing'an", type: "member", value: "88% 预约率" },
-        { id: "B-002", name: "徐汇店 / Xuhui", type: "member", value: "92% 预约率" },
+        { id: "B-001", name: "静安店", type: "member", value: "88% 预约率" },
+        { id: "B-002", name: "徐汇店", type: "member", value: "92% 预约率" },
       ]
     },
     {
       id: "IND-DINING",
-      name: "餐饮板块 / Dining Group",
+      name: "餐饮板块",
       type: "branch",
       value: "3 餐厅",
       children: [
-        { id: "D-101", name: "川味馆 / Sichuan", type: "member", value: "¥45k/日" },
-        { id: "D-102", name: "星空吧 / Sky Bar", type: "member", value: "¥82k/日" },
+        { id: "D-101", name: "川味馆", type: "member", value: "¥45k/日" },
+        { id: "D-102", name: "星空吧", type: "member", value: "¥82k/日" },
       ]
     },
     {
       id: "IND-HOTEL",
-      name: "精品酒店 / Boutique Hotel",
+      name: "精品酒店",
       type: "branch",
       value: "¥400k/月",
       children: [
-        { id: "H-201", name: "外滩店 / Bund", type: "member", value: "100% 入住" },
+        { id: "H-201", name: "外滩店", type: "member", value: "100% 入住" },
       ]
     }
   ]

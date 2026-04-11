@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Capacitor } from "@capacitor/core";
 import { Share, X, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export const AppPlatformGuard = () => {
+    const t = useTranslations('AppPlatformGuard');
   const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
   const [dismissed, setDismissed] = useState(false);
   const [isNative, setIsNative] = useState(false);
@@ -88,11 +90,10 @@ export const AppPlatformGuard = () => {
                 <Share className="w-5 h-5 text-white/80" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white tracking-widest mb-1">获取完整 GX 体验</h3>
+                <h3 className="text-sm font-bold text-white tracking-widest mb-1">{t('txt_b3de79')}</h3>
                 <p className="text-xs text-white/50 leading-relaxed">
-                  系统已就绪。请激活底部 <span className="text-white font-bold mx-1">分享</span> 链路，<br/>
-                  选择 <span className="text-white font-bold mx-1">添加到主屏幕</span> 注入物理桌面。
-                </p>
+                  {t('txt_391968')}<span className="text-white font-bold mx-1">{t('txt_c31f48')}</span> {t('txt_55165d')}<br/>
+                  {t('txt_153fa6')}<span className="text-white font-bold mx-1">{t('txt_2d94a4')}</span> {t('txt_2fbaf0')}</p>
               </div>
             </div>
 
@@ -120,8 +121,8 @@ export const AppPlatformGuard = () => {
                 <Zap className="w-5 h-5 text-gx-cyan animate-pulse" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-sm font-bold text-white tracking-widest leading-none mb-1">完美体验</span>
-                <span className="text-[10px] text-white/60 font-mono leading-none">请在 APP 中打开</span>
+                <span className="text-sm font-bold text-white tracking-widest leading-none mb-1">{t('txt_c5d070')}</span>
+                <span className="text-[10px] text-white/60 font-mono leading-none">{t('txt_e66fa2')}</span>
               </div>
             </div>
 
@@ -130,8 +131,7 @@ export const AppPlatformGuard = () => {
                 onClick={handleAndroidAction}
                 className="bg-gx-cyan text-black text-xs font-bold px-4 py-2 rounded-full shadow-[0_0_15px_rgba(0,240,255,0.5)] active:scale-95 transition-transform whitespace-nowrap"
               >
-                OPEN APP
-              </button>
+                {t('txt_f3dda5')}</button>
               <button onClick={handleDismiss} className="text-white/40 hover:text-white p-2 shrink-0 flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>

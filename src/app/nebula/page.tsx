@@ -653,11 +653,9 @@ function NodeManagementHUD({
                           <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xs text-white/40 font-mono tracking-widest flex items-center gap-2">
                               <Activity className="w-4 h-4 text-gx-cyan animate-pulse" />
-                              总营收 (近 30 天)
-                            </h2>
+                              {t('txt_105031')}</h2>
                             <span className="px-3 py-1 bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan text-[10px] font-bold rounded-full tracking-widest shadow-[0_0_15px_rgba(0,242,255,0.2)]">
-                              系统状态：健康
-                            </span>
+                              {t('txt_829f9b')}</span>
                           </div>
                           
                           <div className="flex items-end gap-6 mb-6">
@@ -668,15 +666,15 @@ function NodeManagementHUD({
                               <span className="text-gx-cyan font-bold text-lg flex items-center gap-1">
                                 ↑ 12.4%
                               </span>
-                              <span className="text-[10px] text-white/30 font-mono tracking-widest">环比上月</span>
+                              <span className="text-[10px] text-white/30 font-mono tracking-widest">{t('txt_7ccf55')}</span>
                             </div>
                           </div>
 
                           {/* 利润瀑布 (进度条对比) */}
                           <div className="w-full space-y-2">
                             <div className="flex justify-between text-[10px] font-mono tracking-widest">
-                              <span className="text-gx-cyan">净利润：68%</span>
-                              <span className="text-red-500/80">运营成本：32%</span>
+                              <span className="text-gx-cyan">{t('txt_a5891d')}</span>
+                              <span className="text-red-500/80">{t('txt_013e29')}</span>
                             </div>
                             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
                               <div className="h-full bg-gx-cyan/80 shadow-[0_0_10px_rgba(0,242,255,0.5)]" style={{ width: '68%' }} />
@@ -689,38 +687,37 @@ function NodeManagementHUD({
                       {/* Bottom: 节点脉络分析 (各分店贡献度战力对比) */}
                       <div className="bg-black/40 border border-white/5 rounded-3xl p-6 relative overflow-hidden group hover:border-white/10 transition-colors h-[55%] flex flex-col">
                         <h2 className="text-xs text-white/40 font-mono tracking-widest mb-6">
-                          门店战力矩阵
-                        </h2>
+                          {t('txt_c3b0b7')}</h2>
                         
                         <div className="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar">
                           {/* Node A */}
                           <div className="flex items-center gap-4">
-                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">FX ESTETICA</div>
+                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8d0')}</div>
                             <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                               <div className="absolute top-0 left-0 h-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" style={{ width: '65%' }} />
                             </div>
                             <div className="w-12 text-right text-[10px] font-mono text-gx-cyan">65%</div>
-                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-gx-cyan/30 bg-gx-cyan/10 text-gx-cyan tracking-wider">过载</div>
+                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-gx-cyan/30 bg-gx-cyan/10 text-gx-cyan tracking-wider">{t('txt_572a4f')}</div>
                           </div>
                           
                           {/* Node B */}
                           <div className="flex items-center gap-4">
-                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">MILANO HUB</div>
+                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_1462d2')}</div>
                             <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                               <div className="absolute top-0 left-0 h-full bg-white/60" style={{ width: '30%' }} />
                             </div>
                             <div className="w-12 text-right text-[10px] font-mono text-white/60">30%</div>
-                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-white/20 bg-white/5 text-white/60 tracking-wider">平稳</div>
+                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-white/20 bg-white/5 text-white/60 tracking-wider">{t('txt_42f8a0')}</div>
                           </div>
 
                           {/* Node C */}
                           <div className="flex items-center gap-4">
-                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">ROMA OUTPOST</div>
+                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8b6')}</div>
                             <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                               <div className="absolute top-0 left-0 h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" style={{ width: '5%' }} />
                             </div>
                             <div className="w-12 text-right text-[10px] font-mono text-red-500">5%</div>
-                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-500 tracking-wider">亏损</div>
+                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-500 tracking-wider">{t('txt_83c21d')}</div>
                           </div>
                         </div>
                       </div>
@@ -731,7 +728,7 @@ function NodeManagementHUD({
                     <div className="lg:col-span-5 flex flex-col gap-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="w-4 h-4 text-gx-cyan" />
-                        <span className="text-xs font-bold tracking-widest text-white/80">Nexus AI 深度洞察</span>
+                        <span className="text-xs font-bold tracking-widest text-white/80">{t('txt_6c2342')}</span>
                       </div>
 
                       {/* 致命警报 (Critical) */}
@@ -740,10 +737,9 @@ function NodeManagementHUD({
                         <div className="flex items-start gap-3">
                           <Zap className="w-4 h-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
                           <div>
-                            <div className="text-[10px] font-black text-red-500 tracking-widest mb-1">致命漏洞预警</div>
+                            <div className="text-[10px] font-black text-red-500 tracking-widest mb-1">{t('txt_2ee3dd')}</div>
                             <p className="text-xs text-white/80 leading-relaxed font-medium">
-                              罗马分店本月耗材（染发膏）消耗率异常，超出标准阈值 22%，存在严重物料流失漏洞。
-                            </p>
+                              {t('txt_e12bb1')}</p>
                           </div>
                         </div>
                       </div>
@@ -754,10 +750,9 @@ function NodeManagementHUD({
                         <div className="flex items-start gap-3">
                           <UserMinus className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
                           <div>
-                            <div className="text-[10px] font-black text-yellow-500 tracking-widest mb-1">客户流失监控</div>
+                            <div className="text-[10px] font-black text-yellow-500 tracking-widest mb-1">{t('txt_7717e3')}</div>
                             <p className="text-xs text-white/80 leading-relaxed font-medium">
-                              过去 7 天，15 名高净值 SVIP 取消了预约且未重新排期，存在集体流失风险。
-                            </p>
+                              {t('txt_9e9590')}</p>
                           </div>
                         </div>
                       </div>
@@ -769,14 +764,12 @@ function NodeManagementHUD({
                           <Rocket className="w-4 h-4 text-gx-cyan shrink-0 mt-0.5" />
                           <div className="flex flex-col h-full justify-between">
                             <div>
-                              <div className="text-[10px] font-black text-gx-cyan tracking-widest mb-1">商业战术推演</div>
+                              <div className="text-[10px] font-black text-gx-cyan tracking-widest mb-1">{t('txt_1ec201')}</div>
                               <p className="text-xs text-white/80 leading-relaxed font-medium mb-4">
-                                周二下午 14:00-16:00 门店闲置率达 40%，建议 AI 自动向周边 3km 沉睡客户推送 7 折闪购限时胶囊。
-                              </p>
+                                {t('txt_a6dc6b')}</p>
                             </div>
                             <button className="w-full py-2 bg-gx-cyan/10 hover:bg-gx-cyan/20 border border-gx-cyan/30 text-gx-cyan text-[10px] font-bold tracking-widest rounded-lg transition-all">
-                              一键执行战术
-                            </button>
+                              {t('txt_416e0d')}</button>
                           </div>
                         </div>
                       </div>
@@ -797,8 +790,7 @@ function NodeManagementHUD({
                             className="text-[9px] text-white/20 hover:text-red-500 tracking-widest font-mono transition-colors flex items-center gap-1"
                           >
                             <Trash2 className="w-3 h-3" />
-                            解散企业联邦
-                          </button>
+                            {t('txt_7b2419')}</button>
                         )}
                       </div>
 
@@ -861,7 +853,7 @@ function NodeManagementHUD({
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gx-cyan/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                         <div className="relative z-10 flex items-center justify-center gap-3 text-gx-cyan font-bold tracking-[0.2em]">
                           {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />}
-                          <span>ACTIVATE NODE</span>
+                          <span>{t('txt_452293')}</span>
                         </div>
                       </button>
                     </div>
@@ -907,7 +899,7 @@ function NodeManagementHUD({
                           className="px-6 bg-transparent text-gx-cyan hover:text-white hover:bg-gx-cyan/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gx-cyan transition-all flex items-center gap-2 font-bold tracking-widest text-xs border-l border-white/10"
                         >
                           <ShieldCheck className="w-4 h-4" />
-                          <span>GRANT</span>
+                          <span>{t('txt_98a315')}</span>
                         </button>
                       </div>
                     )}
@@ -933,7 +925,7 @@ function NodeManagementHUD({
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="relative z-10 flex flex-col items-center justify-center gap-2">
                           <Rocket className="w-6 h-6 text-purple-400 group-hover:scale-110 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
-                          <span className="text-xs text-purple-300 font-bold tracking-widest">NEBULA DIVE</span>
+                          <span className="text-xs text-purple-300 font-bold tracking-widest">{t('txt_b641f2')}</span>
                         </div>
                       </button>
 
@@ -946,7 +938,7 @@ function NodeManagementHUD({
                         <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-gx-cyan/0 via-gx-cyan/10 to-gx-cyan/0" />
                         <div className="relative z-10 flex flex-col items-center justify-center gap-2">
                           <Calendar className="w-6 h-6 text-gx-cyan group-hover:scale-110 transition-transform" />
-                          <span className="text-xs text-white font-bold tracking-widest group-hover:text-gx-cyan transition-colors">ENTER MATRIX</span>
+                          <span className="text-xs text-white font-bold tracking-widest group-hover:text-gx-cyan transition-colors">{t('txt_53656b')}</span>
                         </div>
                       </button>
                     </div>
@@ -982,7 +974,7 @@ function NodeManagementHUD({
                       <LineChart className="w-6 h-6 text-white/50" />
                     </div>
                     <div className="text-center">
-                      <div className="text-sm font-bold text-white tracking-[0.2em]">AI FINANCIALS</div>
+                      <div className="text-sm font-bold text-white tracking-[0.2em]">{t('txt_f9910c')}</div>
                       <div className="text-[10px] text-white/30 font-mono mt-1">Awaiting Node Activation</div>
                     </div>
                   </button>
@@ -1021,7 +1013,7 @@ function NodeManagementHUD({
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-400/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                       <div className="relative z-10 flex items-center justify-center gap-2 text-emerald-400 font-bold tracking-[0.1em] text-xs">
                         <LineChart className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span>ACCESS FULL DATASLATE</span>
+                        <span>{t('txt_5294b4')}</span>
                       </div>
                     </button>
                   </div>
@@ -1039,7 +1031,7 @@ function NodeManagementHUD({
                 className="group flex items-center gap-2 px-6 py-2 text-[10px] font-mono tracking-widest text-red-500/30 hover:text-red-400 transition-all duration-300 rounded-full hover:bg-red-500/10 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] bg-transparent border border-transparent hover:border-red-500/20"
               >
                 <Trash2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span>PURGE NODE DATA</span>
+                <span>{t('txt_f1e7ae')}</span>
               </button>
             </div>
           )}
@@ -1060,7 +1052,7 @@ function NodeManagementHUD({
               className="flex items-center gap-2 text-emerald-400/60 hover:text-emerald-400 transition-colors group px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="text-xs font-bold tracking-widest uppercase">BACK TO COMMAND</span>
+              <span className="text-xs font-bold tracking-widest uppercase">{t('txt_a08954')}</span>
             </button>
             <div className="text-xs font-mono text-emerald-400/50 uppercase tracking-widest flex items-center gap-2">
               <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
@@ -1102,7 +1094,7 @@ function NodeManagementHUD({
                    <ShieldCheck className="w-6 h-6 text-emerald-400" />
                  </div>
                  <div>
-                   <div className="text-white text-sm font-bold tracking-widest">FINANCIAL DATA SYNCED</div>
+                   <div className="text-white text-sm font-bold tracking-widest">{t('txt_ca7df9')}</div>
                    <div className="text-xs text-white/40 font-mono">Last updated: LIVE</div>
                  </div>
               </div>
@@ -1320,6 +1312,7 @@ function CoreNode({
 }: { 
   onClick?: () => void
 }) {
+  const t = useTranslations('nebula');
   const [hovered, setHovered] = useState(false);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
@@ -1433,8 +1426,7 @@ function CoreNode({
         <Html position={[0, -4.5, 0]} center transform sprite zIndexRange={[100, 0]}>
           <div className="flex flex-col items-center text-center space-y-2 w-[600px] pointer-events-none select-none">
             <h1 className="text-3xl md:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan via-purple-400 to-gx-cyan bg-[length:200%_auto] animate-gradient drop-shadow-[0_0_20px_rgba(0,255,255,0.3)] whitespace-nowrap">
-              财务与数据中枢
-            </h1>
+              {t('txt_88c35d')}</h1>
             <div className="text-[10px] font-mono text-gx-cyan/80 tracking-[0.2em] border border-gx-cyan/30 px-3 py-1 rounded-full bg-gx-cyan/[0.05] backdrop-blur-md">
               SYSTEM CORE
             </div>
@@ -1485,13 +1477,11 @@ function PlanetNode({
 
 function NebulaUniverse({ 
   userName, 
-  userAvatar, 
   userId, 
   planets,
   onPlanetClick
 }: {
   userName: string;
-  userAvatar: string | null;
   userId: string;
   planets: PlanetData[];
   onPlanetClick: (planet: PlanetData) => void;
@@ -1562,6 +1552,7 @@ function NebulaUniverse({
 }
 
 export default function NebulaPage() {
+    const t = useTranslations('nebula');
 
   const { user, activeRole } = useAuth();
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
@@ -1576,7 +1567,6 @@ export default function NebulaPage() {
   // 安全地提取用户信息
   const sUser = user as SandboxUser;
   const userName = sUser?.name || "BOSS_NAME";
-  const userAvatar = sUser?.avatar || null;
   const userId = sUser?.gxId || (activeRole === 'boss' ? 'GX88888888' : 'GX-NE-000001');
 
   // 获取真实数据库 ID (假设 activeRole 是 boss 并且 user 存在，这里需要真实的 profile id，如果是沙盒则用 undefined 测试)
@@ -1614,11 +1604,6 @@ export default function NebulaPage() {
       </main>
     );
   }
-
-  const handleSearch = (term: string) => {
-    console.log("[GlobalSearch] Searching for:", term);
-    // TODO: 实现摄像机飞越到对应星球的逻辑
-  };
 
   // --- 虚空置换控制逻辑 ---
   const triggerNebulaDive = (planet: PlanetData) => {
@@ -1684,7 +1669,7 @@ export default function NebulaPage() {
               className="flex items-center space-x-2 bg-black/40 backdrop-blur-md border border-white/20 hover:border-gx-cyan/50 rounded-xl p-3 transition-colors text-white/80 hover:text-white group shadow-[0_0_15px_rgba(0,0,0,0.5)]"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="text-xs font-bold tracking-widest uppercase">RETURN TO GALAXY</span>
+              <span className="text-xs font-bold tracking-widest uppercase">{t('txt_8f3492')}</span>
             </button>
           </motion.div>
         )}
@@ -1736,7 +1721,6 @@ export default function NebulaPage() {
       {!diveState.isActive ? (
         <NebulaUniverse 
           userName={userName} 
-          userAvatar={userAvatar} 
           userId={userId} 
           planets={planets} 
           onPlanetClick={(planet) => setSelectedPlanet(planet)}

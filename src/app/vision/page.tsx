@@ -5,8 +5,10 @@ import { useState, useRef, useEffect } from "react";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { ChevronRight, ShieldCheck, Sparkles, Layers } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 export default function VisionPage() {
+    const t = useTranslations('vision');
   const [activeFeature, setActiveFeature] = useState<number>(0);
   
   // 滚动监听系统
@@ -119,8 +121,7 @@ export default function VisionPage() {
                 +
               </span>
               <span className="text-xl md:text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neutral-400 to-neutral-600">
-                私人管家
-              </span>
+                {t('txt_b05e70')}</span>
             </div>
           </div>
         </div>
@@ -172,7 +173,7 @@ export default function VisionPage() {
             className="hidden md:flex group relative z-50 items-center justify-center gap-3 w-fit px-10 py-5 rounded-full bg-white text-black font-bold text-lg overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
-            <span>开启新世界</span>
+            <span>{t('txt_86ef01')}</span>
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </motion.button>
         </div>
@@ -239,7 +240,7 @@ export default function VisionPage() {
           onClick={handleEnterSandbox}
           className="mt-4 group relative flex items-center justify-center gap-3 w-full py-5 rounded-2xl bg-white text-black font-bold text-lg overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.2)]"
         >
-          <span>开启新世界</span>
+          <span>{t('txt_86ef01')}</span>
           <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </motion.button>
       </div>

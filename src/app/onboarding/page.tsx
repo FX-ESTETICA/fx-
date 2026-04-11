@@ -59,7 +59,7 @@ export default function OnboardingPage() {
               className="text-5xl md:text-7xl font-bold tracking-tighter"
             >
               BECOME A <br />
-              <span className="text-gradient-cyan">GALAXY NODE</span>
+              <span className="text-gradient-cyan">{t('txt_e8df34')}</span>
             </motion.h1>
             
             <motion.p 
@@ -106,7 +106,7 @@ export default function OnboardingPage() {
             
             <div className="flex items-center gap-4 text-white/20">
               <div className="w-12 h-px bg-white/10" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.3em]">OR EXPLORE THE DOCS</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em]">{t('txt_f1bdcd')}</span>
               <div className="w-12 h-px bg-white/10" />
             </div>
           </motion.div>

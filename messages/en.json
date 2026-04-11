@@ -56,7 +56,25 @@
     "txt_a92d4f": "Satellite Connection Denied",
     "txt_6f7f8f": "Location",
     "txt_15c54d": "Click the 🔒 icon in the address bar to unlock",
-    "txt_refresh": "Refresh"
+    "txt_refresh": "Refresh",
+    "txt_306058": "View Details & Navigate",
+    "txt_9bf297": "Cross-Class Business Privilege",
+    "txt_94eb9b": "ENTER THE ELITE NEXUS / Absolute Control of Top Traffic Allocation",
+    "txt_be5a38": "Acquire Onboarding Key",
+    "txt_c76b02": "Building Lifestyle Service Network...",
+    "txt_3f8deb": "Congratulations [ Neon Cyber Tavern ] Successfully Onboarded to GX PRO Matrix // Congratulations [ Lumina Aesthetic Center ] Holographic Appointment Channel Activated //",
+    "txt_07eefa": "Node Link Locked",
+    "txt_86c72a": "Your device rejected the satellite connection.",
+    "txt_2fc479": "Please click the top of the browser",
+    "txt_5a5f74": "🔒 Lock Icon",
+    "txt_c61e9f": "Manually enable location permissions to complete physical unlocking.",
+    "txt_8f4166": "Refresh & Reconnect",
+    "txt_533aa5": "GX Select (Onboarding Merchants) View Switch Reserved",
+    "txt_24482a": "UGC Photo Upload Feature Coming Soon",
+    "txt_3d1c77": "Satellite Link Denied",
+    "txt_1e5d7a": "Coordinates",
+    "txt_bf2093": "Tap Address Bar 🔒 to Unlock",
+    "txt_97e675": "✨ Experience Full Holo-Visuals in APP"
   },
   "notfound": {
     "txt_bfb989": "[EN] Connection Lost // 页面不存在"
@@ -102,17 +120,52 @@
     "txt_27474a": "[EN] 搜索分公司或节点名称...",
     "txt_491f90": "[Absolute Warning] This action will detonate the entire Corporate Federation, all branches, calendars, and order data will be instantly obliterated and irrecoverable! Your account will be reset to a regular user. Confirm detonation?",
     "txt_ba090e": "🟡 Assign Manager",
-    "txt_4db67e": "In Preparation"
+    "txt_4db67e": "In Preparation",
+    "txt_105031": "Total Revenue (Last 30 Days)",
+    "txt_829f9b": "System Status: Healthy",
+    "txt_7ccf55": "Month-over-Month",
+    "txt_a5891d": "Net Profit: 68%",
+    "txt_013e29": "Operating Cost: 32%",
+    "txt_c3b0b7": "Store Combat Matrix",
+    "txt_88b8d0": "FX Aesthetics",
+    "txt_572a4f": "Overload",
+    "txt_1462d2": "Milan Hub",
+    "txt_42f8a0": "Stable",
+    "txt_88b8b6": "Rome Outpost",
+    "txt_83c21d": "Loss",
+    "txt_6c2342": "Nexus AI Insights",
+    "txt_2ee3dd": "Critical Vulnerability Alert",
+    "txt_e12bb1": "Abnormal Consumption Rate of Supplies (Hair Dye) at Rome Branch Exceeds Standard Threshold by 22%, Severe Material Loss Vulnerability Detected.",
+    "txt_7717e3": "Customer Churn Monitoring",
+    "txt_9e9590": "In the Last 7 Days, 15 High-Net-Worth SVIPs Canceled Appointments Without Rescheduling, Collective Churn Risk Detected.",
+    "txt_1ec201": "Business Tactics Simulation",
+    "txt_a6dc6b": "On Tuesday Afternoon from 14:00 to 16:00, Store Idle Rate Reached 40%, Suggesting AI Automatically Push 30% Flash Sale Capsules to Dormant Customers within 3km.",
+    "txt_416e0d": "Execute Tactics",
+    "txt_7b2419": "Dissolve Corporate Federation",
+    "txt_452293": "Activate Node",
+    "txt_98a315": "Authorize",
+    "txt_b641f2": "Nebula Dive",
+    "txt_53656b": "Enter Matrix",
+    "txt_f9910c": "AI Financial Report",
+    "txt_5294b4": "Access Full Data Panel",
+    "txt_f1e7ae": "Clear Node Data",
+    "txt_a08954": "Return to Command Center",
+    "txt_ca7df9": "Financial Data Synced",
+    "txt_88c35d": "Financial & Data Nexus",
+    "txt_8f3492": "Return to Galaxy"
   },
   "onboarding": {
     "txt_7513ca": "[EN] 返回 / BACK",
     "txt_5eb15b": "[EN] Node_Application // 节点申请",
     "txt_ed5102": "[EN] 加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。\n              利用赛博时代的流量杠杆，触达极致清醒的消费群体。",
-    "txt_f9c0f6": "[EN] 立即入驻 / JOIN NOW"
+    "txt_f9c0f6": "[EN] 立即入驻 / JOIN NOW",
+    "txt_e8df34": "Galaxy Node",
+    "txt_f1bdcd": "Or Browse Documentation"
   },
   "spatial": {
     "txt_dbd94b": "[EN] 空间驾驶舱 / SPATIAL COCKPIT",
-    "txt_a70c9c": "[EN] 进入协议 / Enter"
+    "txt_a70c9c": "[EN] 进入协议 / Enter",
+    "txt_e18e82": "Space Station"
   },
   "AppShell": {
     "txt_07b181": "My"
@@ -120,7 +173,8 @@
   "Button": {},
   "GlassCard": {},
   "HolographicCarousel": {
-    "txt_3ed720": "[EN] 立即预约"
+    "txt_3ed720": "[EN] 立即预约",
+    "txt_53a12c": "GX PRO Official Certification"
   },
   "Input": {},
   "NebulaBackground": {},
@@ -152,7 +206,8 @@
     "txt_772970": "[EN] 目前没有待审批的入驻申请",
     "txt_325254": "[EN] 驳回",
     "txt_b20cc6": "[EN] 批准 / APPROVE",
-    "txt_f4360f": "Corporate Federation / ENTERPRISE"
+    "txt_f4360f": "Corporate Federation / ENTERPRISE",
+    "txt_4ba0be": "Corporate Federation"
   },
   "industry": {},
   "blueprint": {},
@@ -173,7 +228,10 @@
     "txt_b87e42": "[EN] 我已确认预约信息准确无误，并同意相关预约协议 / I agree to terms.",
     "txt_49999e": "[EN] 返回修改 / Edit",
     "txt_099af3": "[EN] 确认提交 / Submit Booking",
-    "txt_2a2772": "Pending Confirmation"
+    "txt_2a2772": "Pending Confirmation",
+    "txt_60d045": "Name",
+    "txt_5a93d3": "Phone",
+    "txt_2432b5": "Notes"
   },
   "BookingForm": {
     "txt_432960": "[EN] 确认预约信息 / Booking Details",
@@ -223,7 +281,20 @@
     "txt_7c0795": "LV.4 Pioneer",
     "txt_a5c2b3": "No Call Records",
     "txt_13e10b": "Update Appointment",
-    "txt_1f4816": "Confirm Appointment"
+    "txt_1f4816": "Confirm Appointment",
+    "txt_19fcb9": "Time",
+    "txt_7173f8": "Reject",
+    "txt_e61f2c": "Agree",
+    "txt_4ff1e7": "Date",
+    "txt_5bdfd7": "Duration",
+    "txt_946010": "Ends At",
+    "txt_0552d7": "Category Not Found",
+    "txt_f8fbea": "AM",
+    "txt_e2eb28": "PM",
+    "txt_81c636": "Slide to Set Minutes",
+    "txt_180fe9": "Matched C-End",
+    "txt_8ae626": "Update Appointment",
+    "txt_b1206e": "Confirm Appointment"
   },
   "IndustryCalendar": {
     "txt_5aec8c": "[EN] 隶属总部: SYSTEM_CORE",
@@ -237,7 +308,11 @@
     "txt_6508a1": "[EN] 回收站 (Void Archive)",
     "txt_677a64": "[EN] 全局运营配置 (Nebula Config Hub)",
     "txt_3353f0": "Today's Appointments",
-    "txt_047109": "Pending Processing"
+    "txt_047109": "Pending Processing",
+    "txt_fb852f": "In Progress",
+    "txt_65dd9e": "Waiting",
+    "txt_7708f1": "New Appointment Reminder",
+    "txt_9874b3": "Click to Locate"
   },
   "NebulaConfigHub": {
     "txt_406bc4": "[EN] 全局运营配置",
@@ -333,7 +408,8 @@
     "txt_0467cc": "View All",
     "txt_319cc2": "Global Coordination",
     "txt_a0cb83": "Click to Rename Category",
-    "txt_78345c": "Click to Activate Category"
+    "txt_78345c": "Click to Activate Category",
+    "txt_48247a": "AI Concierge Exclusive: Enter Full Name/Alias (e.g., Manicure Only for Hands)"
   },
   "OrbitalPossessionProfile": {
     "txt_680885": "[EN] 监视节点:",
@@ -342,7 +418,8 @@
   "RecycleBinModal": {
     "txt_494437": "[EN] 回收站 / Void Archive",
     "txt_ae5724": "Walk-in",
-    "txt_29df0e": "Unnamed Service"
+    "txt_29df0e": "Unnamed Service",
+    "txt_7d246f": "No Cancellation Records"
   },
   "DiscoveryWaterfall": {},
   "UGCUploadModal": {
@@ -381,7 +458,22 @@
     "txt_edff9d": "Binding...",
     "txt_4a81e7": "Establish System Link",
     "txt_330363": "Success",
-    "txt_45c76d": "Establish System Link"
+    "txt_45c76d": "Establish System Link",
+    "txt_0dcaa5": "Illuminate Digital Store",
+    "txt_f6e889": "Configure Your Holographic Store Space",
+    "txt_70cdae": "Digital Store Decoration",
+    "txt_161607": "Update Digital Store Detail Page, Redesign Decoration.",
+    "txt_cc3307": "Business Hours",
+    "txt_981cbe": "To",
+    "txt_58a86b": "Tap to Customize Store",
+    "txt_386390": "No Related Stores Found",
+    "txt_145da8": "Open",
+    "txt_52aa20": "Temporarily Closed",
+    "txt_99af0d": "Holiday Closure",
+    "txt_096cda": "Search Stores...",
+    "txt_8a30cd": "Unknown Store",
+    "txt_eebd8d": "Temporarily Closed Today",
+    "txt_bc620b": "On Extended Leave"
   },
   "PhoneAuthBar": {
     "txt_398180": "Phone Number Binding",
@@ -391,7 +483,8 @@
     "txt_879792": "Waiting",
     "txt_1535fc": "Send",
     "txt_1165ad": "Long Press Left to Reset Terminal",
-    "txt_e83a25": "Confirm"
+    "txt_e83a25": "Confirm",
+    "txt_2dbd85": ">>> Force Authorization in Progress <<<"
   },
   "ProfileHeader": {
     "txt_52e6ab": "Copied",
@@ -448,7 +541,36 @@
     "txt_063a98": "02 / Group Logo",
     "txt_a22e63": "System Error",
     "txt_646db0": "Submit for Review",
-    "txt_ed759e": "Unknown Name"
+    "txt_ed759e": "Unknown Name",
+    "txt_4d90f0": "Log Out",
+    "txt_1d078b": "Create Company",
+    "txt_9e1660": "Company Phone",
+    "txt_2aacf5": "Italy (+39)",
+    "txt_08248a": "France (+33)",
+    "txt_457747": "Germany (+49)",
+    "txt_461ac5": "UK (+44)",
+    "txt_adfe91": "Spain (+34)",
+    "txt_e76414": "China (+86)",
+    "txt_6d4b58": "USA (+1)",
+    "txt_09ab42": "Business Type",
+    "txt_4a6a90": "Beauty",
+    "txt_2a0ad6": "Dining",
+    "txt_2fbcd8": "Medical",
+    "txt_c24d6f": "Fitness",
+    "txt_714dc5": "Expert",
+    "txt_d8bb4b": "Accommodation",
+    "txt_22b777": "General",
+    "txt_b4154b": "02 / Affiliated Galaxy (Optional)",
+    "txt_40223b": "Head Office ID",
+    "txt_509c2e": "If You Are a Franchise or Branch, Please Enter the Exclusive ID of the Head Office BOSS, Submission Requires Waiting for Head Office Review.",
+    "txt_292fbd": "Leaving Blank Means You Will Create an Independently Operated Head Office (Instant Activation).",
+    "txt_58d6be": "Under Review for Entry",
+    "txt_f50e9d": "Review Failed",
+    "txt_43ea07": "Please Contact Platform Administrator",
+    "txt_f3ef2d": "Enter Company Name...",
+    "txt_577644": "Please Enter Company Phone",
+    "txt_95cd99": "Please Enter Head Office ID (e.g., GX88888888)",
+    "txt_0830b4": "Submit Application"
   },
   "CapacityFlow": {
     "txt_091d26": "[EN] 当前客流",
@@ -463,7 +585,8 @@
   "EliteResourceMatrix": {
     "txt_afac13": "[EN] 销毁当前",
     "txt_8b9fc0": "[EN] 摧毁全部",
-    "txt_1622dc": "Unknown"
+    "txt_1622dc": "Unknown",
+    "txt_7598f1": "Not Specified"
   },
   "EliteSpatialMatrix": {
     "txt_154261": "[EN] 楼层图",
@@ -490,28 +613,12 @@
   "supabase": {},
   "cn": {},
   "cropImage": {},
-  "home": {
-    "txt_306058": "View Details & Navigate",
-    "txt_9bf297": "Cross-Class Business Privilege",
-    "txt_94eb9b": "ENTER THE ELITE NEXUS / Absolute Control of Top Traffic Allocation",
-    "txt_be5a38": "Acquire Onboarding Key",
-    "txt_c76b02": "Building Lifestyle Service Network...",
-    "txt_3f8deb": "Congratulations [ Neon Cyber Tavern ] Successfully Onboarded to GX PRO Matrix // Congratulations [ Lumina Aesthetic Center ] Holographic Appointment Channel Activated //",
-    "txt_07eefa": "Node Link Locked",
-    "txt_86c72a": "Your device rejected the satellite connection.",
-    "txt_2fc479": "Please click the top of the browser",
-    "txt_5a5f74": "🔒 Lock Icon",
-    "txt_c61e9f": "Manually enable location permissions to complete physical unlocking.",
-    "txt_8f4166": "Refresh & Reconnect",
-    "txt_533aa5": "GX Select (Onboarding Merchants) View Switch Reserved",
-    "txt_24482a": "UGC Photo Upload Feature Coming Soon",
-    "txt_3d1c77": "Satellite Link Denied",
-    "txt_1e5d7a": "Coordinates",
-    "txt_bf2093": "Tap Address Bar 🔒 to Unlock",
-    "txt_97e675": "✨ Experience Full Holo-Visuals in APP"
-  },
   "login": {
-    "txt_b05e70": "Private Concierge"
+    "txt_b05e70": "Private Concierge",
+    "txt_7b6ea8": "Ultimate Lifestyle Concierge",
+    "txt_cc953a": "Privacy Policy",
+    "txt_e38f72": "Terms of Service",
+    "txt_0cbf83": "Contact Us"
   },
   "types": {},
   "route": {},
@@ -558,5 +665,130 @@
   "ChatRoomUI": {},
   "useChatEngine": {},
   "useRecentChats": {},
-  "DataMatrixAssets": {}
+  "DataMatrixAssets": {},
+  "HomeClient": {
+    "txt_fc724a": "Unclaimed Node",
+    "txt_2fa2bd": "Awaiting Claim",
+    "txt_3efb32": "Genuine Review",
+    "txt_de7277": "Unlock Color Privileges",
+    "txt_306058": "View Details & Navigate",
+    "txt_d5b619": "Data-Driven",
+    "txt_afb9fb": "Google Location Services",
+    "txt_6821d6": "Service Network Offline",
+    "txt_c76b02": "Building Lifestyle Service Network...",
+    "txt_a8b0c2": "All",
+    "txt_24482a": "UGC Photo Upload Feature Coming Soon",
+    "txt_3d1c77": "Satellite Connection Denied"
+  },
+  "studio": {},
+  "vision": {
+    "txt_b05e70": "Personal Concierge",
+    "txt_86ef01": "Initiate New World"
+  },
+  "AiBookingAssistant": {
+    "txt_e4c031": "GX⁺ Concierge",
+    "txt_06af22": "AI Assistant Online",
+    "txt_83b6af": "Awaiting Terminal Authorization Lock",
+    "txt_31ecc0": "Project",
+    "txt_d699b2": "Technician",
+    "txt_20b6c5": "Physical Locking...",
+    "txt_09dc22": "One-Click Physical Lock (Write to Calendar)",
+    "txt_336572": "Tell the Concierge Your Needs..."
+  },
+  "AppPlatformGuard": {
+    "txt_b3de79": "Get Full GX Experience",
+    "txt_391968": "System Ready. Please Activate the Bottom",
+    "txt_c31f48": "Share",
+    "txt_55165d": "Link,",
+    "txt_2d94a4": "Add to Home Screen",
+    "txt_2fbaf0": "Inject Physical Desktop.",
+    "txt_c5d070": "Perfect Experience",
+    "txt_e66fa2": "Please Open in APP",
+    "txt_f3dda5": "Open Now"
+  },
+  "BottomNavBar": {
+    "txt_07b181": "My"
+  },
+  "GxProCard": {
+    "txt_3ed720": "Book Now",
+    "txt_98be76": "GX PRO Node"
+  },
+  "HoloAscensionCard": {
+    "txt_bf27a7": "Join as Merchant",
+    "txt_54a5fb": "Publish Services, Activate Your Digital Store"
+  },
+  "ShopDetailOverlay": {
+    "txt_7c3fb2": "Privilege Services",
+    "txt_0a2946": "Unconfigured Privilege Services",
+    "txt_3c5856": "Node Coordinates",
+    "txt_2271ab": "AI Smart Concierge Booking",
+    "txt_1f9cd0": "Star Coordinates Not Public"
+  },
+  "WeChatBrowserGuard": {
+    "txt_153fa6": "Select",
+    "txt_8b2cab": "Restricted Area",
+    "txt_285d0c": "WeChat Environment Interception",
+    "txt_1bc292": "To Ensure World-Class Holographic Rendering Experience and Data Communication Security,",
+    "txt_a6fbe5": "Please Click the Upper Right Corner",
+    "txt_bd26e0": "Button,",
+    "txt_475860": "Open in Browser"
+  },
+  "scheduler": {},
+  "StudioImageCropModal": {
+    "txt_05853d": "Zoom",
+    "txt_6d5d49": "Free Crop (16:9)",
+    "txt_2fb90b": "Processing...",
+    "txt_b8abb4": "Confirm Crop and Upload"
+  },
+  "StudioLayout": {
+    "txt_d4b097": "Company Name",
+    "txt_55d479": "Digital",
+    "txt_a7da92": "Store",
+    "txt_ae4cab": "Business Information",
+    "txt_de150e": "Basic Information & Company Coordinates",
+    "txt_e06494": "Company Address",
+    "txt_a63e13": "Searching for Coordinates...",
+    "txt_092e00": "No Related Coordinates Found",
+    "txt_13d73f": "Visual Customization",
+    "txt_3dfdf1": "Minimal Cover & Flowing Text",
+    "txt_041052": "Company Profile (One-Sentence Selling Point)",
+    "txt_c32326": "Company Photos (Cover and Carousel)",
+    "txt_ce6855": "Upload Image",
+    "txt_3f3a6c": "Supports WebP/JPG/PNG Formats. After Uploading, Can Be Freely Cropped to 16:9 Perfect Ratio.",
+    "txt_574c4b": "Traffic Services",
+    "txt_4bde96": "Traffic Business & Pricing",
+    "txt_0a55cf": "Traffic Service Information (Up to 3)",
+    "txt_399619": "min (Temporal Anchor Point)",
+    "txt_3a17b7": "Minutes",
+    "txt_5c555b": "Continue Adding Traffic Projects",
+    "txt_ce59cd": "Deploying...",
+    "txt_44bbc4": "Waiting for Main Visual Resources",
+    "txt_18b4e9": "Go to Management Page Settings",
+    "txt_e7a0d0": "Activate Navigation",
+    "txt_54cfc3": "Featured Recommendations",
+    "txt_26ad89": "Book",
+    "txt_cb6d9a": "Add Traffic Service",
+    "txt_5d7e2c": "Enter Company Name",
+    "txt_430141": "Enter Company Address",
+    "txt_96941d": "Enter Company Profile",
+    "txt_8f3747": "Service Name",
+    "txt_0e9fd9": "Price",
+    "txt_39f137": "Duration",
+    "txt_193264": "Deploy Digital Store",
+    "txt_8cb6ef": "Company Resume",
+    "txt_4b7d1f": "Waiting for Physical Coordinates Access..."
+  },
+  "home": {},
+  "ShopDetailView": {
+    "txt_36b5f5": "No Cover Image",
+    "txt_b59359": "No Gallery",
+    "txt_cc3307": "Operating Hours",
+    "txt_e7a0d0": "Engage Navigation",
+    "txt_54cfc3": "Curated Picks",
+    "txt_26ad89": "Schedule",
+    "txt_637f84": "No Services Available",
+    "txt_d4b097": "Company Name",
+    "txt_8cb6ef": "Company Profile",
+    "txt_4b7d1f": "Awaiting Physical Coordinates..."
+  }
 }

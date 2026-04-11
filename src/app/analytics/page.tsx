@@ -10,10 +10,10 @@ import { useTranslations } from "next-intl";
 export default function AnalyticsPage() {
     const t = useTranslations('analytics');
   const mockMetrics: PlatformMetric[] = [
-    { id: "1", platform: "douyin", metricName: "视频播放量 / Views", value: "1.2M", trend: 15.4, status: "growing" },
-    { id: "2", platform: "ctrip", metricName: "预订转化率 / Conversion", value: "4.8%", trend: -2.1, status: "declining" },
-    { id: "3", platform: "58tc", metricName: "线索留存 / Leads", value: "248", trend: 5.2, status: "growing" },
-    { id: "4", platform: "xiaohongshu", metricName: "笔记互动 / Engagement", value: "12.4k", trend: 8.9, status: "growing" },
+    { id: "1", platform: "douyin", metricName: "视频播放量", value: "1.2M", trend: 15.4, status: "growing" },
+    { id: "2", platform: "ctrip", metricName: "预订转化率", value: "4.8%", trend: -2.1, status: "declining" },
+    { id: "3", platform: "58tc", metricName: "线索留存", value: "248", trend: 5.2, status: "growing" },
+    { id: "4", platform: "xiaohongshu", metricName: "笔记互动", value: "12.4k", trend: 8.9, status: "growing" },
   ];
 
   const mockInsights: AIInsight[] = [

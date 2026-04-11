@@ -78,9 +78,9 @@ const MOCK_IMAGES = {
 
 // 模拟的 Google Places 返回数据 (用于前期 UI 验证，后续替换为真实 API 调用)
 const MOCK_GOOGLE_PLACES: Array<PlacesApiPlace & { distance: string }> = [
-  { id: "gp_1", name: "The Cyber Sushi / 霓虹刺身", rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
+  { id: "gp_1", name: "The Cyber Sushi", rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
   { id: "gp_2", name: "Neon Coffee Roasters", rating: 4.9, user_ratings_total: 128, distance: "1.2km", status: "OPEN", category: "dining" },
-  { id: "gp_3", name: "Midnight Noodle Bar / 午夜面馆", rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
+  { id: "gp_3", name: "Midnight Noodle Bar", rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
   { id: "gp_4", name: "Lumina Beauty Studio", rating: 5.0, user_ratings_total: 64, distance: "1.5km", status: "OPEN", category: "beauty" },
   { id: "gp_5", name: "Zenith Hair Salon", rating: 4.7, user_ratings_total: 210, distance: "3.1km", status: "OPEN", category: "beauty" },
   { id: "gp_6", name: "The Grand Horizon Hotel", rating: 4.6, user_ratings_total: 1205, distance: "4.2km", status: "OPEN", category: "hotel" },
@@ -479,8 +479,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
               </span>
               {/* 液态金属流光渐变文字，0 JS 开销 */}
               <span className="text-[clamp(16px,4vw,24px)] whitespace-nowrap font-black tracking-tighter bg-gradient-to-r from-cyan-100 via-white to-cyan-200 bg-[length:200%_auto] animate-pulse bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-                私人管家
-              </span>
+                {t('txt_b05e70')}</span>
             </div>
           </motion.div>
 
@@ -613,7 +612,6 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
               )}>
                 {t("tabs.merchant")}
               </span>
-              <span className="text-[clamp(8px,2vw,9px)] whitespace-nowrap font-mono text-white/40 tracking-widest">DISCOVER</span>
               {activeTab === "merchant" && (
                 <motion.div 
                   layoutId="trinityIndicator"
@@ -649,7 +647,6 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                     : "text-white/50"
                 )} />
               </div>
-              <span className="text-[clamp(8px,2vw,9px)] whitespace-nowrap font-mono text-yellow-400/80 tracking-widest">GX PRO</span>
               {activeTab === "gx_pro" && (
                 <motion.div 
                   layoutId="trinityIndicator"
@@ -677,7 +674,6 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
               )}>
                 {t("tabs.third")}
               </span>
-              <span className="text-[clamp(8px,2vw,9px)] whitespace-nowrap font-mono text-white/40 tracking-widest">SERVICES</span>
               {activeTab === "service" && (
                 <motion.div 
                   layoutId="trinityIndicator"
@@ -889,8 +885,8 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                                   <div className="w-10 h-10 rounded-full border border-gx-cyan/30 flex items-center justify-center bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(0,240,255,0.2)]">
                                     <Sparkles className="w-5 h-5 text-gx-cyan animate-pulse" />
                                   </div>
-                                  <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">UNCLAIMED NODE</span>
-                                  <span className="text-[8px] font-mono tracking-widest text-white/40">AWAITING OWNER</span>
+                                  <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">{t('txt_fc724a')}</span>
+                                  <span className="text-[8px] font-mono tracking-widest text-white/40">{t('txt_2fa2bd')}</span>
                                 </div>
                               </div>
                             ) : (
@@ -933,7 +929,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                               />
                               <div className="absolute top-4 left-4 px-2 py-1 bg-white/5 backdrop-blur-md rounded border border-white/10 flex items-center gap-1.5 z-10 pointer-events-none">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                <span className="text-[8px] font-bold text-white tracking-widest uppercase drop-shadow-md">REAL UGC</span>
+                                <span className="text-[8px] font-bold text-white tracking-widest uppercase drop-shadow-md">{t('txt_3efb32')}</span>
                               </div>
                               {/* 彻底移除黑色遮罩 - removed to achieve extreme transparency */}
                               {/* <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 pointer-events-none" /> */}
@@ -952,7 +948,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                                 <Camera className="w-5 h-5 text-white/50 group-hover/upload:text-gx-cyan transition-colors" />
                              </div>
                              <span className="text-[10px] font-bold text-white/50 tracking-widest group-hover/upload:text-gx-cyan transition-colors uppercase">{t("uploadRealPhoto")}</span>
-                             <span className="text-[8px] font-mono text-white/30 mt-1">UNLOCK COLOR PRIVILEGE</span>
+                             <span className="text-[8px] font-mono text-white/30 mt-1">{t('txt_de7277')}</span>
                           </div>
                         </div>
 
@@ -999,7 +995,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                               {place.category} / GOOGLE MAPS
                             </span>
                             <div className="flex items-center gap-2 text-[10px] font-mono text-gx-cyan opacity-60 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 drop-shadow-[0_0_5px_rgba(0,240,255,0.5)]">
-                              <span>查看详情与导航</span>
+                              <span>{t('txt_306058')}</span>
                               <ArrowUpRight className="w-4 h-4" />
                             </div>
                           </div>
@@ -1013,7 +1009,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
               {/* 极致降噪版无限加载底座：嵌入卡片与横幅缝隙的隐形文字 */}
               <div ref={loadMoreRef} className="w-full flex justify-center py-2 relative z-10">
                 <span className="text-[9px] font-mono tracking-[0.3em] uppercase font-bold text-white/20 transition-colors cursor-default">
-                  DATA POWERED BY <span className="text-cyan-600/40">GOOGLE LBS</span>
+                  {t('txt_d5b619')}<span className="text-cyan-600/40">{t('txt_afb9fb')}</span>
                 </span>
                 {/* 极简加载状态指示器 (仅在还有数据时显示) */}
                 {displayCount < aggregatedPlaces.length && (
@@ -1050,8 +1046,8 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
         {activeTab === "service" && (
           <div className="py-20 text-center text-white/30 font-mono text-sm tracking-widest flex flex-col items-center gap-4">
             <Zap className="w-12 h-12 text-gx-cyan/40 mb-4 animate-pulse" />
-            <p>SERVICE NETWORK OFFLINE</p>
-            <p className="text-[10px]">生活服务网络建设中...</p>
+            <p>{t('txt_6821d6')}</p>
+            <p className="text-[10px]">{t('txt_c76b02')}</p>
           </div>
         )}
       </div>

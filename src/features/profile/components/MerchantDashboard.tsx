@@ -9,7 +9,8 @@ import {
   Play,
   Eye,
   MonitorSmartphone,
-  LogOut
+  LogOut,
+  Search
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { BookingDetails } from "@/features/booking/types";
@@ -24,6 +25,7 @@ import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useRouter } from "next/navigation";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -95,13 +97,24 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
  * 采用 Admin Red (#FF2D55) 视觉规范
  */
 export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: MerchantDashboardProps) => {
-    const t = useTranslations('MerchantDashboard');
+  const t = useTranslations('MerchantDashboard');
+  const router = useRouter();
   const { user, signOut } = useAuth();
-  const { activeShopId } = useShop();
+  const { activeShopId, setActiveShopId, availableShops } = useShop();
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
 
-  
+  // 多门店全局下拉菜单状态
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  const activeShopName = availableShops?.find(s => s.shopId === activeShopId)?.shopName || "GX 高新旗舰店";
+  
+  const filteredShops = availableShops?.filter(shop => 
+    (shop.shopName || "未知门店").toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  // 营业状态控制 (微动开关)
+  const [storeStatus, setStoreStatus] = useState<'open' | 'closed_today' | 'holiday'>('open');
 
   // 营业时间无极滑轨状态 (HUD 风格)
   const [openTime, setOpenTime] = useState(8); // 8:00
@@ -252,11 +265,9 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
                 </div>
                 <div>
                   <h3 className="text-lg font-bold tracking-tight text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">
-                    点亮数字门店
-                  </h3>
+                    {t('txt_0dcaa5')}</h3>
                   <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono mt-0.5">
-                    配置您的全息店面空间
-                  </p>
+                    {t('txt_f6e889')}</p>
                 </div>
               </div>
               <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 group-hover:text-gx-cyan group-hover:bg-gx-cyan/10 transition-all">
@@ -288,90 +299,232 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
         </div>
       </GlassCard>
 
-      {/* 核心控制台 (全息驾驶舱风格) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* 数字门店常驻配置入口 (Digital Studio Configuration) */}
-        <Link href="/studio" className="h-full">
-          <GlassCard className="p-6 border-white/5 relative overflow-hidden bg-transparent h-full group hover:border-gx-cyan/30 transition-all duration-500 cursor-pointer">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[50px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500 pointer-events-none" />
-            
-            <div className="relative z-10 flex flex-col h-full">
-              <div className="flex items-center mb-6">
-                <h3 className="text-xs font-bold tracking-widest uppercase text-white/80 group-hover:text-white transition-colors">
-                  数字门店装修
-                </h3>
-              </div>
-              
-              <div className="flex-1 flex flex-col justify-center">
-                <p className="text-xs text-white/40 leading-relaxed max-w-[80%]">
-                  更新数字门店详情页，重新设计装修。
-                </p>
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/30 group-hover:text-gx-cyan group-hover:bg-gx-cyan/10 transition-all">
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        </Link>
-
-        {/* 营业时间矩阵 (HUD 无极滑轨) */}
-        <GlassCard className="p-6 border-white/5 relative overflow-hidden bg-transparent">
-          {/* 绝对清透，无背景色，通过极细镂空流光边框界定 (这里用简单的发光代替复杂 mask) */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+      {/* 核心控制台 (全息驾驶舱风格) - 贯穿全宽连体控制舱 */}
+      <GlassCard className="p-0 overflow-visible relative z-40">
+        <div className="flex flex-col md:flex-row items-stretch min-h-[120px] w-full">
           
-          <div className="relative z-10">
-            <div className="flex items-center mb-8">
-              <h3 className="text-xs font-bold tracking-widest uppercase">营业时间</h3>
-            </div>
+          {/* 左侧控制中枢：店铺选择与状态开关 */}
+          <div className="p-6 relative bg-transparent flex items-center shrink-0 group cursor-pointer hover:bg-white/5 transition-all duration-500 min-w-[400px] rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none" onClick={() => router.push('/studio')}>
+            <div className="absolute inset-0 bg-gradient-to-r from-white/[0.02] to-transparent pointer-events-none rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none" />
+            <div className="absolute top-1/2 left-10 -translate-y-1/2 w-32 h-32 bg-gx-cyan/5 blur-[50px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500 pointer-events-none" />
             
-            <div className="space-y-6">
-              <div className="flex justify-between items-end">
-                <div className="text-3xl font-mono tracking-tighter text-gx-cyan mix-blend-screen text-shadow-sm">
-                  {openTime.toString().padStart(2, '0')}:00
+            <div className="relative z-10 flex items-center justify-between w-full gap-8">
+              <div className="flex items-center gap-4">
+                {/* 门店统御区 (全局多店切换锚点) */}
+                <div className="flex flex-col relative">
+                  <h3 
+                    className="text-lg font-bold tracking-tight text-white/80 hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDropdownOpen(!isDropdownOpen);
+                    }}
+                  >
+                    <div className="truncate max-w-[150px]">{activeShopName}</div>
+                    <div className={cn(
+                      "text-[10px] text-white/30 flex items-center justify-center w-4 h-4 rounded-full hover:bg-white/10 hover:text-white transition-all",
+                      isDropdownOpen && "rotate-180 bg-white/10 text-white"
+                    )}>▼</div>
+                  </h3>
+                  <div className="text-white/40 text-[10px] uppercase tracking-widest font-mono group-hover:text-gx-cyan/60 transition-colors mt-0.5">
+                    <div>{t('txt_58a86b')}</div>
+                  </div>
+
+                  {/* 悬浮下拉菜单 (Glassmorphism 赛博空间) */}
+                  {isDropdownOpen && (
+                    <div 
+                      className="absolute top-full left-0 mt-3 w-64 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 overflow-hidden"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      {/* 模糊搜索框 (门店大于3家时自动浮现) */}
+                      {availableShops.length > 3 && (
+                        <div className="p-3 border-b border-white/5 relative">
+                          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                          <input 
+                            type="text" 
+                            placeholder={t('txt_096cda')} 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-white/5 border border-white/5 rounded-lg py-1.5 pl-8 pr-3 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-gx-cyan/50 transition-colors"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* 门店列表引擎 */}
+                      <div className="max-h-[240px] overflow-y-auto no-scrollbar py-2">
+                        {filteredShops.length > 0 ? (
+                          filteredShops.map(shop => (
+                            <div 
+                              key={shop.shopId}
+                              onClick={() => {
+                                setActiveShopId(shop.shopId);
+                                setIsDropdownOpen(false);
+                                setSearchQuery("");
+                              }}
+                              className={cn(
+                                "px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between",
+                                shop.shopId === activeShopId 
+                                  ? "bg-gx-cyan/10 text-gx-cyan font-bold" 
+                                  : "text-white/60 hover:bg-white/5 hover:text-white"
+                              )}
+                            >
+                              <span className="truncate">{shop.shopName || "未知门店"}</span>
+                              {shop.shopId === activeShopId && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan shadow-[0_0_5px_#00F0FF]" />
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-4 py-3 text-xs text-white/30 text-center">
+                            {t('txt_386390')}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="text-[10px] text-white/20 uppercase tracking-widest pb-1">TO</div>
-                <div className="text-3xl font-mono tracking-tighter text-gx-cyan mix-blend-screen text-shadow-sm">
-                  {closeTime.toString().padStart(2, '0')}:00
+
+                {/* 状态控制微动开关 (Micro-Switches) */}
+                <div className="flex items-center gap-2 ml-4" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                  <button 
+                    onClick={() => setStoreStatus('open')} 
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-[10px] font-bold border transition-all uppercase tracking-widest", 
+                      storeStatus === 'open' ? "bg-gx-cyan/20 border-gx-cyan/50 text-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"
+                    )}
+                  >
+                    <div>{t('txt_145da8')}</div>
+                  </button>
+                  <button 
+                    onClick={() => setStoreStatus('closed_today')} 
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-[10px] font-bold border transition-all uppercase tracking-widest", 
+                      storeStatus === 'closed_today' ? "bg-red-500/20 border-red-500/50 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"
+                    )}
+                  >
+                    <div>{t('txt_52aa20')}</div>
+                  </button>
+                  <button 
+                    onClick={() => setStoreStatus('holiday')} 
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-[10px] font-bold border transition-all uppercase tracking-widest", 
+                      storeStatus === 'holiday' ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"
+                    )}
+                  >
+                    <div>{t('txt_99af0d')}</div>
+                  </button>
                 </div>
               </div>
+
+              <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 transition-all shrink-0" />
+            </div>
+          </div>
+
+          {/* 右侧纯净滑轨区：营业时间矩阵 (HUD 无极滑轨) */}
+          <div className="flex-1 p-6 relative bg-transparent flex items-center justify-center group hover:bg-white/5 transition-all duration-500 overflow-hidden rounded-b-2xl md:rounded-r-2xl md:rounded-bl-none">
+            <div className="absolute inset-0 bg-gradient-to-l from-white/[0.02] to-transparent pointer-events-none rounded-b-2xl md:rounded-r-2xl md:rounded-bl-none" />
+            <div className="absolute top-1/2 right-10 -translate-y-1/2 w-32 h-32 bg-gx-purple/5 blur-[50px] rounded-full group-hover:bg-gx-purple/10 transition-all duration-500 pointer-events-none" />
+            
+            <div className="relative z-10 flex-1 flex items-center justify-center w-full pt-4 pb-2 px-8">
               
-              {/* 原生无极滑轨模拟 (此处为了快速验证，使用两个原生 range input 叠加) */}
-              <div className="relative h-2 bg-white/5 rounded-full">
+              {/* 原生无极滑轨模拟 */}
+              <div className="relative h-2 bg-white/5 rounded-full group-hover:bg-white/10 transition-colors w-full">
                 <div 
-                  className="absolute h-full bg-gx-cyan/30 rounded-full"
+                  className={cn(
+                    "absolute h-full rounded-full transition-colors pointer-events-none",
+                    storeStatus === 'closed_today' ? "bg-red-500/30 group-hover:bg-red-500/50" :
+                    storeStatus === 'holiday' ? "bg-yellow-500/30 group-hover:bg-yellow-500/50" :
+                    "bg-gx-cyan/30 group-hover:bg-gx-cyan/50"
+                  )}
                   style={{ 
                     left: `${(openTime / 24) * 100}%`, 
                     right: `${100 - (closeTime / 24) * 100}%` 
                   }}
                 />
-                <input 
-                  type="range" 
-                  min="0" max="24" 
-                  value={openTime} 
-                  onChange={(e) => setOpenTime(Math.min(Number(e.target.value), closeTime - 1))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <input 
-                  type="range" 
-                  min="0" max="24" 
-                  value={closeTime} 
-                  onChange={(e) => setCloseTime(Math.max(Number(e.target.value), openTime + 1))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                {/* 发光节点指示器 */}
-                <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gx-cyan rounded-full shadow-[0_0_10px_#00F0FF] pointer-events-none" style={{ left: `calc(${(openTime / 24) * 100}% - 6px)` }} />
-                <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gx-cyan rounded-full shadow-[0_0_10px_#00F0FF] pointer-events-none" style={{ left: `calc(${(closeTime / 24) * 100}% - 6px)` }} />
+                
+                {storeStatus === 'open' && (
+                  <>
+                    <input 
+                      type="range" 
+                      min="0" max="24" 
+                      value={openTime} 
+                      onChange={(e) => setOpenTime(Math.min(Number(e.target.value), closeTime - 1))}
+                      className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none z-20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:cursor-grab active:[&::-webkit-slider-thumb]:cursor-grabbing [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:cursor-grab active:[&::-moz-range-thumb]:cursor-grabbing [&::-moz-range-thumb]:border-0"
+                    />
+                    <input 
+                      type="range" 
+                      min="0" max="24" 
+                      value={closeTime} 
+                      onChange={(e) => setCloseTime(Math.max(Number(e.target.value), openTime + 1))}
+                      className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none z-30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:cursor-grab active:[&::-webkit-slider-thumb]:cursor-grabbing [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:cursor-grab active:[&::-moz-range-thumb]:cursor-grabbing [&::-moz-range-thumb]:border-0"
+                    />
+                  </>
+                )}
+                
+                {/* 起点发光节点指示器与悬浮时间 */}
+                <div 
+                  className={cn("absolute top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10", storeStatus !== 'open' && "opacity-50")} 
+                  style={{ left: `${(openTime / 24) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                >
+                  <div className={cn(
+                    "text-xs font-mono font-bold tracking-tighter mix-blend-screen text-shadow-sm group-hover:text-white transition-colors mb-2.5 whitespace-nowrap bg-black/60 px-2 py-1 rounded-md border backdrop-blur-md shadow-[0_0_10px_rgba(0,0,0,0.5)]",
+                    storeStatus === 'closed_today' ? "text-red-500 border-red-500/30" :
+                    storeStatus === 'holiday' ? "text-yellow-500 border-yellow-500/30" :
+                    "text-gx-cyan border-gx-cyan/30"
+                  )}>
+                    {openTime.toString().padStart(2, '0')}:00
+                  </div>
+                  <div className={cn(
+                    "w-3.5 h-3.5 rounded-full transition-shadow relative",
+                    storeStatus === 'closed_today' ? "bg-red-500 shadow-[0_0_10px_#EF4444] group-hover:shadow-[0_0_15px_#EF4444]" :
+                    storeStatus === 'holiday' ? "bg-yellow-500 shadow-[0_0_10px_#EAB308] group-hover:shadow-[0_0_15px_#EAB308]" :
+                    "bg-gx-cyan shadow-[0_0_10px_#00F0FF] group-hover:shadow-[0_0_15px_#00F0FF]"
+                  )}>
+                    {storeStatus === 'open' && <div className="absolute inset-0 rounded-full bg-gx-cyan animate-ping opacity-40" />}
+                  </div>
+                </div>
+
+                {/* 终点发光节点指示器与悬浮时间 */}
+                <div 
+                  className={cn("absolute top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10", storeStatus !== 'open' && "opacity-50")} 
+                  style={{ left: `${(closeTime / 24) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                >
+                  <div className={cn(
+                    "text-xs font-mono font-bold tracking-tighter mix-blend-screen text-shadow-sm group-hover:text-white transition-colors mb-2.5 whitespace-nowrap bg-black/60 px-2 py-1 rounded-md border backdrop-blur-md shadow-[0_0_10px_rgba(0,0,0,0.5)]",
+                    storeStatus === 'closed_today' ? "text-red-500 border-red-500/30" :
+                    storeStatus === 'holiday' ? "text-yellow-500 border-yellow-500/30" :
+                    "text-gx-cyan border-gx-cyan/30"
+                  )}>
+                    {closeTime.toString().padStart(2, '0')}:00
+                  </div>
+                  <div className={cn(
+                    "w-3.5 h-3.5 rounded-full transition-shadow relative",
+                    storeStatus === 'closed_today' ? "bg-red-500 shadow-[0_0_10px_#EF4444] group-hover:shadow-[0_0_15px_#EF4444]" :
+                    storeStatus === 'holiday' ? "bg-yellow-500 shadow-[0_0_10px_#EAB308] group-hover:shadow-[0_0_15px_#EAB308]" :
+                    "bg-gx-cyan shadow-[0_0_10px_#00F0FF] group-hover:shadow-[0_0_15px_#00F0FF]"
+                  )}>
+                    {storeStatus === 'open' && <div className="absolute inset-0 rounded-full bg-gx-cyan animate-ping opacity-40" />}
+                  </div>
+                </div>
+
+                {/* 锁单警告遮罩 */}
+                {storeStatus !== 'open' && (
+                  <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+                    <div className={cn(
+                      "px-4 py-1.5 rounded-lg border backdrop-blur-md font-bold tracking-widest text-xs uppercase shadow-2xl",
+                      storeStatus === 'closed_today' ? "bg-red-500/10 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" :
+                      "bg-yellow-500/10 border-yellow-500/50 text-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
+                    )}>
+                      <div>{storeStatus === 'closed_today' ? '今日已临时歇业' : '处于长期休假中'}</div>
+                    </div>
+                  </div>
+                )}
               </div>
+
             </div>
           </div>
-        </GlassCard>
 
-      </div>
+        </div>
+      </GlassCard>
 
       {/* 功能入口区 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -484,8 +637,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
           }}
         >
           <LogOut className="w-3 h-3" />
-          退出账号
-        </Button>
+          {t('txt_4d90f0')}</Button>
       </div>
     </div>
   );

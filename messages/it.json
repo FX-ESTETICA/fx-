@@ -56,7 +56,25 @@
     "txt_a92d4f": "Connessione Satellitare Negata",
     "txt_6f7f8f": "Posizione",
     "txt_15c54d": "Clicca sull'icona 🔒 nella barra degli indirizzi per sbloccare",
-    "txt_refresh": "Ricarica"
+    "txt_refresh": "Ricarica",
+    "txt_306058": "Visualizza Dettagli & Naviga",
+    "txt_9bf297": "Privilegio Commerciale Interclassista",
+    "txt_94eb9b": "ENTRA NELL'ELITE NEXUS / Controllo Assoluto dell'Allocazione del Traffico Top",
+    "txt_be5a38": "Acquisisci Chiave di Onboarding",
+    "txt_c76b02": "Costruzione della Rete di Servizi per la Vita...",
+    "txt_3f8deb": "Congratulazioni [ Neon Cyber Tavern ] Onboarding Avvenuto con Successo nel GX PRO Matrix // Congratulazioni [ Lumina Aesthetic Center ] Canale di Appuntamento Olografico Attivato //",
+    "txt_07eefa": "Collegamento Nodo Bloccato",
+    "txt_86c72a": "Il tuo dispositivo ha rifiutato la connessione satellitare.",
+    "txt_2fc479": "Si prega di fare clic in cima al browser",
+    "txt_5a5f74": "🔒 Icona di Blocco",
+    "txt_c61e9f": "Abilita manualmente i permessi di posizione per completare lo sblocco fisico.",
+    "txt_8f4166": "Aggiorna & Riconnetti",
+    "txt_533aa5": "GX Seleziona (Commercianti Onboarding) Cambio Vista Riservato",
+    "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
+    "txt_3d1c77": "Collegamento Satellitare Negato",
+    "txt_1e5d7a": "Coordinate",
+    "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare",
+    "txt_97e675": "✨ Esperienza Completa di Ologrammi nell'APP"
   },
   "notfound": {
     "txt_bfb989": "[IT] Connection Lost // 页面不存在"
@@ -102,17 +120,52 @@
     "txt_27474a": "[IT] 搜索分公司或节点名称...",
     "txt_491f90": "[Avviso Assoluto] Questa azione farà esplodere l'intera Federazione Aziendale, tutte le filiali, i calendari e i dati degli ordini saranno istantaneamente distrutti e irreversibili! Il tuo account sarà ripristinato a utente normale. Confermi l'esplosione?",
     "txt_ba090e": "🟡 Assegna Manager",
-    "txt_4db67e": "In Preparazione"
+    "txt_4db67e": "In Preparazione",
+    "txt_105031": "Entrate Totali (Ultimi 30 Giorni)",
+    "txt_829f9b": "Stato del Sistema: Sano",
+    "txt_7ccf55": "Rispetto al Mese Precedente",
+    "txt_a5891d": "Profitto Netto: 68%",
+    "txt_013e29": "Costo Operativo: 32%",
+    "txt_c3b0b7": "Matrice di Combattimento del Negozio",
+    "txt_88b8d0": "Estetica FX",
+    "txt_572a4f": "Sovraccarico",
+    "txt_1462d2": "Hub di Milano",
+    "txt_42f8a0": "Stabile",
+    "txt_88b8b6": "Avamposto di Roma",
+    "txt_83c21d": "Perdita",
+    "txt_6c2342": "Nexus AI Approfondimenti",
+    "txt_2ee3dd": "Avviso di Vulnerabilità Critica",
+    "txt_e12bb1": "Tasso di Consumo Anomalo di Forniture (Tintura per Capelli) presso la Filiale di Roma Supera il Limite Standard del 22%, Vulnerabilità di Perdita di Materiale Rilevata.",
+    "txt_7717e3": "Monitoraggio della Perdita Clienti",
+    "txt_9e9590": "Negli Ultimi 7 Giorni, 15 SVIP di Alto Patrimonio hanno Cancellato Appuntamenti Senza Riprenotare, Rischio di Perdita Collettiva Rilevato.",
+    "txt_1ec201": "Simulazione delle Tattiche Aziendali",
+    "txt_a6dc6b": "Martedì Pomeriggio dalle 14:00 alle 16:00, il Tasso di Inattività del Negozio ha Raggiunto il 40%, Suggerendo all'AI di Inviare Automaticamente Capsule di Vendita Flash al 30% ai Clienti Dormienti entro 3 km.",
+    "txt_416e0d": "Esegui Tattiche",
+    "txt_7b2419": "Dissolvi la Federazione Aziendale",
+    "txt_452293": "Attiva Nodo",
+    "txt_98a315": "Autorizza",
+    "txt_b641f2": "Immersione nella Nebulosa",
+    "txt_53656b": "Entra nella Matrice",
+    "txt_f9910c": "Rapporto Finanziario AI",
+    "txt_5294b4": "Accedi al Pannello Dati Completo",
+    "txt_f1e7ae": "Pulisci Dati Nodo",
+    "txt_a08954": "Torna al Centro di Comando",
+    "txt_ca7df9": "Dati Finanziari Sincronizzati",
+    "txt_88c35d": "Nexus Finanziario e Dati",
+    "txt_8f3492": "Torna alla Galassia"
   },
   "onboarding": {
     "txt_7513ca": "[IT] 返回 / BACK",
     "txt_5eb15b": "[IT] Node_Application // 节点申请",
     "txt_ed5102": "[IT] 加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。\n              利用赛博时代的流量杠杆，触达极致清醒的消费群体。",
-    "txt_f9c0f6": "[IT] 立即入驻 / JOIN NOW"
+    "txt_f9c0f6": "[IT] 立即入驻 / JOIN NOW",
+    "txt_e8df34": "Nodo Galattico",
+    "txt_f1bdcd": "O Sfoglia Documentazione"
   },
   "spatial": {
     "txt_dbd94b": "[IT] 空间驾驶舱 / SPATIAL COCKPIT",
-    "txt_a70c9c": "[IT] 进入协议 / Enter"
+    "txt_a70c9c": "[IT] 进入协议 / Enter",
+    "txt_e18e82": "Stazione Spaziale"
   },
   "AppShell": {
     "txt_07b181": "Il Mio"
@@ -120,7 +173,8 @@
   "Button": {},
   "GlassCard": {},
   "HolographicCarousel": {
-    "txt_3ed720": "[IT] 立即预约"
+    "txt_3ed720": "[IT] 立即预约",
+    "txt_53a12c": "Certificazione Ufficiale GX PRO"
   },
   "Input": {},
   "NebulaBackground": {},
@@ -152,7 +206,8 @@
     "txt_772970": "[IT] 目前没有待审批的入驻申请",
     "txt_325254": "[IT] 驳回",
     "txt_b20cc6": "[IT] 批准 / APPROVE",
-    "txt_f4360f": "Federazione Aziendale / ENTERPRISE"
+    "txt_f4360f": "Federazione Aziendale / ENTERPRISE",
+    "txt_4ba0be": "Federazione Aziendale"
   },
   "industry": {},
   "blueprint": {},
@@ -173,7 +228,10 @@
     "txt_b87e42": "[IT] 我已确认预约信息准确无误，并同意相关预约协议 / I agree to terms.",
     "txt_49999e": "[IT] 返回修改 / Edit",
     "txt_099af3": "[IT] 确认提交 / Submit Booking",
-    "txt_2a2772": "In Attesa di Conferma"
+    "txt_2a2772": "In Attesa di Conferma",
+    "txt_60d045": "Nome",
+    "txt_5a93d3": "Telefono",
+    "txt_2432b5": "Note"
   },
   "BookingForm": {
     "txt_432960": "[IT] 确认预约信息 / Booking Details",
@@ -223,7 +281,20 @@
     "txt_7c0795": "LV.4 Pioniere",
     "txt_a5c2b3": "Nessun Record di Chiamata",
     "txt_13e10b": "Aggiorna Appuntamento",
-    "txt_1f4816": "Conferma Appuntamento"
+    "txt_1f4816": "Conferma Appuntamento",
+    "txt_19fcb9": "Tempo",
+    "txt_7173f8": "Rifiuta",
+    "txt_e61f2c": "Accetta",
+    "txt_4ff1e7": "Data",
+    "txt_5bdfd7": "Durata",
+    "txt_946010": "Finisce Alle",
+    "txt_0552d7": "Categoria Non Trovata",
+    "txt_f8fbea": "AM",
+    "txt_e2eb28": "PM",
+    "txt_81c636": "Scorri per Impostare i Minuti",
+    "txt_180fe9": "C-End Abbinato",
+    "txt_8ae626": "Aggiorna Appuntamento",
+    "txt_b1206e": "Conferma Appuntamento"
   },
   "IndustryCalendar": {
     "txt_5aec8c": "[IT] 隶属总部: SYSTEM_CORE",
@@ -237,7 +308,11 @@
     "txt_6508a1": "[IT] 回收站 (Void Archive)",
     "txt_677a64": "[IT] 全局运营配置 (Nebula Config Hub)",
     "txt_3353f0": "Appuntamenti di Oggi",
-    "txt_047109": "In Attesa di Elaborazione"
+    "txt_047109": "In Attesa di Elaborazione",
+    "txt_fb852f": "In Corso",
+    "txt_65dd9e": "In Attesa",
+    "txt_7708f1": "Promemoria Nuovo Appuntamento",
+    "txt_9874b3": "Clicca per Localizzare"
   },
   "NebulaConfigHub": {
     "txt_406bc4": "[IT] 全局运营配置",
@@ -333,7 +408,8 @@
     "txt_0467cc": "Visualizza Tutto",
     "txt_319cc2": "Coordinamento Globale",
     "txt_a0cb83": "Clicca per Rinominare Categoria",
-    "txt_78345c": "Clicca per Attivare Categoria"
+    "txt_78345c": "Clicca per Attivare Categoria",
+    "txt_48247a": "Concierge AI Esclusivo: Inserisci Nome Completo/Nome Alternativo (es: Manicure Solo per Mani)"
   },
   "OrbitalPossessionProfile": {
     "txt_680885": "[IT] 监视节点:",
@@ -342,7 +418,8 @@
   "RecycleBinModal": {
     "txt_494437": "[IT] 回收站 / Void Archive",
     "txt_ae5724": "Walk-in",
-    "txt_29df0e": "Servizio Senza Nome"
+    "txt_29df0e": "Servizio Senza Nome",
+    "txt_7d246f": "Nessun Record di Cancellazione"
   },
   "DiscoveryWaterfall": {},
   "UGCUploadModal": {
@@ -381,7 +458,22 @@
     "txt_edff9d": "Collegamento...",
     "txt_4a81e7": "Stabilisci Collegamento di Sistema",
     "txt_330363": "Successo",
-    "txt_45c76d": "Stabilisci Collegamento di Sistema"
+    "txt_45c76d": "Stabilisci Collegamento di Sistema",
+    "txt_0dcaa5": "Illumina Negozio Digitale",
+    "txt_f6e889": "Configura il Tuo Spazio Negozio Olografico",
+    "txt_70cdae": "Decorazione Negozio Digitale",
+    "txt_161607": "Aggiorna la Pagina dei Dettagli del Negozio Digitale, Ridisegna la Decorazione.",
+    "txt_cc3307": "Orari di Apertura",
+    "txt_981cbe": "A",
+    "txt_58a86b": "Tocca per Personalizzare il Negozio",
+    "txt_386390": "Nessun Negozio Correlato Trovato",
+    "txt_145da8": "Aperto",
+    "txt_52aa20": "Chiuso Temporaneamente",
+    "txt_99af0d": "Chiusura Festiva",
+    "txt_096cda": "Cerca Negozi...",
+    "txt_8a30cd": "Negozio Sconosciuto",
+    "txt_eebd8d": "Chiuso Temporaneamente Oggi",
+    "txt_bc620b": "In Congedo Prolungato"
   },
   "PhoneAuthBar": {
     "txt_398180": "Collegamento Numero di Telefono",
@@ -391,7 +483,8 @@
     "txt_879792": "In Attesa",
     "txt_1535fc": "Invia",
     "txt_1165ad": "Tieni Premuto a Sinistra per Ripristinare il Terminale",
-    "txt_e83a25": "Conferma"
+    "txt_e83a25": "Conferma",
+    "txt_2dbd85": ">>> Autorizzazione Forzata in Corso <<<"
   },
   "ProfileHeader": {
     "txt_52e6ab": "Copiato",
@@ -448,7 +541,36 @@
     "txt_063a98": "02 / Logo del Gruppo",
     "txt_a22e63": "Errore di Sistema",
     "txt_646db0": "Invia per Revisione",
-    "txt_ed759e": "Nome Sconosciuto"
+    "txt_ed759e": "Nome Sconosciuto",
+    "txt_4d90f0": "Disconnetti",
+    "txt_1d078b": "Crea Azienda",
+    "txt_9e1660": "Telefono Azienda",
+    "txt_2aacf5": "Italia (+39)",
+    "txt_08248a": "Francia (+33)",
+    "txt_457747": "Germania (+49)",
+    "txt_461ac5": "Regno Unito (+44)",
+    "txt_adfe91": "Spagna (+34)",
+    "txt_e76414": "Cina (+86)",
+    "txt_6d4b58": "USA (+1)",
+    "txt_09ab42": "Tipo di Attività",
+    "txt_4a6a90": "Bellezza",
+    "txt_2a0ad6": "Ristorazione",
+    "txt_2fbcd8": "Medico",
+    "txt_c24d6f": "Fitness",
+    "txt_714dc5": "Esperto",
+    "txt_d8bb4b": "Alloggio",
+    "txt_22b777": "Generale",
+    "txt_b4154b": "02 / Galassia Affiliata (Opzionale)",
+    "txt_40223b": "ID della Sede Centrale",
+    "txt_509c2e": "Se Sei un Franchising o una Filiale, Inserisci l'ID Esclusivo del BOSS della Sede Centrale, la Sottomissione Richiede di Aspettare la Revisione della Sede Centrale.",
+    "txt_292fbd": "Lasciando Vuoto Significa che Creerai una Sede Centrale Operante Indipendentemente (Attivazione Istantanea).",
+    "txt_58d6be": "In Revisione per Entrata",
+    "txt_f50e9d": "Revisione Fallita",
+    "txt_43ea07": "Contatta l'Amministratore della Piattaforma",
+    "txt_f3ef2d": "Inserisci Nome Azienda...",
+    "txt_577644": "Inserisci il Telefono Aziendale",
+    "txt_95cd99": "Inserisci l'ID della Sede Centrale (es: GX88888888)",
+    "txt_0830b4": "Invia Domanda"
   },
   "CapacityFlow": {
     "txt_091d26": "[IT] 当前客流",
@@ -463,7 +585,8 @@
   "EliteResourceMatrix": {
     "txt_afac13": "[IT] 销毁当前",
     "txt_8b9fc0": "[IT] 摧毁全部",
-    "txt_1622dc": "Sconosciuto"
+    "txt_1622dc": "Sconosciuto",
+    "txt_7598f1": "Non Specificato"
   },
   "EliteSpatialMatrix": {
     "txt_154261": "[IT] 楼层图",
@@ -490,28 +613,12 @@
   "supabase": {},
   "cn": {},
   "cropImage": {},
-  "home": {
-    "txt_306058": "Visualizza Dettagli & Naviga",
-    "txt_9bf297": "Privilegio Commerciale Interclassista",
-    "txt_94eb9b": "ENTRA NELL'ELITE NEXUS / Controllo Assoluto dell'Allocazione del Traffico Top",
-    "txt_be5a38": "Acquisisci Chiave di Onboarding",
-    "txt_c76b02": "Costruzione della Rete di Servizi per la Vita...",
-    "txt_3f8deb": "Congratulazioni [ Neon Cyber Tavern ] Onboarding Avvenuto con Successo nel GX PRO Matrix // Congratulazioni [ Lumina Aesthetic Center ] Canale di Appuntamento Olografico Attivato //",
-    "txt_07eefa": "Collegamento Nodo Bloccato",
-    "txt_86c72a": "Il tuo dispositivo ha rifiutato la connessione satellitare.",
-    "txt_2fc479": "Si prega di fare clic in cima al browser",
-    "txt_5a5f74": "🔒 Icona di Blocco",
-    "txt_c61e9f": "Abilita manualmente i permessi di posizione per completare lo sblocco fisico.",
-    "txt_8f4166": "Aggiorna & Riconnetti",
-    "txt_533aa5": "GX Seleziona (Commercianti Onboarding) Cambio Vista Riservato",
-    "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
-    "txt_3d1c77": "Collegamento Satellitare Negato",
-    "txt_1e5d7a": "Coordinate",
-    "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare",
-    "txt_97e675": "✨ Esperienza Completa di Ologrammi nell'APP"
-  },
   "login": {
-    "txt_b05e70": "Concierge Privato"
+    "txt_b05e70": "Concierge Privato",
+    "txt_7b6ea8": "Concierge di Lifestyle Ultimativo",
+    "txt_cc953a": "Politica sulla Privacy",
+    "txt_e38f72": "Termini di Servizio",
+    "txt_0cbf83": "Contattaci"
   },
   "types": {},
   "route": {},
@@ -558,5 +665,130 @@
   "ChatRoomUI": {},
   "useChatEngine": {},
   "useRecentChats": {},
-  "DataMatrixAssets": {}
+  "DataMatrixAssets": {},
+  "HomeClient": {
+    "txt_fc724a": "Nodo Non Rivendicato",
+    "txt_2fa2bd": "In Attesa di Rivendicazione",
+    "txt_3efb32": "Recensione Autentica",
+    "txt_de7277": "Sblocca Privilegi di Colore",
+    "txt_306058": "Visualizza Dettagli e Naviga",
+    "txt_d5b619": "Guidato dai Dati",
+    "txt_afb9fb": "Servizi di Posizionamento Google",
+    "txt_6821d6": "Rete di Servizi Offline",
+    "txt_c76b02": "Costruzione della Rete di Servizi Lifestyle...",
+    "txt_a8b0c2": "Tutti",
+    "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
+    "txt_3d1c77": "Connessione Satellitare Negata"
+  },
+  "studio": {},
+  "vision": {
+    "txt_b05e70": "Concierge Personale",
+    "txt_86ef01": "Inizia Nuovo Mondo"
+  },
+  "AiBookingAssistant": {
+    "txt_e4c031": "Concierge GX⁺",
+    "txt_06af22": "Assistente AI Online",
+    "txt_83b6af": "In Attesa di Blocco di Autorizzazione del Terminale",
+    "txt_31ecc0": "Progetto",
+    "txt_d699b2": "Tecnico",
+    "txt_20b6c5": "Blocco Fisico in Corso...",
+    "txt_09dc22": "Blocco Fisico con Un Clic (Scrivi nel Calendario)",
+    "txt_336572": "Comunica al Concierge le Tue Esigenze..."
+  },
+  "AppPlatformGuard": {
+    "txt_b3de79": "Ottieni l'Esperienza Completa di GX",
+    "txt_391968": "Sistema Pronto. Attiva il Fondo",
+    "txt_c31f48": "Condividi",
+    "txt_55165d": "Collegamento,",
+    "txt_2d94a4": "Aggiungi alla Schermata Principale",
+    "txt_2fbaf0": "Inietta Desktop Fisico.",
+    "txt_c5d070": "Esperienza Perfetta",
+    "txt_e66fa2": "Apri nell'APP",
+    "txt_f3dda5": "Apri Ora"
+  },
+  "BottomNavBar": {
+    "txt_07b181": "Il Mio"
+  },
+  "GxProCard": {
+    "txt_3ed720": "Prenota Ora",
+    "txt_98be76": "Nodo GX PRO"
+  },
+  "HoloAscensionCard": {
+    "txt_bf27a7": "Unisciti come Commerciante",
+    "txt_54a5fb": "Pubblica Servizi, Attiva il Tuo Negozio Digitale"
+  },
+  "ShopDetailOverlay": {
+    "txt_7c3fb2": "Servizi Privilegiati",
+    "txt_0a2946": "Servizi Privilegiati Non Configurati",
+    "txt_3c5856": "Coordinate Nodo",
+    "txt_2271ab": "Prenotazione Concierge Intelligente AI",
+    "txt_1f9cd0": "Coordinate Stellari Non Pubbliche"
+  },
+  "WeChatBrowserGuard": {
+    "txt_153fa6": "Seleziona",
+    "txt_8b2cab": "Area Riservata",
+    "txt_285d0c": "Intercettazione dell'Ambiente WeChat",
+    "txt_1bc292": "Per Garantire un'Esperienza di Rendering Olografico di Classe Mondiale e Sicurezza nella Comunicazione dei Dati,",
+    "txt_a6fbe5": "Si Prega di Cliccare nell'Angolo Superiore Destro",
+    "txt_bd26e0": "Pulsante,",
+    "txt_475860": "Apri nel Browser"
+  },
+  "scheduler": {},
+  "StudioImageCropModal": {
+    "txt_05853d": "Zoom",
+    "txt_6d5d49": "Ritaglio Libero (16:9)",
+    "txt_2fb90b": "Elaborazione...",
+    "txt_b8abb4": "Conferma Ritaglio e Carica"
+  },
+  "StudioLayout": {
+    "txt_d4b097": "Nome Azienda",
+    "txt_55d479": "Digitale",
+    "txt_a7da92": "Negozio",
+    "txt_ae4cab": "Informazioni Aziendali",
+    "txt_de150e": "Informazioni di Base e Coordinate Aziendali",
+    "txt_e06494": "Indirizzo Aziendale",
+    "txt_a63e13": "Ricerca Coordinate in Corso...",
+    "txt_092e00": "Nessuna Coordinata Relativa Trovata",
+    "txt_13d73f": "Personalizzazione Visiva",
+    "txt_3dfdf1": "Copertura Minima e Testo Fluido",
+    "txt_041052": "Profilo Aziendale (Punto di Vendita in Una Frase)",
+    "txt_c32326": "Foto Aziendali (Copertura e Carousel)",
+    "txt_ce6855": "Carica Immagine",
+    "txt_3f3a6c": "Supporta Formati WebP/JPG/PNG. Dopo il Caricamento, Può Essere Ritagliato Liberamente in un Rapporto Perfetto di 16:9.",
+    "txt_574c4b": "Servizi di Traffico",
+    "txt_4bde96": "Business di Traffico e Prezzi",
+    "txt_0a55cf": "Informazioni sul Servizio di Traffico (Fino a 3)",
+    "txt_399619": "min (Punto di Ancora Temporale)",
+    "txt_3a17b7": "Minuti",
+    "txt_5c555b": "Continua ad Aggiungere Progetti di Traffico",
+    "txt_ce59cd": "Distribuzione in Corso...",
+    "txt_44bbc4": "In Attesa delle Risorse Visive Principali",
+    "txt_18b4e9": "Vai alle Impostazioni della Pagina di Gestione",
+    "txt_e7a0d0": "Attiva Navigazione",
+    "txt_54cfc3": "Raccomandazioni in Evidenza",
+    "txt_26ad89": "Prenota",
+    "txt_cb6d9a": "Aggiungi Servizio di Traffico",
+    "txt_5d7e2c": "Inserisci Nome Azienda",
+    "txt_430141": "Inserisci Indirizzo Aziendale",
+    "txt_96941d": "Inserisci Profilo Aziendale",
+    "txt_8f3747": "Nome del Servizio",
+    "txt_0e9fd9": "Prezzo",
+    "txt_39f137": "Durata",
+    "txt_193264": "Distribuisci Negozio Digitale",
+    "txt_8cb6ef": "Curriculum Aziendale",
+    "txt_4b7d1f": "In Attesa dell'Accesso alle Coordinate Fisiche..."
+  },
+  "home": {},
+  "ShopDetailView": {
+    "txt_36b5f5": "Nessuna Immagine di Copertura",
+    "txt_b59359": "Nessuna Galleria",
+    "txt_cc3307": "Orari di Apertura",
+    "txt_e7a0d0": "Attiva Navigazione",
+    "txt_54cfc3": "Selezioni Curate",
+    "txt_26ad89": "Prenota",
+    "txt_637f84": "Nessun Servizio Disponibile",
+    "txt_d4b097": "Nome Azienda",
+    "txt_8cb6ef": "Profilo Aziendale",
+    "txt_4b7d1f": "In Attesa di Coordinate Fisiche..."
+  }
 }

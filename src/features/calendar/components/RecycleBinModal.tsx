@@ -64,7 +64,7 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
           ) : voidedBookings.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-white/20 gap-4">
               <Trash2 className="w-16 h-16 opacity-30 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
-              <span className="font-mono tracking-widest text-xs uppercase opacity-60">NO VOIDED RECORDS</span>
+              <span className="font-mono tracking-widest text-xs uppercase opacity-60">{t('txt_7d246f')}</span>
             </div>
           ) : (
             voidedBookings.map(b => (

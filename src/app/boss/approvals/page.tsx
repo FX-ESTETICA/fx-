@@ -211,7 +211,7 @@ export default function BossApprovalsPage() {
                         "px-2 py-0.5 rounded text-[9px] font-mono tracking-widest uppercase border",
                         app.industry === 'enterprise' ? "bg-gx-purple/20 text-gx-purple border-gx-purple/30" : "bg-white/10 text-white/60 border-white/20"
                       )}>
-                        {app.industry === 'enterprise' ? '企业联邦 / ENTERPRISE' : `独立节点 / ${app.industry}`}
+                        {app.industry === 'enterprise' ? '企业联邦' : `独立节点 - ${app.industry}`}
                       </span>
                     </div>
                     

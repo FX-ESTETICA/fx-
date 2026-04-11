@@ -1,19 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { cn } from "@/utils/cn";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AppPlatformGuard } from "./AppPlatformGuard";
 import { CyberOnboardingModal } from "./CyberOnboardingModal";
-import { useChatStore } from "@/store/useChatStore";
 import { BottomNavBar } from "./BottomNavBar";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
-  
-  // 订阅聊天室状态
-  const activeChat = useChatStore((state) => state.activeChat);
 
   const isStandalonePage = pathname === "/login" || pathname === "/" || pathname === "/vision";
   // 白名单路由：绝对放行，防止回调死锁

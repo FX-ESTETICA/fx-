@@ -95,6 +95,7 @@ interface AuroraSchedulerProps {
 
 // 【量子时钟微组件】：彻底物理隔离时钟的每秒滴答，防止顶层渲染风暴
 const CyberClock = () => {
+    const t = useTranslations('IndustryCalendar');
   const [realTime, setRealTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setRealTime(new Date()), 1000);
@@ -760,7 +761,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{t('txt_3353f0') || '今日预约'}</span>
                       <div className="flex items-end justify-between mt-1">
                         <span className={cn("text-xl font-black tracking-tighter", "text-gx-cyan")}>{todayBookingsCount.toString().padStart(2, '0')}</span>
-                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">ACTIVE</span>
+                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">{t('txt_fb852f')}</span>
                       </div>
                     </div>
 
@@ -769,7 +770,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{t('txt_047109') || '待处理'}</span>
                       <div className="flex items-end justify-between mt-1">
                         <span className={cn("text-xl font-black tracking-tighter", "text-white/60")}>{todayPendingCount.toString().padStart(2, '0')}</span>
-                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">WAITING</span>
+                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">{t('txt_65dd9e')}</span>
                       </div>
                     </div>
 
@@ -795,9 +796,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                           <div className="flex flex-col">
                             <span className="text-[10px] font-mono text-gx-cyan font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                               <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-ping" />
-                              新预约提醒
-                            </span>
-                            <span className="text-[8px] text-gx-cyan/60 mt-0.5">CLICK TO LOCATE</span>
+                              {t('txt_7708f1')}</span>
+                            <span className="text-[8px] text-gx-cyan/60 mt-0.5">{t('txt_9874b3')}</span>
                           </div>
                           <div className="flex items-end gap-2">
                             <span className="text-2xl font-black tracking-tighter text-gx-cyan drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]">

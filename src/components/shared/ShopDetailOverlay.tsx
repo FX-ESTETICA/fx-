@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, MapPin } from "lucide-react";
 import Image from "next/image";
 import { AiBookingAssistant } from "./AiBookingAssistant";
+import { useTranslations } from "next-intl";
+
+import { ShopDetailView } from "./ShopDetailView";
 
 interface ShopDetailOverlayProps {
   shop: any | null;
@@ -10,6 +13,7 @@ interface ShopDetailOverlayProps {
 }
 
 export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
+    const t = useTranslations('ShopDetailOverlay');
   const [isAiOpen, setIsAiOpen] = useState(false);
   
   if (!shop) return null;
@@ -43,88 +47,19 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
         {/* 独立的滚动容器：将 fixed 与 absolute 降维风险隔离 */}
         <div className="absolute inset-0 overflow-y-auto overflow-x-hidden no-scrollbar">
           {/* 整个页面内容容器 (随滚动条移动) */}
-          <div className="relative w-full min-h-screen flex flex-col z-10 pb-32">
-          
-          {/* 顶部巨幅海报 (Cover) */}
-          <div className="relative w-full h-[60vh] md:h-[70vh] shrink-0">
-            <div className="flex w-full h-full snap-x snap-mandatory overflow-x-auto no-scrollbar">
-              {coverImages.map((img: string, i: number) => (
-                <div key={i} className="relative w-full h-full shrink-0 snap-start">
-                  <Image
-                    src={img}
-                    alt={`${shop.name} cover ${i + 1}`}
-                    fill
-                    className="object-cover opacity-90"
-                  />
-                  {/* 海报底部的深邃暗场过渡，平滑融入下方黑底 */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
-                </div>
-              ))}
-            </div>
-            
-            {/* 品牌信息沉降在海报底部 */}
-            <div className="absolute bottom-8 left-6 right-6 flex flex-col items-start">
-              <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter drop-shadow-[0_0_20px_rgba(0,0,0,1)]">
-                {shop.name}
-              </h2>
-              <div className="text-gx-cyan font-mono text-[12px] md:text-sm tracking-widest uppercase mt-3 drop-shadow-[0_0_10px_rgba(0,0,0,1)]">
-                {slogan}
-              </div>
-            </div>
-          </div>
-
-          {/* 下方详情流 (Services & Info) */}
-          <div className="w-full px-6 md:px-12 py-10 space-y-12 max-w-7xl mx-auto">
-            
-            {/* 核心引流胶囊阵列 */}
-            <div className="space-y-5">
-              <h3 className="text-[12px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-1 h-4 bg-gx-cyan" />
-                特权服务 / Exclusive Services
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {capsules.map((cap: any, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => handleOpenAi(cap.label || cap.name)}
-                    className="flex flex-col items-start p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-gx-cyan/50 hover:bg-gx-cyan/10 transition-all group w-full text-left"
-                  >
-                    <span className="text-base font-bold text-white group-hover:text-gx-cyan transition-colors line-clamp-2 leading-snug">
-                      {cap.label || cap.name}
-                    </span>
-                    {cap.price && (
-                      <span className="text-sm font-mono text-gx-gold mt-3">
-                        ¥{cap.price}
-                      </span>
-                    )}
-                  </button>
-                ))}
-                {capsules.length === 0 && (
-                  <span className="text-sm text-white/20 font-mono col-span-full">未配置特权服务</span>
-                )}
-              </div>
-            </div>
-
-            {/* 门店物理坐标 */}
-            <div className="space-y-5">
-              <h3 className="text-[12px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-1 h-4 bg-gx-cyan" />
-                节点坐标 / Location
-              </h3>
-              <div className="flex items-center gap-4 p-5 rounded-2xl bg-white/5 border border-white/10 w-full">
-                <MapPin className="w-6 h-6 text-gx-cyan shrink-0" />
-                <span className="text-base text-white/80 font-mono line-clamp-3 leading-relaxed">
-                  {config.location?.address || "星空坐标未公开"}
-                </span>
-              </div>
-            </div>
-            
-            {/* 预留的空间，防止内容到底部太挤 */}
-            <div className="h-10" />
+          <div className="relative w-full min-h-screen flex flex-col z-10 pb-32 md:pb-0 bg-[#0a0a0a]">
+            <ShopDetailView 
+              coverImages={coverImages}
+              storeName={shop.name}
+              slogan={slogan}
+              location={config.location}
+              capsules={capsules}
+              onCapsuleClick={handleOpenAi}
+              variant="full"
+            />
           </div>
         </div>
         {/* === 结束独立的滚动容器 === */}
-        </div>
 
         {/* 悬浮关闭按钮 (位于独立滚动层之上，不受滚动影响) */}
         <button
@@ -134,15 +69,14 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
           <X className="w-6 h-6" />
         </button>
 
-        {/* 绝对底部的吸附预约按钮 (不受滚动条影响，永远悬浮) */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 pb-[env(safe-area-inset-bottom,24px)] md:px-12 bg-gradient-to-t from-black via-black/90 to-transparent z-50 pointer-events-none">
+        {/* 绝对底部的吸附预约按钮 (移动端吸附底部，PC端悬浮右下角) */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 pb-[env(safe-area-inset-bottom,24px)] md:left-auto md:w-auto md:right-12 md:bottom-8 md:p-0 bg-gradient-to-t from-black via-black/90 to-transparent md:bg-none z-50 pointer-events-none">
           <button
             onClick={() => setIsAiOpen(true)}
-            className="w-full md:max-w-md mx-auto py-5 rounded-full bg-gradient-to-r from-gx-cyan to-blue-500 text-black font-black text-base tracking-[0.2em] flex items-center justify-center gap-3 hover:scale-[1.02] transition-transform shadow-[0_0_30px_rgba(0,240,255,0.4)] pointer-events-auto"
+            className="w-full md:w-auto md:px-10 py-5 rounded-full bg-gradient-to-r from-gx-cyan to-blue-500 text-black font-black text-base tracking-[0.2em] flex items-center justify-center gap-3 hover:scale-[1.05] transition-transform shadow-[0_0_30px_rgba(0,240,255,0.4)] pointer-events-auto"
           >
             <Sparkles className="w-5 h-5" />
-            AI 智能管家预约
-          </button>
+            {t('txt_2271ab')}</button>
         </div>
 
         {/* 引入 C 端全息 AI 对话舱 */}

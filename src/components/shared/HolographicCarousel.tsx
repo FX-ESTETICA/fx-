@@ -77,8 +77,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
         <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded border border-yellow-500/30 shadow-[0_0_15px_rgba(255,215,0,0.2)]">
           <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
           <span className="text-[10px] font-black text-yellow-500 tracking-widest uppercase drop-shadow-[0_0_5px_rgba(255,215,0,0.8)]">
-            GX PRO 官方认证
-          </span>
+            {t('txt_53a12c')}</span>
         </div>
 
         <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-3 z-10">

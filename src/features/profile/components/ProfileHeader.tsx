@@ -118,18 +118,18 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     const month = date.getMonth() + 1;
     const day = date.getDate();
 
-    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return { en: "ARIES", zh: "白羊座" };
-    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return { en: "TAURUS", zh: "金牛座" };
-    if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return { en: "GEMINI", zh: "双子座" };
-    if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return { en: "CANCER", zh: "巨蟹座" };
-    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return { en: "LEO", zh: "狮子座" };
-    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return { en: "VIRGO", zh: "处女座" };
-    if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return { en: "LIBRA", zh: "天秤座" };
-    if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return { en: "SCORPIO", zh: "天蝎座" };
-    if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return { en: "SAGITTARIUS", zh: "射手座" };
-    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return { en: "CAPRICORN", zh: "摩羯座" };
-    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return { en: "AQUARIUS", zh: "水瓶座" };
-    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return { en: "PISCES", zh: "双鱼座" };
+    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return "白羊座";
+    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return "金牛座";
+    if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return "双子座";
+    if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return "巨蟹座";
+    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return "狮子座";
+    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return "处女座";
+    if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return "天秤座";
+    if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return "天蝎座";
+    if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return "射手座";
+    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return "摩羯座";
+    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return "水瓶座";
+    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return "双鱼座";
     return null;
   };
 
@@ -280,7 +280,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                       textShadow: `0 0 10px ${genderColorInfo.shadow}`,
                     }}
                   >
-                    {zodiac.en}
+                    {zodiac}
                   </div>
                 )}
               </div>

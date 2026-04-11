@@ -4,6 +4,7 @@ import { X, Sparkles, Send, Mic, Phone, CalendarCheck, CheckCircle2 } from "luci
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 import { BookingService } from "@/features/booking/api/booking";
+import { useTranslations } from "next-intl";
 
 interface Message {
   id: string;
@@ -23,6 +24,7 @@ interface AiBookingAssistantProps {
 }
 
 export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistantProps) {
+    const t = useTranslations('AiBookingAssistant');
   const config = shop?.config || {};
   const capsules = config.capsules || [];
   
@@ -297,10 +299,9 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
-                    GX⁺ 管家
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    {t('txt_e4c031')}<span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                   </h3>
-                  <p className="text-[10px] text-white/40 font-mono tracking-wider">AI ASSISTANT ONLINE</p>
+                  <p className="text-[10px] text-white/40 font-mono tracking-wider">{t('txt_06af22')}</p>
                 </div>
               </div>
               <button 
@@ -340,20 +341,20 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                       
                       <div className="text-xs text-gx-cyan font-bold flex items-center gap-1">
                         <CalendarCheck className="w-3 h-3" />
-                        <span>等待终端授权锁定</span>
+                        <span>{t('txt_83b6af')}</span>
                       </div>
                       
                       <div className="text-xs text-white/80 space-y-1">
                         <div className="flex justify-between gap-4">
-                          <span className="text-white/50 shrink-0">项目</span>
+                          <span className="text-white/50 shrink-0">{t('txt_31ecc0')}</span>
                           <span className="font-mono text-white text-right">{msg.bookingAction.service}</span>
                         </div>
                         <div className="flex justify-between gap-4">
-                          <span className="text-white/50 shrink-0">时间</span>
+                          <span className="text-white/50 shrink-0">{t('txt_19fcb9')}</span>
                           <span className="font-mono text-white text-right">{msg.bookingAction.time}</span>
                         </div>
                         <div className="flex justify-between gap-4">
-                          <span className="text-white/50 shrink-0">技师</span>
+                          <span className="text-white/50 shrink-0">{t('txt_d699b2')}</span>
                           <span className="font-mono text-white text-right">{msg.bookingAction.tech}</span>
                         </div>
                       </div>
@@ -366,7 +367,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                         {isLocking ? (
                           <>
                             <span className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                            <span>物理锁定中...</span>
+                            <span>{t('txt_20b6c5')}</span>
                           </>
                         ) : (
                           "一键物理锁定 (写入日历)"
@@ -442,7 +443,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                   value={localInput}
                   onChange={(e) => setLocalInput(e.target.value)}
                   disabled={isLoading}
-                  placeholder="告诉管家您的需求..."
+                  placeholder={t('txt_336572')}
                   className="flex-1 bg-transparent border-none focus:outline-none text-sm text-white placeholder:text-white/30 px-2 disabled:opacity-50"
                 />
                 <button 

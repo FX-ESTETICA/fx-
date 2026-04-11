@@ -1,6 +1,7 @@
 import React from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 interface HoloAscensionCardProps {
   onClick?: () => void;
@@ -8,6 +9,7 @@ interface HoloAscensionCardProps {
 }
 
 export function HoloAscensionCard({ onClick, className }: HoloAscensionCardProps) {
+    const t = useTranslations('HoloAscensionCard');
   return (
     // 世界顶端：全息棱镜 (Holo-Prism) 赛博流光入驻卡片
     <div 
@@ -38,11 +40,9 @@ export function HoloAscensionCard({ onClick, className }: HoloAscensionCardProps
           {/* 文本区：动态渐变流光文字 */}
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-purple-400 to-pink-400 bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite] drop-shadow-[0_2px_4px_rgba(0,0,0,1)] pr-1">
-              入驻成为商户
-            </h3>
+              {t('txt_bf27a7')}</h3>
             <p className="text-[10px] font-mono text-white/50 tracking-[0.15em] group-hover:text-white/80 transition-colors duration-500 line-clamp-1">
-              发布服务，开启您的数字门店
-            </p>
+              {t('txt_54a5fb')}</p>
           </div>
         </div>
 

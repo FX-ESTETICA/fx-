@@ -3,15 +3,17 @@
 import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { GlassCard } from "@/components/shared/GlassCard";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MapPin, Search, CheckCircle2, ImagePlus, X, Clock, CalendarX, LockKeyhole, Plus, ArrowUpRight, Star, Navigation2 } from "lucide-react";
+import { MapPin, Search, ImagePlus, X, Clock, Plus, Star, Navigation2 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { StudioImageCropModal } from "./StudioImageCropModal";
+import { useTranslations } from "next-intl";
+import { ShopDetailView } from "@/components/shared/ShopDetailView";
 
 export function StudioLayout() {
+    const t = useTranslations('StudioLayout');
   const router = useRouter();
 
   const { user } = useAuth();
@@ -326,7 +328,7 @@ export function StudioLayout() {
         <div className="w-full max-w-[700px] min-h-full px-8 md:px-12 lg:px-16 pt-32 pb-24">
           <div className="space-y-2 mb-12">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              数字<span className="text-gradient-cyan">门店</span>
+              {t('txt_55d479')}<span className="text-gradient-cyan">{t('txt_a7da92')}</span>
             </h1>
           </div>
 
@@ -336,16 +338,16 @@ export function StudioLayout() {
             {/* 区块 1: 商业信息 */}
             <section>
               <div className="mb-4">
-                <h2 className="text-sm font-bold tracking-wide text-white">商业信息</h2>
-                <p className="text-[10px] text-white/40 font-mono mt-0.5">基础信息与公司坐标</p>
+                <h2 className="text-sm font-bold tracking-wide text-white">{t('txt_ae4cab')}</h2>
+                <p className="text-[10px] text-white/40 font-mono mt-0.5">{t('txt_de150e')}</p>
               </div>
               <div className="space-y-5 bg-white/5 border border-white/10 p-6 rounded-2xl">
                 {/* Store Name */}
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/40 font-mono tracking-widest">公司名称</label>
+                  <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_d4b097')}</label>
                   <input 
                     type="text" 
-                    placeholder="填写公司名称"
+                    placeholder={t('txt_5d7e2c')}
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
@@ -354,12 +356,12 @@ export function StudioLayout() {
 
                 {/* Search Location */}
                 <div className="space-y-2 relative">
-                  <label className="text-[10px] text-white/40 font-mono tracking-widest">公司地址</label>
+                  <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_e06494')}</label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                     <input 
                       type="text" 
-                      placeholder="填写公司地址"
+                      placeholder={t('txt_430141')}
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
@@ -377,8 +379,7 @@ export function StudioLayout() {
                       {isSearching ? (
                         <div className="p-4 text-center text-xs text-white/40 font-mono flex items-center justify-center gap-2">
                           <div className="w-3 h-3 border-2 border-gx-cyan border-t-transparent rounded-full animate-spin" />
-                          搜索坐标中...
-                        </div>
+                          {t('txt_a63e13')}</div>
                       ) : autocompleteResults.length > 0 ? (
                         autocompleteResults.map((res, i) => (
                           <div 
@@ -395,8 +396,7 @@ export function StudioLayout() {
                         ))
                       ) : (
                         <div className="p-4 text-center text-xs text-white/40 font-mono">
-                          未找到相关坐标
-                        </div>
+                          {t('txt_092e00')}</div>
                       )}
                     </div>
                   )}
@@ -409,20 +409,20 @@ export function StudioLayout() {
             {/* 区块 2: 视觉定制 */}
             <section>
               <div className="mb-4">
-                <h2 className="text-sm font-bold tracking-wide text-white">视觉定制</h2>
-                <p className="text-[10px] text-white/40 font-mono mt-0.5">极简封面与流光文案</p>
+                <h2 className="text-sm font-bold tracking-wide text-white">{t('txt_13d73f')}</h2>
+                <p className="text-[10px] text-white/40 font-mono mt-0.5">{t('txt_3dfdf1')}</p>
               </div>
               <div className="space-y-6 bg-white/5 border border-white/10 p-6 rounded-2xl">
                 {/* Slogan */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-white/40 font-mono tracking-widest">公司简介 (一句话卖点)</label>
+                    <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_041052')}</label>
                     <span className="text-[10px] font-mono text-white/30">{slogan.length}/20</span>
                   </div>
                   <input 
                     type="text" 
                     maxLength={20}
-                    placeholder="填写公司简介"
+                    placeholder={t('txt_96941d')}
                     value={slogan}
                     onChange={(e) => setSlogan(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
@@ -432,7 +432,7 @@ export function StudioLayout() {
                 {/* Cover Images */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-white/40 font-mono tracking-widest">公司照片 (封面及轮播)</label>
+                    <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_c32326')}</label>
                     <span className="text-[10px] font-mono text-white/30">{coverImages.length}/3</span>
                   </div>
                   
@@ -472,15 +472,14 @@ export function StudioLayout() {
                         ) : (
                           <>
                             <ImagePlus className="w-5 h-5 text-white/40" />
-                            <span className="text-[10px] font-mono text-white/40">上传图片</span>
+                            <span className="text-[10px] font-mono text-white/40">{t('txt_ce6855')}</span>
                           </>
                         )}
                       </button>
                     )}
                   </div>
                   <p className="text-[10px] text-white/30 leading-relaxed">
-                    支持 WebP/JPG/PNG 格式。上传后可自由裁剪为 16:9 完美比例。
-                  </p>
+                    {t('txt_3f3a6c')}</p>
                 </div>
               </div>
             </section>
@@ -490,13 +489,13 @@ export function StudioLayout() {
             {/* 区块 3: 引流服务 */}
             <section>
               <div className="mb-4">
-                <h2 className="text-sm font-bold tracking-wide text-white">引流服务</h2>
-                <p className="text-[10px] text-white/40 font-mono mt-0.5">引流业务与定价</p>
+                <h2 className="text-sm font-bold tracking-wide text-white">{t('txt_574c4b')}</h2>
+                <p className="text-[10px] text-white/40 font-mono mt-0.5">{t('txt_4bde96')}</p>
               </div>
               <div className="space-y-6 bg-white/5 border border-white/10 p-6 rounded-2xl">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-white/40 font-mono tracking-widest">引流服务信息 (最多 3 个)</label>
+                    <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_0a55cf')}</label>
                     <span className="text-[10px] font-mono text-white/30">{capsules.length}/3</span>
                   </div>
                   
@@ -508,8 +507,7 @@ export function StudioLayout() {
                           <div>
                             <div className="text-sm font-bold text-white">{cap.name} <span className="text-gx-cyan ml-2 font-mono">{cap.price}</span></div>
                             <div className="text-[10px] text-white/40 font-mono mt-0.5 flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {cap.duration} min (时空锚点)
-                            </div>
+                              <Clock className="w-3 h-3" /> {cap.duration} {t('txt_399619')}</div>
                           </div>
                           <button 
                             onClick={(e) => { e.stopPropagation(); removeCapsule(cap.id); }}
@@ -527,7 +525,7 @@ export function StudioLayout() {
                     <div className="p-4 rounded-xl border border-dashed border-white/20 bg-black/50 space-y-3" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="text" 
-                        placeholder="服务名称"
+                        placeholder={t('txt_8f3747')}
                         value={newCapsuleName}
                         onChange={(e) => setNewCapsuleName(e.target.value)}
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all"
@@ -536,17 +534,17 @@ export function StudioLayout() {
                         <div className="relative flex-1">
                           <input 
                             type="number" 
-                            placeholder="价格"
+                            placeholder={t('txt_0e9fd9')}
                             value={newCapsulePrice}
                             onChange={(e) => setNewCapsulePrice(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
                           />
                         </div>
                         <div className="relative flex-1">
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 font-mono text-[10px]">MIN</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 font-mono text-[10px]">{t('txt_3a17b7')}</span>
                           <input 
                             type="number" 
-                            placeholder="耗时"
+                            placeholder={t('txt_39f137')}
                             value={newCapsuleDuration}
                             onChange={(e) => setNewCapsuleDuration(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-9 py-2 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
@@ -558,8 +556,7 @@ export function StudioLayout() {
                         disabled={!newCapsuleName || !newCapsulePrice || !newCapsuleDuration}
                         className="w-full py-2 rounded-lg bg-white/10 text-white font-bold text-xs hover:bg-gx-cyan hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
-                        <Plus className="w-3 h-3" /> 继续添加引流项目
-                      </button>
+                        <Plus className="w-3 h-3" /> {t('txt_5c555b')}</button>
                     </div>
                   )}
                 </div>
@@ -575,7 +572,7 @@ export function StudioLayout() {
               className="w-full py-5 rounded-2xl bg-gx-cyan text-black font-bold tracking-widest hover:shadow-[0_0_30px_rgba(0,240,255,0.4)] transition-all disabled:bg-white/5 disabled:text-white/20 disabled:shadow-none disabled:cursor-not-allowed border border-white/5 flex items-center justify-center gap-2"
             >
               {isDeploying ? (
-                <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> 部署中...</>
+                <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> {t('txt_ce59cd')}</>
               ) : (
                 "部署数字门店"
               )}
@@ -615,115 +612,14 @@ export function StudioLayout() {
             {/* 内容渲染区 */}
             <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar w-full">
               {/* ==================== 门店详情视图 (全息瀑布流) ==================== */}
-              <div className="w-full pb-10">
-                {/* Detail View Hero Image */}
-                <div className="w-full aspect-[4/3] bg-white/5 relative">
-                  {coverImages.length > 0 ? (
-                    <img src={coverImages[0]} alt="Cover" className="w-full h-full object-cover opacity-90" />
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 border-b border-white/10">
-                      <ImagePlus className="w-6 h-6 text-white/20 mb-2" />
-                      <span className="text-white/20 font-mono text-[10px] tracking-widest">AWAITING HERO ASSET</span>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent" />
-                </div>
-
-                  {/* 核心信息舱 */}
-                  <div className="px-5 -mt-12 relative z-10">
-                    
-                    <div className="bg-[#111] border border-white/10 rounded-2xl p-5 shadow-2xl backdrop-blur-xl relative">
-                      {/* 跨界黑金评分硬币 (The Holographic Rating Coin) - 物理圆心锚定右上角，向外破框 */}
-                      <div className="absolute top-0 right-6 -translate-y-1/2 translate-x-1/2 z-20 flex flex-col items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#2a2a2a] via-black to-[#111] border border-gx-gold/30 shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1)] backdrop-blur-md cursor-pointer hover:scale-105 hover:border-gx-gold/50 transition-all duration-300 group">
-                        <Star className="w-3.5 h-3.5 fill-gx-gold text-gx-gold drop-shadow-[0_0_5px_rgba(255,215,0,0.5)] mb-0.5" />
-                        <span className="text-gx-gold text-[10px] font-bold font-mono leading-none">5.0</span>
-                        {/* 呼吸光晕 */}
-                        <div className="absolute inset-0 rounded-full bg-gx-gold/0 group-hover:bg-gx-gold/10 transition-colors duration-500" />
-                      </div>
-
-                      <div className="flex justify-between items-start mb-2 pr-6 pt-2">
-                        <h1 className="text-2xl font-bold leading-tight text-white truncate w-full">{storeName || "公司名称"}</h1>
-                      </div>
-                      
-                      <p className={cn(
-                        "text-xs text-transparent bg-clip-text bg-[length:200%_auto] font-medium pb-2",
-                        slogan ? "bg-gradient-to-r from-gx-cyan via-blue-400 to-purple-500" : "bg-gradient-to-r from-white/40 to-white/10"
-                      )}>
-                        {slogan || "公司简历"}
-                      </p>
-
-                      <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4" />
-
-                      <div className="flex items-center justify-between text-xs text-white/60 mb-3">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-gx-cyan shrink-0" />
-                          <span className="font-mono whitespace-nowrap">
-                            去管理页设置
-                          </span>
-                        </div>
-                        <div className="px-2 py-0.5 rounded text-[9px] font-bold font-mono tracking-wider bg-gx-cyan/20 text-gx-cyan shrink-0 ml-2">
-                          OPEN
-                        </div>
-                      </div>
-
-                      <div 
-                        className="flex items-start gap-2 text-xs text-white/60 cursor-pointer group"
-                        onClick={() => setIsAddressExpanded(!isAddressExpanded)}
-                      >
-                        <MapPin className="w-3.5 h-3.5 text-gx-cyan mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
-                        <span className={cn(
-                          "leading-relaxed transition-all duration-300",
-                          !isAddressExpanded && "line-clamp-1"
-                        )}>
-                          {selectedLocation ? selectedLocation.name : "等待物理坐标接入..."}
-                        </span>
-                      </div>
-
-                      <button 
-                        onClick={() => {
-                          if (selectedLocation) {
-                            window.open(`https://www.google.com/maps/search/?api=1&query=${selectedLocation.lat},${selectedLocation.lng}`, '_blank');
-                          }
-                        }}
-                        className="w-full mt-5 py-3 bg-gx-cyan/10 hover:bg-gx-cyan/20 transition-colors rounded-xl flex items-center justify-center gap-2 text-gx-cyan text-xs font-bold tracking-widest border border-gx-cyan/30"
-                      >
-                        <Navigation2 className="w-4 h-4" /> 开启导航
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 货架 / 引流胶囊 */}
-                  <div className="px-5 mt-8">
-                    <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-gx-cyan" />
-                      精品推荐
-                    </h3>
-                    {capsules.length > 0 ? (
-                      <div className="space-y-3">
-                        {capsules.map(cap => (
-                          <div key={cap.id} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center justify-between group hover:border-gx-cyan/30 transition-colors cursor-pointer relative overflow-hidden">
-                            <div className="absolute top-0 bottom-0 left-0 w-1 bg-gx-cyan/0 group-hover:bg-gx-cyan/50 transition-colors" />
-                            <div>
-                              <h4 className="text-sm font-bold text-white group-hover:text-gx-cyan transition-colors">{cap.name}</h4>
-                              <div className="text-[10px] text-white/40 font-mono mt-1.5 flex items-center gap-1.5">
-                                <Clock className="w-3 h-3" /> {cap.duration} MIN
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-white font-mono">{cap.price}</div>
-                              <div className="text-[9px] text-gx-cyan border border-gx-cyan/30 px-2 py-0.5 rounded-full mt-1 inline-block">预约</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="w-full py-10 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-white/20 bg-white/5">
-                        <Plus className="w-6 h-6 mb-2 opacity-50" />
-                        <span className="text-[10px] font-mono tracking-widest">添加引流服务</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <ShopDetailView 
+                coverImages={coverImages}
+                storeName={storeName}
+                slogan={slogan}
+                location={selectedLocation}
+                capsules={capsules}
+                variant="compact"
+              />
             </div>
 
             {/* 模拟底部 Home Indicator */}

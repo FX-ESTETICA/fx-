@@ -28,7 +28,7 @@ export default function LoginPage() {
             </span>
             <span className="text-3xl font-bold tracking-tighter drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">私人管家</span>
           </div>
-          <p className="text-[10px] font-mono tracking-[0.2em] text-white/40">SUPREME LIFE CONCIERGE</p>
+          <p className="text-[10px] font-mono tracking-[0.2em] text-white/40">至臻生活管家</p>
         </div>
       </div>
       
@@ -44,11 +44,11 @@ export default function LoginPage() {
       {/* 底部 Footer */}
       <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 z-10">
         <div className="flex items-center gap-6 text-[10px] text-white/30 font-mono tracking-widest">
-          <a href="#" className="hover:text-gx-cyan transition-colors">PRIVACY</a>
+          <a href="#" className="hover:text-gx-cyan transition-colors">隐私政策</a>
           <span>/</span>
-          <a href="#" className="hover:text-gx-cyan transition-colors">TERMS</a>
+          <a href="#" className="hover:text-gx-cyan transition-colors">服务条款</a>
           <span>/</span>
-          <a href="#" className="hover:text-gx-cyan transition-colors">CONTACT</a>
+          <a href="#" className="hover:text-gx-cyan transition-colors">联系我们</a>
         </div>
         <p className="text-[9px] text-white/20 font-mono">
           © 2026 GX CONCIERGE. ALL RIGHTS RESERVED.

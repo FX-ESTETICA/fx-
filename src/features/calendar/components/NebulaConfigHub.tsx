@@ -1396,7 +1396,7 @@ const ServicesConfig = ({
                         <div className="flex items-center justify-between mt-1">
                           <input 
                             type="text"
-                            placeholder="AI 管家专属：输入全称/别名（如：Manicure 只修手）"
+                            placeholder={t('txt_48247a')}
                             value={service.fullName || ""}
                             onChange={(e) => {
                               onServicesChange(services.map(s => s.id === service.id ? { ...s, fullName: e.target.value } : s));

@@ -895,14 +895,12 @@ export function DualPaneBookingModal({
                       }}
                       className="text-red-500 hover:text-red-400 font-black tracking-widest text-3xl md:text-4xl drop-shadow-[0_0_20px_rgba(239,68,68,1)] transition-all hover:scale-110 hover:-translate-y-2 uppercase"
                     >
-                      拒绝 / REJECT
-                    </button>
+                      {t('txt_7173f8')}</button>
                     <button 
                       onClick={() => setIsAIPending(false)}
                       className="text-[#39FF14] hover:text-green-400 font-black tracking-widest text-3xl md:text-4xl drop-shadow-[0_0_20px_rgba(57,255,20,1)] transition-all hover:scale-110 hover:-translate-y-2 uppercase"
                     >
-                      同意 / APPROVE
-                    </button>
+                      {t('txt_e61f2c')}</button>
                   </div>
                 </div>
               )}
@@ -1074,7 +1072,7 @@ export function DualPaneBookingModal({
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <CalendarIcon className={cn("w-3.5 h-3.5", activePaneMode === 'date' ? "text-gx-cyan" : "text-white/40 group-hover:text-white/60")} />
-                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">DATE</span>
+                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">{t('txt_4ff1e7')}</span>
                         </div>
                         <span className={cn(
                           "text-sm font-bold font-mono tracking-wider",
@@ -1096,7 +1094,7 @@ export function DualPaneBookingModal({
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <Clock className={cn("w-3.5 h-3.5", activePaneMode === 'time' ? "text-gx-cyan" : "text-white/40 group-hover:text-white/60")} />
-                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">TIME</span>
+                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">{t('txt_19fcb9')}</span>
                         </div>
                         <span className={cn(
                           "text-sm font-bold font-mono tracking-wider",
@@ -1119,7 +1117,7 @@ export function DualPaneBookingModal({
                             : "bg-white/5 border-transparent hover:bg-white/10"
                         )}
                       >
-                        <span className="text-[10px] text-white/40 font-mono tracking-widest uppercase">DURATION</span>
+                        <span className="text-[10px] text-white/40 font-mono tracking-widest uppercase">{t('txt_5bdfd7')}</span>
                         <span className={cn(
                           "text-xs font-bold font-mono",
                           durationOffset !== 0 ? "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]" : "text-white/80"
@@ -1130,7 +1128,7 @@ export function DualPaneBookingModal({
 
                       {/* 结束时间 (只读展示) */}
                       <div className="flex-1 flex items-center justify-between p-3 rounded-lg bg-black/40 border border-transparent">
-                        <span className="text-[10px] text-white/30 font-mono tracking-widest uppercase">END AT</span>
+                        <span className="text-[10px] text-white/30 font-mono tracking-widest uppercase">{t('txt_946010')}</span>
                         <span className="text-xs font-bold font-mono text-white/40">
                           {getEndTime()}
                         </span>
@@ -1164,7 +1162,7 @@ export function DualPaneBookingModal({
                         </button>
                       ))}
                       {categories.length === 0 && (
-                        <span className="text-[10px] text-white/30 font-mono">NO CATEGORIES FOUND</span>
+                        <span className="text-[10px] text-white/30 font-mono">{t('txt_0552d7')}</span>
                       )}
                     </div>
 
@@ -1351,7 +1349,7 @@ export function DualPaneBookingModal({
                           {(matchedProfile || phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") && (
                             <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                               <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-gx-pink/10 border border-gx-pink/30 text-gx-pink">
-                                {matchedProfile ? "已匹配 C 端 / Linked" : "LV.4 先驱"}
+                                {matchedProfile ? "已匹配 C 端" : "LV.4 先驱"}
                               </span>
                               <span className="text-[9px] font-mono uppercase tracking-widest text-white/40">
                                 ID: {matchedProfile?.gx_id || "GX-1024"}
@@ -1919,9 +1917,9 @@ export function DualPaneBookingModal({
                             }}
                           >
                             <div className={cn("w-2 h-2 rounded-full transition-all", isAM ? "bg-gx-cyan shadow-[0_0_5px_rgba(0,255,255,0.8)] scale-125" : "bg-white/20")} />
-                            <span className={cn("transition-all", isAM ? "text-gx-cyan" : "text-white/40")}>AM</span>
-                            <div className="w-px h-4 bg-white/20 mx-1" />
-                            <span className={cn("transition-all", !isAM ? "text-gx-cyan" : "text-white/40")}>PM</span>
+                            <span className={cn("transition-all", isAM ? "text-gx-cyan" : "text-white/40")}>{t('txt_f8fbea')}</span>
+                            <div className="w-0.5 h-3 bg-white/10" />
+                            <span className={cn("transition-all", !isAM ? "text-gx-cyan" : "text-white/40")}>{t('txt_e2eb28')}</span>
                             <div className={cn("w-2 h-2 rounded-full transition-all", !isAM ? "bg-gx-cyan shadow-[0_0_5px_rgba(0,255,255,0.8)] scale-125" : "bg-white/20")} />
                           </button>
                         </div>
@@ -1931,7 +1929,7 @@ export function DualPaneBookingModal({
                     {/* 操作提示 */}
                     <div className="absolute bottom-6 text-[10px] font-mono tracking-[0.3em] transition-all duration-300 flex flex-col items-center gap-1">
                       {draggingHour !== null ? (
-                        <span className="text-gx-cyan animate-pulse">SWIPE TO SET MINUTES</span>
+                        <span className="text-gx-cyan animate-pulse">{t('txt_81c636')}</span>
                       ) : (
                         <>
                           <span className="text-white/30">HOLD HOUR & SWIPE FOR MINUTES</span>
@@ -1966,7 +1964,7 @@ export function DualPaneBookingModal({
                     : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
                 )}
               >
-                {editingBooking ? "更新预约 / UPDATE" : "确认预约 / CONFIRM"}
+                {editingBooking ? "更新预约" : "确认预约"}
               </button>
               <button 
                 onClick={handleClose}

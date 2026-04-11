@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/utils/cn";
-import { Smartphone, Eye, EyeOff, X, Terminal } from "lucide-react";
+import { Smartphone, Eye, EyeOff } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -83,7 +83,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     if (!phoneInput.trim() || !user) return;
     
     setIsUpdatingPhone(true);
-    setPhoneMessage("正在发送 / SENDING...");
+    setPhoneMessage("正在发送...");
     
     const fullPhone = `${countryCode}${phoneInput.trim()}`;
     
@@ -94,10 +94,10 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
       
       setIsCodeSent(true);
       setCountdown(60);
-      setPhoneMessage("验证码已发送 / CODE SENT");
+      setPhoneMessage("验证码已发送");
     } catch (error: any) {
       console.error("SMS 发送失败:", error);
-      const displayMsg = error.message || "发送失败，请检查号码格式 / SEND FAILED";
+      const displayMsg = error.message || "发送失败，请检查号码格式";
       setPhoneMessage(displayMsg);
     } finally {
       setIsUpdatingPhone(false);
@@ -108,7 +108,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     if (!verificationCode.trim() || !user) return;
     
     setIsUpdatingPhone(true);
-    setPhoneMessage("正在验证 / VERIFYING...");
+    setPhoneMessage("正在验证...");
     
     try {
       const fullPhone = `${countryCode}${phoneInput.trim()}`;
@@ -132,13 +132,13 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
         throw profileError;
       }
       
-      setPhoneMessage("绑定成功 / BIND SUCCESS");
+      setPhoneMessage("绑定成功");
       setIsCodeSent(false); // 验证成功后恢复 UI 状态
       setIsEditMode(false); // 成功后退出越权编辑模式
       
     } catch (error: any) {
       console.error("验证失败:", error);
-      setPhoneMessage("验证码错误或已过期 / INVALID CODE");
+      setPhoneMessage("验证码错误或已过期");
     } finally {
       setIsUpdatingPhone(false);
     }
@@ -211,7 +211,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
               "text-[9px] font-mono tracking-widest transition-all duration-300",
               isPressing ? "text-gx-cyan scale-105" : "text-white/20"
             )}>
-              {isPressing ? ">>> AUTHORIZING OVERRIDE <<<" : "长按左侧重置终端"}
+              {isPressing ? ">>> 强制授权中 <<<" : "长按左侧重置终端"}
             </span>
           </div>
         </div>

@@ -81,17 +81,17 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
               <User className="w-3 h-3" /> {t('txt_8fa0a1')}</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">NAME</p>
+                <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">{t('txt_60d045')}</p>
                 <p className="text-sm">{details.customerName}</p>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">PHONE</p>
+                <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">{t('txt_5a93d3')}</p>
                 <p className="text-sm font-mono">{details.customerPhone}</p>
               </div>
             </div>
             {details.notes && (
               <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">NOTES</p>
+                <p className="text-[9px] font-mono text-white/20 uppercase tracking-tighter mb-1">{t('txt_2432b5')}</p>
                 <p className="text-xs text-white/60 leading-relaxed">{details.notes}</p>
               </div>
             )}

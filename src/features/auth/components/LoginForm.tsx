@@ -13,13 +13,13 @@ import { useTranslations } from "next-intl";
 
 // --- 沙盒 Mock 账号库 ---
 const MOCK_ACCOUNTS: Record<string, SandboxUser> = {
-  "boss_f@gx.com": { id: "boss_f", gxId: "GX_MCH_0092", email: "boss_f@gx.com", role: "merchant", name: "陈老板 / Mr. Chen", shopId: "shop_f", shopName: "星河美甲沙龙", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
-  "boss_g@gx.com": { id: "boss_g", gxId: "GX_MCH_0093", email: "boss_g@gx.com", role: "merchant", name: "王老板 / Mr. Wang", shopId: "shop_g", shopName: "赛博按摩馆", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
-  "user_a@gx.com": { id: "user_a", gxId: "GX_USR_1001", email: "user_a@gx.com", role: "user", name: "林晓明 / Xiao Ming", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
-  "user_b@gx.com": { id: "user_b", gxId: "GX_USR_1002", email: "user_b@gx.com", role: "user", name: "张伟 / Zhang Wei", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
-  "user_c@gx.com": { id: "user_c", gxId: "GX_USR_1003", email: "user_c@gx.com", role: "user", name: "李娜 / Li Na", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
-  "user_d@gx.com": { id: "user_d", gxId: "GX_USR_1004", email: "user_d@gx.com", role: "user", name: "王强 / Wang Qiang", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
-  "user_e@gx.com": { id: "user_e", gxId: "GX_USR_1005", email: "user_e@gx.com", role: "user", name: "赵敏 / Zhao Min", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "boss_f@gx.com": { id: "boss_f", gxId: "GX_MCH_0092", email: "boss_f@gx.com", role: "merchant", name: "陈老板", shopId: "shop_f", shopName: "星河美甲沙龙", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "boss_g@gx.com": { id: "boss_g", gxId: "GX_MCH_0093", email: "boss_g@gx.com", role: "merchant", name: "王老板", shopId: "shop_g", shopName: "赛博按摩馆", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_a@gx.com": { id: "user_a", gxId: "GX_USR_1001", email: "user_a@gx.com", role: "user", name: "林晓明", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_b@gx.com": { id: "user_b", gxId: "GX_USR_1002", email: "user_b@gx.com", role: "user", name: "张伟", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_c@gx.com": { id: "user_c", gxId: "GX_USR_1003", email: "user_c@gx.com", role: "user", name: "李娜", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_d@gx.com": { id: "user_d", gxId: "GX_USR_1004", email: "user_d@gx.com", role: "user", name: "王强", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
+  "user_e@gx.com": { id: "user_e", gxId: "GX_USR_1005", email: "user_e@gx.com", role: "user", name: "赵敏", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" },
 };
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "499755740@qq.com";

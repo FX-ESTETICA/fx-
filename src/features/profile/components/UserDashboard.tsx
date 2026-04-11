@@ -253,7 +253,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
               {/* Section 1: 基础身份 */}
               <section className="space-y-8">
                 <div className="border-b border-white/5 pb-4">
-                  <h3 className="text-2xl font-black tracking-tighter text-white">01 / 基础身份</h3>
+                  <h3 className="text-2xl font-black tracking-tighter text-white">{t('txt_e47036')}</h3>
                 </div>
                 
                 <div className="space-y-6">
@@ -266,17 +266,15 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                         ascensionMode === "indie" ? "bg-white text-black shadow-md pointer-events-none" : "text-white/40 hover:text-white/80"
                       )}
                     >
-                      创建公司
-                    </button>
+                      {t('txt_1d078b')}</button>
                   </div>
 
                   {/* Brand Name */}
                   <div className="space-y-2">
                     <label className="text-xs text-white/40 tracking-widest">
-                      公司名称
-                    </label>
+                      {t('txt_d4b097')}</label>
                     <Input 
-                      placeholder="输入公司名称..."
+                      placeholder={t('txt_f3ef2d')}
                       value={formData.brandName}
                       onChange={(e) => setFormData(prev => ({ ...prev, brandName: e.target.value }))}
                       className={cn(
@@ -288,7 +286,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
                   {/* Contact */}
                   <div className="space-y-2">
-                    <label className="text-xs text-white/40 tracking-widest">公司电话</label>
+                    <label className="text-xs text-white/40 tracking-widest">{t('txt_9e1660')}</label>
                     <div className="flex gap-2">
                       <div className="relative w-28 shrink-0">
                         <select
@@ -296,17 +294,17 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                           onChange={(e) => setFormData(prev => ({ ...prev, countryCode: e.target.value }))}
                           className="w-full bg-black/50 border border-white/10 rounded-lg px-1 text-center text-white font-mono text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-14"
                         >
-                          <option value="+39">意大利 (+39)</option>
-                          <option value="+33">法国 (+33)</option>
-                          <option value="+49">德国 (+49)</option>
-                          <option value="+44">英国 (+44)</option>
-                          <option value="+34">西班牙 (+34)</option>
-                          <option value="+86">中国 (+86)</option>
-                          <option value="+1">美国 (+1)</option>
+                          <option value="+39">{t('txt_2aacf5')}</option>
+                          <option value="+33">{t('txt_08248a')}</option>
+                          <option value="+49">{t('txt_457747')}</option>
+                          <option value="+44">{t('txt_461ac5')}</option>
+                          <option value="+34">{t('txt_adfe91')}</option>
+                          <option value="+86">{t('txt_e76414')}</option>
+                          <option value="+1">{t('txt_6d4b58')}</option>
                         </select>
                       </div>
                       <Input 
-                        placeholder="请输入公司电话" 
+                        placeholder={t('txt_577644')} 
                         value={formData.contact}
                         onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
                         className={cn(
@@ -319,20 +317,20 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
                   {/* Industry - 已去除判断条件，因为只有门店一种模式 */}
                   <div className="space-y-2">
-                    <label className="text-xs text-white/40 tracking-widest">业务类型</label>
+                    <label className="text-xs text-white/40 tracking-widest">{t('txt_09ab42')}</label>
                     <div className="relative">
                       <select
                         value={formData.industry}
                         onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
                         className="w-full bg-black/50 border border-white/10 rounded-lg px-3 text-white text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-14 tracking-widest"
                       >
-                        <option value="beauty">美业</option>
-                        <option value="dining">餐饮</option>
-                        <option value="medical">医疗</option>
-                        <option value="fitness">健身</option>
-                        <option value="expert">专家</option>
-                        <option value="hotel">住宿</option>
-                        <option value="other">常规</option>
+                        <option value="beauty">{t('txt_4a6a90')}</option>
+                        <option value="dining">{t('txt_2a0ad6')}</option>
+                        <option value="medical">{t('txt_2fbcd8')}</option>
+                        <option value="fitness">{t('txt_c24d6f')}</option>
+                        <option value="expert">{t('txt_714dc5')}</option>
+                        <option value="hotel">{t('txt_d8bb4b')}</option>
+                        <option value="other">{t('txt_22b777')}</option>
                       </select>
                     </div>
                   </div>
@@ -343,22 +341,21 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
               <section className="space-y-8">
                 <div className="border-b border-white/5 pb-4">
                   <h3 className="text-2xl font-black tracking-tighter text-white">
-                    02 / 挂靠星系 (选填)
-                  </h3>
+                    {t('txt_b4154b')}</h3>
                 </div>
                 
                 <div className="space-y-4">
-                  <label className="text-xs text-white/40 tracking-widest">总公司 ID</label>
+                  <label className="text-xs text-white/40 tracking-widest">{t('txt_40223b')}</label>
                   <Input 
-                    placeholder="请输入总公司ID (如: GX88888888)" 
+                    placeholder={t('txt_95cd99')} 
                     value={formData.nexusCode}
                     onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
                     className="bg-gx-gold/5 border-gx-gold/20 focus:border-gx-gold text-gx-gold placeholder:text-gx-gold/20 font-mono tracking-widest text-base h-14 text-center"
                   />
                   <div className="bg-white/5 rounded-xl p-4 mt-6 border border-white/5">
                     <p className="text-xs text-white/50 leading-relaxed tracking-widest">
-                      若您是加盟店或分公司，请填写总部 BOSS 的专属 ID，提交后需等待总部审核。<br/><br/>
-                      <span className="text-gx-cyan/80 font-bold">留空则代表您将创建一家独立运营的总公司（秒激活）。</span>
+                      {t('txt_509c2e')}<br/><br/>
+                      <span className="text-gx-cyan/80 font-bold">{t('txt_292fbd')}</span>
                     </p>
                   </div>
                 </div>
@@ -377,8 +374,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                   {applicationStatus === "submitting" ? "解析中..." : "提交申请"}
                 </Button>
                 <p className="text-center text-[10px] text-white/30 mt-6 tracking-widest">
-                  提交即代表您同意接受 GX 系统的严格审视。
-                </p>
+                  {t('txt_a2e766')}</p>
               </div>
             </div>
           </div>
@@ -430,7 +426,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
               <RefreshCw className="w-3 h-3 text-white animate-spin-slow drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
             </div>
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">入驻审核中</h3>
+              <h3 className="text-xs font-bold tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{t('txt_58d6be')}</h3>
               <p className="text-[10px] font-mono text-white/50 mt-0.5 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">[{formData.brandName || "未知名称"}]</p>
             </div>
           </div>
@@ -442,8 +438,8 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
               <X className="w-3 h-3 text-gx-red drop-shadow-[0_0_8px_rgba(255,0,0,0.8)]" />
             </div>
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-gx-red drop-shadow-[0_0_5px_rgba(255,0,0,0.5)]">审核未通过</h3>
-              <p className="text-[10px] font-mono text-white/50 mt-0.5 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">请联系平台管理员</p>
+              <h3 className="text-xs font-bold tracking-widest text-gx-red drop-shadow-[0_0_5px_rgba(255,0,0,0.5)]">{t('txt_f50e9d')}</h3>
+              <p className="text-[10px] font-mono text-white/50 mt-0.5 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{t('txt_43ea07')}</p>
             </div>
         </div>
       ) : applicationStatus === "approved" ? (
@@ -578,8 +574,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
           }}
         >
           <LogOut className="w-3 h-3" />
-          退出账号
-        </Button>
+          {t('txt_4d90f0')}</Button>
       </motion.div>
 
       {/* ------------------------------------------------------------------ */}

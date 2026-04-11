@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Compass, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function WeChatBrowserGuard() {
+    const t = useTranslations('WeChatBrowserGuard');
   const [isWeChat, setIsWeChat] = useState(false);
 
   useEffect(() => {
@@ -53,18 +55,16 @@ export function WeChatBrowserGuard() {
           </div>
           
           <div className="space-y-2">
-            <h2 className="text-xl font-mono tracking-widest font-bold text-gx-cyan">RESTRICTED ZONE</h2>
-            <p className="text-xs text-white/60 uppercase tracking-[0.2em]">微信环境拦截</p>
+            <h2 className="text-xl font-mono tracking-widest font-bold text-gx-cyan">{t('txt_8b2cab')}</h2>
+            <p className="text-xs text-white/60 uppercase tracking-[0.2em]">{t('txt_285d0c')}</p>
           </div>
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
           <p className="text-sm text-white/80 leading-relaxed font-light">
-            为保障世界级全息渲染体验与数据通信安全，
-            <br />
-            请点击右上角 <strong className="text-white">···</strong> 按钮，
-            <br />
-            选择 <span className="text-gx-cyan font-bold tracking-widest px-1">在浏览器打开</span>
+            {t('txt_1bc292')}<br />
+            {t('txt_a6fbe5')}<strong className="text-white">···</strong> {t('txt_bd26e0')}<br />
+            {t('txt_153fa6')}<span className="text-gx-cyan font-bold tracking-widest px-1">{t('txt_475860')}</span>
           </p>
           
           <div className="flex items-center gap-2 text-xs text-white/40 bg-white/5 px-4 py-2 rounded-full border border-white/10">
