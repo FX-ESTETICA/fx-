@@ -75,7 +75,13 @@
     "txt_3d1c77": "卫星连接遭拒",
     "txt_1e5d7a": "位置 (Location)",
     "txt_bf2093": "点击地址栏 🔒 图标解锁",
-    "txt_97e675": "✨ 体验完整全息视效，在 APP 中打开"
+    "txt_97e675": "✨ 体验完整全息视效，在 APP 中打开",
+    "place_1_name": "The Cyber Sushi",
+    "place_2_name": "Neon Coffee Roasters",
+    "place_3_name": "Midnight Noodle Bar",
+    "place_4_name": "Lumina Beauty Studio",
+    "place_5_name": "Zenith Hair Salon",
+    "place_6_name": "The Grand Horizon Hotel"
   },
   "notfound": {
     "txt_bfb989": "Connection Lost // 页面不存在"
@@ -164,7 +170,13 @@
     "txt_ed5102": "加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。\n              利用赛博时代的流量杠杆，触达极致清醒的消费群体。",
     "txt_f9c0f6": "立即入驻",
     "txt_e8df34": "银河节点",
-    "txt_f1bdcd": "或浏览文档"
+    "txt_f1bdcd": "或浏览文档",
+    "benefit_1_title": "快速上线",
+    "benefit_1_desc": "5分钟完成节点配置，即刻接入银河流量池",
+    "benefit_2_title": "安全合规",
+    "benefit_2_desc": "Zero-Trust 协议保护，所有交易上链存证",
+    "benefit_3_title": "精准推送",
+    "benefit_3_desc": "基于 LBS 的智能算法，让附近的客户发现你"
   },
   "spatial": {
     "txt_dbd94b": "空间驾驶舱",
@@ -484,7 +496,9 @@
     "txt_096cda": "搜索门店...",
     "txt_8a30cd": "未知门店",
     "txt_eebd8d": "今日已临时歇业",
-    "txt_bc620b": "处于长期休假中"
+    "txt_bc620b": "处于长期休假中",
+    "status_closed_today": "今日已临时歇业",
+    "status_vacation": "处于长期休假中"
   },
   "PhoneAuthBar": {
     "txt_398180": "手机号绑定",
@@ -499,11 +513,41 @@
     "txt_cc2ddc": "输入 6 位验证码",
     "txt_1165ad": "长按左侧重置终端",
     "txt_e83a25": "确认",
-    "txt_2dbd85": ">>> 强制授权中 <<<"
+    "txt_2dbd85": ">>> 强制授权中 <<<",
+    "sending": "正在发送...",
+    "code_sent": "验证码已发送",
+    "verifying": "正在验证...",
+    "bind_success": "绑定成功",
+    "invalid_code": "验证码错误或已过期",
+    "phone_taken": "该终端已被其他实体绑定"
   },
   "ProfileHeader": {
     "txt_52e6ab": "已复制",
-    "txt_79d3ab": "复制"
+    "txt_79d3ab": "复制",
+    "role_user": "生活",
+    "role_merchant": "智控",
+    "role_boss": "BOSS",
+    "zodiac_aries": "白羊座",
+    "zodiac_taurus": "金牛座",
+    "zodiac_gemini": "双子座",
+    "zodiac_cancer": "巨蟹座",
+    "zodiac_leo": "狮子座",
+    "zodiac_virgo": "处女座",
+    "zodiac_libra": "天秤座",
+    "zodiac_scorpio": "天蝎座",
+    "zodiac_sagittarius": "射手座",
+    "zodiac_capricorn": "摩羯座",
+    "zodiac_aquarius": "水瓶座",
+    "zodiac_pisces": "双鱼座",
+    "level_0_title": "启航",
+    "level_1_title": "适应",
+    "level_2_title": "资深",
+    "level_3_title": "核心",
+    "level_4_title": "先驱",
+    "level_5_title": "传奇",
+    "level_6_title": "远古实体",
+    "copied": "已复制",
+    "copy": "复制"
   },
   "UserDashboard": {
     "txt_950181": "[ 解析高维数据中... ]",
@@ -612,7 +656,10 @@
     "txt_afac13": "销毁当前",
     "txt_8b9fc0": "摧毁全部",
     "txt_1622dc": "未知",
-    "txt_7598f1": "未指定"
+    "txt_7598f1": "未指定",
+    "unknown": "未知",
+    "copied": "已复制",
+    "copy": "复制"
   },
   "EliteSpatialMatrix": {
     "txt_154261": "楼层图",
@@ -705,7 +752,11 @@
     "txt_fad9fb": "等待接入信号...",
     "txt_0bbdcf": "输入指令..."
   },
-  "DataMatrixAssets": {},
+  "DataMatrixAssets": {
+    "echo_1": "今天在 XX 咖啡馆体验了手冲，环境非常赛博朋克。",
+    "echo_2": "刚刚完成了空间跃迁，节点同步成功。",
+    "echo_3": "附近的美业中心正在进行全息投影测试，非常震撼。"
+  },
   "useChatStore": {},
   "blurhash": {},
   "imageCompression": {},
@@ -724,7 +775,8 @@
     "txt_c76b02": "生活服务网络建设中...",
     "txt_a8b0c2": "全部",
     "txt_24482a": "UGC 照片上传功能即将开放",
-    "txt_3d1c77": "卫星连接遭拒"
+    "txt_3d1c77": "卫星连接遭拒",
+    "locating": "定位中..."
   },
   "studio": {},
   "vision": {
@@ -755,7 +807,11 @@
     "txt_f3dda5": "立即打开"
   },
   "BottomNavBar": {
-    "txt_07b181": "我的"
+    "txt_07b181": "我的",
+    "nav_home": "首页",
+    "nav_discovery": "发现",
+    "nav_chat": "聊天",
+    "nav_me": "我的"
   },
   "GxProCard": {
     "txt_53a12c": "GX PRO 官方认证",
@@ -839,5 +895,16 @@
     "txt_d4b097": "公司名称",
     "txt_8cb6ef": "公司简历",
     "txt_4b7d1f": "等待物理坐标接入..."
+  },
+  "Nebula": {
+    "err_upgrade_failed": "无法提升该用户的系统权限级别",
+    "err_missing_boss": "缺少 Boss 身份标识",
+    "auth_failed": "授权失败",
+    "node_op_failed": "节点操作失败",
+    "user_not_found": "未找到该用户ID，请核对。"
+  },
+  "BossApprovals": {
+    "err_missing_profile": "无法定位申请人的物理身份 (Profile ID)，请确保该用户已初始化基础档案",
+    "approval_failed": "审批执行失败，请检查数据库权限或约束"
   }
 }

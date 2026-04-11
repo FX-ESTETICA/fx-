@@ -83,7 +83,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     if (!phoneInput.trim() || !user) return;
     
     setIsUpdatingPhone(true);
-    setPhoneMessage("正在发送...");
+    setPhoneMessage(t('sending'));
     
     const fullPhone = `${countryCode}${phoneInput.trim()}`;
     
@@ -94,10 +94,10 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
       
       setIsCodeSent(true);
       setCountdown(60);
-      setPhoneMessage("验证码已发送");
+      setPhoneMessage(t('code_sent'));
     } catch (error: any) {
       console.error("SMS 发送失败:", error);
-      const displayMsg = error.message || "发送失败，请检查号码格式";
+      const displayMsg = error.message || t('invalid_code');
       setPhoneMessage(displayMsg);
     } finally {
       setIsUpdatingPhone(false);
@@ -108,7 +108,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     if (!verificationCode.trim() || !user) return;
     
     setIsUpdatingPhone(true);
-    setPhoneMessage("正在验证...");
+    setPhoneMessage(t('verifying'));
     
     try {
       const fullPhone = `${countryCode}${phoneInput.trim()}`;
@@ -128,17 +128,17 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
         .eq('id', user.id);
         
       if (profileError) {
-        if (profileError.code === '23505') throw new Error("该终端已被其他实体绑定");
+        if (profileError.code === '23505') throw new Error(t('phone_taken'));
         throw profileError;
       }
       
-      setPhoneMessage("绑定成功");
+      setPhoneMessage(t('bind_success'));
       setIsCodeSent(false); // 验证成功后恢复 UI 状态
       setIsEditMode(false); // 成功后退出越权编辑模式
       
     } catch (error: any) {
       console.error("验证失败:", error);
-      setPhoneMessage("验证码错误或已过期");
+      setPhoneMessage(error.message || t('invalid_code'));
     } finally {
       setIsUpdatingPhone(false);
     }

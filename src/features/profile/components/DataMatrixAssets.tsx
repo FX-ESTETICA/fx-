@@ -4,14 +4,18 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, X, Terminal } from "lucide-react";
 
-// 模拟动态数据
-const MOCK_ECHOES = [
-  { id: 1, content: "今天在 XX 咖啡馆体验了手冲，环境非常赛博朋克。", time: "2H AGO", impact: 128 },
-  { id: 2, content: "刚刚完成了空间跃迁，节点同步成功。", time: "YESTERDAY", impact: 456 },
-  { id: 3, content: "附近的美业中心正在进行全息投影测试，非常震撼。", time: "3D AGO", impact: 89 },
-];
+import { useTranslations } from "next-intl";
 
 export const DataMatrixAssets = () => {
+  const t = useTranslations('DataMatrixAssets');
+  
+  // 模拟动态数据
+  const MOCK_ECHOES = [
+    { id: 1, content: t('echo_1'), time: "2H AGO", impact: 128 },
+    { id: 2, content: t('echo_2'), time: "YESTERDAY", impact: 456 },
+    { id: 3, content: t('echo_3'), time: "3D AGO", impact: 89 },
+  ];
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [echoes, setEchoes] = useState(MOCK_ECHOES);
   const [currentIndex, setCurrentIndex] = useState(0);

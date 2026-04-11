@@ -514,7 +514,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
                       storeStatus === 'closed_today' ? "bg-red-500/10 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" :
                       "bg-yellow-500/10 border-yellow-500/50 text-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
                     )}>
-                      <div>{storeStatus === 'closed_today' ? '今日已临时歇业' : '处于长期休假中'}</div>
+                      <div>{storeStatus === 'closed_today' ? t('status_closed_today') : t('status_vacation')}</div>
                     </div>
                   </div>
                 )}

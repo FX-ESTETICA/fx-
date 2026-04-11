@@ -6,8 +6,10 @@ import { cn } from "@/utils/cn";
 import { Home, Compass, User, MessageSquare } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 export const BottomNavBar = ({ className }: { className?: string }) => {
+  const t = useTranslations('BottomNavBar');
   const pathname = usePathname();
   const { user } = useAuth();
   
@@ -47,10 +49,10 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
 
   // 缝合聊天大枢纽入口
   const tabRoutes = [
-    { href: "/home", label: "首页", icon: Home },
-    { href: "/discovery", label: "发现", icon: Compass },
-    { href: "/chat", label: "聊天", icon: MessageSquare },
-    { href: user ? "/dashboard" : "/me", label: "我的", icon: User },
+    { href: "/home", label: t('nav_home'), icon: Home },
+    { href: "/discovery", label: t('nav_discovery'), icon: Compass },
+    { href: "/chat", label: t('nav_chat'), icon: MessageSquare },
+    { href: user ? "/dashboard" : "/me", label: t('nav_me'), icon: User },
   ];
 
   return (
@@ -75,7 +77,7 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
         <div className="flex items-center justify-around p-2 bg-transparent">
           {tabRoutes.map(({ href, label, icon: Icon }) => {
             // 智能激活态：如果当前是我的页或仪表盘，且标签为"我的"，则保持高亮
-            const active = pathname === href || (label === "我的" && (pathname === "/me" || pathname === "/dashboard"));
+            const active = pathname === href || (label === t('nav_me') && (pathname === "/me" || pathname === "/dashboard"));
             return (
               <Link
                 key={label} // 使用稳定的 label 作为 key，防止 href 变化导致组件卸载重绘

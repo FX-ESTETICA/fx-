@@ -10,12 +10,14 @@ import { DataMatrixAssets } from "./DataMatrixAssets";
 import { supabase, isMockMode } from "@/lib/supabase";
 import Image from "next/image";
 import { cn } from "@/utils/cn";
+import { useTranslations } from "next-intl";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
 }
 
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
+  const t = useTranslations('ProfileHeader');
   const { user, activeRole, setActiveRole } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -32,9 +34,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   }, [profile.avatar]);
   
   const roleLabels = {
-    user: { zh: "生活", color: "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" },
-    merchant: { zh: "智控", color: "text-gx-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.7)]" },
-    boss: { zh: "BOSS", color: "text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" },
+    user: { zh: t('role_user'), color: "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" },
+    merchant: { zh: t('role_merchant'), color: "text-gx-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.7)]" },
+    boss: { zh: t('role_boss'), color: "text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" },
   };
 
   const currentRole = roleLabels[activeRole] || roleLabels[profile.role];
@@ -90,13 +92,13 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     const now = new Date();
     const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
     
-    if (daysDiff < 10) return { level: "LV.0", title: "启航", color: "border-white/20", glow: "shadow-[0_0_10px_rgba(255,255,255,0.1)]" };
-    if (daysDiff < 30) return { level: "LV.1", title: "适应", color: "border-gx-cyan/30", glow: "shadow-[0_0_15px_rgba(0,242,255,0.2)]" };
-    if (daysDiff < 180) return { level: "LV.2", title: "资深", color: "border-gx-cyan/60", glow: "shadow-[0_0_20px_rgba(0,242,255,0.4)]" };
-    if (daysDiff < 365) return { level: "LV.3", title: "核心", color: "border-dashed border-gx-cyan", glow: "shadow-[0_0_25px_rgba(0,242,255,0.5)]" };
-    if (daysDiff < 730) return { level: "LV.4", title: "先驱", color: "border-gx-pink/60", glow: "shadow-[0_0_30px_rgba(255,0,234,0.4)]" };
-    if (daysDiff < 1825) return { level: "LV.5", title: "传奇", color: "border-gx-purple/80", glow: "shadow-[0_0_40px_rgba(188,0,255,0.5)]" };
-    return { level: "LV.6", title: "远古实体", color: "border-white", glow: "shadow-[0_0_50px_rgba(255,255,255,0.8)]" };
+    if (daysDiff < 10) return { level: "LV.0", title: t('level_0_title'), color: "border-white/20", glow: "shadow-[0_0_10px_rgba(255,255,255,0.1)]" };
+    if (daysDiff < 30) return { level: "LV.1", title: t('level_1_title'), color: "border-gx-cyan/30", glow: "shadow-[0_0_15px_rgba(0,242,255,0.2)]" };
+    if (daysDiff < 180) return { level: "LV.2", title: t('level_2_title'), color: "border-gx-cyan/60", glow: "shadow-[0_0_20px_rgba(0,242,255,0.4)]" };
+    if (daysDiff < 365) return { level: "LV.3", title: t('level_3_title'), color: "border-dashed border-gx-cyan", glow: "shadow-[0_0_25px_rgba(0,242,255,0.5)]" };
+    if (daysDiff < 730) return { level: "LV.4", title: t('level_4_title'), color: "border-gx-pink/60", glow: "shadow-[0_0_30px_rgba(255,0,234,0.4)]" };
+    if (daysDiff < 1825) return { level: "LV.5", title: t('level_5_title'), color: "border-gx-purple/80", glow: "shadow-[0_0_40px_rgba(188,0,255,0.5)]" };
+    return { level: "LV.6", title: t('level_6_title'), color: "border-white", glow: "shadow-[0_0_50px_rgba(255,255,255,0.8)]" };
   }, [profile.role, profile.createdAt]);
 
   // 动态推算年龄和星座
@@ -118,18 +120,18 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     const month = date.getMonth() + 1;
     const day = date.getDate();
 
-    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return "白羊座";
-    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return "金牛座";
-    if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return "双子座";
-    if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return "巨蟹座";
-    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return "狮子座";
-    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return "处女座";
-    if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return "天秤座";
-    if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return "天蝎座";
-    if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return "射手座";
-    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return "摩羯座";
-    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return "水瓶座";
-    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return "双鱼座";
+    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return t('zodiac_aries');
+    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return t('zodiac_taurus');
+    if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return t('zodiac_gemini');
+    if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return t('zodiac_cancer');
+    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return t('zodiac_leo');
+    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return t('zodiac_virgo');
+    if ((month === 9 && day >= 23) || (month === 10 && day <= 23)) return t('zodiac_libra');
+    if ((month === 10 && day >= 24) || (month === 11 && day <= 22)) return t('zodiac_scorpio');
+    if ((month === 11 && day >= 23) || (month === 12 && day <= 21)) return t('zodiac_sagittarius');
+    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return t('zodiac_capricorn');
+    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return t('zodiac_aquarius');
+    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return t('zodiac_pisces');
     return null;
   };
 
@@ -367,7 +369,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   copyState === "hover" && "text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"
                 )}>
                   {copyState === "copied" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  {copyState === "copied" ? "已复制" : "复制"}
+                  {copyState === "copied" ? t('copied') : t('copy')}
                 </div>
               </div>
             </div>

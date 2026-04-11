@@ -74,7 +74,13 @@
     "txt_3d1c77": "Collegamento Satellitare Negato",
     "txt_1e5d7a": "Coordinate",
     "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare",
-    "txt_97e675": "✨ Esperienza Completa di Ologrammi nell'APP"
+    "txt_97e675": "✨ Esperienza Completa di Ologrammi nell'APP",
+    "place_1_name": "The Cyber Sushi",
+    "place_2_name": "Neon Coffee Roasters",
+    "place_3_name": "Midnight Noodle Bar",
+    "place_4_name": "Lumina Beauty Studio",
+    "place_5_name": "Zenith Hair Salon",
+    "place_6_name": "The Grand Horizon Hotel"
   },
   "notfound": {
     "txt_bfb989": "[IT] Connection Lost // 页面不存在"
@@ -160,7 +166,13 @@
     "txt_ed5102": "[IT] 加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。\n              利用赛博时代的流量杠杆，触达极致清醒的消费群体。",
     "txt_f9c0f6": "[IT] 立即入驻 / JOIN NOW",
     "txt_e8df34": "Nodo Galattico",
-    "txt_f1bdcd": "O Sfoglia Documentazione"
+    "txt_f1bdcd": "O Sfoglia Documentazione",
+    "benefit_1_title": "Distribuzione Rapida",
+    "benefit_1_desc": "Completa la configurazione del nodo in 5 minuti, accedi istantaneamente al pool di traffico galattico",
+    "benefit_2_title": "Sicuro e Conforme",
+    "benefit_2_desc": "Protezione protocollo Zero-Trust, tutte le transazioni registrate su chain",
+    "benefit_3_title": "Targeting di Precisione",
+    "benefit_3_desc": "Algoritmi intelligenti basati su LBS per farvi scoprire dai clienti vicini"
   },
   "spatial": {
     "txt_dbd94b": "[IT] 空间驾驶舱 / SPATIAL COCKPIT",
@@ -473,7 +485,9 @@
     "txt_096cda": "Cerca Negozi...",
     "txt_8a30cd": "Negozio Sconosciuto",
     "txt_eebd8d": "Chiuso Temporaneamente Oggi",
-    "txt_bc620b": "In Congedo Prolungato"
+    "txt_bc620b": "In Congedo Prolungato",
+    "status_closed_today": "Chiuso Temporaneamente Oggi",
+    "status_vacation": "In Vacanza a Lungo Termine"
   },
   "PhoneAuthBar": {
     "txt_398180": "Collegamento Numero di Telefono",
@@ -484,11 +498,41 @@
     "txt_1535fc": "Invia",
     "txt_1165ad": "Tieni Premuto a Sinistra per Ripristinare il Terminale",
     "txt_e83a25": "Conferma",
-    "txt_2dbd85": ">>> Autorizzazione Forzata in Corso <<<"
+    "txt_2dbd85": ">>> Autorizzazione Forzata in Corso <<<",
+    "sending": "Invio in corso...",
+    "code_sent": "Codice di verifica inviato",
+    "verifying": "Verifica in corso...",
+    "bind_success": "Associazione riuscita",
+    "invalid_code": "Codice non valido o scaduto",
+    "phone_taken": "Questo terminale è associato a un altra entità"
   },
   "ProfileHeader": {
     "txt_52e6ab": "Copiato",
-    "txt_79d3ab": "Copia"
+    "txt_79d3ab": "Copia",
+    "role_user": "Vita",
+    "role_merchant": "Controllo Nexus",
+    "role_boss": "BOSS",
+    "zodiac_aries": "Ariete",
+    "zodiac_taurus": "Toro",
+    "zodiac_gemini": "Gemelli",
+    "zodiac_cancer": "Cancro",
+    "zodiac_leo": "Leone",
+    "zodiac_virgo": "Vergine",
+    "zodiac_libra": "Bilancia",
+    "zodiac_scorpio": "Scorpione",
+    "zodiac_sagittarius": "Sagittario",
+    "zodiac_capricorn": "Capricorno",
+    "zodiac_aquarius": "Acquario",
+    "zodiac_pisces": "Pesci",
+    "level_0_title": "Partenza",
+    "level_1_title": "Adattamento",
+    "level_2_title": "Senior",
+    "level_3_title": "Nucleo",
+    "level_4_title": "Pioniere",
+    "level_5_title": "Leggenda",
+    "level_6_title": "Entità Antica",
+    "copied": "Copiato",
+    "copy": "Copia"
   },
   "UserDashboard": {
     "txt_950181": "[IT] [ 解析高维数据中... ]",
@@ -586,7 +630,10 @@
     "txt_afac13": "[IT] 销毁当前",
     "txt_8b9fc0": "[IT] 摧毁全部",
     "txt_1622dc": "Sconosciuto",
-    "txt_7598f1": "Non Specificato"
+    "txt_7598f1": "Non Specificato",
+    "unknown": "Sconosciuto",
+    "copied": "Copiato",
+    "copy": "Copia"
   },
   "EliteSpatialMatrix": {
     "txt_154261": "[IT] 楼层图",
@@ -665,7 +712,11 @@
   "ChatRoomUI": {},
   "useChatEngine": {},
   "useRecentChats": {},
-  "DataMatrixAssets": {},
+  "DataMatrixAssets": {
+    "echo_1": "Ho provato il caffè filtro al XX Cafe oggi, atmosfera molto cyberpunk.",
+    "echo_2": "Appena completato il salto spaziale, sincronizzazione del nodo riuscita.",
+    "echo_3": "Il centro estetico vicino sta facendo un test di proiezione olografica, assolutamente sbalorditivo."
+  },
   "HomeClient": {
     "txt_fc724a": "Nodo Non Rivendicato",
     "txt_2fa2bd": "In Attesa di Rivendicazione",
@@ -678,7 +729,8 @@
     "txt_c76b02": "Costruzione della Rete di Servizi Lifestyle...",
     "txt_a8b0c2": "Tutti",
     "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
-    "txt_3d1c77": "Connessione Satellitare Negata"
+    "txt_3d1c77": "Connessione Satellitare Negata",
+    "locating": "Localizzazione..."
   },
   "studio": {},
   "vision": {
@@ -707,7 +759,11 @@
     "txt_f3dda5": "Apri Ora"
   },
   "BottomNavBar": {
-    "txt_07b181": "Il Mio"
+    "txt_07b181": "Il Mio",
+    "nav_home": "Home",
+    "nav_discovery": "Scoperta",
+    "nav_chat": "Chat",
+    "nav_me": "Io"
   },
   "GxProCard": {
     "txt_3ed720": "Prenota Ora",
@@ -790,5 +846,16 @@
     "txt_d4b097": "Nome Azienda",
     "txt_8cb6ef": "Profilo Aziendale",
     "txt_4b7d1f": "In Attesa di Coordinate Fisiche..."
+  },
+  "Nebula": {
+    "err_upgrade_failed": "Impossibile aggiornare i privilegi di sistema per questo utente",
+    "err_missing_boss": "Identità Boss mancante",
+    "auth_failed": "Autorizzazione fallita",
+    "node_op_failed": "Operazione nodo fallita",
+    "user_not_found": "ID utente non trovato, si prega di verificare."
+  },
+  "BossApprovals": {
+    "err_missing_profile": "Impossibile individuare identità fisica del richiedente (Profile ID). Assicurarsi che il profilo base sia inizializzato.",
+    "approval_failed": "Esecuzione approvazione fallita, verificare i permessi o i vincoli del database"
   }
 }

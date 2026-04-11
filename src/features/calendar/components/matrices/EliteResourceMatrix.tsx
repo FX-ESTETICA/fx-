@@ -710,7 +710,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       
                       // 动态编号降维处理函数
                       const formatMinimalId = (idStr: string) => {
-                        if (!idStr) return "未知";
+                        if (!idStr) return t('unknown');
                         if (idStr.startsWith("CO") || idStr.startsWith("NO")) {
                           const prefix = idStr.substring(0, 2);
                           const numStr = idStr.substring(2).trim();

@@ -14,18 +14,18 @@ export default function OnboardingPage() {
   const benefits = [
     {
       icon: Rocket,
-      title: "快速上线",
-      desc: "5分钟完成节点配置，即刻接入银河流量池"
+      title: t('benefit_1_title'),
+      desc: t('benefit_1_desc')
     },
     {
       icon: ShieldCheck,
-      title: "安全合规",
-      desc: "Zero-Trust 协议保护，所有交易上链存证"
+      title: t('benefit_2_title'),
+      desc: t('benefit_2_desc')
     },
     {
       icon: Zap,
-      title: "精准推送",
-      desc: "基于 LBS 的智能算法，让附近的客户发现你"
+      title: t('benefit_3_title'),
+      desc: t('benefit_3_desc')
     }
   ];
 

@@ -64,7 +64,7 @@ export default function BossApprovalsPage() {
 
       if (pError || !principal) {
         console.error("Failed to find profile for user:", pError);
-        throw new Error("无法定位申请人的物理身份 (Profile ID)，请确保该用户已初始化基础档案");
+        throw new Error("err_missing_profile");
       }
 
       // 2. 铸造实体：在 shops 表中创建实体，并注入底层物理基因锁
@@ -132,9 +132,9 @@ export default function BossApprovalsPage() {
 
       // 6. 刷新列表
       fetchApplications();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Approval failed:", e);
-      alert("审批执行失败，请检查数据库权限或约束");
+      alert(`${t('approval_failed') || "审批执行失败"}: ${t(e.message) || e.message}`);
     } finally {
       setProcessingId(null);
     }

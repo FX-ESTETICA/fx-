@@ -225,7 +225,7 @@ function useNebulaData(bossId: string | undefined) {
       };
     } catch (err: any) {
       console.error("Failed to update node. 详细错误:", err.message || err);
-      alert(`节点操作失败: ${err.message || "未知错误，请检查控制台"}`);
+      alert(`${t('node_op_failed') || '节点操作失败'}: ${t(err.message) || err.message}`);
       return null;
     }
   };
@@ -241,7 +241,7 @@ function useNebulaData(bossId: string | undefined) {
         .single();
         
       if (profileErr || !profile) {
-        alert("未找到该用户ID，请核对。");
+        alert(t('user_not_found') || "未找到该用户ID，请核对。");
         return null;
       }
 
@@ -254,7 +254,7 @@ function useNebulaData(bossId: string | undefined) {
           
         if (upgradeErr) {
           console.error("身份升维失败:", upgradeErr);
-          throw new Error("无法提升该用户的系统权限级别");
+          throw new Error("err_upgrade_failed");
         }
       }
 
@@ -313,7 +313,7 @@ function useNebulaData(bossId: string | undefined) {
       };
     } catch (err: any) {
       console.error("Failed to delegate manager:", err);
-      alert(`授权失败: ${err.message || "权限不足或数据库约束冲突"}`);
+      alert(`${t('auth_failed') || '授权失败'}: ${t(err.message) || err.message}`);
       return null;
     }
   };
@@ -371,7 +371,7 @@ function useNebulaData(bossId: string | undefined) {
   // 终极涅槃 (Phoenix Protocol V2) - 通过 RPC 引擎进行物理级解散联邦
   const obliterateEnterprise = async () => {
     try {
-      if (!bossId) throw new Error("缺少 Boss 身份标识");
+      if (!bossId) throw new Error("err_missing_boss");
 
       // 调用后端最高权限的 RPC 函数，执行原子化清理
       const { error } = await supabase.rpc('obliterate_my_enterprise', {

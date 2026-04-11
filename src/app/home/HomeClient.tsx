@@ -77,14 +77,16 @@ const MOCK_IMAGES = {
 };
 
 // 模拟的 Google Places 返回数据 (用于前期 UI 验证，后续替换为真实 API 调用)
-const MOCK_GOOGLE_PLACES: Array<PlacesApiPlace & { distance: string }> = [
-  { id: "gp_1", name: "The Cyber Sushi", rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
-  { id: "gp_2", name: "Neon Coffee Roasters", rating: 4.9, user_ratings_total: 128, distance: "1.2km", status: "OPEN", category: "dining" },
-  { id: "gp_3", name: "Midnight Noodle Bar", rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
-  { id: "gp_4", name: "Lumina Beauty Studio", rating: 5.0, user_ratings_total: 64, distance: "1.5km", status: "OPEN", category: "beauty" },
-  { id: "gp_5", name: "Zenith Hair Salon", rating: 4.7, user_ratings_total: 210, distance: "3.1km", status: "OPEN", category: "beauty" },
-  { id: "gp_6", name: "The Grand Horizon Hotel", rating: 4.6, user_ratings_total: 1205, distance: "4.2km", status: "OPEN", category: "hotel" },
-];
+export function getMockPlaces(t: any): Array<PlacesApiPlace & { distance: string }> {
+  return [
+    { id: "gp_1", name: t('place_1_name'), rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
+    { id: "gp_2", name: t('place_2_name'), rating: 4.9, user_ratings_total: 128, distance: "1.2km", status: "OPEN", category: "dining" },
+    { id: "gp_3", name: t('place_3_name'), rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
+    { id: "gp_4", name: t('place_4_name'), rating: 5.0, user_ratings_total: 64, distance: "1.5km", status: "OPEN", category: "beauty" },
+    { id: "gp_5", name: t('place_5_name'), rating: 4.7, user_ratings_total: 210, distance: "3.1km", status: "OPEN", category: "beauty" },
+    { id: "gp_6", name: t('place_6_name'), rating: 4.6, user_ratings_total: 1205, distance: "4.2km", status: "OPEN", category: "hotel" },
+  ];
+}
 
 const CATEGORIES = [
   { 
@@ -282,7 +284,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
   // 动态推算最终渲染数量，永远保持完美矩形，并受限于实际数据总数
   const displayCount = Math.min(targetCount, aggregatedPlaces.length);
   
-  const [locationName, setLocationName] = useState("定位中...");
+  const [locationName, setLocationName] = useState(t('locating'));
   const [isMockMode, setIsMockMode] = useState(false);
   const [isLocationDenied, setIsLocationDenied] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -445,7 +447,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
       setIsMockMode(false);
     } else if (placesError) {
       console.error("Error fetching Google Places via SWR:", placesError);
-      const fallbackPlaces: AggregatedPlace[] = MOCK_GOOGLE_PLACES.map((p) => ({
+      const fallbackPlaces: AggregatedPlace[] = getMockPlaces(t).map((p) => ({
         ...p,
         image: MOCK_IMAGES.all[0],
         isRealGooglePhoto: false,

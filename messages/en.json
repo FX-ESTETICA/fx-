@@ -74,7 +74,13 @@
     "txt_3d1c77": "Satellite Link Denied",
     "txt_1e5d7a": "Coordinates",
     "txt_bf2093": "Tap Address Bar 🔒 to Unlock",
-    "txt_97e675": "✨ Experience Full Holo-Visuals in APP"
+    "txt_97e675": "✨ Experience Full Holo-Visuals in APP",
+    "place_1_name": "The Cyber Sushi",
+    "place_2_name": "Neon Coffee Roasters",
+    "place_3_name": "Midnight Noodle Bar",
+    "place_4_name": "Lumina Beauty Studio",
+    "place_5_name": "Zenith Hair Salon",
+    "place_6_name": "The Grand Horizon Hotel"
   },
   "notfound": {
     "txt_bfb989": "[EN] Connection Lost // 页面不存在"
@@ -160,7 +166,13 @@
     "txt_ed5102": "[EN] 加入 GX 商业生态，将您的实体店或生活服务转化为数字化节点。\n              利用赛博时代的流量杠杆，触达极致清醒的消费群体。",
     "txt_f9c0f6": "[EN] 立即入驻 / JOIN NOW",
     "txt_e8df34": "Galaxy Node",
-    "txt_f1bdcd": "Or Browse Documentation"
+    "txt_f1bdcd": "Or Browse Documentation",
+    "benefit_1_title": "Fast Deployment",
+    "benefit_1_desc": "Complete node configuration in 5 mins, instantly access the galaxy traffic pool",
+    "benefit_2_title": "Secure & Compliant",
+    "benefit_2_desc": "Zero-Trust protocol protection, all transactions recorded on-chain",
+    "benefit_3_title": "Precision Targeting",
+    "benefit_3_desc": "LBS-based smart algorithms to let nearby customers discover you"
   },
   "spatial": {
     "txt_dbd94b": "[EN] 空间驾驶舱 / SPATIAL COCKPIT",
@@ -473,7 +485,9 @@
     "txt_096cda": "Search Stores...",
     "txt_8a30cd": "Unknown Store",
     "txt_eebd8d": "Temporarily Closed Today",
-    "txt_bc620b": "On Extended Leave"
+    "txt_bc620b": "On Extended Leave",
+    "status_closed_today": "Closed Temporarily Today",
+    "status_vacation": "On Long-term Vacation"
   },
   "PhoneAuthBar": {
     "txt_398180": "Phone Number Binding",
@@ -484,11 +498,41 @@
     "txt_1535fc": "Send",
     "txt_1165ad": "Long Press Left to Reset Terminal",
     "txt_e83a25": "Confirm",
-    "txt_2dbd85": ">>> Force Authorization in Progress <<<"
+    "txt_2dbd85": ">>> Force Authorization in Progress <<<",
+    "sending": "Sending...",
+    "code_sent": "Verification code sent",
+    "verifying": "Verifying...",
+    "bind_success": "Binding successful",
+    "invalid_code": "Invalid or expired code",
+    "phone_taken": "This terminal is bound to another entity"
   },
   "ProfileHeader": {
     "txt_52e6ab": "Copied",
-    "txt_79d3ab": "Copy"
+    "txt_79d3ab": "Copy",
+    "role_user": "Life",
+    "role_merchant": "Nexus Control",
+    "role_boss": "BOSS",
+    "zodiac_aries": "Aries",
+    "zodiac_taurus": "Taurus",
+    "zodiac_gemini": "Gemini",
+    "zodiac_cancer": "Cancer",
+    "zodiac_leo": "Leo",
+    "zodiac_virgo": "Virgo",
+    "zodiac_libra": "Libra",
+    "zodiac_scorpio": "Scorpio",
+    "zodiac_sagittarius": "Sagittarius",
+    "zodiac_capricorn": "Capricorn",
+    "zodiac_aquarius": "Aquarius",
+    "zodiac_pisces": "Pisces",
+    "level_0_title": "Voyage",
+    "level_1_title": "Adapt",
+    "level_2_title": "Senior",
+    "level_3_title": "Core",
+    "level_4_title": "Pioneer",
+    "level_5_title": "Legend",
+    "level_6_title": "Ancient Entity",
+    "copied": "Copied",
+    "copy": "Copy"
   },
   "UserDashboard": {
     "txt_950181": "[EN] [ 解析高维数据中... ]",
@@ -586,7 +630,10 @@
     "txt_afac13": "[EN] 销毁当前",
     "txt_8b9fc0": "[EN] 摧毁全部",
     "txt_1622dc": "Unknown",
-    "txt_7598f1": "Not Specified"
+    "txt_7598f1": "Not Specified",
+    "unknown": "Unknown",
+    "copied": "Copied",
+    "copy": "Copy"
   },
   "EliteSpatialMatrix": {
     "txt_154261": "[EN] 楼层图",
@@ -665,7 +712,11 @@
   "ChatRoomUI": {},
   "useChatEngine": {},
   "useRecentChats": {},
-  "DataMatrixAssets": {},
+  "DataMatrixAssets": {
+    "echo_1": "Experienced pour-over at XX Cafe today, very cyberpunk vibe.",
+    "echo_2": "Just completed spatial jump, node synchronization successful.",
+    "echo_3": "The nearby beauty center is doing a holographic projection test, absolutely stunning."
+  },
   "HomeClient": {
     "txt_fc724a": "Unclaimed Node",
     "txt_2fa2bd": "Awaiting Claim",
@@ -678,7 +729,8 @@
     "txt_c76b02": "Building Lifestyle Service Network...",
     "txt_a8b0c2": "All",
     "txt_24482a": "UGC Photo Upload Feature Coming Soon",
-    "txt_3d1c77": "Satellite Connection Denied"
+    "txt_3d1c77": "Satellite Connection Denied",
+    "locating": "Locating..."
   },
   "studio": {},
   "vision": {
@@ -707,7 +759,11 @@
     "txt_f3dda5": "Open Now"
   },
   "BottomNavBar": {
-    "txt_07b181": "My"
+    "txt_07b181": "My",
+    "nav_home": "Home",
+    "nav_discovery": "Discovery",
+    "nav_chat": "Chat",
+    "nav_me": "Me"
   },
   "GxProCard": {
     "txt_3ed720": "Book Now",
@@ -790,5 +846,16 @@
     "txt_d4b097": "Company Name",
     "txt_8cb6ef": "Company Profile",
     "txt_4b7d1f": "Awaiting Physical Coordinates..."
+  },
+  "Nebula": {
+    "err_upgrade_failed": "Unable to upgrade system privileges for this user",
+    "err_missing_boss": "Missing Boss identity",
+    "auth_failed": "Authorization failed",
+    "node_op_failed": "Node operation failed",
+    "user_not_found": "User ID not found, please verify."
+  },
+  "BossApprovals": {
+    "err_missing_profile": "Unable to locate applicant physical identity (Profile ID). Ensure basic profile is initialized.",
+    "approval_failed": "Approval execution failed, please check database permissions or constraints"
   }
 }
