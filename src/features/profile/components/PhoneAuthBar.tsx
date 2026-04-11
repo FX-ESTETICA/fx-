@@ -5,8 +5,6 @@ import { Smartphone, Eye, EyeOff, X, Terminal } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { auth } from "@/lib/firebase";
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
 import { useTranslations } from "next-intl";
 
 interface PhoneAuthBarProps {
@@ -36,12 +34,10 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     { code: "+65", label: "SG" },
   ];
   
-  // Firebase 专属状态与风控状态机
+  // 专属状态与风控状态机
   const [verificationCode, setVerificationCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [showRecaptcha, setShowRecaptcha] = useState(false); // 控制显式 reCAPTCHA 降级UI
   const [showFullPhone, setShowFullPhone] = useState(false); // 控制军牌号码打码/显影
   const [isEditMode, setIsEditMode] = useState(false); // 控制长按越权进入重新绑定模式
 
@@ -83,19 +79,6 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     }
   }, [countdown]);
 
-  // 【全真防刷风控引擎】
-  // 废弃游离黑洞方案，采用稳定的 DOM 节点与单例模式，避免触发 Firebase Bot 风控
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-        recaptchaVerifierRef.current = null;
-      }
-    };
-  }, []);
-
   const handleSendCode = async () => {
     if (!phoneInput.trim() || !user) return;
     
@@ -105,52 +88,16 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
     const fullPhone = `${countryCode}${phoneInput.trim()}`;
     
     try {
-      // 触发显式降级：暴露验证框
-      setShowRecaptcha(true);
-
-      // 确保使用稳定的不可见 DOM 节点建立 reCAPTCHA 实例，但这次采用 visible 模式
-      if (!recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'normal', // 降维打击：废弃 invisible，强制要求物理交互
-          callback: () => {
-            console.log("reCAPTCHA solved in normal mode");
-            // 验证通过后可以隐藏或保持，这里让它完成使命
-          },
-          'expired-callback': () => {
-             console.warn("reCAPTCHA expired");
-             setPhoneMessage("验证过期，请重试");
-             setShowRecaptcha(false);
-          }
-        });
-      }
+      // 通过 Supabase 后端发送验证码
+      const { error } = await supabase.auth.updateUser({ phone: fullPhone });
+      if (error) throw error;
       
-      // 稳如泰山地发送
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, recaptchaVerifierRef.current);
-      
-      setConfirmationResult(confirmation);
       setIsCodeSent(true);
       setCountdown(60);
       setPhoneMessage("验证码已发送 / CODE SENT");
-      setShowRecaptcha(false); // 发送成功后收起护盾
-    } catch (error) {
+    } catch (error: any) {
       console.error("SMS 发送失败:", error);
-      // 出错时清除实例以防死锁，下次重新生成
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-        recaptchaVerifierRef.current = null;
-      }
-      setShowRecaptcha(false);
-      
-      const errorCode = typeof error === "object" && error !== null && "code" in error
-        ? String((error as { code?: unknown }).code)
-        : "";
-      const errorMessage = error instanceof Error ? error.message : "";
-      const displayMsg = errorCode === 'auth/invalid-app-credential' 
-        ? "安全凭据无效，请检查云端配置" 
-        : errorCode === 'auth/too-many-requests'
-        ? "请求过于频繁，请稍后再试或更换号码"
-        : errorMessage || "发送失败，请检查号码格式 / SEND FAILED";
-        
+      const displayMsg = error.message || "发送失败，请检查号码格式 / SEND FAILED";
       setPhoneMessage(displayMsg);
     } finally {
       setIsUpdatingPhone(false);
@@ -158,32 +105,38 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
   };
 
   const handleVerifyCode = async () => {
-    if (!verificationCode.trim() || !confirmationResult || !user) return;
+    if (!verificationCode.trim() || !user) return;
     
     setIsUpdatingPhone(true);
     setPhoneMessage("正在验证 / VERIFYING...");
     
     try {
-      // 1. Firebase 验证验证码
-      await confirmationResult.confirm(verificationCode);
-      
-      // 2. 验证成功后，将手机号写入 Supabase
       const fullPhone = `${countryCode}${phoneInput.trim()}`;
-      const { error } = await supabase
+      
+      // Supabase 验证验证码
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        phone: fullPhone,
+        token: verificationCode,
+        type: 'phone_change'
+      });
+      if (verifyError) throw verifyError;
+      
+      // 验证成功后，同步将手机号写入 profiles 表
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ phone: fullPhone })
         .eq('id', user.id);
         
-      if (error) {
-        if (error.code === '23505') throw new Error("该终端已被其他实体绑定");
-        throw error;
+      if (profileError) {
+        if (profileError.code === '23505') throw new Error("该终端已被其他实体绑定");
+        throw profileError;
       }
       
       setPhoneMessage("绑定成功 / BIND SUCCESS");
       setIsCodeSent(false); // 验证成功后恢复 UI 状态
       setIsEditMode(false); // 成功后退出越权编辑模式
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("验证失败:", error);
       setPhoneMessage("验证码错误或已过期 / INVALID CODE");
     } finally {
@@ -339,15 +292,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
         </div>
       )}
 
-      {/* 显式 reCAPTCHA 护盾舱 - 常驻DOM，CSS控制显隐 */}
-      <div 
-        className={cn(
-          "w-full flex justify-center overflow-hidden rounded-lg bg-black/40 border border-white/5 transition-all duration-500",
-          showRecaptcha ? "py-2 opacity-100 h-auto mt-4" : "opacity-0 h-0 m-0 border-transparent"
-        )}
-      >
-        <div id="recaptcha-container"></div>
-      </div>
+
 
       {phoneMessage && (
         <div className="pt-2 flex items-center justify-between">

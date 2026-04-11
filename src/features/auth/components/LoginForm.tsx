@@ -45,7 +45,23 @@ export const LoginForm = () => {
   const [mode, setMode] = useState<"otp" | "password">("otp");
   const [cooldown, setCooldown] = useState(0);
   const [awaitingOtp, setAwaitingOtp] = useState(false);
+  const [isGoogleAvailable, setIsGoogleAvailable] = useState(true);
   const t = useTranslations("Auth");
+
+  useEffect(() => {
+    // 动态环境探测 (Dynamic Environment Radar)
+    try {
+      const isChinaTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone === 'Asia/Shanghai';
+      const isChineseLanguage = navigator.language.includes('zh');
+      // 如果是纯国内物理环境（时区+语言双重命中），无痕隐藏 Google 登录
+      if (isChinaTimezone && isChineseLanguage) {
+        setIsGoogleAvailable(false);
+      }
+    } catch (e) {
+      console.warn("Environment radar scan failed", e);
+    }
+  }, []);
+
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
@@ -158,18 +174,20 @@ export const LoginForm = () => {
       {/* Language Switcher 已经被移除，由 layout 或外部控制 */}
 
       <div className="w-full space-y-8">
-        <div className="pt-2">
-          <Button 
-            variant="ghost"
-            glow={false}
-            type="button" 
-            className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-sm bg-transparent"
-            onClick={handleGoogleLogin}
-            disabled={isLoading}
-          >
-            {t("google")}
-          </Button>
-        </div>
+        {isGoogleAvailable && (
+          <div className="pt-2">
+            <Button 
+              variant="ghost"
+              glow={false}
+              type="button" 
+              className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-sm bg-transparent"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+            >
+              {t("google")}
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input 

@@ -636,34 +636,176 @@ function NodeManagementHUD({
                 className="flex flex-col md:flex-row h-full min-h-[400px]"
               >
                 {planet.isCore ? (
-             <div className="w-full p-8 flex flex-col items-center justify-center space-y-8">
-               <ShieldCheck className="w-16 h-16 text-gx-cyan opacity-80" />
-               <h3 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan to-purple-400">
-                 {planet.name}
-               </h3>
-               <p className="text-xs font-mono text-white/50">{t('txt_41d106')}</p>
-               
-               <div className="pt-8 mt-4 w-full max-w-md">
-                 {onObliterate && (
-                   <button
-                     onClick={async () => {
-                                                      const t = useTranslations('nebula');
-                       if (confirm(t('txt_491f90'))) {
-                         setIsSubmitting(true);
-                         await onObliterate();
-                         setIsSubmitting(false);
-                       }
-                     }}
-                     disabled={isSubmitting}
-                     className="w-full flex items-center justify-center space-x-2 bg-red-500/20 border border-red-500 text-white shadow-[0_0_15px_rgba(255,0,0,0.5)] text-xs font-black tracking-[0.1em] uppercase hover:bg-red-500/40 hover:shadow-[0_0_25px_rgba(255,0,0,0.8)] transition-all rounded-xl px-4 py-3 animate-pulse disabled:opacity-50"
-                   >
-                     <Trash2 className="w-4 h-4" />
-                     <span>{t('txt_eb495f')}</span>
-                   </button>
-                 )}
-               </div>
-             </div>
-          ) : (
+                <div className="w-full p-8 flex flex-col h-full">
+                  {/* 核心联邦数据大盘 - 世界顶端 AI 报表 (宏观 + 异常 + 建议) */}
+                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+                    
+                    {/* 左侧板块：帝国的生命体征 (绝对数据流) 7/12 */}
+                    <div className="lg:col-span-7 flex flex-col gap-6">
+                      
+                      {/* Top: 宏观现金流与利润 (联邦能量核心) */}
+                      <div className="bg-black/40 border border-white/5 rounded-3xl p-8 flex flex-col justify-center relative overflow-hidden group hover:border-gx-cyan/30 transition-colors h-[45%]">
+                        {/* 背景微光 */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gx-cyan/5 blur-[80px] rounded-full pointer-events-none" />
+                        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_24px] pointer-events-none" />
+                        
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xs text-white/40 font-mono tracking-widest flex items-center gap-2">
+                              <Activity className="w-4 h-4 text-gx-cyan animate-pulse" />
+                              总营收 (近 30 天)
+                            </h2>
+                            <span className="px-3 py-1 bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan text-[10px] font-bold rounded-full tracking-widest shadow-[0_0_15px_rgba(0,242,255,0.2)]">
+                              系统状态：健康
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-end gap-6 mb-6">
+                            <div className="text-5xl md:text-6xl font-black tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                              € 1,245,800
+                            </div>
+                            <div className="flex flex-col mb-1">
+                              <span className="text-gx-cyan font-bold text-lg flex items-center gap-1">
+                                ↑ 12.4%
+                              </span>
+                              <span className="text-[10px] text-white/30 font-mono tracking-widest">环比上月</span>
+                            </div>
+                          </div>
+
+                          {/* 利润瀑布 (进度条对比) */}
+                          <div className="w-full space-y-2">
+                            <div className="flex justify-between text-[10px] font-mono tracking-widest">
+                              <span className="text-gx-cyan">净利润：68%</span>
+                              <span className="text-red-500/80">运营成本：32%</span>
+                            </div>
+                            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
+                              <div className="h-full bg-gx-cyan/80 shadow-[0_0_10px_rgba(0,242,255,0.5)]" style={{ width: '68%' }} />
+                              <div className="h-full bg-red-500/50" style={{ width: '32%' }} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom: 节点脉络分析 (各分店贡献度战力对比) */}
+                      <div className="bg-black/40 border border-white/5 rounded-3xl p-6 relative overflow-hidden group hover:border-white/10 transition-colors h-[55%] flex flex-col">
+                        <h2 className="text-xs text-white/40 font-mono tracking-widest mb-6">
+                          门店战力矩阵
+                        </h2>
+                        
+                        <div className="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar">
+                          {/* Node A */}
+                          <div className="flex items-center gap-4">
+                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">FX ESTETICA</div>
+                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
+                              <div className="absolute top-0 left-0 h-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" style={{ width: '65%' }} />
+                            </div>
+                            <div className="w-12 text-right text-[10px] font-mono text-gx-cyan">65%</div>
+                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-gx-cyan/30 bg-gx-cyan/10 text-gx-cyan tracking-wider">过载</div>
+                          </div>
+                          
+                          {/* Node B */}
+                          <div className="flex items-center gap-4">
+                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">MILANO HUB</div>
+                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
+                              <div className="absolute top-0 left-0 h-full bg-white/60" style={{ width: '30%' }} />
+                            </div>
+                            <div className="w-12 text-right text-[10px] font-mono text-white/60">30%</div>
+                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-white/20 bg-white/5 text-white/60 tracking-wider">平稳</div>
+                          </div>
+
+                          {/* Node C */}
+                          <div className="flex items-center gap-4">
+                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">ROMA OUTPOST</div>
+                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
+                              <div className="absolute top-0 left-0 h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" style={{ width: '5%' }} />
+                            </div>
+                            <div className="w-12 text-right text-[10px] font-mono text-red-500">5%</div>
+                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-500 tracking-wider">亏损</div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* 右侧板块：AI 幕僚长的深度洞察 (预警与行动) 5/12 */}
+                    <div className="lg:col-span-5 flex flex-col gap-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-4 h-4 text-gx-cyan" />
+                        <span className="text-xs font-bold tracking-widest text-white/80">Nexus AI 深度洞察</span>
+                      </div>
+
+                      {/* 致命警报 (Critical) */}
+                      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-5 relative overflow-hidden group hover:bg-red-500/10 transition-colors">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                        <div className="flex items-start gap-3">
+                          <Zap className="w-4 h-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
+                          <div>
+                            <div className="text-[10px] font-black text-red-500 tracking-widest mb-1">致命漏洞预警</div>
+                            <p className="text-xs text-white/80 leading-relaxed font-medium">
+                              罗马分店本月耗材（染发膏）消耗率异常，超出标准阈值 22%，存在严重物料流失漏洞。
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 异动监控 (Warning) */}
+                      <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-5 relative overflow-hidden group hover:bg-yellow-500/10 transition-colors">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]" />
+                        <div className="flex items-start gap-3">
+                          <UserMinus className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="text-[10px] font-black text-yellow-500 tracking-widest mb-1">客户流失监控</div>
+                            <p className="text-xs text-white/80 leading-relaxed font-medium">
+                              过去 7 天，15 名高净值 SVIP 取消了预约且未重新排期，存在集体流失风险。
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 战术推演 (Advice) */}
+                      <div className="bg-gx-cyan/5 border border-gx-cyan/20 rounded-2xl p-5 relative overflow-hidden group hover:bg-gx-cyan/10 transition-colors flex-1">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" />
+                        <div className="flex items-start gap-3">
+                          <Rocket className="w-4 h-4 text-gx-cyan shrink-0 mt-0.5" />
+                          <div className="flex flex-col h-full justify-between">
+                            <div>
+                              <div className="text-[10px] font-black text-gx-cyan tracking-widest mb-1">商业战术推演</div>
+                              <p className="text-xs text-white/80 leading-relaxed font-medium mb-4">
+                                周二下午 14:00-16:00 门店闲置率达 40%，建议 AI 自动向周边 3km 沉睡客户推送 7 折闪购限时胶囊。
+                              </p>
+                            </div>
+                            <button className="w-full py-2 bg-gx-cyan/10 hover:bg-gx-cyan/20 border border-gx-cyan/30 text-gx-cyan text-[10px] font-bold tracking-widest rounded-lg transition-all">
+                              一键执行战术
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 底部危险操作折叠区 */}
+                      <div className="mt-2 w-full flex justify-end">
+                        {onObliterate && (
+                          <button
+                            onClick={async () => {
+                              const t = useTranslations('nebula');
+                              if (confirm(t('txt_491f90'))) {
+                                setIsSubmitting(true);
+                                await onObliterate();
+                                setIsSubmitting(false);
+                              }
+                            }}
+                            disabled={isSubmitting}
+                            className="text-[9px] text-white/20 hover:text-red-500 tracking-widest font-mono transition-colors flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            解散企业联邦
+                          </button>
+                        )}
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              ) : (
             <>
               {/* 左舱：核心操控 (Operations Matrix) - 60% */}
               <div className="w-full md:w-[60%] p-8 flex flex-col justify-between">

@@ -421,7 +421,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
 
     if (placesData && placesData.places) {
       const placesWithImages: AggregatedPlace[] = placesData.places
-        .filter((place: PlacesApiPlace) => place.photoName && !isMockMode) // 严格过滤：必须有真实的 Google photoName
+        .filter((place: PlacesApiPlace) => !isMockMode || place.photoName) // 在 Mock 模式下保留原逻辑，真实模式下不再过滤无图商家
         .map((place: PlacesApiPlace) => {
         
         // 距离已经在后端计算好，这里直接使用，或者保留客户端计算作为 fallback
@@ -429,13 +429,15 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
           ? getDistanceFromLatLonInKm(userLocation.lat, userLocation.lng, place.lat, place.lng) 
           : "999km";
         
-        const coverImage = `/api/photo?name=${encodeURIComponent(place.photoName!)}`;
+        const coverImage = place.photoName 
+          ? `/api/photo?name=${encodeURIComponent(place.photoName)}`
+          : "HOLOGRAPHIC_PLACEHOLDER";
         
         return {
           ...place,
           distance,
           image: coverImage,
-          isRealGooglePhoto: true,
+          isRealGooglePhoto: !!place.photoName,
           ugcImages: [] // 强制清空 UGC 数组，不再使用本地虚拟图片
         };
       });
@@ -881,25 +883,41 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                           
                           {/* Slide 1: Cover (Google or Mock) */}
                           <div className="relative w-full h-full shrink-0 snap-start bg-transparent">
-                            {/* 流光渐变底座 (Image Placeholder) - 防止黑框，提供加载时的赛博质感 */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-gx-cyan/10 to-transparent animate-pulse" />
-                            <Image
-                              src={place.image}
-                              alt={place.name}
-                              fill
-                              unoptimized={place.isRealGooglePhoto} // 针对动态 query 参数图片关闭内置优化以避免报错
-                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                              className={cn(
-                                "object-cover transition-all duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100", // 恢复高不透明度，追求全彩高清的电影感
-                                place.isRealGooglePhoto && "saturate-[0.95]" // 极轻微的降饱和，保持真实感
-                              )}
-                              priority={idx < 4} // 前几个卡片优先加载
-                              loading={idx < 4 ? "eager" : "lazy"} // 核心：强制首页可见元素加载，防止滑动时被立刻 Abort
-                              onLoadingComplete={(result) => {
-                                // 图片加载完成时，如果有需要可以做额外动画，这里配合 className 的 transition 已经足够平滑
-                                result.classList.remove('opacity-0');
-                              }}
-                            />
+                            {place.image === "HOLOGRAPHIC_PLACEHOLDER" ? (
+                              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gx-cyan/10 via-purple-900/20 to-black overflow-hidden group-hover:scale-105 transition-all duration-700">
+                                {/* AI 流光占位特效 */}
+                                <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                                <div className="flex flex-col items-center gap-2 z-10 opacity-60 group-hover:opacity-100 transition-opacity">
+                                  <div className="w-10 h-10 rounded-full border border-gx-cyan/30 flex items-center justify-center bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+                                    <Sparkles className="w-5 h-5 text-gx-cyan animate-pulse" />
+                                  </div>
+                                  <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">UNCLAIMED NODE</span>
+                                  <span className="text-[8px] font-mono tracking-widest text-white/40">AWAITING OWNER</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {/* 流光渐变底座 (Image Placeholder) - 防止黑框，提供加载时的赛博质感 */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-gx-cyan/10 to-transparent animate-pulse" />
+                                <Image
+                                  src={place.image}
+                                  alt={place.name}
+                                  fill
+                                  unoptimized={place.isRealGooglePhoto} // 针对动态 query 参数图片关闭内置优化以避免报错
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                  className={cn(
+                                    "object-cover transition-all duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100", // 恢复高不透明度，追求全彩高清的电影感
+                                    place.isRealGooglePhoto && "saturate-[0.95]" // 极轻微的降饱和，保持真实感
+                                  )}
+                                  priority={idx < 4} // 前几个卡片优先加载
+                                  loading={idx < 4 ? "eager" : "lazy"} // 核心：强制首页可见元素加载，防止滑动时被立刻 Abort
+                                  onLoadingComplete={(result) => {
+                                    // 图片加载完成时，如果有需要可以做额外动画，这里配合 className 的 transition 已经足够平滑
+                                    result.classList.remove('opacity-0');
+                                  }}
+                                />
+                              </>
+                            )}
                             {/* 彻底移除黑色遮罩和扫描线，遵从极致清透法则 */}
                             {/* 引入更深邃的自下而上的纯黑渐变暗场，为行动栏腾出空间 */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
