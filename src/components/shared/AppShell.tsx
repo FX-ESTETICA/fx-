@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { PWAInstallPrompt } from "./PWAInstallPrompt";
+import { AppPlatformGuard } from "./AppPlatformGuard";
 import { CyberOnboardingModal } from "./CyberOnboardingModal";
 import { useChatStore } from "@/store/useChatStore";
 import { BottomNavBar } from "./BottomNavBar";
@@ -31,7 +31,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="relative min-h-screen bg-transparent flex flex-col">
-      <PWAInstallPrompt />
+      <AppPlatformGuard />
       
       {/* 1. 底层业务页面：作为背景正常渲染 */}
       <div className="flex-1">
