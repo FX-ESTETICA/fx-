@@ -4,14 +4,11 @@ import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { 
   Calendar, 
-  Clock,
-  CheckCircle2,
   Sparkles,
   ArrowRight,
   Play,
   Eye,
   MonitorSmartphone,
-  Smartphone,
   LogOut
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
@@ -78,7 +75,6 @@ type ShopBookingPayload = {
 type StatsCardProps = {
   label: string;
   value: number | string;
-  icon: ReactNode;
   color: "red" | "cyan" | "gold";
 };
 
@@ -271,31 +267,26 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
         </Link>
       )}
 
-      {/* 顶部统计卡片与联邦集结舱 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* 顶部统计卡片与联邦集结舱 (连体数据舱) */}
+      <GlassCard className="p-0 overflow-hidden relative">
+        <div className="grid grid-cols-3 divide-x divide-white/5">
           <StatsCard 
             label={t('txt_f49d92')} 
             value={bookings.filter(b => b.status === "pending").length} 
-            icon={<Clock className="w-5 h-5" />}
             color="red"
           />
           <StatsCard 
             label={t('txt_733f4a')} 
             value={bookings.filter(b => b.status === "confirmed").length} 
-            icon={<CheckCircle2 className="w-5 h-5" />}
             color="cyan"
           />
           <StatsCard 
             label={t('txt_5af2c6')} 
             value={0} 
-            icon={<Calendar className="w-5 h-5" />}
             color="gold"
           />
         </div>
-
-
-      </div>
+      </GlassCard>
 
       {/* 核心控制台 (全息驾驶舱风格) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -307,19 +298,15 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
             <div className="absolute top-0 right-0 w-32 h-32 bg-gx-cyan/5 blur-[50px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500 pointer-events-none" />
             
             <div className="relative z-10 flex flex-col h-full">
-              <div className="flex items-center gap-3 mb-6">
-                <Smartphone className="w-4 h-4 text-gx-cyan/60 group-hover:text-gx-cyan transition-colors" />
+              <div className="flex items-center mb-6">
                 <h3 className="text-xs font-bold tracking-widest uppercase text-white/80 group-hover:text-white transition-colors">
-                  数字门店装潢
+                  数字门店装修
                 </h3>
               </div>
               
               <div className="flex-1 flex flex-col justify-center">
-                <div className="text-xl font-bold tracking-tighter text-white mb-1 group-hover:text-gx-cyan transition-colors">
-                  DIGITAL STUDIO
-                </div>
                 <p className="text-xs text-white/40 leading-relaxed max-w-[80%]">
-                  更新全息封面、重新设定物理坐标与核心引流胶囊矩阵。
+                  更新数字门店详情页，重新设计装修。
                 </p>
               </div>
 
@@ -338,9 +325,8 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
           <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
           
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-8">
-              <Clock className="w-4 h-4 text-white/40" />
-              <h3 className="text-xs font-bold tracking-widest uppercase">{t('txt_56374a')}</h3>
+            <div className="flex items-center mb-8">
+              <h3 className="text-xs font-bold tracking-widest uppercase">营业时间</h3>
             </div>
             
             <div className="space-y-6">
@@ -507,24 +493,23 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
 
 // --- 子组件 ---
 
-const StatsCard = ({ label, value, icon, color }: StatsCardProps) => (
-  <GlassCard 
-    glowColor={color === "red" ? "danger" : color === "cyan" ? "cyan" : "purple"}
-    className="p-6 group hover:bg-white/5 transition-all"
+const StatsCard = ({ label, value, color }: StatsCardProps) => (
+  <div 
+    className={cn(
+      "p-4 group hover:bg-white/5 transition-all relative overflow-hidden",
+      color === "red" ? "hover:shadow-[inset_0_0_20px_rgba(255,45,85,0.1)]" :
+      color === "cyan" ? "hover:shadow-[inset_0_0_20px_rgba(0,240,255,0.1)]" :
+      "hover:shadow-[inset_0_0_20px_rgba(255,215,0,0.1)]"
+    )}
   >
-    <div className="flex items-center justify-between">
-      <div className="space-y-1">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono">{label}</p>
-        <p className="text-3xl font-bold tracking-tighter">{value}</p>
-      </div>
-      <div className={cn(
-        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500",
-        color === "red" ? "bg-gx-admin-red/10 text-gx-admin-red group-hover:bg-gx-admin-red/20" :
-        color === "cyan" ? "bg-gx-cyan/10 text-gx-cyan group-hover:bg-gx-cyan/20" :
-        "bg-gx-gold/10 text-gx-gold group-hover:bg-gx-gold/20"
-      )}>
-        {icon}
-      </div>
+    <div className="flex flex-col space-y-1">
+      <p className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest font-mono truncate">{label}</p>
+      <p className={cn(
+        "text-2xl md:text-3xl font-bold tracking-tighter transition-colors duration-500",
+        color === "red" ? "group-hover:text-gx-admin-red" :
+        color === "cyan" ? "group-hover:text-gx-cyan" :
+        "group-hover:text-gx-gold"
+      )}>{value}</p>
     </div>
-  </GlassCard>
+  </div>
 );
