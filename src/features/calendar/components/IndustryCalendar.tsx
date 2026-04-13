@@ -227,6 +227,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 初始化：从云端 读取沙盒数据 (带 shopId 隔离)
   useEffect(() => {
+    // 【完美 0 冲突架构】：防脏读取消令牌 (Anti-Stale-Closure Token)
+    let isSubscribed = true;
+
     // 异步加载云端订单及云端配置 (配置接管)
     const loadCloudData = async () => {
       try {
@@ -235,6 +238,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         // 直接从 Supabase 获取订单
         const { data: bookings } = await BookingService.getBookings(shopId);
         
+        // 致命拦截：如果当前组件的 shopId 已经改变，或者组件已卸载，直接抛弃数据，禁止污染当前状态
+        if (!isSubscribed) return;
+
         // 1. 加载云端订单
         setGlobalBookings((bookings || []).map((booking) => ({
           ...booking,
@@ -278,6 +284,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         setIsCloudDataLoaded(true);
       } catch (e) {
         console.error("Failed to load cloud data:", e);
+        if (!isSubscribed) return;
         // 即便报错也应该解锁，避免系统彻底死锁
         setIsCloudDataLoaded(true);
       }
@@ -329,6 +336,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     });
 
     return () => {
+      // 核心：当 shopId 发生变化时，绞杀上一回合的令牌。前面的慢请求即使回来了也会被物理丢弃
+      isSubscribed = false;
+      
       window.removeEventListener('gx-sandbox-bookings-updated', loadCloudData);
       if (realtimeChannel) {
         BookingService.unsubscribe(realtimeChannel);
