@@ -253,14 +253,18 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           } else {
             setStoreStatus('open');
           }
-          if (cloudConfig.staffs && cloudConfig.staffs.length > 0) {
+          
+          // 【方案A 强行注入】：无论云端如何，只要没有有效的（非离职）员工，就强行塞入 DEFAULT_STAFFS
+          const activeStaffs = (cloudConfig.staffs as unknown as { id: string, status?: string }[] || []).filter(s => s.status !== 'resigned');
+          if (cloudConfig.staffs && activeStaffs.length > 0) {
             setStaffs(cloudConfig.staffs as unknown as StaffMember[]);
-            setSelectedStaffIds((cloudConfig.staffs as unknown as { id: string, status?: string }[]).filter((s) => s.status !== 'resigned').map((s) => s.id));
+            setSelectedStaffIds(activeStaffs.map((s) => s.id));
           } else {
-            // 如果云端确实没有员工配置，使用兜底以防空旷
+            // 云端确实没有员工配置，或所有员工都离职了，使用兜底以防空旷
             setStaffs(DEFAULT_STAFFS);
             setSelectedStaffIds(DEFAULT_STAFFS.map(s => s.id));
           }
+          
           if (cloudConfig.hours) setOperatingHours(cloudConfig.hours as OperatingHour[]);
           if (cloudConfig.categories) setCategories(cloudConfig.categories as CategoryItem[]);
           if (cloudConfig.services) setServices(cloudConfig.services as ServiceItem[]);
@@ -302,10 +306,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         if (newConfig.hours && Array.isArray(newConfig.hours) && newConfig.hours.length > 0) {
           setOperatingHours(newConfig.hours);
         }
-        if (newConfig.staffs && Array.isArray(newConfig.staffs) && newConfig.staffs.length > 0) {
-          setStaffs(newConfig.staffs as unknown as StaffMember[]);
-          setSelectedStaffIds((newConfig.staffs as unknown as { id: string, status?: string }[]).filter((s) => s.status !== 'resigned').map((s) => s.id));
+        
+        // 【方案A 强行注入】：实时同步配置时，如果员工为空，也必须强塞假数据兜底
+        const newStaffs = newConfig.staffs as unknown as { id: string, status?: string }[] || [];
+        const activeNewStaffs = newStaffs.filter(s => s.status !== 'resigned');
+        
+        if (newStaffs.length > 0 && activeNewStaffs.length > 0) {
+          setStaffs(newStaffs as unknown as StaffMember[]);
+          setSelectedStaffIds(activeNewStaffs.map((s) => s.id));
+        } else {
+          setStaffs(DEFAULT_STAFFS);
+          setSelectedStaffIds(DEFAULT_STAFFS.map((s) => s.id));
         }
+        
         if (newConfig.categories && Array.isArray(newConfig.categories)) {
           setCategories(newConfig.categories as CategoryItem[]);
         }
