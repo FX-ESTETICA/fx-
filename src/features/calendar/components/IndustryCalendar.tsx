@@ -1081,20 +1081,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <div className="w-[60px] md:w-20 shrink-0 flex items-center justify-center z-10 bg-transparent">
                   </div>
                   
-                  {/* 右侧滚动：员工卡片横向滚动区 (采用 CSS Grid 强制对齐) */}
+                  {/* 右侧滚动：员工卡片横向滚动区 (采用 flex 完美对齐) */}
                     <motion.div 
                       ref={headerScrollRef}
                       className="flex-1 overflow-hidden no-scrollbar touch-none"
                       onPanEnd={handleHeaderPanEnd}
                     >
                     <div 
-                      className="grid h-full w-full"
-                      style={{
-                        gridTemplateColumns: `repeat(${resources.length}, minmax(0, 1fr))` // 极度压缩，平分屏幕
-                      }}
+                      className="flex h-full w-full"
                     >
                       {resources.map(res => (
-                        <div key={res.id} className={cn("w-full h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
+                        <div key={res.id} className={cn("flex-1 min-w-0 h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
                           <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1">
                             <span className={cn(
                               "text-[11px] md:text-[15px] font-black tracking-widest transition-all truncate uppercase w-full text-center mix-blend-screen",

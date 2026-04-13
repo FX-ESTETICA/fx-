@@ -492,12 +492,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleSignOut = async () => {
     // 彻底清除所有历史遗留的沙盒缓存
     localStorage.removeItem("gx_sandbox_session");
+    localStorage.removeItem("gx_active_shop_id"); // 强制销毁店铺缓存
     
     if (isMockMode) {
       setUser(null);
       setIsGuest(false);
       localStorage.removeItem("gx_guest_mode");
       localStorage.removeItem("gx_view_role");
+      window.location.href = '/login'; // 无状态重载
       return;
     }
     const deviceId = getDeviceId();
@@ -512,6 +514,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsGuest(false);
     localStorage.removeItem("gx_guest_mode");
     localStorage.removeItem("gx_view_role");
+    window.location.href = '/login'; // 无状态重载
   };
 
   const value = {

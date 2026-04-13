@@ -744,7 +744,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                 });
                 
                 return (
-                  <div key={resource.id} className="flex-1 relative min-w-[120px] pointer-events-none" style={{ zIndex: colBookings.some(b => implodedOrderId === (b.masterOrderId || b.id)) ? 50 : 1 }}>
+                  <div key={resource.id} className="flex-1 relative min-w-0 pointer-events-none" style={{ zIndex: colBookings.some(b => implodedOrderId === (b.masterOrderId || b.id)) ? 50 : 1 }}>
                     {colBookings.map(booking => {
                       if (!booking.startTime || !booking.duration || !booking.date) return null;
                       
