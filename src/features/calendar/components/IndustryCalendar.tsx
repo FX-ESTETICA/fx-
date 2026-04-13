@@ -947,6 +947,43 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             </div>
           </div>
 
+          {/* 极速开单 (Walk-in Quick Booking) */}
+          <div className="px-8 mt-4 pointer-events-auto relative z-50">
+            <button
+              onClick={() => {
+                const now = new Date();
+                
+                // 向下取整到最近的 5 分钟 (如 14:34 -> 14:30, 14:38 -> 14:35)
+                const minutes = now.getMinutes();
+                const snappedMinutes = Math.floor(minutes / 5) * 5;
+                now.setMinutes(snappedMinutes);
+                now.setSeconds(0);
+                now.setMilliseconds(0);
+
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const timeString = `${hh}:${mm}`;
+
+                // 设置日期为今天
+                setCurrentDate(now);
+                setPhantomDate(now);
+
+                // 触发抽屉并传递参数
+                setSelectedDate(now);
+                setSelectedTime(timeString);
+                setSelectedResource(null); // 不分配技师，默认为散客池
+                setIsDrawerOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-gx-cyan/30 bg-gx-cyan/10 hover:bg-gx-cyan/20 transition-all group overflow-hidden relative shadow-[0_0_15px_rgba(0,240,255,0.15)] hover:shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:scale-[1.02]"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gx-cyan/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+              <div className="w-2 h-2 rounded-full bg-gx-cyan animate-pulse shadow-[0_0_8px_#00F0FF]" />
+              <span className="text-gx-cyan font-bold tracking-widest text-xs uppercase drop-shadow-[0_0_5px_rgba(0,240,255,0.8)]">
+                ⚡ 极速入店
+              </span>
+            </button>
+          </div>
+
           {/* 动态当前时间显示区 (居中置底) */}
           <div className="mt-auto p-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity relative w-full">
             {isMounted ? (
