@@ -10,6 +10,8 @@ export interface ShopDetailViewProps {
   location: { name: string; address?: string; lat: number; lng: number } | null;
   capsules: any[];
   onCapsuleClick?: (capsuleName: string) => void;
+  storeStatus?: 'open' | 'closed_today' | 'holiday';
+  hours?: any[];
   variant?: 'compact' | 'full';
 }
 
@@ -20,6 +22,8 @@ export function ShopDetailView({
   location,
   capsules,
   onCapsuleClick,
+  storeStatus = 'open',
+  hours = [],
   variant = 'full'
 }: ShopDetailViewProps) {
     const t = useTranslations('ShopDetailView');
@@ -108,13 +112,23 @@ export function ShopDetailView({
 
           <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4" />
 
-          <div className="flex items-center justify-between text-xs text-white/60 mb-3">
+          <div className="flex items-start justify-between text-xs text-white/60 mb-3">
             <div className="flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-gx-cyan shrink-0" />
-              <span className="font-mono whitespace-nowrap">{t('txt_cc3307')}</span>
+              <span className="whitespace-nowrap">{t('txt_cc3307')}</span>
+              {hours && hours.length > 0 && (
+                <span className="font-mono whitespace-nowrap text-white/80 ml-2">
+                  {String(hours[0].start).padStart(2, '0')}:00 - {String(hours[0].end).padStart(2, '0')}:00
+                </span>
+              )}
             </div>
-            <div className="px-2 py-0.5 rounded text-[9px] font-bold font-mono tracking-wider bg-gx-cyan/20 text-gx-cyan shrink-0 ml-2">
-              OPEN
+            <div className={cn(
+              "px-2 py-0.5 rounded text-[9px] font-bold font-mono tracking-wider shrink-0 ml-2",
+              storeStatus === 'open' ? "bg-gx-cyan/20 text-gx-cyan" :
+              storeStatus === 'closed_today' ? "bg-red-500/20 text-red-500" :
+              "bg-yellow-500/20 text-yellow-500"
+            )}>
+              {storeStatus === 'open' ? 'OPEN' : storeStatus === 'closed_today' ? 'CLOSED' : 'HOLIDAY'}
             </div>
           </div>
 

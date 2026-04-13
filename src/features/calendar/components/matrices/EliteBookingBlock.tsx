@@ -41,13 +41,13 @@ export const EliteBookingBlock = ({
   const getBackgroundColor = () => {
     if (isPending) return '';
     if (isCheckedOut || isPast) return 'transparent';
-    return isHexColor ? `${color}1A` : ''; // 10% opacity for background
+    return isHexColor ? `${color}` : ''; // 100% opacity for background (完全不透明实心色块)
   };
 
   const getBorderColor = () => {
     if (isPending) return 'transparent';
     if (isCheckedOut) return 'rgba(255, 255, 255, 0.05)'; // 幽灵灰极暗边框
-    return isHexColor ? (isPast ? `${color}4D` : `${color}4D`) : ''; // 过时或不过时，边框颜色保持一致的亮度 (30%)
+    return isHexColor ? (isPast ? `${color}80` : `${color}80`) : ''; // 边框亮度提升至 50% (更清晰)
   };
 
   const getBoxShadow = () => {
@@ -118,8 +118,7 @@ export const EliteBookingBlock = ({
         // --- 极限空间：单行居中排版 ---
         <div className="flex items-center justify-center gap-2 relative z-10 w-full truncate px-2">
           <span 
-            className={cn("text-xs font-black uppercase tracking-tighter shrink-0 transition-opacity", !isHexColor && color, isCheckedOut ? "opacity-40" : "opacity-100")}
-            style={isHexColor ? { color: color } : {}}
+            className={cn("text-xs font-black uppercase tracking-tighter shrink-0 transition-opacity text-white", isCheckedOut ? "opacity-40" : "opacity-100")}
           >
             {title}
           </span>
@@ -147,8 +146,7 @@ export const EliteBookingBlock = ({
         <>
           <div className="flex flex-col gap-1 relative z-10 w-full">
             <span 
-              className={cn("text-xs md:text-sm font-black uppercase tracking-tighter leading-none line-clamp-2 transition-opacity", !isHexColor && color, isCheckedOut ? "opacity-40" : "opacity-100")}
-              style={isHexColor ? { color: color } : {}}
+              className={cn("text-xs md:text-sm font-black uppercase tracking-tighter leading-none line-clamp-2 transition-opacity text-white", isCheckedOut ? "opacity-40" : "opacity-100")}
             >
               {title}
             </span>

@@ -31,6 +31,7 @@ import { DualPaneBookingModal, type BookingEdit } from "@/features/booking/compo
 import { BookingService, type BookingRealtimePayload, type ShopConfig } from "@/features/booking/api/booking";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 
 import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
@@ -86,7 +87,7 @@ type ServiceItem = {
 
 type CalendarBooking = MatrixBooking;
 
-type CloudConfig = Pick<ShopConfig, "staffs" | "hours" | "categories" | "services">;
+type CloudConfig = Pick<ShopConfig, "staffs" | "hours" | "categories" | "services" | "storeStatus">;
 
 interface AuroraSchedulerProps {
   initialIndustry?: IndustryType;
@@ -95,7 +96,6 @@ interface AuroraSchedulerProps {
 
 // 【量子时钟微组件】：彻底物理隔离时钟的每秒滴答，防止顶层渲染风暴
 const CyberClock = () => {
-    const t = useTranslations('IndustryCalendar');
   const [realTime, setRealTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setRealTime(new Date()), 1000);
@@ -153,19 +153,55 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const [staffs, setStaffs] = useState<StaffMember[]>(DEFAULT_STAFFS);
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
-  // 共享的服务项目状态
+  // 默认服务配置
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [globalBookings, setGlobalBookings] = useState<CalendarBooking[]>([]);
+  
+  // 核心：全局营业状态
+  const [storeStatus, setStoreStatus] = useState<'open' | 'closed_today' | 'holiday'>('open');
 
   const { user } = useAuth();
   const currentUserRole = user && 'role' in user ? user.role : 'user';
+  
+  // 【世界顶端架构】：在顶层日历组件中，统一查询当前登录用户的真实业务档案 (Profile Avatar)
+  // 这确保了无论是左侧的轨道面板，还是右上角的雷达面板，都使用同一个来源的高清真实头像
+  const [trueBusinessAvatar, setTrueBusinessAvatar] = useState<string | undefined>(
+    (user && typeof user === 'object' && 'avatar' in user) ? user.avatar as string : undefined
+  );
+  const [trueBusinessName, setTrueBusinessName] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!user || typeof user !== 'object' || !('id' in user)) return;
+    
+    const fetchTrueProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('name, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+          
+        if (!error && data) {
+          if (data.avatar_url) setTrueBusinessAvatar(data.avatar_url);
+          if (data.name) setTrueBusinessName(data.name);
+        }
+      } catch (e) {
+        console.error("[IndustryCalendar] Failed to fetch true business profile", e);
+      }
+    };
+    
+    fetchTrueProfile();
+  }, [user]);
+
   const userMetadata = user && typeof user === "object"
     ? (user as { user_metadata?: Record<string, unknown> }).user_metadata
     : undefined;
-  const userName = user && typeof user === "object" && "name" in user && typeof user.name === "string"
+  
+  // 名字的优先级：真实数据库 Profile > 账号 Metadata > Auth Name
+  const userName = trueBusinessName || (user && typeof user === "object" && "name" in user && typeof user.name === "string"
     ? user.name
-    : (typeof userMetadata?.full_name === "string" ? userMetadata.full_name : "");
+    : (typeof userMetadata?.full_name === "string" ? userMetadata.full_name : ""));
   const userInitial = userName ? userName[0]?.toUpperCase() : "";
   const userGxId = user && typeof user === "object" && "gxId" in user
     ? (user as { gxId?: string }).gxId
@@ -212,6 +248,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         const cloudConfig = configs as CloudConfig | null;
         
         if (cloudConfig) {
+          if (cloudConfig.storeStatus) {
+            setStoreStatus(cloudConfig.storeStatus as any);
+          } else {
+            setStoreStatus('open');
+          }
           if (cloudConfig.staffs && cloudConfig.staffs.length > 0) {
             setStaffs(cloudConfig.staffs as unknown as StaffMember[]);
             setSelectedStaffIds((cloudConfig.staffs as unknown as { id: string, status?: string }[]).filter((s) => s.status !== 'resigned').map((s) => s.id));
@@ -250,10 +291,37 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       loadCloudData();
     });
 
+    // 🌟 挂载门店配置实时雷达 (Shop Config Radar)
+    const configChannel = BookingService.subscribeToShopConfig(shopId, (payload) => {
+      console.log(`[IndustryCalendar] Realtime Config change received for shop ${shopId}:`, payload);
+      const newConfig = payload.new?.config as any;
+      if (newConfig) {
+        if (newConfig.storeStatus) {
+          setStoreStatus(newConfig.storeStatus);
+        }
+        if (newConfig.hours && Array.isArray(newConfig.hours) && newConfig.hours.length > 0) {
+          setOperatingHours(newConfig.hours);
+        }
+        if (newConfig.staffs && Array.isArray(newConfig.staffs) && newConfig.staffs.length > 0) {
+          setStaffs(newConfig.staffs as unknown as StaffMember[]);
+          setSelectedStaffIds((newConfig.staffs as unknown as { id: string, status?: string }[]).filter((s) => s.status !== 'resigned').map((s) => s.id));
+        }
+        if (newConfig.categories && Array.isArray(newConfig.categories)) {
+          setCategories(newConfig.categories as CategoryItem[]);
+        }
+        if (newConfig.services && Array.isArray(newConfig.services)) {
+          setServices(newConfig.services as ServiceItem[]);
+        }
+      }
+    });
+
     return () => {
       window.removeEventListener('gx-sandbox-bookings-updated', loadCloudData);
       if (realtimeChannel) {
         BookingService.unsubscribe(realtimeChannel);
+      }
+      if (configChannel) {
+        BookingService.unsubscribe(configChannel);
       }
     };
   }, [shopId]);
@@ -273,16 +341,31 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         return;
       }
       
-      // 并发写入数据库，确保原子性
+      // 处理员工绑定：如果填写了 Frontend ID，触发云端绑定授权
+      const bindPromises = newStaffs
+        .filter(staff => staff.frontendId && staff.frontendId.trim() !== '')
+        .map(staff => 
+          BookingService.bindUserToShop(staff.frontendId!.trim(), shopId).catch(e => {
+            console.error("[IndustryCalendar] Failed to link frontend ID to shop:", e);
+          })
+        );
+
+      // 【终极防并发写灾难】：一次性合并写入数据库
+      // 绝不能使用 Promise.all 去并发 updateConfigs 同一个 shops.config JSON 字段，否则会导致脏读相互覆盖！
       await Promise.all([
-        BookingService.updateConfigs(shopId, 'hours', newHours),
-        BookingService.updateConfigs(shopId, 'staffs', newStaffs),
-        BookingService.updateConfigs(shopId, 'categories', newCategories),
-        BookingService.updateConfigs(shopId, 'services', newServices)
+        BookingService.updateFullConfig(shopId, {
+          hours: newHours,
+          staffs: newStaffs,
+          categories: newCategories,
+          services: newServices,
+          storeStatus: 'open'
+        }),
+        ...bindPromises
       ]);
       
       // 本地状态更新
       setOperatingHours(newHours);
+      setStoreStatus('open');
       setStaffs(newStaffs as unknown as StaffMember[]);
       setCategories(newCategories as unknown as CategoryItem[]);
       setServices(newServices as unknown as ServiceItem[]);
@@ -290,11 +373,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       console.log("[IndustryCalendar] Explicit save successful.");
     } catch (e) {
       console.error("[IndustryCalendar] Explicit save failed:", e);
+      throw e; // 抛给 Auto-Save 引擎捕获
     }
   };
 
   // 控制左侧边栏显示状态
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 移动端默认关闭，大屏可通过断点或 useEffect 控制，此处为了演示先默认关闭
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // 【智能折叠协议】: 监听屏幕宽度，实现 PC 端常驻、移动端自动折叠
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false); // 手机/小尺寸平板竖屏：让出宝贵空间
+      } else {
+        setIsSidebarOpen(true);  // PC/大尺寸平板横屏：指挥舱全开
+      }
+    };
+
+    // 初始挂载时执行一次扫描
+    handleResize();
+
+    // 挂载监听器
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 【世界级靶向雷达】：监听 targetBookingId 信标
   // 只要信标存在，我们就不断扫描 DOM 树，一旦找到目标元素，瞬间击发物理位移并销毁信标
@@ -603,13 +705,22 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     // 查询云端数据，如果今天存在 resourceId 为 'NO' 的订单，则在末尾挂载 NO 列
     try {
       if (globalBookings && globalBookings.length > 0) {
-        const currentDateStr = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        // 【核心修复】：使用 YYYY-MM-DD 格式进行安全比对，与 NEXUS 列保持一致
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const currentDateStr = `${year}-${month}-${day}`;
+        
         const shopId = searchParams.get('shopId');
-        const hasNoShowToday = globalBookings.some((b) => 
-          b.date === currentDateStr && 
+        
+        const hasNoShowToday = globalBookings.some((b) => {
+          // 容错：如果 date 包含 T，只取前半部分
+          const bDate = b.date?.split('T')[0];
+          return bDate === currentDateStr && 
           b.resourceId === 'NO' && 
-          (!shopId || b.shopId === shopId)
-        );
+          (!shopId || b.shopId === shopId);
+        });
+        
         if (hasNoShowToday) {
           paginatedResources.push({
             id: 'NO',
@@ -644,7 +755,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   };
 
   return (
-    <div className="flex h-full w-full bg-transparent overflow-hidden">
+    <div className="flex h-full w-full bg-transparent overflow-hidden relative">
       {/* 幽灵隐匿结界 (Phantom Fade Protocol) - 极致硬核版：零延迟瞬切 */}
       <div 
         className={cn(
@@ -681,7 +792,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               <OrbitalPossessionProfile 
                 bossName={userName || 'BOSS'}
                 bossId={userGxId || 'GX88888888'}
-                bossAvatar={(user && typeof user === 'object' && 'avatar' in user) ? user.avatar as string : undefined}
+                bossAvatar={trueBusinessAvatar}
                 shopName={activeShopName}
                 shopId={shopId}
                 onNavigateHome={() => router.push('/dashboard')}
@@ -849,11 +960,38 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     title={t('txt_84e0cd')}
                   >
-                    <h3 suppressHydrationWarning className={cn("text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none font-mono transition-all", CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className)} style={{ textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}b3` }}>
+                    <h3 
+                      suppressHydrationWarning 
+                      className={cn(
+                        "text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none font-mono transition-all", 
+                        // 如果是今天，应用全息流光渐变；否则使用用户设置的单色
+                        phantomDate.toDateString() === new Date().toDateString()
+                          ? "bg-gradient-to-r from-gx-cyan via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(0,240,255,0.8)]"
+                          : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
+                      )} 
+                      style={
+                        phantomDate.toDateString() === new Date().toDateString()
+                          ? {} // 渐变色不使用 style 的 textShadow，直接用 drop-shadow
+                          : { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}b3` }
+                      }
+                    >
                       {phantomDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {phantomDate.getDate()}
                     </h3>
                     <div className="flex flex-col">
-                      <span suppressHydrationWarning className={cn("text-xs md:text-sm font-mono tracking-[0.2em] md:tracking-[0.4em] uppercase transition-all", CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className)} style={{ textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}66` }}>
+                      <span 
+                        suppressHydrationWarning 
+                        className={cn(
+                          "text-xs md:text-sm font-mono tracking-[0.2em] md:tracking-[0.4em] uppercase transition-all", 
+                          phantomDate.toDateString() === new Date().toDateString()
+                            ? "bg-gradient-to-r from-gx-cyan via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]"
+                            : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
+                        )} 
+                        style={
+                          phantomDate.toDateString() === new Date().toDateString()
+                            ? {}
+                            : { textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}66` }
+                        }
+                      >
                         {phantomDate.getFullYear()}
                       </span>
                     </div>
@@ -969,7 +1107,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                             <div className="flex items-center gap-1 mt-1.5 justify-center w-full">
                               <span className={cn(
                                 "text-[8px] md:text-[9px] font-mono font-bold uppercase tracking-widest truncate transition-colors",
-                                res.metadata?.isNoShowColumn ? "text-red-400/60" : "text-cyan-400/40 group-hover:text-cyan-400/80"
+                                res.metadata?.isNoShowColumn ? "text-red-400/60" : CYBER_COLOR_DICTIONARY[visualSettings.staffNameColorTheme].className,
+                                !res.metadata?.isNoShowColumn && "opacity-40 group-hover:opacity-80 mix-blend-screen"
                               )}>{res.role}</span>
                               {res.metadata?.originalStatus === 'on_leave' && (
                                 <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">{t('txt_62a8cf')}</span>
@@ -1026,6 +1165,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           >
             {/* 交互式矩阵渲染层 */}
             <div className="h-full relative overflow-hidden z-10">
+              
+              {/* 全局物理锁定已被移除，改由底层矩阵幽灵卡片接管 (Phantom Holiday Cards) */}
+
                 {dna.pivot === "resource" && viewMode === "day" && (
                   <EliteResourceMatrix 
                     industry={industry} 
@@ -1039,6 +1181,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     onGridClick={handleGridClick}
                     onBookingClick={handleBookingClick}
                     onDateSwipe={(direction) => handleNavigate(direction)}
+                    storeStatus={storeStatus}
                     onPhantomDateChange={(dateStr) => {
                       // 接收到底层雷达的信号，更新顶部的幻象投影日期
                       const newDate = new Date(dateStr);
@@ -1161,12 +1304,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       <NebulaConfigHub 
         isOpen={isConfigOpen} 
         onClose={() => setIsConfigOpen(false)}
+        shopId={shopId}
         industryLabel={industryDNAs[industry].label}
         operatingHours={operatingHours}
         staffs={staffs as unknown as StaffItem[]}
         categories={categories as unknown as HubCategoryItem[]}
         services={services as unknown as HubServiceItem[]}
         onGlobalSave={handleSaveConfigs}
+        isCloudDataLoaded={isCloudDataLoaded}
+        businessName={userName || 'BOSS'}
+        businessAvatar={trueBusinessAvatar}
       />
 
       {/* 注入极致双窗预约界面 (必须在结界之外，以保持清晰呈现) */}

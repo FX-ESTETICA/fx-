@@ -57,11 +57,11 @@
     "txt_6f7f8f": "Posizione",
     "txt_15c54d": "Clicca sull'icona 🔒 nella barra degli indirizzi per sbloccare",
     "txt_refresh": "Ricarica",
-    "txt_306058": "Visualizza Dettagli & Naviga",
+    "txt_306058": "Visualizza Dettagli e Naviga",
     "txt_9bf297": "Privilegio Commerciale Interclassista",
     "txt_94eb9b": "ENTRA NELL'ELITE NEXUS / Controllo Assoluto dell'Allocazione del Traffico Top",
     "txt_be5a38": "Acquisisci Chiave di Onboarding",
-    "txt_c76b02": "Costruzione della Rete di Servizi per la Vita...",
+    "txt_c76b02": "Costruzione della Rete di Servizi Lifestyle...",
     "txt_3f8deb": "Congratulazioni [ Neon Cyber Tavern ] Onboarding Avvenuto con Successo nel GX PRO Matrix // Congratulazioni [ Lumina Aesthetic Center ] Canale di Appuntamento Olografico Attivato //",
     "txt_07eefa": "Collegamento Nodo Bloccato",
     "txt_86c72a": "Il tuo dispositivo ha rifiutato la connessione satellitare.",
@@ -71,7 +71,7 @@
     "txt_8f4166": "Aggiorna & Riconnetti",
     "txt_533aa5": "GX Seleziona (Commercianti Onboarding) Cambio Vista Riservato",
     "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
-    "txt_3d1c77": "Collegamento Satellitare Negato",
+    "txt_3d1c77": "Connessione Satellitare Negata",
     "txt_1e5d7a": "Coordinate",
     "txt_bf2093": "Tocca la Barra degli Indirizzi 🔒 per Sbloccare",
     "txt_97e675": "✨ Esperienza Completa di Ologrammi nell'APP",
@@ -80,7 +80,17 @@
     "place_3_name": "Midnight Noodle Bar",
     "place_4_name": "Lumina Beauty Studio",
     "place_5_name": "Zenith Hair Salon",
-    "place_6_name": "The Grand Horizon Hotel"
+    "place_6_name": "The Grand Horizon Hotel",
+    "locating": "Localizzazione...",
+    "txt_fc724a": "Nodo Non Rivendicato",
+    "txt_2fa2bd": "In Attesa di Rivendicazione",
+    "txt_3efb32": "Recensione Autentica",
+    "txt_de7277": "Sblocca Privilegi di Colore",
+    "txt_d5b619": "Guidato dai Dati",
+    "txt_afb9fb": "Servizi di Posizionamento Google",
+    "txt_6821d6": "Rete di Servizi Offline",
+    "txt_a8b0c2": "Tutti",
+    "txt_b05e70": "[IT] 私人管家"
   },
   "notfound": {
     "txt_bfb989": "[IT] Connection Lost // 页面不存在"
@@ -111,13 +121,20 @@
   "discovery": {
     "txt_4d2d97": "[IT] 最热",
     "txt_8818d4": "[IT] 最新",
-    "txt_6688f2": "[IT] 附近"
+    "txt_6688f2": "[IT] 附近",
+    "welcome": "Il cyberspazio ti dà il benvenuto",
+    "txt_5cd3c9": "[IT] 去这家店",
+    "txt_4c0a3a": "[IT] 关注",
+    "txt_342d42": "[IT] 获取空间坐标"
   },
   "me": {
     "txt_146ea7": "[IT] 登录 / 注册 成为尊贵会员",
     "txt_b4b851": "[IT] 去登录"
   },
   "nebula": {
+    "node_op_failed": "Operazione del nodo non riuscita",
+    "user_not_found": "ID utente non trovato, verificare.",
+    "auth_failed": "Autorizzazione fallita",
     "txt_10ab83": "[IT] GX 私人管家",
     "txt_41d106": "[IT] ENTERPRISE CORE // 企业中枢",
     "txt_eb495f": "[IT] ABYSSAL COLLAPSE (解散联邦)",
@@ -339,6 +356,7 @@
     "txt_f21741": "[IT] 启用毛玻璃背板 (Enable Glass Shield)",
     "txt_eeb6ca": "[IT] 在日历与背景之间添加视觉隔离层",
     "txt_d1483c": "[IT] 黑色遮罩浓度 (Opacity)",
+    "txt_wallpaper_opacity": "[IT] 壁纸层浓度 (Wallpaper Opacity)",
     "txt_1d0c44": "[IT] 毛玻璃模糊度 (Blur)",
     "txt_aaa577": "[IT] 全息主题色映射 (Hologram Theme)",
     "txt_c94255": "[IT] 顶部日期标题色",
@@ -438,7 +456,8 @@
     "txt_fb8804": "[IT] 拍照 / Photo",
     "txt_4b9210": "[IT] 录像 / Video",
     "txt_920460": "[IT] 发布 / Publish",
-    "txt_e4205f": "[IT] 写句标题吸引人吧..."
+    "txt_e4205f": "[IT] 写句标题吸引人吧...",
+    "txt_b2ee45": "[IT] 从相册选择 / Gallery"
   },
   "NebulaCore": {
     "txt_fd5def": "[IT] 返回 / Back",
@@ -448,8 +467,11 @@
   "AvatarCropModal": {
     "txt_aeabe1": "[IT] 调整全息特征 / Adjust Hologram",
     "txt_b46794": "[IT] 正在同步节点 / SYNCING...",
-    "txt_95f550": "[IT] 确认捕获 / CONFIRM"
+    "txt_95f550": "[IT] 确认捕获 / CONFIRM",
+    "txt_05853d": "[IT] 缩放"
   },
+  "status_closed_today": "Oggi temporaneamente chiuso",
+  "status_vacation": "In ferie",
   "MerchantDashboard": {
     "txt_56374a": "[IT] 时间矩阵 / Time Matrix",
     "txt_3697a3": "[IT] 服务节点 / Service Nodes",
@@ -480,14 +502,19 @@
     "txt_58a86b": "Tocca per Personalizzare il Negozio",
     "txt_386390": "Nessun Negozio Correlato Trovato",
     "txt_145da8": "Aperto",
-    "txt_52aa20": "Chiuso Temporaneamente",
-    "txt_99af0d": "Chiusura Festiva",
+    "txt_52aa20": "Chiuso",
+    "txt_99af0d": "Ferie",
     "txt_096cda": "Cerca Negozi...",
     "txt_8a30cd": "Negozio Sconosciuto",
     "txt_eebd8d": "Chiuso Temporaneamente Oggi",
     "txt_bc620b": "In Congedo Prolungato",
     "status_closed_today": "Chiuso Temporaneamente Oggi",
-    "status_vacation": "In Vacanza a Lungo Termine"
+    "status_vacation": "In Vacanza a Lungo Termine",
+    "txt_a75625": "[IT] 管理预约与排班",
+    "txt_66cf43": "[IT] 全息视觉引擎",
+    "txt_999d5c": "[IT] 记忆碎片",
+    "txt_0467cc": "[IT] 查看全部",
+    "txt_4d90f0": "[IT] 退出账号"
   },
   "PhoneAuthBar": {
     "txt_398180": "Collegamento Numero di Telefono",
@@ -504,7 +531,11 @@
     "verifying": "Verifica in corso...",
     "bind_success": "Associazione riuscita",
     "invalid_code": "Codice non valido o scaduto",
-    "phone_taken": "Questo terminale è associato a un altra entità"
+    "phone_taken": "Questo terminale è associato a un altra entità",
+    "txt_421f72": "[IT] 身份标识:",
+    "txt_732906": "[IT] 退出系统",
+    "txt_7d4d29": "[IT] 输入手机号",
+    "txt_cc2ddc": "[IT] 输入 6 位验证码"
   },
   "ProfileHeader": {
     "txt_52e6ab": "Copiato",
@@ -614,7 +645,18 @@
     "txt_f3ef2d": "Inserisci Nome Azienda...",
     "txt_577644": "Inserisci il Telefono Aziendale",
     "txt_95cd99": "Inserisci l'ID della Sede Centrale (es: GX88888888)",
-    "txt_0830b4": "Invia Domanda"
+    "txt_0830b4": "Invia Domanda",
+    "txt_66d651": "[IT] 空间跃迁协议启动",
+    "txt_c9c2c6": "[IT] 资料录入",
+    "txt_e67844": "[IT] 独立空间",
+    "txt_4ba0be": "[IT] 企业联邦",
+    "txt_e47036": "[IT] 01 / 基础身份",
+    "txt_c6dc08": "[IT] 物理坐标",
+    "txt_d89194": "[IT] - 可选",
+    "txt_a2bc90": "[IT] - 系统生成",
+    "txt_999d5c": "[IT] 记忆碎片",
+    "txt_0467cc": "[IT] 查看全部",
+    "txt_d4b097": "[IT] 公司名称"
   },
   "CapacityFlow": {
     "txt_091d26": "[IT] 当前客流",
@@ -702,35 +744,39 @@
   "useChatStore": {},
   "blurhash": {},
   "imageCompression": {},
-  "chat": {},
-  "NativeBridgeProvider": {
-    "txt_afa6bb": "Scarica Ora"
+  "chat": {
+    "txt_71f8fd": "[IT] 等待接入信号",
+    "txt_d9d041": "[IT] 请在左侧雷达选择目标节点"
   },
-  "WebDownloadPrompt": {},
-  "SandboxChatWindow": {},
-  "ChatListUI": {},
-  "ChatRoomUI": {},
+  "NativeBridgeProvider": {
+    "txt_afa6bb": "Scarica Ora",
+    "txt_1bb828": "[IT] 检测到新版本",
+    "txt_d8fbcd": "[IT] 正在下载更新..."
+  },
+  "WebDownloadPrompt": {
+    "txt_77f625": "[IT] 使用 GX 专属原生 App",
+    "txt_389993": "[IT] 享受沉浸式全息体验，完美原生物理返回键与无死角硬件支持。"
+  },
+  "SandboxChatWindow": {
+    "txt_b0a14d": "[IT] 30天极速降解",
+    "txt_f8ea23": "[IT] 发送加密信息..."
+  },
+  "ChatListUI": {
+    "txt_8fc78c": "[IT] 正在扫描宇宙信号...",
+    "txt_5ac66f": "[IT] 当前频道暂无通讯记录",
+    "txt_8a6e8e": "[IT] 搜索信号 / 扫码 / 输入ID加人"
+  },
+  "ChatRoomUI": {
+    "txt_be6f6a": "[IT] 信号稳定 (0ms)",
+    "txt_fad9fb": "[IT] 等待接入信号...",
+    "txt_0bbdcf": "[IT] 输入指令..."
+  },
   "useChatEngine": {},
   "useRecentChats": {},
   "DataMatrixAssets": {
     "echo_1": "Ho provato il caffè filtro al XX Cafe oggi, atmosfera molto cyberpunk.",
     "echo_2": "Appena completato il salto spaziale, sincronizzazione del nodo riuscita.",
     "echo_3": "Il centro estetico vicino sta facendo un test di proiezione olografica, assolutamente sbalorditivo."
-  },
-  "HomeClient": {
-    "txt_fc724a": "Nodo Non Rivendicato",
-    "txt_2fa2bd": "In Attesa di Rivendicazione",
-    "txt_3efb32": "Recensione Autentica",
-    "txt_de7277": "Sblocca Privilegi di Colore",
-    "txt_306058": "Visualizza Dettagli e Naviga",
-    "txt_d5b619": "Guidato dai Dati",
-    "txt_afb9fb": "Servizi di Posizionamento Google",
-    "txt_6821d6": "Rete di Servizi Offline",
-    "txt_c76b02": "Costruzione della Rete di Servizi Lifestyle...",
-    "txt_a8b0c2": "Tutti",
-    "txt_24482a": "Funzione di Caricamento Foto UGC in Arrivo",
-    "txt_3d1c77": "Connessione Satellitare Negata",
-    "locating": "Localizzazione..."
   },
   "studio": {},
   "vision": {
@@ -745,7 +791,8 @@
     "txt_d699b2": "Tecnico",
     "txt_20b6c5": "Blocco Fisico in Corso...",
     "txt_09dc22": "Blocco Fisico con Un Clic (Scrivi nel Calendario)",
-    "txt_336572": "Comunica al Concierge le Tue Esigenze..."
+    "txt_336572": "Comunica al Concierge le Tue Esigenze...",
+    "txt_19fcb9": "[IT] 时间"
   },
   "AppPlatformGuard": {
     "txt_b3de79": "Ottieni l'Esperienza Completa di GX",
@@ -756,7 +803,8 @@
     "txt_2fbaf0": "Inietta Desktop Fisico.",
     "txt_c5d070": "Esperienza Perfetta",
     "txt_e66fa2": "Apri nell'APP",
-    "txt_f3dda5": "Apri Ora"
+    "txt_f3dda5": "Apri Ora",
+    "txt_153fa6": "[IT] 选择"
   },
   "BottomNavBar": {
     "txt_07b181": "Il Mio",
@@ -767,7 +815,8 @@
   },
   "GxProCard": {
     "txt_3ed720": "Prenota Ora",
-    "txt_98be76": "Nodo GX PRO"
+    "txt_98be76": "Nodo GX PRO",
+    "txt_53a12c": "[IT] GX PRO 官方认证"
   },
   "HoloAscensionCard": {
     "txt_bf27a7": "Unisciti come Commerciante",
@@ -857,5 +906,10 @@
   "BossApprovals": {
     "err_missing_profile": "Impossibile individuare identità fisica del richiedente (Profile ID). Assicurarsi che il profilo base sia inizializzato.",
     "approval_failed": "Esecuzione approvazione fallita, verificare i permessi o i vincoli del database"
+  },
+  "HomeClient": {
+    "txt_a8b0c2": "Tutti",
+    "txt_24482a": "Caricamento Foto UGC In Arrivo",
+    "txt_3d1c77": "Connessione Satellitare Negata"
   }
 }

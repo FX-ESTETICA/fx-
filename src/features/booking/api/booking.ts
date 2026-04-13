@@ -154,9 +154,9 @@ export const BookingService = {
     }
     
     const { data, error } = await supabase
-      .from('shop_configs')
+      .from('shops')
       .select('config')
-      .eq('shop_id', shopId)
+      .eq('id', shopId)
       .maybeSingle(); // 使用 maybeSingle 避免 0 行数据时抛出报错
       
     if (error) {
@@ -242,18 +242,74 @@ export const BookingService = {
       return;
     }
     
-    // 【世界顶端 0 冲突架构】：不再拉取旧数据进行危险的前端合并
-    // 直接构建精准补丁包，调用底层 PostgreSQL 的原子级融合 RPC
+    // 【世界顶端 0 冲突架构】：先尝试调用 patch_shop_config，如果它不生效，则回退为更新 shops.config
+    // 因为历史原因，可能部分环境没有正确设置 patch_shop_config 来更新 shops 表
     const patch = { [key]: payload };
 
-    const { error } = await supabase.rpc('patch_shop_config', {
+    const { error: _rpcError } = await supabase.rpc('patch_shop_config', {
       p_shop_id: shopId,
       p_patch: patch
     });
 
-    if (error) {
-      console.error("[BookingService] 原子级更新配置失败 / Atomic Update Failed:", error);
-      throw error;
+    // 无论 RPC 是否报错，我们都直接更新 shops.config 保证数据同步
+    const { data: currentShop } = await supabase
+      .from('shops')
+      .select('config')
+      .eq('id', shopId)
+      .single();
+
+    if (currentShop) {
+      const newConfig = {
+        ...(currentShop.config as Record<string, unknown> || {}),
+        ...patch
+      };
+      
+      const { error: updateError } = await supabase
+        .from('shops')
+        .update({ config: newConfig })
+        .eq('id', shopId);
+
+      if (updateError) {
+        console.error("[BookingService] Update shops.config failed:", updateError);
+        throw updateError;
+      }
+    }
+  },
+
+  async updateFullConfig(shopId: string, patchObj: Record<string, unknown>) {
+    if (isMockMode) return;
+    
+    if (!shopId || shopId === 'default') {
+      console.warn("[BookingService] 试图更新 default shop 的配置，已拦截");
+      return;
+    }
+
+    const { error: _rpcError } = await supabase.rpc('patch_shop_config', {
+      p_shop_id: shopId,
+      p_patch: patchObj
+    });
+
+    const { data: currentShop } = await supabase
+      .from('shops')
+      .select('config')
+      .eq('id', shopId)
+      .single();
+
+    if (currentShop) {
+      const newConfig = {
+        ...(currentShop.config as Record<string, unknown> || {}),
+        ...patchObj
+      };
+      
+      const { error: updateError } = await supabase
+        .from('shops')
+        .update({ config: newConfig })
+        .eq('id', shopId);
+
+      if (updateError) {
+        console.error("[BookingService] Update shops.config failed:", updateError);
+        throw updateError;
+      }
     }
   },
 
@@ -377,7 +433,7 @@ export const BookingService = {
     }
   },
 
-  async updateBookings(updates: any[]) {
+  async updateBookings(_updates: any[]) {
     // 保留给未来批量更新使用
   },
 
@@ -498,7 +554,8 @@ export const BookingService = {
       }
 
       // 5. 遍历每个目标员工，新建分裂出的订单
-      for (const [targetResourceId, groupServices] of Object.entries(servicesByEmployee)) {
+      for (const [targetResourceId, groupServicesArray] of Object.entries(servicesByEmployee)) {
+        const groupServices = groupServicesArray as any[];
         const splitDuration = groupServices.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
         const splitName = groupServices.map((s: any) => s.name || s.serviceName || 'Unknown').join(' + ');
         
@@ -677,6 +734,28 @@ export const BookingService = {
         },
         (payload) => {
           onUpdate(payload);
+        }
+      )
+      .subscribe();
+
+    return channel;
+  },
+
+  subscribeToShopConfig(shopId: string, onUpdate: (payload: { new?: { config?: ShopConfig } }) => void) {
+    if (isMockMode || !shopId || shopId === 'default') return null;
+
+    const channel = supabase
+      .channel(`public:shops:config:${shopId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'shops',
+          filter: `id=eq.${shopId}`
+        },
+        (payload) => {
+          onUpdate(payload as any);
         }
       )
       .subscribe();

@@ -7,7 +7,8 @@ import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { OperatingHour } from "./IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
-import { BookingService } from "@/features/booking/api/booking";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export interface CategoryItem { id: string; name: string }
 export interface ServiceItem { id: string; categoryId: string; name: string; fullName?: string; prices?: number[]; price?: number; duration: number }
@@ -31,12 +32,16 @@ export interface StaffItem {
 export interface NebulaConfigHubProps {
   isOpen: boolean;
   onClose: () => void;
+  shopId?: string;
   industryLabel?: string;
   operatingHours: OperatingHour[];
   staffs: StaffItem[];
   categories: CategoryItem[];
   services: ServiceItem[];
   onGlobalSave: (hours: OperatingHour[], staffs: StaffItem[], categories: CategoryItem[], services: ServiceItem[]) => void;
+  isCloudDataLoaded?: boolean; // 新增：防反杀物理锁
+  businessName?: string;       // 新增：业务名称（用于全息雷达显示）
+  businessAvatar?: string;     // 新增：业务头像（用于全息雷达显示）
 }
 
 /**
@@ -46,34 +51,128 @@ export interface NebulaConfigHubProps {
 export const NebulaConfigHub = ({ 
   isOpen, 
   onClose, 
+  shopId,
   industryLabel = "美业",
   operatingHours,
   staffs,
   categories,
   services,
-  onGlobalSave
+  onGlobalSave,
+  isCloudDataLoaded = true, // 默认为true兼容旧代码
+  businessName,
+  businessAvatar
 }: NebulaConfigHubProps) => {
   const t = useTranslations('NebulaConfigHub');
 
   type MainTab = "staff" | "services" | "hours" | "visual";
   const [activeTab, setActiveTab] = useState<MainTab>("hours");
-  const panelKey = `panel-${isOpen ? 'open' : 'closed'}-${operatingHours.length}-${staffs.length}-${categories.length}-${services.length}`;
   
-  // 本地暂存状态，点击保存时才同步到全局
+  const { user } = useAuth();
+  
+  // 本地暂存状态，Live Edit 模式下随时准备同步
   const [localHours, setLocalHours] = useState<OperatingHour[]>(operatingHours);
   const [localStaffs, setLocalStaffs] = useState<StaffItem[]>(staffs);
   const [localCategories, setLocalCategories] = useState<CategoryItem[]>(categories);
   const [localServices, setLocalServices] = useState<ServiceItem[]>(services);
 
-  // 【开箱同步锁】：每次打开抽屉时，强制同步外部最新数据，摧毁陈旧的本地缓存
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'saved' | 'error'>('idle');
+  const [activeEditors, setActiveEditors] = useState<Record<string, any>>({});
+  const initialLoadRef = useRef(false);
+  const prevDataRef = useRef("");
+
+  // 【全息协同雷达 (Holographic Presence)】: 仅负责人员在线状态显示
+  useEffect(() => {
+    if (!isOpen || !shopId) return;
+
+    const channelName = `config_presence_${shopId}`;
+    const channel = supabase.channel(channelName, {
+      config: {
+        presence: {
+          key: user?.id || `guest_${Date.now()}`
+        }
+      }
+    });
+
+    const userName = businessName || (user as any)?.name || (user as any)?.user_metadata?.full_name || (user as any)?.phone || 'BOSS';
+    const userAvatar = businessAvatar || (user as any)?.user_metadata?.avatar_url || null;
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const activeUsers: Record<string, any> = {};
+        for (const [key, presences] of Object.entries(state)) {
+          if (presences && presences.length > 0) {
+            activeUsers[key] = presences[0];
+          }
+        }
+        setActiveEditors(activeUsers);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            name: userName,
+            avatar: userAvatar,
+            status: 'viewing',
+            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, shopId, user]);
+
+  // 【单向数据流实时同步】：绝对信任来自外部 (Supabase DB onUpdate) 的数据推送
   useEffect(() => {
     if (isOpen) {
       setLocalHours(operatingHours);
       setLocalStaffs(staffs);
       setLocalCategories(categories);
       setLocalServices(services);
+      initialLoadRef.current = true;
+      setSyncStatus('idle');
+      // 核心：同步更新指纹，防止外部数据流入时被当成本地修改触发二次保存（死循环）
+      prevDataRef.current = JSON.stringify({ operatingHours, staffs, categories, services });
     }
-  }, [isOpen, operatingHours, staffs, categories, services]);
+  }, [isOpen, operatingHours, staffs, categories, services]); // 恢复对 props 数据的依赖，实现绝对实时同步
+
+  // 【Live Edit 自动同步引擎 (Auto-Save Debouncer)】
+  useEffect(() => {
+    if (!isOpen || !initialLoadRef.current || !isCloudDataLoaded) return;
+
+    const currentDataStr = JSON.stringify({ 
+      operatingHours: localHours, 
+      staffs: localStaffs, 
+      categories: localCategories, 
+      services: localServices 
+    });
+    
+    // 深度对比拦截：如果值完全没变，拒绝广播
+    if (prevDataRef.current === currentDataStr) return;
+
+    setSyncStatus('syncing');
+    
+    // 防抖 800ms：用户停止操作 0.8 秒后，像幽灵一样静默落盘
+    const timer = setTimeout(async () => {
+      try {
+        await onGlobalSave(localHours, localStaffs, localCategories, localServices);
+        prevDataRef.current = currentDataStr;
+        setSyncStatus('saved');
+        
+        // 2秒后恢复 idle 状态
+        setTimeout(() => {
+          setSyncStatus(current => current === 'saved' ? 'idle' : current);
+        }, 2000);
+      } catch (e) {
+        console.error(e);
+        setSyncStatus('error');
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [localHours, localStaffs, localCategories, localServices, isOpen, isCloudDataLoaded, onGlobalSave]);
+
 
   // 状态机：感知当前是否有子表单正在编辑
   const [editingContext, setEditingContext] = useState<{
@@ -91,11 +190,6 @@ export const NebulaConfigHub = ({
     });
   }, []);
 
-
-  const handleGlobalSave = () => {
-    onGlobalSave(localHours, localStaffs, localCategories, localServices);
-    onClose();
-  };
 
   const handleContextualSave = () => {
     if (editingContext.saveAction) {
@@ -125,7 +219,7 @@ export const NebulaConfigHub = ({
 
           {/* 抽屉主体 */}
           <motion.div
-            key={panelKey}
+            key="config-panel"
             initial={{ x: "100%", opacity: 0.5 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0.5 }}
@@ -134,23 +228,73 @@ export const NebulaConfigHub = ({
           >
             {/* 头部 */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+              {/* 左侧：标题与图标 */}
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gx-cyan/10 flex items-center justify-center border border-gx-cyan/30">
+                <div className="w-8 h-8 rounded-full bg-gx-cyan/10 flex items-center justify-center border border-gx-cyan/30 relative">
                   <Settings className="w-4 h-4 text-gx-cyan animate-spin-slow" />
+                  {/* Presence 脉冲动画 */}
+                  <div className="absolute inset-0 rounded-full border border-gx-cyan/50 animate-ping" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest">{t('txt_406bc4')}</h2>
-                  <p className="text-[10px] font-mono text-white/40 uppercase mt-1">
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                    {t('txt_406bc4')}
+                  </h2>
+                  <p className="text-[10px] font-mono text-white/40 uppercase mt-1 flex items-center gap-2">
                     {industryLabel}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/60 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* 右侧：全息雷达化身显示 与 关闭按钮 */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center -space-x-3 group relative">
+                  {Object.values(activeEditors).map((editor, i) => (
+                    <div 
+                      key={i} 
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border border-black z-10 overflow-hidden bg-white/10 transition-transform hover:scale-110"
+                      style={{ 
+                        backgroundColor: editor.avatar ? 'transparent' : (editor.color || '#00f0ff'), 
+                        color: '#000', 
+                        boxShadow: `0 0 12px ${editor.color || '#00f0ff'}80` 
+                      }}
+                    >
+                      {editor.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={editor.avatar} alt={editor.name} className="w-full h-full object-cover" />
+                      ) : (
+                        editor.name?.substring(0, 1).toUpperCase()
+                      )}
+                    </div>
+                  ))}
+                  
+                  {/* Hover 时显示的统一 tooltip */}
+                  {Object.values(activeEditors).length > 0 && (
+                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-white/10 text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex flex-col gap-1 z-50">
+                      {/* 小三角形指示器 */}
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-black/90 border-l border-t border-white/10 rotate-45" />
+                      {Object.values(activeEditors).map((editor, i) => (
+                        <div key={i} className="flex items-center justify-center gap-2 relative z-10">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse" />
+                          <span className="text-white/70 font-medium tracking-widest">{editor.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {Object.keys(activeEditors).length > 1 && (
+                    <span className="text-[9px] font-mono text-gx-cyan/80 ml-4 font-bold tracking-widest absolute -bottom-4 right-0">
+                      {Object.keys(activeEditors).length} SYNCED
+                    </span>
+                  )}
+                </div>
+                <div className="w-px h-6 bg-white/10 ml-2" />
+                <button
+                  onClick={onClose}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/60 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* 导航 Tabs */}
@@ -234,11 +378,12 @@ export const NebulaConfigHub = ({
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={handleGlobalSave}
-                  className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase tracking-widest hover:bg-gx-cyan hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-all text-xs"
-                >
-                  {t('txt_13fe40')}</button>
+                <div className="flex items-center justify-center py-4 w-full text-xs font-mono font-black tracking-widest border border-white/5 rounded-2xl bg-white/[0.02]">
+                  {syncStatus === 'syncing' && <span className="text-gx-cyan animate-pulse">☁ SYNCING MATRIX...</span>}
+                  {syncStatus === 'saved' && <span className="text-green-400">✓ ALL CHANGES SECURED</span>}
+                  {syncStatus === 'error' && <span className="text-red-500">⚠ SYNC FAILED</span>}
+                  {syncStatus === 'idle' && <span className="text-white/30">LIVE EDIT ACTIVE</span>}
+                </div>
               )}
             </div>
           </motion.div>
@@ -290,61 +435,26 @@ const VisualSettingsConfig = () => {
             <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showWallpaper ? "bg-gx-cyan" : "bg-white/40")} />
           </div>
         </div>
-      </div>
 
-      {/* 矩阵背板控制区 */}
-      <div className="space-y-4 pt-4 border-t border-white/10">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">{t('txt_5f9d47')}</h3>
-        
-        {/* 背板总开关 */}
-        <div 
-          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.05] transition-colors"
-          onClick={() => updateSettings({ enableGlassShield: !settings.enableGlassShield })}
-        >
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-white block">{t('txt_f21741')}</span>
-            <span className="text-[10px] text-white/40 font-mono">{t('txt_eeb6ca')}</span>
-          </div>
-          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.enableGlassShield ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
-            <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.enableGlassShield ? "bg-gx-cyan" : "bg-white/40")} />
-          </div>
-        </div>
-
-        {/* 透明度与模糊度滑块 (仅在背板开启时显示) */}
+        {/* 壁纸浓度滑块 (仅在壁纸开启时显示) */}
         <AnimatePresence>
-          {settings.enableGlassShield && (
+          {settings.showWallpaper && (
             <motion.div 
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="space-y-6 p-4 bg-white/[0.01] rounded-xl border border-white/5 overflow-hidden"
             >
-              {/* 透明度滑块 */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_d1483c')}</label>
-                  <span className="text-xs font-mono text-gx-cyan">{settings.shieldOpacity}%</span>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_wallpaper_opacity') || '壁纸层浓度'}</label>
+                  <span className="text-xs font-mono text-gx-cyan">{settings.wallpaperOpacity}%</span>
                 </div>
                 <input 
                   type="range" 
                   min="0" max="100" step="5"
-                  value={settings.shieldOpacity}
-                  onChange={(e) => updateSettings({ shieldOpacity: parseInt(e.target.value) })}
-                  className="w-full accent-gx-cyan h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-
-              {/* 模糊度滑块 */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_1d0c44')}</label>
-                  <span className="text-xs font-mono text-gx-cyan">{settings.shieldBlur}px</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" max="20" step="0.5"
-                  value={settings.shieldBlur}
-                  onChange={(e) => updateSettings({ shieldBlur: parseFloat(e.target.value) })}
+                  value={settings.wallpaperOpacity}
+                  onChange={(e) => updateSettings({ wallpaperOpacity: parseInt(e.target.value) })}
                   className="w-full accent-gx-cyan h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
@@ -365,7 +475,7 @@ const VisualSettingsConfig = () => {
               {CYBER_COLOR_DICTIONARY[settings.headerTitleColorTheme].label}
             </span>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center gap-2 overflow-x-visible no-scrollbar py-3 px-2">
             {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
               <button
                 key={`header-${key}`}
@@ -392,7 +502,7 @@ const VisualSettingsConfig = () => {
               {CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].label}
             </span>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center gap-2 overflow-x-visible no-scrollbar py-3 px-2">
             {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
               <button
                 key={`staff-${key}`}
@@ -419,7 +529,7 @@ const VisualSettingsConfig = () => {
               {CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].label}
             </span>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div className="flex items-center gap-2 overflow-x-visible no-scrollbar py-3 px-2">
             {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
               <button
                 key={`timeline-${key}`}
@@ -528,14 +638,11 @@ const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h
   );
 };
 
-import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 
 const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[] }) => {
-    const t = useTranslations('NebulaConfigHub');
+  const t = useTranslations('NebulaConfigHub');
   const [editingStaff, setEditingStaff] = useState<StaffItem | null>(null);
-  const staffIdSeed = useRef(0);
-  const { activeShopId } = useShop();
 
   // 监听编辑状态变化，同步到外层状态机
   useEffect(() => {
@@ -558,22 +665,14 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
         staff={editingStaff} 
         onBack={() => setEditingStaff(null)} 
         onSave={(data) => {
-          if (data.id) {
-            onChange(staffs.map(s => s.id === data.id ? { ...s, ...data } : s));
+          if (editingStaff?.id) {
+            onChange(staffs.map(s => s.id === editingStaff.id ? { ...data, id: editingStaff.id } : s));
           } else {
-            staffIdSeed.current += 1;
-            onChange([...staffs, { ...data, id: `staff_${staffIdSeed.current}` }]);
+            onChange([...staffs, { ...data, id: `staff_${Date.now()}` }]);
           }
           
-          // 如果填写了 Frontend ID，触发云端绑定授权，让员工端可以显示日历入口
-          if (data.frontendId && data.frontendId.trim() !== '') {
-            if (activeShopId) {
-              BookingService.bindUserToShop(data.frontendId.trim(), activeShopId)
-              .then(() => {
-                console.log(`[NebulaConfigHub] Successfully linked ${data.frontendId} to shop ${activeShopId}`);
-              }).catch((e: unknown) => console.error("Failed to link frontend ID to shop:", e));
-            }
-          }
+          // 彻底删除越权行为：不再在这里偷偷跑去执行 bindUserToShop
+          // 这个动作已经被收缴并转移到了外层的 Live Edit (Auto-Save) 引擎中，会在保存时一并发送
           
           setEditingStaff(null);
         }} 
@@ -1228,18 +1327,6 @@ const ServicesConfig = ({
 
   return (
     <div className="space-y-8 pb-24">
-      {/* 顶部指引 */}
-      <div className="bg-gx-cyan/10 border border-gx-cyan/20 p-4 rounded-xl flex items-start gap-3">
-        <Settings className="w-4 h-4 text-gx-cyan mt-0.5 shrink-0" />
-        <div className="space-y-1">
-          <h4 className="text-xs font-bold text-gx-cyan">{t('txt_ae382f')}</h4>
-          <p className="text-[10px] text-white/60 leading-relaxed">
-            {t('txt_6f6203')}<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">{t('txt_8a665b')}</span> {t('txt_d73ec2')}<br/>
-            {t('txt_82dab0')}<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">{t('txt_04777f')}</span> {t('txt_9fbe2a')}<br/>
-            {t('txt_9ac55f')}<span className="text-white font-mono bg-white/10 px-1 py-0.5 rounded">+</span> {t('txt_fdd97a')}</p>
-        </div>
-      </div>
-
       {/* 分类与服务列表 */}
       {categories.map((cat) => {
         const catServices = services.filter(s => s.categoryId === cat.id);
@@ -1506,15 +1593,8 @@ const ServicesConfig = ({
             className="flex-1 bg-transparent text-white text-sm px-3 py-2 outline-none placeholder:text-white/20 font-mono"
           />
 
-          {/* 触屏发送键 / OCR 兜底预留位 */}
+          {/* 触屏发送键 */}
           <div className="flex items-center gap-1 pr-1">
-            <button 
-              onClick={() => {}} // 预留 OCR 接口
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-              title={t('txt_ebe2ed')}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </button>
             <button
               onClick={handleGlobalNLPInput}
               className="w-8 h-8 rounded-xl bg-gx-cyan flex items-center justify-center text-black hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all"

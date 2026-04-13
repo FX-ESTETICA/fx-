@@ -19,7 +19,7 @@ type NodeStatus = 'pending' | 'active';
 
 export interface PlanetData {
   id: string; // 升级为 UUID
-  key: CyberThemeColor | 'core';
+  key: string; // 放宽为 string，兼容由于删减 CyberThemeColor 导致的类型报错
   name: string;
   status: NodeStatus;
   industry: string | null;
@@ -30,7 +30,7 @@ export interface PlanetData {
 }
 
 // 模拟初始星球颜色的“轨道底座”，真实数据不足时用这些填充
-const ORBIT_SLOTS: CyberThemeColor[] = [
+const ORBIT_SLOTS: string[] = [
   "cyan", "purple", "gold", "emerald", "rose", 
   "silver", "platinum", "cyan", "purple", "emerald"
 ];
@@ -38,6 +38,7 @@ const ORBIT_SLOTS: CyberThemeColor[] = [
 // --- Custom Hooks ---
 
 function useNebulaData(bossId: string | undefined) {
+  const t = useTranslations('nebula');
   const [planets, setPlanets] = useState<PlanetData[]>([]);
   const [allPlanets, setAllPlanets] = useState<PlanetData[]>([]); // 存储所有星球，用于降维搜索
   const [isLoading, setIsLoading] = useState(true);
@@ -1437,6 +1438,20 @@ function CoreNode({
   );
 }
 
+// 兼容色盘，避免 CYBER_COLOR_DICTIONARY 只有 corelight 时报错
+const FALLBACK_COLORS: Record<string, { hex: string }> = {
+  cyan: { hex: "#00f0ff" },
+  purple: { hex: "#a855f7" },
+  gold: { hex: "#f59e0b" },
+  emerald: { hex: "#10b981" },
+  rose: { hex: "#f43f5e" },
+  silver: { hex: "#9ca3af" },
+  platinum: { hex: "#e5e7eb" },
+  corelight: { hex: "#ffffff" },
+  white: { hex: "#ffffff" },
+  core: { hex: "#ffffff" }
+};
+
 // === 重构：使用 CyberSphere 的主星云星球 (PlanetNode) ===
 function PlanetNode({ 
   planet, 
@@ -1450,7 +1465,8 @@ function PlanetNode({
   onClick: (planet: PlanetData) => void
 }) {
     const t = useTranslations('nebula');
-  const colorConfig = CYBER_COLOR_DICTIONARY[planet.key as CyberThemeColor];
+  const colorConfig = CYBER_COLOR_DICTIONARY[planet.key as CyberThemeColor] || FALLBACK_COLORS[planet.key as string] || FALLBACK_COLORS.cyan;
+  
   
   // 绝对等分轨道
   const angle = (index / total) * Math.PI * 2;

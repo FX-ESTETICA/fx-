@@ -71,7 +71,7 @@
     "txt_8f4166": "Refresh & Reconnect",
     "txt_533aa5": "GX Select (Onboarding Merchants) View Switch Reserved",
     "txt_24482a": "UGC Photo Upload Feature Coming Soon",
-    "txt_3d1c77": "Satellite Link Denied",
+    "txt_3d1c77": "Satellite Connection Denied",
     "txt_1e5d7a": "Coordinates",
     "txt_bf2093": "Tap Address Bar 🔒 to Unlock",
     "txt_97e675": "✨ Experience Full Holo-Visuals in APP",
@@ -80,7 +80,17 @@
     "place_3_name": "Midnight Noodle Bar",
     "place_4_name": "Lumina Beauty Studio",
     "place_5_name": "Zenith Hair Salon",
-    "place_6_name": "The Grand Horizon Hotel"
+    "place_6_name": "The Grand Horizon Hotel",
+    "locating": "Locating...",
+    "txt_fc724a": "Unclaimed Node",
+    "txt_2fa2bd": "Awaiting Claim",
+    "txt_3efb32": "Genuine Review",
+    "txt_de7277": "Unlock Color Privileges",
+    "txt_d5b619": "Data-Driven",
+    "txt_afb9fb": "Google Location Services",
+    "txt_6821d6": "Service Network Offline",
+    "txt_a8b0c2": "All",
+    "txt_b05e70": "[EN] 私人管家"
   },
   "notfound": {
     "txt_bfb989": "[EN] Connection Lost // 页面不存在"
@@ -111,13 +121,20 @@
   "discovery": {
     "txt_4d2d97": "[EN] 最热",
     "txt_8818d4": "[EN] 最新",
-    "txt_6688f2": "[EN] 附近"
+    "txt_6688f2": "[EN] 附近",
+    "welcome": "Cyberspace welcomes you",
+    "txt_5cd3c9": "[EN] 去这家店",
+    "txt_4c0a3a": "[EN] 关注",
+    "txt_342d42": "[EN] 获取空间坐标"
   },
   "me": {
     "txt_146ea7": "[EN] 登录 / 注册 成为尊贵会员",
     "txt_b4b851": "[EN] 去登录"
   },
   "nebula": {
+    "node_op_failed": "Node Operation Failed",
+    "user_not_found": "User ID not found, please check.",
+    "auth_failed": "Authorization Failed",
     "txt_10ab83": "[EN] GX 私人管家",
     "txt_41d106": "[EN] ENTERPRISE CORE // 企业中枢",
     "txt_eb495f": "[EN] ABYSSAL COLLAPSE (解散联邦)",
@@ -339,6 +356,7 @@
     "txt_f21741": "[EN] 启用毛玻璃背板 (Enable Glass Shield)",
     "txt_eeb6ca": "[EN] 在日历与背景之间添加视觉隔离层",
     "txt_d1483c": "[EN] 黑色遮罩浓度 (Opacity)",
+    "txt_wallpaper_opacity": "[EN] 壁纸层浓度 (Wallpaper Opacity)",
     "txt_1d0c44": "[EN] 毛玻璃模糊度 (Blur)",
     "txt_aaa577": "[EN] 全息主题色映射 (Hologram Theme)",
     "txt_c94255": "[EN] 顶部日期标题色",
@@ -438,7 +456,8 @@
     "txt_fb8804": "[EN] 拍照 / Photo",
     "txt_4b9210": "[EN] 录像 / Video",
     "txt_920460": "[EN] 发布 / Publish",
-    "txt_e4205f": "[EN] 写句标题吸引人吧..."
+    "txt_e4205f": "[EN] 写句标题吸引人吧...",
+    "txt_b2ee45": "[EN] 从相册选择 / Gallery"
   },
   "NebulaCore": {
     "txt_fd5def": "[EN] 返回 / Back",
@@ -448,8 +467,11 @@
   "AvatarCropModal": {
     "txt_aeabe1": "[EN] 调整全息特征 / Adjust Hologram",
     "txt_b46794": "[EN] 正在同步节点 / SYNCING...",
-    "txt_95f550": "[EN] 确认捕获 / CONFIRM"
+    "txt_95f550": "[EN] 确认捕获 / CONFIRM",
+    "txt_05853d": "[EN] 缩放"
   },
+  "status_closed_today": "Temporarily Closed Today",
+  "status_vacation": "On Vacation",
   "MerchantDashboard": {
     "txt_56374a": "[EN] 时间矩阵 / Time Matrix",
     "txt_3697a3": "[EN] 服务节点 / Service Nodes",
@@ -480,14 +502,19 @@
     "txt_58a86b": "Tap to Customize Store",
     "txt_386390": "No Related Stores Found",
     "txt_145da8": "Open",
-    "txt_52aa20": "Temporarily Closed",
-    "txt_99af0d": "Holiday Closure",
+    "txt_52aa20": "Closed",
+    "txt_99af0d": "Vacation",
     "txt_096cda": "Search Stores...",
     "txt_8a30cd": "Unknown Store",
     "txt_eebd8d": "Temporarily Closed Today",
     "txt_bc620b": "On Extended Leave",
     "status_closed_today": "Closed Temporarily Today",
-    "status_vacation": "On Long-term Vacation"
+    "status_vacation": "On Long-term Vacation",
+    "txt_a75625": "[EN] 管理预约与排班",
+    "txt_66cf43": "[EN] 全息视觉引擎",
+    "txt_999d5c": "[EN] 记忆碎片",
+    "txt_0467cc": "[EN] 查看全部",
+    "txt_4d90f0": "[EN] 退出账号"
   },
   "PhoneAuthBar": {
     "txt_398180": "Phone Number Binding",
@@ -504,9 +531,14 @@
     "verifying": "Verifying...",
     "bind_success": "Binding successful",
     "invalid_code": "Invalid or expired code",
-    "phone_taken": "This terminal is bound to another entity"
+    "phone_taken": "This terminal is bound to another entity",
+    "txt_421f72": "[EN] 身份标识:",
+    "txt_732906": "[EN] 退出系统",
+    "txt_7d4d29": "[EN] 输入手机号",
+    "txt_cc2ddc": "[EN] 输入 6 位验证码"
   },
   "ProfileHeader": {
+    "rename": "Rename",
     "txt_52e6ab": "Copied",
     "txt_79d3ab": "Copy",
     "role_user": "Life",
@@ -614,7 +646,18 @@
     "txt_f3ef2d": "Enter Company Name...",
     "txt_577644": "Please Enter Company Phone",
     "txt_95cd99": "Please Enter Head Office ID (e.g., GX88888888)",
-    "txt_0830b4": "Submit Application"
+    "txt_0830b4": "Submit Application",
+    "txt_66d651": "[EN] 空间跃迁协议启动",
+    "txt_c9c2c6": "[EN] 资料录入",
+    "txt_e67844": "[EN] 独立空间",
+    "txt_4ba0be": "[EN] 企业联邦",
+    "txt_e47036": "[EN] 01 / 基础身份",
+    "txt_c6dc08": "[EN] 物理坐标",
+    "txt_d89194": "[EN] - 可选",
+    "txt_a2bc90": "[EN] - 系统生成",
+    "txt_999d5c": "[EN] 记忆碎片",
+    "txt_0467cc": "[EN] 查看全部",
+    "txt_d4b097": "[EN] 公司名称"
   },
   "CapacityFlow": {
     "txt_091d26": "[EN] 当前客流",
@@ -702,35 +745,39 @@
   "useChatStore": {},
   "blurhash": {},
   "imageCompression": {},
-  "chat": {},
-  "NativeBridgeProvider": {
-    "txt_afa6bb": "Download Now"
+  "chat": {
+    "txt_71f8fd": "[EN] 等待接入信号",
+    "txt_d9d041": "[EN] 请在左侧雷达选择目标节点"
   },
-  "WebDownloadPrompt": {},
-  "SandboxChatWindow": {},
-  "ChatListUI": {},
-  "ChatRoomUI": {},
+  "NativeBridgeProvider": {
+    "txt_afa6bb": "Download Now",
+    "txt_1bb828": "[EN] 检测到新版本",
+    "txt_d8fbcd": "[EN] 正在下载更新..."
+  },
+  "WebDownloadPrompt": {
+    "txt_77f625": "[EN] 使用 GX 专属原生 App",
+    "txt_389993": "[EN] 享受沉浸式全息体验，完美原生物理返回键与无死角硬件支持。"
+  },
+  "SandboxChatWindow": {
+    "txt_b0a14d": "[EN] 30天极速降解",
+    "txt_f8ea23": "[EN] 发送加密信息..."
+  },
+  "ChatListUI": {
+    "txt_8fc78c": "[EN] 正在扫描宇宙信号...",
+    "txt_5ac66f": "[EN] 当前频道暂无通讯记录",
+    "txt_8a6e8e": "[EN] 搜索信号 / 扫码 / 输入ID加人"
+  },
+  "ChatRoomUI": {
+    "txt_be6f6a": "[EN] 信号稳定 (0ms)",
+    "txt_fad9fb": "[EN] 等待接入信号...",
+    "txt_0bbdcf": "[EN] 输入指令..."
+  },
   "useChatEngine": {},
   "useRecentChats": {},
   "DataMatrixAssets": {
     "echo_1": "Experienced pour-over at XX Cafe today, very cyberpunk vibe.",
     "echo_2": "Just completed spatial jump, node synchronization successful.",
     "echo_3": "The nearby beauty center is doing a holographic projection test, absolutely stunning."
-  },
-  "HomeClient": {
-    "txt_fc724a": "Unclaimed Node",
-    "txt_2fa2bd": "Awaiting Claim",
-    "txt_3efb32": "Genuine Review",
-    "txt_de7277": "Unlock Color Privileges",
-    "txt_306058": "View Details & Navigate",
-    "txt_d5b619": "Data-Driven",
-    "txt_afb9fb": "Google Location Services",
-    "txt_6821d6": "Service Network Offline",
-    "txt_c76b02": "Building Lifestyle Service Network...",
-    "txt_a8b0c2": "All",
-    "txt_24482a": "UGC Photo Upload Feature Coming Soon",
-    "txt_3d1c77": "Satellite Connection Denied",
-    "locating": "Locating..."
   },
   "studio": {},
   "vision": {
@@ -745,7 +792,8 @@
     "txt_d699b2": "Technician",
     "txt_20b6c5": "Physical Locking...",
     "txt_09dc22": "One-Click Physical Lock (Write to Calendar)",
-    "txt_336572": "Tell the Concierge Your Needs..."
+    "txt_336572": "Tell the Concierge Your Needs...",
+    "txt_19fcb9": "[EN] 时间"
   },
   "AppPlatformGuard": {
     "txt_b3de79": "Get Full GX Experience",
@@ -756,7 +804,8 @@
     "txt_2fbaf0": "Inject Physical Desktop.",
     "txt_c5d070": "Perfect Experience",
     "txt_e66fa2": "Please Open in APP",
-    "txt_f3dda5": "Open Now"
+    "txt_f3dda5": "Open Now",
+    "txt_153fa6": "[EN] 选择"
   },
   "BottomNavBar": {
     "txt_07b181": "My",
@@ -767,7 +816,8 @@
   },
   "GxProCard": {
     "txt_3ed720": "Book Now",
-    "txt_98be76": "GX PRO Node"
+    "txt_98be76": "GX PRO Node",
+    "txt_53a12c": "[EN] GX PRO 官方认证"
   },
   "HoloAscensionCard": {
     "txt_bf27a7": "Join as Merchant",
@@ -857,5 +907,10 @@
   "BossApprovals": {
     "err_missing_profile": "Unable to locate applicant physical identity (Profile ID). Ensure basic profile is initialized.",
     "approval_failed": "Approval execution failed, please check database permissions or constraints"
+  },
+  "HomeClient": {
+    "txt_a8b0c2": "All",
+    "txt_24482a": "UGC Photo Upload Coming Soon",
+    "txt_3d1c77": "Satellite Connection Denied"
   }
 }

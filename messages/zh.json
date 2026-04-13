@@ -81,7 +81,16 @@
     "place_3_name": "Midnight Noodle Bar",
     "place_4_name": "Lumina Beauty Studio",
     "place_5_name": "Zenith Hair Salon",
-    "place_6_name": "The Grand Horizon Hotel"
+    "place_6_name": "The Grand Horizon Hotel",
+    "locating": "定位中...",
+    "txt_fc724a": "未认领节点",
+    "txt_2fa2bd": "等待认领",
+    "txt_3efb32": "真实评价",
+    "txt_de7277": "解锁色彩特权",
+    "txt_d5b619": "数据驱动",
+    "txt_afb9fb": "谷歌位置服务",
+    "txt_6821d6": "服务网络离线",
+    "txt_a8b0c2": "全部"
   },
   "notfound": {
     "txt_bfb989": "Connection Lost // 页面不存在"
@@ -115,13 +124,17 @@
     "txt_6688f2": "附近",
     "txt_5cd3c9": "去这家店",
     "txt_4c0a3a": "关注",
-    "txt_342d42": "获取空间坐标"
+    "txt_342d42": "获取空间坐标",
+    "welcome": "赛博空间欢迎你"
   },
   "me": {
     "txt_146ea7": "登录 / 注册 成为尊贵会员",
     "txt_b4b851": "去登录"
   },
   "nebula": {
+    "node_op_failed": "节点操作失败",
+    "user_not_found": "未找到该用户ID，请核对。",
+    "auth_failed": "授权失败",
     "txt_10ab83": "GX 私人管家",
     "txt_41d106": "ENTERPRISE CORE // 企业中枢",
     "txt_eb495f": "ABYSSAL COLLAPSE (解散联邦)",
@@ -343,6 +356,7 @@
     "txt_f21741": "启用毛玻璃背板",
     "txt_eeb6ca": "在日历与背景之间添加视觉隔离层",
     "txt_d1483c": "黑色遮罩浓度",
+    "txt_wallpaper_opacity": "壁纸层浓度",
     "txt_1d0c44": "毛玻璃模糊度",
     "txt_aaa577": "全息主题色映射",
     "txt_c94255": "顶部日期标题色",
@@ -456,6 +470,8 @@
     "txt_95f550": "确认捕获 / CONFIRM",
     "txt_05853d": "缩放"
   },
+  "status_closed_today": "今日已临时歇业",
+  "status_vacation": "节假日休假中",
   "MerchantDashboard": {
     "txt_56374a": "时间矩阵",
     "txt_3697a3": "服务节点",
@@ -490,9 +506,9 @@
     "txt_4d90f0": "退出账号",
     "txt_58a86b": "点击装修店铺",
     "txt_386390": "未找到相关门店",
-    "txt_145da8": "正常营业",
-    "txt_52aa20": "临时关门",
-    "txt_99af0d": "节假日休假",
+    "txt_145da8": "营业",
+    "txt_52aa20": "关门",
+    "txt_99af0d": "休假",
     "txt_096cda": "搜索门店...",
     "txt_8a30cd": "未知门店",
     "txt_eebd8d": "今日已临时歇业",
@@ -522,6 +538,7 @@
     "phone_taken": "该终端已被其他实体绑定"
   },
   "ProfileHeader": {
+    "rename": "改名",
     "txt_52e6ab": "已复制",
     "txt_79d3ab": "复制",
     "role_user": "生活",
@@ -762,22 +779,6 @@
   "imageCompression": {},
   "useChatEngine": {},
   "useRecentChats": {},
-  "HomeClient": {
-    "txt_b05e70": "私人管家",
-    "txt_fc724a": "未认领节点",
-    "txt_2fa2bd": "等待认领",
-    "txt_3efb32": "真实评价",
-    "txt_de7277": "解锁色彩特权",
-    "txt_306058": "查看详情与导航",
-    "txt_d5b619": "数据驱动",
-    "txt_afb9fb": "谷歌位置服务",
-    "txt_6821d6": "服务网络离线",
-    "txt_c76b02": "生活服务网络建设中...",
-    "txt_a8b0c2": "全部",
-    "txt_24482a": "UGC 照片上传功能即将开放",
-    "txt_3d1c77": "卫星连接遭拒",
-    "locating": "定位中..."
-  },
   "studio": {},
   "vision": {
     "txt_b05e70": "私人管家",
@@ -906,5 +907,10 @@
   "BossApprovals": {
     "err_missing_profile": "无法定位申请人的物理身份 (Profile ID)，请确保该用户已初始化基础档案",
     "approval_failed": "审批执行失败，请检查数据库权限或约束"
+  },
+  "HomeClient": {
+    "txt_a8b0c2": "全部",
+    "txt_24482a": "UGC 照片上传功能即将开放",
+    "txt_3d1c77": "卫星连接遭拒"
   }
 }

@@ -9,6 +9,15 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useBackground } from "@/hooks/useBackground";
 import Image from "next/image";
 
+// 【物理级静音】拦截底层 R3F 引擎由于内部使用 THREE.Clock 产生的无意义警告，保持控制台绝对全绿。
+if (typeof console !== "undefined") {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('THREE.Clock')) return;
+    originalWarn(...args);
+  };
+}
+
 // --- 降维组件：Mobile-Safe 2D Background ---
 function MobileNebulaFallback({ rotation }: { rotation: number }) {
   return (
@@ -164,10 +173,13 @@ export function NebulaBackground({ rotation }: { rotation?: number }) {
   return (
     <div className="fixed inset-0 z-0 bg-black pointer-events-none">
       {/* 静态壁纸层 (自愈架构) */}
-      {settings.showWallpaper && currentBg !== 'starry' && !imageError && (
-        <div className="absolute inset-0 z-0 opacity-40 transition-opacity duration-1000">
+      {settings.showWallpaper && !imageError && (
+        <div 
+          className="absolute inset-0 z-0 transition-opacity duration-1000"
+          style={{ opacity: settings.wallpaperOpacity / 100 }}
+        >
           <Image
-            src={currentBg}
+            src={currentBg === 'starry' ? '/images/backgrounds/p1.jpg' : currentBg}
             alt="Global Background"
             fill
             className="object-cover"

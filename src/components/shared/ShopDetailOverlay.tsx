@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, MapPin } from "lucide-react";
-import Image from "next/image";
+import { X, Sparkles } from "lucide-react";
 import { AiBookingAssistant } from "./AiBookingAssistant";
 import { useTranslations } from "next-intl";
+import { cn } from "@/utils/cn";
+import { BookingService } from "@/features/booking/api/booking";
 
 import { ShopDetailView } from "./ShopDetailView";
 
@@ -15,17 +16,40 @@ interface ShopDetailOverlayProps {
 export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
     const t = useTranslations('ShopDetailOverlay');
   const [isAiOpen, setIsAiOpen] = useState(false);
+  const [realtimeConfig, setRealtimeConfig] = useState<any>(null);
+
+  useEffect(() => {
+    if (!shop?.id) return;
+    
+    // 初始化同步
+    setRealtimeConfig(shop.config || {});
+
+    // 挂载实时配置雷达
+    const channel = BookingService.subscribeToShopConfig(shop.id, (payload) => {
+      const newConfig = payload.new?.config as any;
+      if (newConfig) {
+        setRealtimeConfig(newConfig);
+      }
+    });
+
+    return () => {
+      if (channel) BookingService.unsubscribe(channel);
+    };
+  }, [shop?.id, shop?.config]);
   
   if (!shop) return null;
 
-  const config = shop.config || {};
+  const config = realtimeConfig || shop.config || {};
 
   const coverImages = config.coverImages || ["https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?q=80&w=2070&auto=format&fit=crop"];
   const capsules = config.capsules || [];
   const slogan = config.slogan || "探索数字宇宙边界";
+  const storeStatus = config.storeStatus || 'open';
+  const hours = config.hours || [];
 
   // 移除传统的路由跳转，改为直接唤起 AI 管家
-  const handleOpenAi = (serviceName?: string) => {
+  const handleOpenAi = (_serviceName?: string) => {
+    if (storeStatus !== 'open') return; // 如果关门，拦截服务胶囊点击
     // 后续可以把 serviceName 传给 AiBookingAssistant 作为初始意图
     setIsAiOpen(true);
   };
@@ -55,6 +79,8 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
               location={config.location}
               capsules={capsules}
               onCapsuleClick={handleOpenAi}
+              storeStatus={storeStatus}
+              hours={hours}
               variant="full"
             />
           </div>
@@ -72,11 +98,26 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
         {/* 绝对底部的吸附预约按钮 (移动端吸附底部，PC端悬浮右下角) */}
         <div className="absolute bottom-0 left-0 right-0 p-6 pb-[env(safe-area-inset-bottom,24px)] md:left-auto md:w-auto md:right-12 md:bottom-8 md:p-0 bg-gradient-to-t from-black via-black/90 to-transparent md:bg-none z-50 pointer-events-none">
           <button
-            onClick={() => setIsAiOpen(true)}
-            className="w-full md:w-auto md:px-10 py-5 rounded-full bg-gradient-to-r from-gx-cyan to-blue-500 text-black font-black text-base tracking-[0.2em] flex items-center justify-center gap-3 hover:scale-[1.05] transition-transform shadow-[0_0_30px_rgba(0,240,255,0.4)] pointer-events-auto"
+            onClick={() => {
+              if (storeStatus === 'open') {
+                setIsAiOpen(true);
+              }
+            }}
+            disabled={storeStatus !== 'open'}
+            className={cn(
+              "w-full md:w-auto md:px-10 py-5 rounded-full font-black text-base tracking-[0.2em] flex items-center justify-center gap-3 transition-transform pointer-events-auto",
+              storeStatus === 'open' 
+                ? "bg-gradient-to-r from-gx-cyan to-blue-500 text-black hover:scale-[1.05] shadow-[0_0_30px_rgba(0,240,255,0.4)]"
+                : "bg-white/10 text-white/40 cursor-not-allowed border border-white/10"
+            )}
           >
-            <Sparkles className="w-5 h-5" />
-            {t('txt_2271ab')}</button>
+            {storeStatus === 'open' && <Sparkles className="w-5 h-5" />}
+            {storeStatus === 'open' 
+              ? t('txt_2271ab') 
+              : storeStatus === 'closed_today' 
+                ? '今日关门，暂停预约' 
+                : '节假日休假中'}
+          </button>
         </div>
 
         {/* 引入 C 端全息 AI 对话舱 */}

@@ -302,8 +302,8 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
       if (cachedCity) setLocationName(cachedCity);
 
       try {
-        // 穹顶第二层：网络基站 (IP定位兜底)，200毫秒
-        const networkPromise = fetch('https://ipapi.co/json/').then(r => r.json());
+        // 穹顶第二层：边缘基站 (Vercel Edge IP解析，0成本0跨域，无极并发)
+        const networkPromise = fetch('/api/geo').then(r => r.json());
 
         // 穹顶第三层：硬件卫星 (高精度 15秒)
         const hardwarePromise = new Promise<{lat: number, lng: number}>(async (resolve, reject) => {
@@ -356,7 +356,8 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
           setUserLocation({ lat: preciseLoc.lat, lng: preciseLoc.lng });
           localStorage.setItem('gx_last_location', JSON.stringify({ lat: preciseLoc.lat, lng: preciseLoc.lng }));
 
-          // 获取高精度城市名称
+        // 获取高精度城市名称
+        if (preciseLoc) {
           try {
             const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${preciseLoc.lat}&lon=${preciseLoc.lng}&zoom=10&addressdetails=1`, {
                 headers: { 'Accept-Language': 'zh-CN,en-US;q=0.9' }
@@ -369,13 +370,14 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
             // 静默失败，保持现有城市显示
           }
         }
+        }
 
       } catch (error: any) {
         console.warn("Triple-Tier Geolocation Error:", error.message);
         // 只有在没缓存、没网、没卫星的死地，才走降级
         if (!localStorage.getItem('gx_last_location')) {
           setIsLocationDenied(true);
-          setLocationName("定位失败");
+          setLocationName(t('txt_3d1c77') || "定位失败"); // 完美降维：不再显示具体的错误城市，而是显示赛博提示
           setUserLocation({ lat: 45.4642, lng: 9.1900 }); // Milan fallback
         }
       }
@@ -907,9 +909,9 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                                   )}
                                   priority={idx < 4} // 前几个卡片优先加载
                                   loading={idx < 4 ? "eager" : "lazy"} // 核心：强制首页可见元素加载，防止滑动时被立刻 Abort
-                                  onLoadingComplete={(result) => {
+                                  onLoad={(e) => {
                                     // 图片加载完成时，如果有需要可以做额外动画，这里配合 className 的 transition 已经足够平滑
-                                    result.classList.remove('opacity-0');
+                                    e.currentTarget.classList.remove('opacity-0');
                                   }}
                                 />
                               </>

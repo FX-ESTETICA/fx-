@@ -179,10 +179,10 @@ export default function DiscoveryPage() {
 
   return (
     <main className="fixed inset-0 z-40 bg-black md:bg-transparent text-white overflow-hidden">
-      
+    
       {/* 顶部悬浮导航 (Overlay) */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between p-4 pt-safe md:pt-8 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none">
-        
+    
         {/* 左上角: 逃生舱按钮 (返回大厅) */}
         <div className="pointer-events-auto mt-2">
           <button 
@@ -238,6 +238,7 @@ export default function DiscoveryPage() {
                     src={post.cover} 
                     alt={post.title} 
                     fill 
+                    sizes="(max-width: 768px) 100vw, 60vw"
                     className="object-cover" 
                     priority
                   />
@@ -274,7 +275,7 @@ export default function DiscoveryPage() {
                 <div className="absolute bottom-6 right-3 z-20 flex flex-col items-center gap-6 pointer-events-auto md:hidden">
                   {/* 悬浮头像 */}
                   <div className="relative w-12 h-12 rounded-full border-2 border-white/80 overflow-visible mb-2 cursor-pointer hover:scale-105 transition-transform shadow-lg">
-                    <Image src={post.avatar} alt={post.author} fill className="object-cover rounded-full" />
+                    <Image src={post.avatar} alt={post.author} fill sizes="48px" className="object-cover rounded-full" />
                     <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gx-cyan rounded-full flex items-center justify-center text-black font-black text-sm border-2 border-black">
                       <Plus className="w-3 h-3" />
                     </div>
@@ -304,7 +305,7 @@ export default function DiscoveryPage() {
                 <div className="flex items-center justify-between pb-4 border-b border-white/5">
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-full border-2 border-white/20 overflow-hidden">
-                      <Image src={post.avatar} alt={post.author} fill className="object-cover" />
+                      <Image src={post.avatar} alt={post.author} fill sizes="48px" className="object-cover" />
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-white">@{post.author}</h3>

@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { User, ShieldCheck, RefreshCw, Copy, Check } from "lucide-react";
 import { UserProfile } from "../types";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { DataMatrixAssets } from "./DataMatrixAssets";
@@ -18,7 +18,7 @@ interface ProfileHeaderProps {
 
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const t = useTranslations('ProfileHeader');
-  const { user, activeRole, setActiveRole } = useAuth();
+  const { user, activeRole, setActiveRole, refreshUserData } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -59,16 +59,65 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const profileGxId = (profile as UserProfile & { gx_id?: string; gxId?: string }).gx_id
     ?? (profile as UserProfile & { gx_id?: string; gxId?: string }).gxId;
 
-  // 名字复制与展开状态机
+  // 名字复制与修改状态机
+  const nameTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [nameCopyState, setNameCopyState] = useState<"idle" | "copied">("idle");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(profile.name || "");
+
   const handleCopyName = () => {
+    if (isEditingName) return;
     if (!profile.name) return;
-    navigator.clipboard.writeText(profile.name).then(() => {
+    
+    const proceedWithUI = () => {
       setNameCopyState("copied");
-      setTimeout(() => {
+      if (nameTimeoutRef.current) clearTimeout(nameTimeoutRef.current);
+      nameTimeoutRef.current = setTimeout(() => {
         setNameCopyState("idle");
-      }, 2000);
-    });
+      }, 3000); // 延长到3秒，给用户充足时间点击改名
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(profile.name)
+        .then(proceedWithUI)
+        .catch((err) => {
+          console.warn("Clipboard write failed:", err);
+          proceedWithUI(); // 即使复制失败，也继续展开 UI，让用户能点到“改名”
+        });
+    } else {
+      proceedWithUI(); // 降级处理
+    }
+  };
+
+  const handleEnterEditName = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (nameTimeoutRef.current) clearTimeout(nameTimeoutRef.current);
+    setNameCopyState("idle");
+    setIsEditingName(true);
+    setEditNameValue(profile.name || "");
+  };
+
+  const handleSaveName = async (e?: React.MouseEvent | React.FormEvent<HTMLFormElement>) => {
+    if (e) e.stopPropagation();
+    if (!editNameValue.trim() || editNameValue.trim() === profile.name) {
+      setIsEditingName(false);
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: editNameValue.trim() })
+        .eq('id', user?.id);
+        
+      if (error) throw error;
+      
+      await refreshUserData();
+      setIsEditingName(false);
+    } catch (error) {
+      console.error("Failed to update name:", error);
+      setIsEditingName(false);
+    }
   };
 
   // 复制 ID 状态机
@@ -297,38 +346,72 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               transformOrigin: 'left bottom'
             }}
           >
-            {/* 名字投影 - 点击展开并复制 */}
-            <div 
-              onClick={handleCopyName}
-              className={cn(
-                "text-[18px] md:text-[24px] font-black tracking-widest select-none uppercase leading-none mb-1 transition-all duration-500 cursor-pointer pr-2 flex items-center group",
-                nameCopyState === "copied" 
-                  ? "whitespace-nowrap max-w-none text-gx-cyan" 
-                  : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:brightness-125"
-              )}
-              style={{
-                color: nameCopyState === "copied" ? 'rgb(0, 242, 255)' : 'rgba(255, 255, 255, 0.6)',
-                WebkitTextStroke: nameCopyState === "copied" ? '0.5px rgba(0, 242, 255, 0.8)' : '0.5px rgba(0, 242, 255, 0.5)',
-                textShadow: nameCopyState === "copied" ? '0 0 15px rgba(0, 242, 255, 0.8)' : '0 0 10px rgba(0, 242, 255, 0.4)',
-                filter: nameCopyState === "copied" ? 'none' : 'blur(0.2px)',
-              }}
-            >
-              {profile.name}
-              
-              {/* 复制成功指示器 */}
-              <AnimatePresence>
-                {nameCopyState === "copied" && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.5, x: -10 }}
-                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.5, x: -5 }}
-                    className="ml-2 text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,1)]"
-                  >
-                    <Check className="w-4 h-4" strokeWidth={3} />
-                  </motion.div>
+            {/* 名字投影 - 点击展开、复制与修改 */}
+            {!isEditingName ? (
+              <div 
+                onClick={handleCopyName}
+                className={cn(
+                  "text-[18px] md:text-[24px] font-black tracking-widest select-none leading-none mb-1 transition-all duration-500 cursor-pointer pr-2 flex items-center group",
+                  nameCopyState === "copied" 
+                    ? "whitespace-nowrap max-w-none text-gx-cyan" 
+                    : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:brightness-125"
                 )}
-              </AnimatePresence>
-            </div>
+                style={{
+                  color: nameCopyState === "copied" ? 'rgb(0, 242, 255)' : 'rgba(255, 255, 255, 0.6)',
+                  WebkitTextStroke: nameCopyState === "copied" ? '0.5px rgba(0, 242, 255, 0.8)' : '0.5px rgba(0, 242, 255, 0.5)',
+                  textShadow: nameCopyState === "copied" ? '0 0 15px rgba(0, 242, 255, 0.8)' : '0 0 10px rgba(0, 242, 255, 0.4)',
+                  filter: nameCopyState === "copied" ? 'none' : 'blur(0.2px)',
+                }}
+              >
+                {profile.name}
+                
+                {/* 复制成功指示器 & 改名按钮 */}
+                <AnimatePresence>
+                  {nameCopyState === "copied" && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5, x: -10 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.5, x: -5 }}
+                      className="ml-2 flex items-center gap-2"
+                    >
+                      <div className="flex items-center text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,1)]">
+                        <Check className="w-4 h-4" strokeWidth={3} />
+                        <span className="text-[10px] ml-1 tracking-widest uppercase">Copied</span>
+                      </div>
+                      <div 
+                        onClick={handleEnterEditName}
+                        className="flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300 text-[10px] tracking-widest cursor-pointer border border-white/20 rounded px-1.5 py-0.5 bg-black/40 shadow-sm whitespace-nowrap"
+                      >
+                        {t('rename') || '改名'}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              // 编辑态
+              <div className="flex items-center mb-1 pr-2 group">
+                <input 
+                  autoFocus
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                  className="bg-transparent border-b border-gx-cyan/50 focus:border-gx-cyan outline-none text-[18px] md:text-[24px] font-black tracking-widest leading-none text-gx-cyan placeholder-white/20 w-[140px] sm:w-[180px] md:w-[240px] transition-colors pb-0.5"
+                  style={{
+                    WebkitTextStroke: '0.5px rgba(0, 242, 255, 0.8)',
+                    textShadow: '0 0 15px rgba(0, 242, 255, 0.8)'
+                  }}
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <button onClick={handleSaveName} className="text-gx-cyan hover:text-white transition-colors hover:scale-110 active:scale-95">
+                    <Check className="w-5 h-5 drop-shadow-[0_0_5px_rgba(0,242,255,0.8)]" strokeWidth={3} />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className="text-white/40 hover:text-white transition-colors hover:scale-110 active:scale-95">
+                    <span className="text-[14px] font-bold">✕</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* 角色暗门切换器 */}
             <button 

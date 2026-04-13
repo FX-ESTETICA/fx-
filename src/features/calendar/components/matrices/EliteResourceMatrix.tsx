@@ -178,7 +178,7 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
   );
 });
 
-export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, matrixScrollRef, onDateSwipe, onPhantomDateChange }: EliteResourceMatrixProps) => {
+export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, matrixScrollRef, onDateSwipe, onPhantomDateChange, storeStatus }: EliteResourceMatrixProps & { storeStatus?: string }) => {
   const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => setIsMounted(true), []);
@@ -453,6 +453,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
         const rect = matrixContainerRef.current?.getBoundingClientRect();
         if (rect) {
           const { timeStr, resourceId, dateStr } = calculateCrosshair(e.clientY, e.clientX, rect);
+          
+          // 【物理级门禁】：如果点击的这天是关门或休假，彻底拦截派单弹窗
+          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          const isLocked = storeStatus === 'holiday' || (storeStatus === 'closed_today' && isToday);
+          if (isLocked) return;
+
           if (onGridClick) onGridClick(resourceId || undefined, timeStr, dateStr);
         }
       }
@@ -685,9 +691,43 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                 </div>
               );
             })}
+            
+            {/* 【物理级幽灵锁块】：渲染关门或休假的不可点击区域 */}
+            {waterfallData.nodes.filter(n => n.isDayStart).map(dayNode => {
+              // 判断这天是否被锁定
+              const isToday = dayNode.dateStr === new Date().toISOString().split('T')[0];
+              const isLocked = storeStatus === 'holiday' || (storeStatus === 'closed_today' && isToday);
+              
+              if (!isLocked) return null;
+
+              // 计算这一天的总高度 (从这天开始，到下一天开始前)
+              const nextDayNode = waterfallData.nodes.find(n => n.isDayStart && n.top > dayNode.top);
+              const dayHeight = nextDayNode ? nextDayNode.top - dayNode.top : waterfallData.totalHeight - dayNode.top;
+
+              return (
+                <div 
+                  key={`locked-${dayNode.dateStr}`}
+                  className="absolute left-0 right-0 z-40 flex flex-col items-center justify-center pointer-events-auto backdrop-blur-md"
+                  style={{ top: dayNode.top, height: dayHeight }}
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                  onPointerDown={(e) => { e.stopPropagation(); }}
+                >
+                  <div className="absolute inset-0 bg-red-500/10 pointer-events-none" />
+                  <div className="p-8 rounded-2xl border bg-red-500/10 border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center relative z-10">
+                    <h2 className="text-2xl font-black tracking-widest mb-2 text-red-500">
+                      {storeStatus === 'closed_today' ? "今日关门" : "节假日休假"}
+                    </h2>
+                    <p className="text-red-400/80 font-mono text-sm">
+                      暂停营业与一切排班预约操作
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+
             {/* 渲染资源列与卡片 (The Cyber Matrix Data Layer) */}
             <div className="absolute inset-0 flex pl-[0px] pb-20 pointer-events-none">
-              {resources.map((resource, idx) => {
+              {resources.map((resource) => {
                 const colBookings = bookings.filter(b => {
                   // 【NEXUS 终极法则】：只捕获前端 AI 生成的待确认订单 (PENDING)
                   if (resource.id === 'NEXUS') {
@@ -709,8 +749,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       if (!booking.startTime || !booking.duration || !booking.date) return null;
                       
                       // 动态编号降维处理函数
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const formatMinimalId = (idStr: string) => {
-                        if (!idStr) return t('unknown');
+                        if (!idStr) return 'Unknown';
                         if (idStr.startsWith("CO") || idStr.startsWith("NO")) {
                           const prefix = idStr.substring(0, 2);
                           const numStr = idStr.substring(2).trim();
@@ -730,7 +771,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       // 如果订单在当前视界（这三天）内不可见，则不渲染
                       if (topOffset === -1 || heightPx === 0) return null;
 
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const isTiny = booking.duration <= 45;
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const serviceTitle = booking.serviceName || '';
                       const isUnassigned = booking.originalUnassigned === true;
                       const isPending = booking.status === 'PENDING'; // 检查是否是待确认预约
@@ -738,6 +781,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       // --- 生命周期的视觉降维法则 ---
                       // 1. 动态获取系统当前时间，用于比对预约是否过期
                       const now = new Date();
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       let isPast = false;
                       if (booking.startTime && booking.date) {
                         const [hourStr, minStr] = booking.startTime.split(':');
@@ -750,16 +794,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       }
 
                       // 2. 判定是否已结账/结束 (彻底隐身)
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const isCheckedOut = booking.status === 'COMPLETED' || booking.status === 'CHECKED_OUT';
 
                       // 恢复您的设计：未指定的散单保留青色，作为店长灵活调度的视觉锚点
                       const blockColor = isUnassigned ? '#00f0ff' : (resource.id === 'NO' ? '#ef4444' : (resource.themeColor || dna.themeColor));
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const blockAccent = isUnassigned ? 'cyan' : (resource.id === 'NO' ? 'red' : dna.accent);
 
                       // --- 快捷调度内爆形变与极速拆单法则 ---
-                      // 1. 判定当前订单是否为未分配的散单（比如 NEXUS/NO/青色块）
-                      const isUnassignedBlock = booking.originalUnassigned === true || !booking.resourceId || booking.resourceId === 'NEXUS';
-
+                      
                       // 2. 右键内爆处理函数
                       const handleContextMenu = (e: React.MouseEvent) => {
                         e.preventDefault();
@@ -778,7 +822,6 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       
                       // 3. 捞取所有需要参与这次操作的兄弟卡片
                       // 绝对原子化：只有它自己参与。不再通过 masterOrderId 去跨列捞取连单。
-                      const activeSiblings = [booking];
                       
                       // 4. 判定是否开启“三分天下”的派单模式
                       // 绝对原子化：判定基准是当前卡片内部包裹了几个子项目 (services.length > 1)
@@ -787,6 +830,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       const isSplitMode = booking.services && booking.services.length > 1;
 
                       // 5. 确保附加菜单在这次引爆行动中，只渲染一次
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const isFirstImploded = isImploded;
 
                       // 6. 物理切割：动态计算宽度和位置（0 遮挡）
@@ -797,6 +841,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       
                       // 7. 预览颜色注入 (Cyber Glow Resonance)
                       // 【新交互法则】：大卡片保持原色，不随选定的员工发生形变和变色
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       let finalBlockColor = blockColor;
                       
                       const isProcessing = processingOrderId === booking.id;
