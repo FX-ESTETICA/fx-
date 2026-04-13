@@ -128,10 +128,21 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
     const targetShopId = activeShopId || shopId;
     if (!targetShopId || targetShopId === 'default') return;
 
+    let isSubscribed = true;
+
+    // 【致命 0 污染法则】：无论如何，先强制把 UI 状态重置回系统的出厂默认值
+    // 彻底斩断上一个商店残留的数据污染
+    setStoreStatus('open');
+    setOpenTime(8);
+    setCloseTime(22);
+
     const loadStoreConfig = async () => {
       try {
         const { data: config } = await BookingService.getConfigs(targetShopId);
+        if (!isSubscribed) return;
+        
         if (config) {
+          // 只有数据库里有这个字段，才去覆盖默认值
           if (config.storeStatus) {
             setStoreStatus(config.storeStatus as any);
           }
@@ -141,10 +152,11 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
               if (h.start !== undefined) setOpenTime(h.start);
               if (h.end !== undefined) setCloseTime(h.end);
             } else {
-              setOpenTime(0);
-              setCloseTime(24);
+              setOpenTime(8);
+              setCloseTime(22);
             }
           }
+          // 注意：如果 config 存在，但刚好没有 hours，它就会老老实实地保持前面强制设置的 8-22
         }
         setIsConfigLoaded(true);
       } catch (e) {
@@ -166,15 +178,16 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
             if (h.start !== undefined) setOpenTime(h.start);
             if (h.end !== undefined) setCloseTime(h.end);
           } else {
-            // 如果全局营业时间被清空，则默认显示 0-24 
-            setOpenTime(0);
-            setCloseTime(24);
+            // 如果全局营业时间被清空，则默认显示 0-24 或 8-22
+            setOpenTime(8);
+            setCloseTime(22);
           }
         }
       }
     });
 
     return () => {
+      isSubscribed = false;
       if (channel) BookingService.unsubscribe(channel);
     };
   }, [activeShopId, shopId]);
