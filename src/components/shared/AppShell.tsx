@@ -6,6 +6,7 @@ import { AppPlatformGuard } from "./AppPlatformGuard";
 import { CyberOnboardingModal } from "./CyberOnboardingModal";
 import { BottomNavBar } from "./BottomNavBar";
 import { GlobalWormholeCapsule } from "./GlobalWormholeCapsule";
+import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 import { useShop } from "@/features/shop/ShopContext";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
@@ -49,6 +50,14 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       {/* 3. 多门店管理全局“虫洞”悬浮枢纽：0冲突极简常驻 */}
       <GlobalWormholeCapsule />
 
+      {/* 4. 全局算力矩阵大一统弹窗 (Global Subscription Matrix) - 修复无响应Bug */}
+      <SubscriptionLimitModal 
+        isOpen={subscriptionModalMode !== null}
+        onClose={closeSubscriptionModal}
+        currentTier={subscription.subscriptionTier}
+        mode={subscriptionModalMode || undefined}
+        onStartGracePeriod={undefined}
+      />
     </div>
   );
 };
