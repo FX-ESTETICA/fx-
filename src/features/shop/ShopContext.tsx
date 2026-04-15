@@ -11,6 +11,7 @@ interface SubscriptionState {
   gracePeriodEndsAt: string | null;
   gracePeriodActionsLeft: number | null;
   remainingTime: string | null;
+  remainingMilliseconds: number | null; // 新增：提供给 UI 做精确的阈值判断
   isGracePeriodActive: boolean;
   isLoaded: boolean;
   empireId: string | null;
@@ -44,6 +45,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     gracePeriodEndsAt: null,
     gracePeriodActionsLeft: null,
     remainingTime: null,
+    remainingMilliseconds: null,
     isGracePeriodActive: false,
     isLoaded: false,
     empireId: null,
@@ -247,24 +249,39 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         // 如果数据还没从云端拉下来，先不计算，保持原样，防止初始 null 闪烁
         if (!prev.isLoaded) return prev;
 
-        const { subscriptionTier, trialStartedAt, subscriptionEndsAt, gracePeriodActionsLeft } = prev;
-        
-        // 如果有正式会员到期时间
+        const { trialStartedAt, subscriptionEndsAt, subscriptionTier, gracePeriodEndsAt, gracePeriodActionsLeft } = prev;
+
+        // 1. 如果有真实的正式订阅到期时间 (通过 Paddle 购买后写入的 current_period_end)
         if (subscriptionEndsAt) {
           const end = new Date(subscriptionEndsAt);
           const diff = end.getTime() - trueNow.getTime();
+
           if (diff > 0) {
-            const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
             const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const s = Math.floor((diff % (1000 * 60)) / 1000);
             
-            let timeStr = `${h}H ${m}M ${s}S`;
-            if (d > 0) timeStr = `${d}D ${h}H`;
+            // 如果大于 1 天，直接显示天数；否则显示精确倒计时
+            const timeStr = days > 0 ? `${days} 天` : `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             
-            return { ...prev, remainingTime: timeStr, isGracePeriodActive: false };
+            return { ...prev, remainingTime: timeStr, remainingMilliseconds: diff, isGracePeriodActive: false };
           } else {
-            return { ...prev, remainingTime: "MEMBERSHIP_EXPIRED", isGracePeriodActive: false };
+            return { ...prev, remainingTime: "MEMBERSHIP_EXPIRED", remainingMilliseconds: 0, isGracePeriodActive: false };
+          }
+        }
+
+        // 2. 原有的店级续命期逻辑 (店级配置的 grace_period_ends_at)
+        if (gracePeriodEndsAt) {
+          const end = new Date(gracePeriodEndsAt);
+          const diff = end.getTime() - trueNow.getTime();
+          if (diff > 0) {
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((diff % (1000 * 60)) / 1000);
+            return { ...prev, remainingTime: `${h}H ${m}M ${s}S`, remainingMilliseconds: diff, isGracePeriodActive: true };
+          } else {
+            return { ...prev, remainingTime: "MEMBERSHIP_EXPIRED", remainingMilliseconds: 0, isGracePeriodActive: false };
           }
         }
 
@@ -278,27 +295,27 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
             const h = Math.floor(diff / (1000 * 60 * 60));
             const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const s = Math.floor((diff % (1000 * 60)) / 1000);
-            return { ...prev, remainingTime: `${h}H ${m}M ${s}S`, isGracePeriodActive: false };
+            return { ...prev, remainingTime: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`, remainingMilliseconds: diff, isGracePeriodActive: false };
           } else {
             // 试用期结束，检查是否有紧急操作次数
             if (gracePeriodActionsLeft !== null) {
               if (gracePeriodActionsLeft > 0) {
                 // 还有剩余次数，处于续命期
-                return { ...prev, remainingTime: "GRACE_PERIOD", isGracePeriodActive: true };
+                return { ...prev, remainingTime: "GRACE_PERIOD", remainingMilliseconds: 0, isGracePeriodActive: true };
               } else {
                 // 次数耗尽
-                return { ...prev, remainingTime: "ACTIONS_EXHAUSTED", isGracePeriodActive: false };
+                return { ...prev, remainingTime: "ACTIONS_EXHAUSTED", remainingMilliseconds: 0, isGracePeriodActive: false };
               }
             } else {
               // 未开启续命
-              return { ...prev, remainingTime: "LIMIT_EXCEEDED", isGracePeriodActive: false };
+              return { ...prev, remainingTime: "LIMIT_EXCEEDED", remainingMilliseconds: 0, isGracePeriodActive: false };
             }
           }
         }
         
         // 如果免费试用尚未开始
         if (subscriptionTier === 'FREE' && !trialStartedAt) {
-          return { ...prev, remainingTime: null, isGracePeriodActive: false };
+          return { ...prev, remainingTime: null, remainingMilliseconds: null, isGracePeriodActive: false };
         }
         
         return prev;

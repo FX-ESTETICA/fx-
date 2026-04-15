@@ -5,6 +5,7 @@ import { User, ShieldCheck, RefreshCw, Copy, Check } from "lucide-react";
 import { UserProfile } from "../types";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useShop } from "@/features/shop/ShopContext";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { DataMatrixAssets } from "./DataMatrixAssets";
 import { supabase, isMockMode } from "@/lib/supabase";
@@ -19,6 +20,7 @@ interface ProfileHeaderProps {
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const t = useTranslations('ProfileHeader');
   const { user, activeRole, setActiveRole, refreshUserData } = useAuth();
+  const { subscription } = useShop();
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -456,6 +458,22 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 </div>
               </div>
             </div>
+
+            {/* 新增：第四行 订阅倒计时引擎 */}
+            {subscription.subscriptionTier !== 'FREE' && subscription.remainingTime && subscription.remainingTime !== "MEMBERSHIP_EXPIRED" && (
+              <div 
+                className={cn(
+                  "relative flex items-center text-[10px] font-mono tracking-widest leading-none mt-1.5",
+                  (subscription.remainingMilliseconds ?? 0) < 5 * 60 * 1000 
+                    ? "text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" 
+                    : (subscription.remainingMilliseconds ?? 0) < 24 * 60 * 60 * 1000
+                      ? "text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.6)]"
+                      : "text-white/40 drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]"
+                )}
+              >
+                {subscription.subscriptionTier} 剩余 {subscription.remainingTime}
+              </div>
+            )}
           </div>
 
           {/* 全息阵列 (围绕在头像背后) */}

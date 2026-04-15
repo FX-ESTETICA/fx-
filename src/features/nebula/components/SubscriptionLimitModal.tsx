@@ -48,10 +48,15 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               const targetTier = data.data?.custom_data?.target_tier || 'PRO';
               
               // 物理级写入数据库
+              const nextMonth = new Date();
+              nextMonth.setMonth(nextMonth.getMonth() + 1);
+
               const { error } = await supabase
                 .from('profiles')
                 .update({ 
                   subscription_tier: targetTier,
+                  // 注入新的到期时间：当前时间 + 30天
+                  current_period_end: nextMonth.toISOString(),
                   // 重置试用期和剩余次数，代表正式成为了尊贵的付费用户
                   grace_period_actions_left: null 
                 })

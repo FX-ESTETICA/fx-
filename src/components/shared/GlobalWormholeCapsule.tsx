@@ -8,7 +8,7 @@ import { Zap, Store } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 export const GlobalWormholeCapsule = () => {
-  const { availableShops, setActiveShopId, activeShopId } = useShop();
+  const { availableShops, setActiveShopId, activeShopId, subscription } = useShop();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const capsuleRef = useRef<HTMLDivElement>(null);
@@ -26,13 +26,18 @@ export const GlobalWormholeCapsule = () => {
 
   if (!availableShops || availableShops.length === 0) return null;
 
+  // 新增逻辑：如果订阅即将到期（< 5分钟）或者已过期，则强制显示红色警告胶囊
+  const isEmergency = subscription.subscriptionTier !== 'FREE' && 
+    (subscription.remainingTime === "MEMBERSHIP_EXPIRED" || 
+     (subscription.remainingMilliseconds !== null && subscription.remainingMilliseconds < 5 * 60 * 1000));
+
   // Determine glow colors based on the highest role (boss > merchant)
   const isBoss = availableShops.some(s => s.role === 'boss');
   
-  // Boss = Amber/Gold glow, Merchant = Cyan glow
-  const glowColorHex = isBoss ? "rgba(245,158,11,0.6)" : "rgba(0,242,255,0.6)"; 
-  const borderColorClass = isBoss ? "border-amber-500/50" : "border-gx-cyan/50";
-  const textColorClass = isBoss ? "text-amber-500" : "text-gx-cyan";
+  // 红色警报覆盖逻辑
+  const glowColorHex = isEmergency ? "rgba(239,68,68,0.8)" : isBoss ? "rgba(245,158,11,0.6)" : "rgba(0,242,255,0.6)"; 
+  const borderColorClass = isEmergency ? "border-red-500/80" : isBoss ? "border-amber-500/50" : "border-gx-cyan/50";
+  const textColorClass = isEmergency ? "text-red-500" : isBoss ? "text-amber-500" : "text-gx-cyan";
 
   const handleShopClick = (shop: typeof availableShops[0]) => {
     setActiveShopId(shop.shopId);
@@ -107,11 +112,31 @@ export const GlobalWormholeCapsule = () => {
       >
         {/* 呼吸光效底层 - 纯靠发光特征色彰显存在感 */}
         <div 
-          className="absolute inset-0 rounded-full animate-pulse opacity-40"
+          className={cn(
+            "absolute inset-0 rounded-full opacity-40",
+            isEmergency ? "animate-ping" : "animate-pulse"
+          )}
           style={{ boxShadow: `0 0 20px ${glowColorHex}` }}
         />
-        <Zap className="w-5 h-5 relative z-10 drop-shadow-md" />
+        <Zap className={cn("w-5 h-5 relative z-10 drop-shadow-md", isEmergency && "animate-bounce")} />
       </button>
+
+      {/* 终极警告浮窗：仅在倒计时最后5分钟或过期时显示 */}
+      <AnimatePresence>
+        {isEmergency && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="absolute right-16 top-1/2 -translate-y-1/2 bg-red-950/80 border border-red-500/50 backdrop-blur-xl px-4 py-2 rounded-full flex items-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.5)] whitespace-nowrap"
+          >
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+            <span className="text-xs font-bold tracking-widest text-red-100">
+              {subscription.remainingTime === "MEMBERSHIP_EXPIRED" ? "会员已到期" : `即将到期 ${subscription.remainingTime}`}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
