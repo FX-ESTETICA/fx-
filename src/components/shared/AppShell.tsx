@@ -6,8 +6,6 @@ import { AppPlatformGuard } from "./AppPlatformGuard";
 import { CyberOnboardingModal } from "./CyberOnboardingModal";
 import { BottomNavBar } from "./BottomNavBar";
 import { GlobalWormholeCapsule } from "./GlobalWormholeCapsule";
-import { SubscriptionWatermark } from "./SubscriptionWatermark";
-import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 import { useShop } from "@/features/shop/ShopContext";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
@@ -51,29 +49,6 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       {/* 3. 多门店管理全局“虫洞”悬浮枢纽：0冲突极简常驻 */}
       <GlobalWormholeCapsule />
 
-      {/* 4. 会员/试用期专属水印雷达：全局统一，确保 Nebula / 智控 / 日历 完全一致 */}
-      <SubscriptionWatermark />
-
-      {/* 5. 全局算力矩阵大一统弹窗 (Global Subscription Matrix) */}
-      <SubscriptionLimitModal 
-        isOpen={subscriptionModalMode !== null} 
-        onClose={closeSubscriptionModal} 
-        currentTier={subscription.subscriptionTier || 'FREE'} 
-        mode={subscriptionModalMode || 'NODE_LIMIT'}
-        onStartGracePeriod={
-          subscription.gracePeriodActionsLeft === null 
-            ? async () => {
-                if (!subscription.empireId) return;
-                try {
-                  const { supabase } = await import('@/lib/supabase');
-                  await supabase.from('profiles').update({ grace_period_actions_left: 15 }).eq('id', subscription.empireId);
-                } catch (e) {
-                  console.error("Failed to start grace period actions:", e);
-                }
-              }
-            : undefined
-        }
-      />
     </div>
   );
 };

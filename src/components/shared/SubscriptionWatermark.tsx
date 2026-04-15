@@ -1,16 +1,10 @@
 "use client";
 
 import { useShop } from "@/features/shop/ShopContext";
-import { usePathname } from "next/navigation";
 
 export const SubscriptionWatermark = () => {
   const { subscription } = useShop();
-  const pathname = usePathname();
   const { subscriptionTier, remainingTime, trialStartedAt, isGracePeriodActive, gracePeriodActionsLeft } = subscription;
-
-  // 智控页面 (MerchantDashboard) 会显示独立的横幅 (GracePeriodBanner)
-  // 因此全局水印在 /dashboard 路由下自动隐藏
-  if (pathname === "/dashboard") return null;
 
   // 只要有剩余时间，或者免费但还没开始试用，就显示雷达
   if (remainingTime || (!trialStartedAt && subscriptionTier === 'FREE')) {

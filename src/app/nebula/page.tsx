@@ -14,6 +14,8 @@ import { useShop } from "@/features/shop/ShopContext"; // 引入 ShopContext
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { SubscriptionModalMode } from "@/features/shop/ShopContext";
+import { SubscriptionWatermark } from "@/components/shared/SubscriptionWatermark";
+import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 
 // --- Types ---& State ---
 type NodeStatus = 'pending' | 'active';
@@ -512,7 +514,9 @@ function NodeManagementHUD({
   onDive,
   onObliterate,
   subscriptionTier = 'FREE',
-  activeNodesCount = 0
+  activeNodesCount = 0,
+  subscriptionModalMode,
+  closeSubscriptionModal
 }: { 
   planet: PlanetData; 
   onClose: () => void;
@@ -525,6 +529,8 @@ function NodeManagementHUD({
   onObliterate?: () => Promise<void>;
   subscriptionTier?: string;
   activeNodesCount?: number;
+  subscriptionModalMode: SubscriptionModalMode;
+  closeSubscriptionModal: () => void;
 }) {
   const t = useTranslations('nebula');
   const router = useRouter();
@@ -1618,7 +1624,7 @@ export default function NebulaPage() {
 
   // 获取真实数据库 ID (假设 activeRole 是 boss 并且 user 存在，这里需要真实的 profile id，如果是沙盒则用 undefined 测试)
   const bossProfileId = sUser?.id; 
-  const { openSubscriptionModal } = useShop();
+  const { openSubscriptionModal, subscriptionModalMode, closeSubscriptionModal } = useShop();
 
   // 使用自定义 Hook 拉取 Supabase 数据
   const { 
@@ -1759,6 +1765,8 @@ export default function NebulaPage() {
           onObliterate={obliterateEnterprise}
           subscriptionTier={subscriptionTier}
           activeNodesCount={allPlanets.length}
+          subscriptionModalMode={subscriptionModalMode}
+          closeSubscriptionModal={closeSubscriptionModal}
         />
       )}
 
@@ -1797,6 +1805,17 @@ export default function NebulaPage() {
     </Canvas>
       </div>
 
+      {/* 会员/试用期专属水印雷达 */}
+      <SubscriptionWatermark />
+
+      {/* 全局算力矩阵大一统弹窗 (Global Subscription Matrix) */}
+      <SubscriptionLimitModal 
+        isOpen={subscriptionModalMode !== null} 
+        onClose={closeSubscriptionModal} 
+        currentTier={subscriptionTier || 'FREE'} 
+        mode={subscriptionModalMode || 'NODE_LIMIT'}
+        onStartGracePeriod={undefined}
+      />
     </main>
   );
 }
