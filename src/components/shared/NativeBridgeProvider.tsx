@@ -137,7 +137,7 @@ export function NativeBridgeProvider() {
                 setDownloadProgress(0);
 
                 // 1. 注册进度监听
-                const progressListener = await FileTransfer.addListener('progress', (progress: any) => {
+                const progressListener = await FileTransfer.addListener('progress', (progress: { lengthComputable: boolean; type: string; bytes: number; contentLength: number }) => {
                   if (progress.lengthComputable && progress.type === 'download') {
                     setDownloadProgress(Math.round((progress.bytes / progress.contentLength) * 100));
                   }

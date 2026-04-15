@@ -51,6 +51,12 @@
   --gx-cyan: #00f2ff;
   --gx-blue: #0066ff;
   --gx-purple: #bc00ff;
+
+  /* 终极跨端安全区适配变量 */
+  --sat: max(env(safe-area-inset-top), 24px);
+  --sab: max(env(safe-area-inset-bottom), 24px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 @layer base {

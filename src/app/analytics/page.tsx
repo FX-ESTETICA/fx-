@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-black text-white p-6 md:p-12 relative overflow-hidden">
+    <main className="min-h-[100dvh] bg-black text-white p-6 md:p-12 relative overflow-hidden">
       {/* 背景光效 */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />

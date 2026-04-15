@@ -268,7 +268,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   };
 
   return (
-    <div className="relative flex flex-col items-center text-center pt-10 pb-[5px] w-full overflow-visible">
+    <div className="relative flex flex-col items-center text-center pt-[calc(var(--sat)+16px)] pb-[5px] w-full overflow-visible">
       {/* 前景内容区 */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-4xl mx-auto">
         

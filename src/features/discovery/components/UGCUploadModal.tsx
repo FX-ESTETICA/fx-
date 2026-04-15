@@ -282,7 +282,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/50 pointer-events-none" />
 
               {/* Top Bar */}
-              <div className="relative z-10 flex justify-between items-center p-6 pt-12">
+              <div className="relative z-10 flex justify-between items-center p-6 pt-[calc(var(--sat)+24px)]">
                 <button 
                   onClick={() => { setStep("camera"); setFile(null); setPreviewUrl(null); }}
                   className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white/80 hover:text-white transition-colors"

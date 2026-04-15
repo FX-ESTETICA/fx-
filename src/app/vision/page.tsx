@@ -99,7 +99,7 @@ export default function VisionPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-transparent relative flex flex-col xl:flex-row">
+    <main className="min-h-[100dvh] bg-transparent relative flex flex-col xl:flex-row">
       {/* 由于是在 /vision 独立路由，底层 layout.tsx 的 NebulaBackground 会自动作为最底层星空背景 */}
       
       {/* 沉浸式毛玻璃遮罩，为了突出路演舱的主体 */}
@@ -248,7 +248,7 @@ export default function VisionPage() {
       {/* ------------------------------------------------------------- */}
       {/* 桌面与大尺寸平板端：流体缩放设备矩阵 (2/3 区域) - 启用 Sticky 吸顶 */}
       {/* ------------------------------------------------------------- */}
-      <div className="hidden md:flex w-full xl:w-2/3 items-center justify-center pointer-events-none perspective-1000 z-10 sticky top-0 h-screen">
+      <div className="hidden md:flex w-full xl:w-2/3 items-center justify-center pointer-events-none perspective-1000 z-10 sticky top-0 h-[100dvh]">
         
         {/* 核心响应式外壳：利用 CSS clamp 确保整体缩放，彻底抛弃绝对 px */}
         <div 

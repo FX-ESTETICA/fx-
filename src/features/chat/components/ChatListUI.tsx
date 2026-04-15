@@ -26,7 +26,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 
   return (
     // 最外层容器，这里假设父级页面会有一个宇宙/星空大背景，所以这里绝对透明
-    <div className="w-full h-full min-h-screen bg-transparent flex flex-col pt-safe-top">
+    <div className="w-full h-full min-h-[100dvh] bg-transparent flex flex-col pt-safe-top">
       
       {/* 1. 顶部：全息搜索舱 (The Omni-Scanner) */}
       <div className="px-5 py-4 shrink-0 relative z-20">

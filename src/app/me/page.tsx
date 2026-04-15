@@ -21,7 +21,7 @@ export default function MePage() {
   }, [isLoading, user]);
 
   return (
-    <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex items-center justify-center">
+    <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden flex items-center justify-center">
       
       {isLoading ? (
         // 视觉降噪：真空期不渲染任何文字，避免被快照冻结，保持绝对清透

@@ -77,7 +77,7 @@ export default function DashboardPage() {
   // 完美体验拦截：在认证状态完全就绪之前，渲染一个空底盘以防止视觉闪烁
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-transparent text-white relative overflow-hidden">
+      <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
       </main>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
 
   // 决定可用角色切换
   return (
-    <main className="min-h-screen bg-transparent text-white relative overflow-hidden">
+    <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden">
       
       {/* 背景光效 */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />

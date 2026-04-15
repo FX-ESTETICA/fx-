@@ -31,7 +31,7 @@ export function ShopDetailView({
   const isCompact = variant === 'compact';
 
   return (
-    <div className={cn("w-full pb-10 bg-[#0a0a0a] min-h-screen", !isCompact && "md:pb-24")}>
+    <div className={cn("w-full pb-10 bg-[#0a0a0a] min-h-[100dvh]", !isCompact && "md:pb-24")}>
       {/* Detail View Hero Image */}
       <div className={cn("w-full bg-white/5 relative", isCompact ? "aspect-[4/3]" : "h-[40vh] md:h-[60vh]")}>
         {coverImages.length > 0 ? (

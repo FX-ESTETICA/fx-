@@ -71,7 +71,7 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
         {/* 独立的滚动容器：将 fixed 与 absolute 降维风险隔离 */}
         <div className="absolute inset-0 overflow-y-auto overflow-x-hidden no-scrollbar">
           {/* 整个页面内容容器 (随滚动条移动) */}
-          <div className="relative w-full min-h-screen flex flex-col z-10 pb-32 md:pb-0 bg-[#0a0a0a]">
+          <div className="relative w-full min-h-[100dvh] flex flex-col z-10 pb-32 md:pb-0 bg-[#0a0a0a]">
             <ShopDetailView 
               coverImages={coverImages}
               storeName={shop.name}
@@ -90,7 +90,7 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
         {/* 悬浮关闭按钮 (位于独立滚动层之上，不受滚动影响) */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-3 rounded-full bg-black/40 border border-white/10 text-white/80 hover:text-white hover:bg-black/60 transition-all z-50 backdrop-blur-xl"
+          className="absolute top-[var(--sat)] right-6 p-3 rounded-full bg-black/40 border border-white/10 text-white/80 hover:text-white hover:bg-black/60 transition-all z-50 backdrop-blur-xl"
         >
           <X className="w-6 h-6" />
         </button>

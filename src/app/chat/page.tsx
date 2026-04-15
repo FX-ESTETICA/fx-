@@ -20,7 +20,7 @@ export default function ChatListPage() {
   const { activeChat, setActiveChat } = useChatStore();
 
   return (
-    // 修复高度塌陷：必须使用强制视口高度 h-[100dvh] 而不是 min-h-screen
+    // 修复高度塌陷：必须使用强制视口高度 h-[100dvh] 而不是 min-h-[100dvh]
     <main className="relative w-full h-[100dvh] bg-black overflow-hidden">
       {/* 模拟宇宙深空背景（底层常量） */}
       <div className="absolute inset-0 z-0">

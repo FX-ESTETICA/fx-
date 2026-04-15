@@ -59,7 +59,7 @@ export function AuthCallbackClient() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-[100dvh] bg-black flex items-center justify-center">
         <div className="text-red-500 bg-red-500/10 px-6 py-4 rounded-lg border border-red-500/20">
           {t('txt_3048f0')}{error}
           <button 
@@ -73,7 +73,7 @@ export function AuthCallbackClient() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+    <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center">
       <div className="w-16 h-16 border-4 border-gx-cyan border-t-transparent rounded-full animate-spin"></div>
       <p className="mt-8 text-gx-cyan font-mono tracking-widest animate-pulse">
         VERIFYING IDENTITY...

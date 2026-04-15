@@ -158,7 +158,7 @@ export default function BossApprovalsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-transparent text-white px-6 py-6 md:px-12 md:pt-8 md:pb-12 relative overflow-hidden">
+    <main className="min-h-[100dvh] bg-transparent text-white px-6 pt-[var(--sat)] pb-6 md:px-12 md:pt-[calc(var(--sat)+8px)] md:pb-12 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full bg-black/40 backdrop-blur-sm pointer-events-none" />
 
       <div className="max-w-6xl mx-auto relative z-10 space-y-8">

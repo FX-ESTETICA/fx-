@@ -639,13 +639,13 @@ function NodeManagementHUD({
         {/* 顶部关闭按钮 */}
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors z-50"
+          className="absolute top-[var(--sat)] right-6 text-white/40 hover:text-white transition-colors z-50"
         >
           <X className="w-6 h-6" />
         </button>
 
         {/* --- 顶部穹顶 (The Zenith Dome) --- */}
-        <div className="pt-8 pb-4 flex flex-col items-center justify-center relative">
+        <div className="pt-[calc(var(--sat)+8px)] pb-4 flex flex-col items-center justify-center relative">
           <div className="text-xl md:text-2xl font-black tracking-[0.3em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-300 to-white/50 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] mb-2 select-none flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] animate-pulse" />
             {t('txt_10ab83')}</div>
@@ -1646,7 +1646,7 @@ export default function NebulaPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-black relative overflow-hidden flex items-center justify-center">
+      <main className="min-h-[100dvh] bg-black relative overflow-hidden flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-8 h-8 text-gx-cyan animate-spin" />
           <div className="text-gx-cyan/50 font-mono text-sm tracking-widest animate-pulse">INITIALIZING NEBULA PROTOCOL...</div>
@@ -1700,7 +1700,7 @@ export default function NebulaPage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col">
+    <main className="min-h-[100dvh] bg-black text-white relative overflow-hidden flex flex-col">
       <AnimatePresence>
         {diveState.isTransitioning && (
           <motion.div
@@ -1765,7 +1765,7 @@ export default function NebulaPage() {
 
       {/* 
         全量替换为 WebGL (React Three Fiber) Canvas
-        必须给外层容器明确的高度 (flex-1 或 h-screen)，否则 Canvas 高度为 0，导致黑屏
+        必须给外层容器明确的高度 (flex-1 或 h-[100dvh])，否则 Canvas 高度为 0，导致黑屏
       */}
       <div className="absolute inset-0 z-0">
         <Canvas camera={{ position: [0, 8, 25], fov: 45 }} style={{ width: '100%', height: '100%' }}>

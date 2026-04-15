@@ -6,7 +6,7 @@ import Image from "next/image";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex flex-col justify-center py-12">
+    <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden flex flex-col justify-center py-12">
       
       <div className="absolute inset-0 z-0">
         <Image

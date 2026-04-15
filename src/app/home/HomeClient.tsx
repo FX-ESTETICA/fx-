@@ -464,11 +464,11 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
   return (
     <>
       <main className={cn(
-        "min-h-screen bg-transparent text-white relative overflow-x-hidden pb-6 transition-all duration-500",
+        "min-h-[100dvh] bg-transparent text-white relative overflow-x-hidden pb-6 transition-all duration-500",
         selectedShop && "scale-95 blur-sm opacity-50 pointer-events-none"
       )}>
         
-        <div className="w-full px-[clamp(16px,4vw,64px)] pt-6 relative z-10 space-y-[clamp(24px,4vw,40px)]">
+        <div className="w-full px-[clamp(16px,4vw,64px)] pt-[var(--sat)] relative z-10 space-y-[clamp(24px,4vw,40px)]">
         {/* Top Info Bar - Brand Identity & LBS Dual Wing */}
         <div className="flex justify-between items-end px-2 mb-2">
           {/* Left Wing - Core Brand Display (Optical Refraction & Holographic Glow) */}

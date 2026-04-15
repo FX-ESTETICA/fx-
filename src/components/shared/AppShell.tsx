@@ -29,7 +29,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const showBottomTabs = !isDiscovery && pathname !== "/chat" && ["/home", "/me", "/dashboard"].includes(pathname || "");
 
   return (
-    <div className="relative min-h-screen bg-transparent flex flex-col">
+    <div className="relative min-h-[100dvh] bg-transparent flex flex-col">
       <AppPlatformGuard />
       
       {/* 1. 底层业务页面：作为背景正常渲染 */}

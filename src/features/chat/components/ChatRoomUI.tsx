@@ -44,7 +44,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
   return (
     // 绝对透明容器，让底层星云透射上来
-    <div className="w-full h-full min-h-screen bg-transparent flex flex-col pt-safe-top">
+    <div className="w-full h-full min-h-[100dvh] bg-transparent flex flex-col pt-safe-top">
       
       {/* 1. 顶部：导航与雷达仪 */}
       <div className="px-4 py-3 shrink-0 flex items-center justify-between z-20 border-b border-white/10 backdrop-blur-md bg-black/20">

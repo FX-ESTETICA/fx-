@@ -30,7 +30,7 @@ export default function OnboardingPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-transparent text-white relative overflow-x-hidden">
+    <main className="min-h-[100dvh] bg-transparent text-white relative overflow-x-hidden">
       
       <div className="max-w-4xl mx-auto px-6 py-24 relative z-10">
         <button 

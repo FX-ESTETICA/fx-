@@ -22,7 +22,7 @@ export default function BlueprintPage() {
   const [activeIndustry, setActiveIndustry] = useState<IndustryType>("beauty");
 
   return (
-    <main className="h-screen w-full bg-black relative overflow-hidden">
+    <main className="h-[100dvh] w-full bg-black relative overflow-hidden">
       {/* 顶部悬浮 HUD 切换环 */}
       <motion.div 
         initial={{ y: -50, opacity: 0 }}
@@ -65,7 +65,7 @@ export default function BlueprintPage() {
 
       {/* 核心日历矩阵 (使用 key 强制重新挂载以重置状态) */}
       <div className="h-full w-full">
-        <Suspense fallback={<div className="h-screen w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+        <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
           <IndustryCalendar key={activeIndustry} initialIndustry={activeIndustry} mode="admin" />
         </Suspense>
       </div>
