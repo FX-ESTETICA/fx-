@@ -37,21 +37,30 @@ export const CyberOnboardingModal = () => {
 
     setIsSubmitting(true);
     try {
-      // 1. 持久化更新到底层物理表
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      // 1. 尝试持久化更新到底层物理表 (尊重底层的 RLS 和触发器机制)
+      // 【终极零红字方案】：调用数据库内部的 RPC 原子操作，消除所有并发与 400 报错噪音
+      const { error: rpcError } = await supabase.rpc('sync_user_profile', {
+        p_id: user.id,
+        p_email: user.email,
+        p_name: formData.name,
+        p_gender: formData.gender,
+        p_birthday: formData.birthday || null
+      });
+
+      if (rpcError) throw rpcError;
+
+      // 2. 终极兜底：强制将资料同步到 Auth Metadata (彻底绕过 profiles 空壳缺陷)
+      await supabase.auth.updateUser({
+        data: {
           name: formData.name,
           gender: formData.gender,
           birthday: formData.birthday || null,
-        })
-        .eq("id", user.id);
-
-      if (error) throw error;
+        }
+      });
 
       setIsSuccess(true);
       
-      // 2. 延迟 800ms 展示流光绿成功动画，然后触发全局刷新
+      // 3. 延迟 800ms 展示流光绿成功动画，然后触发全局刷新
       setTimeout(async () => {
         await refreshUserData();
         // refreshUserData 执行后，AppShell 层的 !user.name 条件将失效，组件自然卸载
@@ -163,7 +172,7 @@ export const CyberOnboardingModal = () => {
 
                   <Button 
                     type="submit" 
-                    disabled={isSubmitting || !formData.name}
+                    disabled={isSubmitting || !formData.name || !formData.birthday || formData.gender === 'unknown'}
                     variant="cyan"
                     className="w-full h-12 font-bold tracking-widest uppercase mt-4"
                   >

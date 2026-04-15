@@ -6,24 +6,19 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { Button } from "@/components/shared/Button";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 export default function MePage() {
     const t = useTranslations('me');
   const { user, isLoading } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
     if (user) {
-      // 宏任务推迟法则：避开 Next.js 的 Transition 挂起死锁
-      const timer = setTimeout(() => {
-        router.replace("/dashboard");
-      }, 50);
-      return () => clearTimeout(timer);
+      // 物理级强制重定向：彻底粉碎 Next.js App Router 的 Suspense 挂起死锁
+      window.location.replace("/dashboard");
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user]);
 
   return (
     <main className="min-h-screen bg-transparent text-white relative overflow-hidden flex items-center justify-center">

@@ -38,7 +38,9 @@ import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
 import { Trash2 } from "lucide-react";
 import { RecycleBinModal } from "./RecycleBinModal";
+import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
 import { useTranslations } from "next-intl";
+import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 
 export interface OperatingHour {
   id: string;
@@ -130,6 +132,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const [phantomDate, setPhantomDate] = useState<Date>(new Date());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
+  const [isFinanceDashboardOpen, setIsFinanceDashboardOpen] = useState(false); 
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [bookingModalKey, setBookingModalKey] = useState(0);
   const [isMounted] = useState(() => typeof window !== "undefined");
@@ -299,7 +302,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     const realtimeChannel = BookingService.subscribeToShopBookings(shopId, (payload: BookingRealtimePayload) => {
       console.log(`[IndustryCalendar] Realtime DB change received for shop ${shopId}:`, payload);
       // 当当前店铺的数据库发生变化时，重新拉取最新数据以刷新日历
-      loadCloudData();
+      // 避免 React 批处理导致的延迟，强制使用 setTimeout 放到下一个事件循环   
+      setTimeout(() => {
+        loadCloudData();
+      }, 50);
     });
 
     // 🌟 挂载门店配置实时雷达 (Shop Config Radar)
@@ -348,6 +354,47 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       }
     };
   }, [shopId]);
+
+  // ==========================================
+  // 试用期水印雷达 (Watermark Radar) 从 ShopContext 同步
+  // ==========================================
+  const { subscription } = useShop();
+  const [isReadOnlyMode, setIsReadOnlyMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 【强制拦截】只读状态判定全部交给全局中枢 ShopContext 接管，防止退出重置
+    // 从全局上下文中直接映射 isReadOnlyMode，废弃日历内部自算的倒计时！
+    if ((subscription.remainingTime === "LIMIT_EXCEEDED" || subscription.remainingTime === "ACTIONS_EXHAUSTED") && !subscription.isGracePeriodActive) {
+      setIsReadOnlyMode(true);
+    } else {
+      setIsReadOnlyMode(false);
+    }
+  }, [subscription.remainingTime, subscription.isGracePeriodActive]);
+
+  const remainingTime = subscription.remainingTime;
+  const isGracePeriodActive = subscription.isGracePeriodActive;
+  const { subscriptionTier, trialStartedAt, empireId, gracePeriodActionsLeft } = subscription;
+  const { openSubscriptionModal } = useShop();
+
+  // --- 紧急运力续命逻辑：监听任意修改动作并扣减 ---
+  useEffect(() => {
+    if (!isGracePeriodActive || gracePeriodActionsLeft === null || !empireId) return;
+
+    const handleAction = async () => {
+      try {
+        const newActionsLeft = Math.max(0, gracePeriodActionsLeft - 1);
+        await supabase.from('profiles').update({ grace_period_actions_left: newActionsLeft }).eq('id', empireId);
+        // Realtime 会自动把新的次数同步到所有端
+      } catch (e) {
+        console.error("Failed to deduct grace period action:", e);
+      }
+    };
+
+    window.addEventListener('gx-sandbox-bookings-updated', handleAction);
+    return () => {
+      window.removeEventListener('gx-sandbox-bookings-updated', handleAction);
+    };
+  }, [isGracePeriodActive, gracePeriodActionsLeft, empireId]);
 
   // ==========================================
   // 【世界顶端 0 冲突架构】：显式全局保存机制 (替换隐式 useEffect 监听)
@@ -464,12 +511,100 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const [crosshairDate, setCrosshairDate] = useState<Date | undefined>();
 
   const handleBookingClick = (booking: CalendarBooking) => {
-    // 【绝对焦点编辑】：废弃拦截连单逻辑，点击谁就传谁。
-    setEditingBooking(booking);
+    // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
+    if (!subscription.isLoaded) return;
+
+    // 拦截只读模式，直接呼出全端统一订阅弹窗
+    if (isReadOnlyMode) {
+      openSubscriptionModal('EXPIRED_WARNING');
+      return;
+    }
+
+    // 【连单全域打捞协议】：
+    // 日历矩阵在点击时，传过来的 booking 可能只是一个子订单的切片。
+    // 如果它是连单（有 masterOrderId），我们必须从全局订单池 globalBookings 中，
+    // 把所有跟它拥有相同 masterOrderId 的兄弟订单全部打捞出来，
+    // 组装成一个带有完整 relatedBookings 数组的超级订单（SuperBooking），然后 再传给结账面板！
+    let superBooking: BookingEdit = { ...booking };
+
+    if (booking.masterOrderId) {
+      // 在全局池中寻找所有同宗同源的兄弟
+      const related = globalBookings.filter(b => b.masterOrderId === booking.masterOrderId);
+      if (related.length > 1) {
+        superBooking = {
+          ...booking,
+          isSuperBooking: true,
+          relatedBookings: related.map(rb => ({
+            ...rb,
+            date: rb.date || "",
+            startTime: rb.startTime || "00:00",
+            duration: rb.duration ?? 0,
+            services: rb.services || []
+          }))
+        };
+        console.log(`[IndustryCalendar] 触发连单打捞协议: 找到 ${related.length} 个兄弟订单`);
+      }
+    }
+
+    setEditingBooking(superBooking);
     openBookingModal();
   };
 
-  const handleGridClick = (resourceId?: string, time?: string, dateStr?: string) => {
+  const handleCreateBookingClick = async () => {
+    // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
+    if (!subscription.isLoaded) return;
+
+    // 拦截只读模式，直接呼出全端统一订阅弹窗
+    if (isReadOnlyMode) {
+      openSubscriptionModal('EXPIRED_WARNING');
+      return;
+    }
+
+    // 触碰即激活：如果是免费试用且尚未激活，立即激活试用期
+    if (subscriptionTier === 'FREE' && !trialStartedAt && empireId) {
+      try {
+        // 【核心修复】：不要使用前端本地时间，而是依赖数据库。这里暂时先传本地时间，但理想情况应该是让 DB 处理。
+        // 为了兼容性，使用 supabase server 的时间戳（通过特殊方式或容忍少量误差）
+        // 既然不能修改 DB，这里先保持。
+        const now = new Date().toISOString();
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`gx_trial_empire_${empireId}`, now);
+        }
+        await supabase.from('profiles').update({ trial_started_at: now }).eq('id', empireId);
+      } catch (e) {
+        console.error("Failed to activate trial period:", e);
+      }
+    }
+
+    // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
+    openBookingModal();
+  };
+
+  const handleGridClick = async (resourceId?: string, time?: string, dateStr?: string) => {
+    // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
+    if (!subscription.isLoaded) return;
+
+    // 拦截只读模式，直接呼出全端统一订阅弹窗
+    if (isReadOnlyMode) {
+      openSubscriptionModal('EXPIRED_WARNING');
+      return;
+    }
+
+    // 触碰即激活：如果是免费试用且尚未激活，立即激活试用期
+    if (subscriptionTier === 'FREE' && !trialStartedAt && empireId) {
+      try {
+        const now = new Date().toISOString();
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`gx_trial_empire_${empireId}`, now);
+        }
+        await supabase.from('profiles').update({ trial_started_at: now }).eq('id', empireId);
+      } catch (e) {
+        console.error("Failed to activate trial period:", e);
+      }
+    }
+
+    // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
+
     setEditingBooking(null);
     setCrosshairTime(time);
     setCrosshairResourceId(resourceId);
@@ -778,8 +913,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   };
 
   return (
-    <div className="flex h-full w-full bg-transparent overflow-hidden relative">
-      {/* 幽灵隐匿结界 (Phantom Fade Protocol) - 极致硬核版：零延迟瞬切 */}
+      <div className="flex h-full w-full bg-transparent overflow-hidden relative">
+        {/* 紧急运力续命横幅 */}
+        <GracePeriodBanner 
+          remainingTime={remainingTime} 
+          isReadOnlyMode={isReadOnlyMode} 
+          isGracePeriodActive={isGracePeriodActive} 
+          gracePeriodActionsLeft={gracePeriodActionsLeft}
+        />
+
+        {/* 幽灵隐匿结界 (Phantom Fade Protocol) - 极致硬核版：零延迟瞬切 */}
       <div 
         className={cn(
           "flex h-full w-full flex-col md:flex-row absolute inset-0",
@@ -818,7 +961,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 bossAvatar={trueBusinessAvatar}
                 shopName={activeShopName}
                 shopId={shopId}
-                onNavigateHome={() => router.push('/dashboard')}
+                onNavigateHome={() => router.push('/dashboard')} // 恢复为正确的 React Router SPA 跳转，防止物理级重置
               />
             )}
 
@@ -864,17 +1007,44 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 const day = String(new Date().getDate()).padStart(2, '0');
                 const realTodayStr = `${year}-${month}-${day}`;
 
-                // 1. 今日预约数 (排除 PENDING 和 NO 的真实订单)
-                const todayBookingsCount = globalBookings.filter(b => {
+                // 1. 今日预约数 (排除 PENDING 和 NO 的真实订单，连单按 1 单计 算)
+                const todayBookings = globalBookings.filter(b => {
                   const bDate = b.date?.split('T')[0];
                   return bDate === realTodayStr && b.status !== 'PENDING' && b.resourceId !== 'NO' && (!shopIdStr || b.shopId === shopIdStr);
-                }).length;
+                });
 
-                // 2. 原生今日待处理数 (未完成的真实订单，这里做简单 mock 过滤，比如非 completed 状态，暂且用原生占位或简单计算)
-                const todayPendingCount = globalBookings.filter(b => {
+                const uniqueTodayOrders = new Set<string>();
+                let todayBookingsCount = 0;
+                todayBookings.forEach(b => {
+                  if (b.masterOrderId) {
+                    if (!uniqueTodayOrders.has(b.masterOrderId)) {
+                      uniqueTodayOrders.add(b.masterOrderId);
+                      todayBookingsCount++;
+                    }
+                  } else {
+                    todayBookingsCount++;
+                  }
+                });
+
+                // 2. 原生今日待处理数 (未完成的真实订单，连单按 1 单计算)     
+                const todayPendingBookings = globalBookings.filter(b => {      
                   const bDate = b.date?.split('T')[0];
-                  return bDate === realTodayStr && b.status !== 'PENDING' && b.status !== 'completed' && b.resourceId !== 'NO' && (!shopIdStr || b.shopId === shopIdStr);
-                }).length;
+                  const status = b.status?.toUpperCase();
+                  return bDate === realTodayStr && status !== 'PENDING' && status !== 'COMPLETED' && status !== 'CHECKED_OUT' && b.resourceId !== 'NO' && (!shopIdStr || b.shopId === shopIdStr);
+                });
+
+                const uniquePendingOrders = new Set<string>();
+                let todayPendingCount = 0;
+                todayPendingBookings.forEach(b => {
+                  if (b.masterOrderId) {
+                    if (!uniquePendingOrders.has(b.masterOrderId)) {
+                      uniquePendingOrders.add(b.masterOrderId);
+                      todayPendingCount++;
+                    }
+                  } else {
+                    todayPendingCount++;
+                  }
+                });
 
                 // 3. AI 跨期野单总数 (NEXUS ALERT) - 终极纯净版：仅捕获 PENDING 待确认订单
                 const allNexusBookings = globalBookings.filter(b => {
@@ -968,11 +1138,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 setCurrentDate(now);
                 setPhantomDate(now);
 
-                // 触发抽屉并传递参数
-                setSelectedDate(now);
-                setSelectedTime(timeString);
-                setSelectedResource(null); // 不分配技师，默认为散客池
-                setIsDrawerOpen(true);
+                // 触发双窗预约界面并传递参数
+                setCrosshairDate(now);
+                setCrosshairTime(timeString);
+                setCrosshairResourceId(undefined); // 不分配技师，默认为散客池 
+                setEditingBooking(null); // 确保是新建而不是编辑
+                handleCreateBookingClick();
               }}
               className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-gx-cyan/30 bg-gx-cyan/10 hover:bg-gx-cyan/20 transition-all group overflow-hidden relative shadow-[0_0_15px_rgba(0,240,255,0.15)] hover:shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:scale-[1.02]"
             >
@@ -981,6 +1152,27 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               <span className="text-gx-cyan font-bold tracking-widest text-xs uppercase drop-shadow-[0_0_5px_rgba(0,240,255,0.8)]">
                 ⚡ 极速入店
               </span>
+            </button>
+          </div>
+
+          {/* AI 财务核算 (AI Finance Dashboard) - 顶级 B 端全息入口 */}       
+          <div className="px-8 mt-4 pointer-events-auto relative z-50">        
+            <button
+              onClick={() => setIsFinanceDashboardOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/5 bg-black/20 hover:bg-purple-500/10 transition-all group relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-6 h-6 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30 group-hover:border-purple-400 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] transition-all">
+                  <span className="text-[10px] text-purple-400">⚚</span>       
+                </div>
+                <span className="text-xs font-bold text-white/70 tracking-widest group-hover:text-white transition-colors">AI 财务核算</span>
+              </div>
+              <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity relative z-10">
+                <div className="w-0.5 h-3 bg-purple-400 rounded-full animate-[pulse_1s_ease-in-out_infinite]" />
+                <div className="w-0.5 h-4 bg-purple-400 rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]" />
+                <div className="w-0.5 h-2 bg-purple-400 rounded-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]" />
+              </div>
             </button>
           </div>
 
@@ -1006,10 +1198,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           <AnimatePresence mode="wait">
             <motion.div
               key={industry + viewMode}
-              initial={{ opacity: 0 }}
+              initial={{ opacity: 1 }} // 移除切换时的渐变延迟，秒切
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 1 }}
+              transition={{ duration: 0 }}
               className="flex flex-col gap-0"
             >
               {/* [CONTAINER 2] 日期与视图控制栏 (Date & Navigation Bar) */}
@@ -1239,6 +1431,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     onBookingClick={handleBookingClick}
                     onDateSwipe={(direction) => handleNavigate(direction)}
                     storeStatus={storeStatus}
+                    isReadOnly={isReadOnlyMode}
+                    onReadOnlyIntercept={() => openSubscriptionModal('EXPIRED_WARNING')}
                     onPhantomDateChange={(dateStr) => {
                       // 接收到底层雷达的信号，更新顶部的幻象投影日期
                       const newDate = new Date(dateStr);
@@ -1353,10 +1547,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               </button>
             )}
           </div>
-          </div>
         </div>
       </div>
-
+      
       {/* 注入星云配置中枢抽屉 (需在结界之外，不受透明度影响) */}
       <NebulaConfigHub 
         isOpen={isConfigOpen} 
@@ -1373,10 +1566,24 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         businessAvatar={trueBusinessAvatar}
       />
 
+      <AiFinanceDashboardModal
+        isOpen={isFinanceDashboardOpen}
+        onClose={() => setIsFinanceDashboardOpen(false)}
+        staffs={staffs as any}
+        globalBookings={globalBookings}
+      />
+      
+      <RecycleBinModal 
+        isOpen={isRecycleBinOpen}
+        onClose={() => setIsRecycleBinOpen(false)}
+        shopId={shopId}
+      />
+      </div>
+
       {/* 注入极致双窗预约界面 (必须在结界之外，以保持清晰呈现) */}
-      <DualPaneBookingModal 
+      <DualPaneBookingModal
         key={bookingModalKey}
-        isOpen={isBookingModalOpen} 
+        isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
         initialDate={crosshairDate || currentDate}
         initialTime={crosshairTime}
@@ -1385,12 +1592,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         staffs={staffs}
         categories={categories}
         services={services}
-      />
-
-      <RecycleBinModal 
-        isOpen={isRecycleBinOpen}
-        onClose={() => setIsRecycleBinOpen(false)}
-        shopId={shopId}
+        isReadOnly={isReadOnlyMode}
       />
     </div>
   );

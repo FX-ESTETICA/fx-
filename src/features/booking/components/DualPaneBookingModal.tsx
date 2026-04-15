@@ -18,6 +18,7 @@ interface DualPaneBookingModalProps {
   staffs: StaffMember[];
   categories: CategoryItem[];
   services: ServiceItem[];
+  isReadOnly?: boolean;
 }
 
 type ServiceItem = {
@@ -65,6 +66,7 @@ export type BookingEdit = {
   relatedBookings?: BookingEdit[];
   resourceId?: string | null;
   masterOrderId?: string;
+  paymentMethod?: string;
   [key: string]: unknown;
 };
 
@@ -85,9 +87,10 @@ export function DualPaneBookingModal({
   editingBooking,
   staffs,
   categories,
-  services
+  services,
+  isReadOnly
 }: DualPaneBookingModalProps) {
-    const t = useTranslations('DualPaneBookingModal');
+  const t = useTranslations('DualPaneBookingModal');
   const { activeShopId } = useShop();
 
   // --- 结账模式状态 (Neon Core Checkout) ---
@@ -105,8 +108,10 @@ export function DualPaneBookingModal({
   const [selectedServices, setSelectedServices] = useState<ServiceItem[]>(() => {
     if (!editingBooking?.services || editingBooking.services.length === 0) return [];
     
-    // 【绝对焦点编辑】：废弃 isSuperBooking 的多单还原逻辑。
-    // 现在无论是否是连单，弹窗只还原当前点击的这个单子的服务。
+    // 【状态隔离法则：回归单体本源】
+    // 绝对废弃在初始化时拼凑连单的逻辑！
+    // 弹窗初始化的 selectedServices 必须只包含当前被点击的这一个 block 的服务。
+    // 这保证了左侧的“预约编辑界面”只对当前点击的子订单负责，防止编辑状态被兄弟订单污染。
     return editingBooking.services.map((s) => ({
       ...s,
       assignedEmployeeId: editingBooking.originalUnassigned ? null : editingBooking.resourceId
@@ -305,6 +310,20 @@ export function DualPaneBookingModal({
   }, [isOpen, editingBooking]);
 
   const isCheckoutMode = checkoutOverride ?? autoCheckoutMode;
+  
+  // 新增：结账逻辑状态
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+    const [checkoutSlideProgress, setCheckoutSlideProgress] = useState(() => {   
+      return (editingBooking?.status as string | undefined)?.toUpperCase() === 'COMPLETED' ? 100 : 0;
+    });
+
+    // 检查当前订单是否已经是已结账状态
+    const isAlreadyCompleted = useMemo(() => {
+      const statusStr = (editingBooking?.status as string | undefined)?.toUpperCase();
+      return statusStr === 'COMPLETED' || statusStr === 'CHECKED_OUT';
+    }, [editingBooking]);
+
+  const isCheckoutReady = selectedPaymentMethod !== null || isAlreadyCompleted;
 
   const resetFormState = useCallback(() => {
     setSelectedServices([]);
@@ -318,6 +337,8 @@ export function DualPaneBookingModal({
     setMatchedProfile(null);
     setNewCustomerType(null);
     setCheckoutOverride(null);
+    setSelectedPaymentMethod(null);
+    setCheckoutSlideProgress(0);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -457,6 +478,10 @@ export function DualPaneBookingModal({
 
   // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
   const handleConfirmBooking = async () => {
+    if (isReadOnly) {
+      console.warn("System is in READ_ONLY mode. Cannot save bookings.");
+      return;
+    }
     if (selectedServices.length === 0) {
       alert("请至少选择一个服务项目");
       return;
@@ -495,18 +520,12 @@ export function DualPaneBookingModal({
       // 15 点是 15 * 60 = 900
       baseStartTimeMin = h * 60 + m;
     }
-
-    // 【Bug Fix】修复 shopId 在沙盒/本地模式下无法从 window.location 获取的问题
-    let targetShopId = activeShopId || 'default';
-    if (typeof window !== 'undefined') {
-       targetShopId = new URLSearchParams(window.location.search).get('shopId') || targetShopId;
-    }
     
     // 如果是从 AI 的待确认状态转正过来的，我们将状态更新为已确认 (CONFIRMED)
     // 其他情况保留原逻辑 (对于新建则是 CONFIRMED)
     const finalStatus = (editingBooking?.status === 'PENDING') ? 'CONFIRMED' : (editingBooking?.status || 'CONFIRMED');
 
-    // 遍历每个员工的服务组
+      // 遍历每个员工的服务组
     Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup], groupIndex) => {
       const groupDuration = servicesInGroup.reduce((sum, s) => sum + (s.duration || 0), 0);
       const groupServiceNames = servicesInGroup.map((s) => s.name).join(' + ');
@@ -524,6 +543,11 @@ export function DualPaneBookingModal({
       
       // 注意：这里不再将时间游标往后推 (不执行 currentStartTimeMin += finalDuration)
 
+      let currentShopId = activeShopId || 'default';
+      if (typeof window !== 'undefined') {
+         currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
+      }
+
       newBookings.push({
         id: editingBooking && Object.keys(groupedByEmployee).length === 1 ? editingBooking.id : `BKG-${Date.now()}-${empId}-${groupIndex}`, // 重拆分时，加入 index 防止 React Key 重复
         masterOrderId: editingBooking ? editingBooking.masterOrderId : masterOrderId,
@@ -539,7 +563,7 @@ export function DualPaneBookingModal({
         is_staff_requested: empId !== 'unassigned', // 如果分配了员工，就是强指定的；如果是 unassigned，就是非指定的
         services: servicesInGroup, // 原始服务数据，备用
         originalUnassigned: empId === 'unassigned', // 标记它原本是未指定的
-        shopId: targetShopId, // 强绑定租户
+        shopId: currentShopId, // 强绑定租户
         // 【财务防篡改快照】
         staff_snapshot_name: staffs.find(s => s.id === empId)?.name || empId // 封印当时的员工名字
       });
@@ -699,28 +723,52 @@ export function DualPaneBookingModal({
   };
 
   // --- Checkout Data Transformer ---
-  // 将选中的服务按员工进行分组，用于结账舱渲染
-  const groupedCheckoutServices = selectedServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
-    // 关键修复：如果在编辑模式下（特别是连单模式），传进来的 service 可能没有 assignedEmployeeId，
-    // 但是它所归属的 booking (或者它自己) 带有 resourceId。我们需要尽量去挖掘它属于哪个员工。
-    // 因为在跨块连单组装时，我们是从不同的 block 里提取的 service。
-    let empId = service.assignedEmployeeId;
+  // 【状态隔离法则：专为结账计算的计算属性】
+  // 我们不再污染 selectedServices。
+  // 如果当前是连单（isSuperBooking = true），我们仅在这里（渲染结账单和计算总价时），
+  // 把 relatedBookings 里所有的 services 提取出来，形成一个“大账单”。
+  const checkoutAllServices = useMemo(() => {
+    if (!isCheckoutMode) return selectedServices;
     
-    if (!empId) {
-      // 尝试从外部 editingBooking 的相关订单中寻找（因为我们把它们压平了）
-      if (editingBooking?.isSuperBooking && editingBooking.relatedBookings) {
-        // 找一找哪个子订单包含了这个服务
-        const parentBooking = editingBooking.relatedBookings.find((b) => 
-          b.services?.some((s) => s.id === service.id)
-        );
-        if (parentBooking && parentBooking.resourceId) {
-          empId = parentBooking.resourceId;
+    if (editingBooking?.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 0) {
+      const allServices: ServiceItem[] = [];
+      
+      // 1. 当前订单的服务
+      selectedServices.forEach(s => {
+        allServices.push({
+          ...s,
+          assignedEmployeeId: s.assignedEmployeeId || editingBooking.resourceId || 'unassigned'
+        });
+      });
+
+      // 2. 兄弟订单的服务
+      editingBooking.relatedBookings.forEach(rb => {
+        if (rb.id === editingBooking.id) return;
+        
+        if (rb.services && Array.isArray(rb.services)) {
+          rb.services.forEach(rs => {
+            const serviceItem = rs as unknown as ServiceItem;
+            allServices.push({
+              ...serviceItem,
+              assignedEmployeeId: serviceItem.assignedEmployeeId || rb.resourceId || 'unassigned'
+            });
+          });
         }
-      }
+      });
+      
+      return allServices;
     }
     
-    empId = empId || 'unassigned';
+    // 非连单时，原样返回
+    return selectedServices.map(s => ({
+      ...s,
+      assignedEmployeeId: s.assignedEmployeeId || editingBooking?.resourceId || 'unassigned'
+    }));
+  }, [isCheckoutMode, selectedServices, editingBooking]);
 
+  // 将全量服务按员工进行分组，用于结账舱渲染
+  const groupedCheckoutServices = checkoutAllServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
+    const empId = service.assignedEmployeeId || 'unassigned';
     if (!acc[empId]) {
       acc[empId] = [];
     }
@@ -734,27 +782,29 @@ export function DualPaneBookingModal({
     <>
       {isOpen && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-none"
+          className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-none pointer-events-none"
         >
-          {/* 背景暗场遮罩，带有毛玻璃效果 (极速出现) */}
+          {/* 背景暗场遮罩 (仅在结账模式下保留强力遮罩防止误触，常规开单模式下保留微弱暗场防止视觉穿透) */}
           <div 
-            className={cn("absolute inset-0 transition-colors duration-100", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/40 backdrop-blur-sm")}
+            className={cn("absolute inset-0 pointer-events-auto transition-colors duration-200", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/20 backdrop-blur-sm")}
             onClick={handleClose}
           />
-          
+
           {isCheckoutMode ? (
             /* ===================== Neon Core 结账舱 ===================== */
             <div 
               key="checkout-pane"
-              className="relative z-10 w-full max-w-[800px] h-[80vh] md:h-[450px] flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 overflow-hidden touch-pan-y"
+              className="relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 touch-pan-y"
             >
               {/* 顶角关闭 / 返回按钮 */}
-              <button 
-                onClick={() => setCheckoutOverride(false)} 
-                className="absolute top-4 left-4 text-white/40 hover:text-[#39FF14] transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
+              {!isAlreadyCompleted && (
+                <button 
+                  onClick={() => setCheckoutOverride(false)} 
+                  className="absolute top-4 left-4 text-white/40 hover:text-[#39FF14] transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              )}
               <button 
                 onClick={handleClose} 
                 className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition-colors"
@@ -763,7 +813,7 @@ export function DualPaneBookingModal({
               </button>
 
               {/* Top Anchor: VIP 身份图腾 */}
-              <div className="mt-4 flex flex-col items-center text-center space-y-1">
+              <div className="mt-2 mb-4 flex flex-col items-center text-center space-y-1">
                 <span className="text-[#39FF14]/50 text-[10px] font-mono uppercase tracking-widest">Target Entity</span>
                 <h1 className={cn(
                   "text-4xl md:text-5xl font-black font-mono tracking-[0.2em] uppercase",
@@ -775,8 +825,8 @@ export function DualPaneBookingModal({
                 </h1>
               </div>
 
-              {/* Middle Matrix: 极简三维消费流 */}
-              <div className="flex-1 w-full mt-6 flex flex-col gap-4 overflow-y-auto no-scrollbar px-8 md:px-24">
+              {/* Middle Matrix: 极简三维消费流 (取消定高和滚动，直接平铺) */}
+              <div className="w-full flex flex-col gap-4 px-8 md:px-24 mb-6">
                 {Object.entries(groupedCheckoutServices).map(([empId, services]) => {
                   // 这里解决渲染匹配问题：如果在沙盒模式下 assignedEmployeeId 是 null 或者 'unassigned'，它可能找不到 staff
                   // 但是在跨块连单传入时，booking 本身可能带有 resourceId。
@@ -845,26 +895,175 @@ export function DualPaneBookingModal({
                 )}
               </div>
 
-              {/* Bottom Core: 总金额的绝对中心 */}
-              <div className="mb-8 flex flex-col items-center relative">
+              {/* Bottom Core: 总金额的绝对中心与光轨结算 */}
+              <div className="mb-2 flex flex-col items-center relative w-full px-8">
                 <div className="flex flex-wrap justify-center items-center gap-3 mb-4">
-                  {['微信', '支付宝', '现金', '银行卡', '会员卡扣款'].map(method => (
-                    <span key={method} className={cn(
-                      "text-[10px] font-mono tracking-widest px-3 py-1.5 rounded transition-colors whitespace-nowrap",
-                      method === '会员卡扣款' && !customerId.startsWith('CO') 
-                        ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/50" 
-                        : "text-white/30 border border-white/10 hover:border-white/30 hover:text-white/60 cursor-pointer"
-                    )}>
-                      [{method}]
-                    </span>
-                  ))}
+                  {['微信', '支付宝', '现金', '银行卡', '会员卡扣款'].map(method => {
+                    const isSelected = selectedPaymentMethod === method;
+                    const isVipMethod = method === '会员卡扣款';
+                    const canUseVip = customerId.startsWith('CO') === false;
+
+                    return (
+                      <button 
+                        key={method} 
+                        onClick={() => {
+                          if (isAlreadyCompleted) return;
+                          if (isVipMethod && !canUseVip) return;
+                          setSelectedPaymentMethod(isSelected ? null : method);
+                        }}
+                        className={cn(
+                          "text-[10px] font-mono tracking-widest px-4 py-1.5 rounded transition-all whitespace-nowrap",
+                          isAlreadyCompleted
+                            ? "bg-transparent text-white/10 border border-white/5 cursor-not-allowed opacity-50"
+                            : isSelected 
+                              ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14] shadow-[0_0_15px_rgba(57,255,20,0.3)] scale-105" 
+                              : isVipMethod && canUseVip
+                                ? "bg-white/5 text-yellow-400/80 border border-yellow-400/30 hover:border-yellow-400/60"
+                                : isVipMethod && !canUseVip
+                                  ? "bg-transparent text-white/10 border border-white/5 cursor-not-allowed"
+                                  : "bg-transparent text-white/40 border border-white/10 hover:border-white/30 hover:text-white/80"
+                        )}
+                      >
+                        [{method}]
+                      </button>
+                    );
+                  })}
                 </div>
+                
                 <div className="text-[10px] text-[#39FF14]/50 tracking-[0.3em] uppercase mb-1">Total Amount</div>
-                <div className="text-5xl font-black tabular-nums text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)] tracking-tighter">
-                  ¥ {selectedServices.reduce((sum, s) => {
+                <div className={cn(
+                  "text-5xl font-black tabular-nums transition-all duration-500 tracking-tighter mb-4",
+                  isAlreadyCompleted
+                    ? "text-[#39FF14] drop-shadow-[0_0_10px_rgba(57,255,20,0.3)]" // 已结账：静谧稳定绿
+                    : checkoutSlideProgress === 100 
+                      ? "text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] scale-110" 
+                      : "text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)]"
+                )}>
+                  ¥ {checkoutAllServices.reduce((sum, s) => {
                     const unit = Array.isArray(s.prices) && s.prices.length > 0 ? s.prices[0] : 0;
                     return sum + unit;
                   }, 0)}.00
+                </div>
+
+                {/* 赛博光轨滑动锁 (Cyber-Slider) */}
+                <div className="w-full max-w-[400px] h-12 relative rounded-full overflow-hidden border bg-black/40"
+                  style={{
+                    borderColor: isCheckoutReady || isAlreadyCompleted ? 'rgba(57,255,20,0.3)' : 'rgba(255,255,255,0.1)',
+                  }}
+                >
+                  {/* 背景进度填充 */}
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-[#39FF14]/20 transition-none"
+                    style={{ width: `${checkoutSlideProgress}%` }}
+                  />
+
+                  {/* 引导文字 */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                    <span className={cn(
+                      "text-[10px] font-mono tracking-widest uppercase transition-all duration-300",
+                      isAlreadyCompleted
+                        ? "text-[#39FF14] font-bold tracking-[0.4em] drop-shadow-[0_0_8px_rgba(57,255,20,0.8)]"
+                        : isCheckoutReady 
+                          ? "text-[#39FF14]/80" // 移除呼吸灯特效 
+                          : "text-white/20",
+                      !isAlreadyCompleted && checkoutSlideProgress > 20 && "opacity-0"
+                    )}>
+                      {isAlreadyCompleted ? "/// PAYMENT VERIFIED ///" : isCheckoutReady ? ">>> SLIDE TO PAY >>>" : "[ 请先选择支付方式 ]"}
+                    </span>
+                  </div>
+
+                  {/* 物理滑块 */}
+                  {!isAlreadyCompleted && (
+                    <div 
+                      className={cn(
+                        "absolute top-1 bottom-1 w-12 rounded-full cursor-grab active:cursor-grabbing flex items-center justify-center z-10 transition-colors",
+                        isCheckoutReady 
+                          ? "bg-[#39FF14] shadow-[0_0_15px_rgba(57,255,20,0.8)]" 
+                          : "bg-white/10"
+                      )}
+                      style={{
+                        left: `calc(4px + ${checkoutSlideProgress}% * 0.85)`, // 减去滑块自身宽度比例防止溢出
+                      }}
+                      onPointerDown={(e) => {
+                        if (!isCheckoutReady) return;
+                        const sliderEl = e.currentTarget.parentElement;
+                        if (!sliderEl) return;
+                        
+                        const startX = e.clientX;
+                        const sliderWidth = sliderEl.getBoundingClientRect().width - 56; // 56 is thumb width + padding
+                        
+                        const handlePointerMove = (moveEvent: PointerEvent) => {
+                          const delta = moveEvent.clientX - startX;
+                          const newProgress = Math.max(0, Math.min(100, (delta / sliderWidth) * 100));
+                          setCheckoutSlideProgress(newProgress);
+                          
+                          // 触发结算
+                          if (newProgress >= 98) {
+                            setCheckoutSlideProgress(100);
+                            document.removeEventListener('pointermove', handlePointerMove);
+                            document.removeEventListener('pointerup', handlePointerUp);
+                            
+                            // 震动反馈 (如果支持)
+                            if (navigator.vibrate) navigator.vibrate(50);
+                            
+                            // 执行真实数据库结算更新
+                            const executeCheckout = async () => {
+                              if (!editingBooking) return;
+                              try {
+                                // 【结账状态更新陷阱防御】：
+                                // editingBooking 只是当前这个子订单。如果在编辑连单，我们需要把它关联的所有订单（同一个 masterOrderId）都结账！
+                                // 这里如果有 relatedBookings 存在，则一起更新；否则只更新自己。
+                                const bookingsToCheckout = editingBooking.isSuperBooking && editingBooking.relatedBookings 
+                                  ? editingBooking.relatedBookings 
+                                  : [editingBooking];
+  
+                                const updatedBookings = bookingsToCheckout.map(b => ({
+                                ...b,
+                                status: 'COMPLETED', // 核心：状态必须大写 COMPLETED 以触发底层矩阵透明化
+                                paymentMethod: selectedPaymentMethod || '现金', // 物理打通：写入支付印记
+                                // 注意：我们不能随意修改 b.date 和 b.startTime，因为那是其他子订单的时间。
+                                // 所以只更新 status。
+                                date: b.date || selectedDate.replace(/\//g, '-'), // 必须提供默认值以满足类型
+                                  startTime: b.startTime || "00:00", // 必须提供默认值以满足类型
+                                  resourceId: b.resourceId === null ? undefined : b.resourceId, // 修复 TS 类型：null 转换为 undefined
+                                }));
+                                
+                                await BookingService.upsertBookings(updatedBookings);
+                                
+                                // 触发全局重刷，因为有时候实时订阅会有毫秒级延迟
+                                  window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                  // 极速模式：结账完成后瞬间关闭窗口，追求极致效率
+                                  handleClose(); 
+                                } catch (error) {
+                                console.error("Failed to checkout:", error);
+                                alert("结算更新失败，请重试");
+                                setCheckoutSlideProgress(0); // 失败时回弹
+                              }
+                            };
+  
+                            setTimeout(executeCheckout, 300); // 稍微延迟展示 100% 动画
+                          }
+                        };
+  
+                        const handlePointerUp = () => {
+                          setCheckoutSlideProgress((prev) => {
+                            if (prev < 98) return 0; // 回弹
+                            return prev;
+                          });
+                          document.removeEventListener('pointermove', handlePointerMove);
+                          document.removeEventListener('pointerup', handlePointerUp);
+                        };
+  
+                        document.addEventListener('pointermove', handlePointerMove);
+                        document.addEventListener('pointerup', handlePointerUp);
+                      }}
+                    >
+                      <div className="flex gap-0.5">
+                        <div className={cn("w-0.5 h-4 rounded-full", isCheckoutReady ? "bg-black/40" : "bg-white/20")} />
+                        <div className={cn("w-0.5 h-4 rounded-full", isCheckoutReady ? "bg-black/40" : "bg-white/20")} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -873,7 +1072,7 @@ export function DualPaneBookingModal({
             <div 
               key="form-pane"
               className={cn(
-                "relative w-full max-w-[800px] flex flex-col items-center px-4 md:px-0",
+                "relative w-full max-w-[800px] flex flex-col items-center px-4 md:px-0 pointer-events-auto",
                 isAIPending ? "z-0 pointer-events-none" : "z-10"
               )}
             >
@@ -905,9 +1104,9 @@ export function DualPaneBookingModal({
                 </div>
               )}
 
-              {/* 核心双窗容器 (Glassmorphism + Neon Border) - 移动端垂直堆叠 */}
+              {/* 核心双窗容器 (Glassmorphism + Neon Border) - 增加微弱暗色托底防止文字与背景重叠光度吞噬 */}
               <main className={cn(
-                "w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40 transition-all duration-300",
+                "w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40 pointer-events-auto backdrop-blur-xl transition-all duration-300",
                 isAIPending ? "border-white/20 opacity-60 grayscale-[0.2]" : "border-gx-cyan/50"
               )}>
                 {/* 右上角关闭按钮 */}
@@ -1251,18 +1450,15 @@ export function DualPaneBookingModal({
                                   key={service.id}
                                   onClick={() => handleToggleService(service)}
                                   className={cn(
-                                    "p-3 rounded-xl border transition-all text-left flex flex-col justify-center h-[64px] group relative overflow-hidden",
-                                    !isSelected && "bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10 hover:-translate-y-0.5"
+                                    "p-3 rounded-xl border transition-none text-left flex flex-col justify-center h-[64px] group relative overflow-hidden",
+                                    !isSelected && "bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10"
                                   )}
                                   style={glowStyle}
                                 >
-                                  {/* 赛博扫描线特效 (仅未选中时悬浮可见) */}
-                                  {!isSelected && (
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:animate-[shimmer_1.5s_infinite]" />
-                                  )}
+                                  {/* 赛博扫描线特效 (已移除，追求极致性能) */}
                                   
                                   <span className={cn(
-                                    "text-xs font-bold line-clamp-2 leading-tight transition-colors pr-3 z-10",
+                                    "text-xs font-bold line-clamp-2 leading-tight transition-none pr-3 z-10",
                                     isSelected ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/60 group-hover:text-white"
                                   )}>
                                     {service.name}
@@ -1947,25 +2143,33 @@ export function DualPaneBookingModal({
               "absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50 pointer-events-auto transition-opacity",
               isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
             )}>
-              {editingBooking && (
-                <button 
-                  onClick={handleMarkAsNoShow}
-                  className="w-32 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                >
-                  {t('txt_81c4b2')}</button>
+              {isReadOnly ? (
+                <div className="w-64 py-3 text-center rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-[10px] uppercase tracking-widest">
+                  只读模式 / READ ONLY
+                </div>
+              ) : (
+                <>
+                  {editingBooking && (
+                    <button 
+                      onClick={handleMarkAsNoShow}
+                      className="w-32 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                    >
+                      {t('txt_81c4b2')}</button>
+                  )}
+                  <button 
+                    onClick={handleConfirmBooking}
+                    disabled={selectedServices.length === 0}
+                    className={cn(
+                      "w-48 py-3 rounded-xl text-xs font-black tracking-widest transition-all",
+                      selectedServices.length > 0 
+                        ? "bg-gx-cyan text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white" 
+                        : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
+                    )}
+                  >
+                    {editingBooking ? "更新预约" : "确认预约"}
+                  </button>
+                </>
               )}
-              <button 
-                onClick={handleConfirmBooking}
-                disabled={selectedServices.length === 0}
-                className={cn(
-                  "w-48 py-3 rounded-xl text-xs font-black tracking-widest transition-all",
-                  selectedServices.length > 0 
-                    ? "bg-gx-cyan text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white" 
-                    : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
-                )}
-              >
-                {editingBooking ? "更新预约" : "确认预约"}
-              </button>
               <button 
                 onClick={handleClose}
                 className="w-40 py-3 rounded-xl bg-black/60 border border-gx-cyan/30 text-white hover:border-gx-cyan transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(0,240,255,0.2)]"

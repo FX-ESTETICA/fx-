@@ -26,6 +26,7 @@ import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -100,7 +101,8 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
   const t = useTranslations('MerchantDashboard');
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { activeShopId, setActiveShopId, availableShops } = useShop();
+  const { activeShopId, setActiveShopId, availableShops, subscription } = useShop();
+  const { remainingTime, isGracePeriodActive, gracePeriodActionsLeft } = subscription;
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
 
   // 多门店全局下拉菜单状态
@@ -350,6 +352,12 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 relative">
+      <GracePeriodBanner 
+        remainingTime={remainingTime} 
+        isReadOnlyMode={remainingTime === "LIMIT_EXCEEDED" && !isGracePeriodActive} 
+        isGracePeriodActive={isGracePeriodActive} 
+        gracePeriodActionsLeft={gracePeriodActionsLeft}
+      />
       
       {/* 待配置的数字门店横幅 - 核心 B 端流程闭环 */}
       {!isCheckingStore && !isStoreConfigured && (

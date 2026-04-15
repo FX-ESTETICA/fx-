@@ -7,14 +7,15 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html, Sphere, Billboard, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { useEffect, useState, useRef } from "react";
-import { ShieldCheck, X, Calendar, LineChart, Trash2, Search, Loader2, Zap, Rocket, ArrowLeft, Lock, Activity, Sparkles, UserMinus } from "lucide-react";
+import { ShieldCheck, X, Calendar, LineChart, Trash2, Search, Loader2, Zap, Rocket, ArrowLeft, Lock, Activity, Sparkles, UserMinus, Crown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext"; // 引入 ShopContext
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { SubscriptionModalMode } from "@/features/shop/ShopContext";
 
-// --- Types & State ---
+// --- Types ---& State ---
 type NodeStatus = 'pending' | 'active';
 
 export interface PlanetData {
@@ -37,21 +38,22 @@ const ORBIT_SLOTS: string[] = [
 
 // --- Custom Hooks ---
 
-function useNebulaData(bossId: string | undefined) {
+function useNebulaData(bossId: string | undefined, openSubscriptionModal: (mode: SubscriptionModalMode) => void) {
   const t = useTranslations('nebula');
   const [planets, setPlanets] = useState<PlanetData[]>([]);
   const [allPlanets, setAllPlanets] = useState<PlanetData[]>([]); // 存储所有星球，用于降维搜索
   const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('FREE');
 
   // 获取数据
   const fetchNodes = async () => {
     if (!bossId) return;
     setIsLoading(true);
     try {
-      // 1. 获取当前 Boss 的合法的 Profile ID
+      // 1. 获取当前 Boss 的合法的 Profile ID 及 订阅等级
       const { data: principalData, error: principalError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, subscription_tier')
         .eq('id', bossId)
         .single();
         
@@ -60,6 +62,7 @@ function useNebulaData(bossId: string | undefined) {
       }
       
       const validPrincipalId = principalData?.id || bossId; // 降级回退
+      if (principalData) setSubscriptionTier(principalData.subscription_tier || 'FREE');
 
       // 2. 从我们设计的视图中拉取数据
       // 注意：真实数据库中并没有 v_nebula_nodes 视图，或者该视图缺少 shop 的基础信息。
@@ -158,6 +161,16 @@ function useNebulaData(bossId: string | undefined) {
       // 如果 ID 是我们前端生成的虚拟 ID (virtual-x)，说明数据库里根本没有这条记录
       // 我们需要执行 INSERT 而不是 UPDATE
       if (id.startsWith('virtual-')) {
+        // --- 联邦算力空间锁拦截 ---
+        const limits: Record<string, number> = { FREE: 1, BASIC: 3, PRO: 10, ENTERPRISE: 9999 };
+        const maxNodes = limits[subscriptionTier] || 1;
+        
+        // 注意：allPlanets 里存的是数据库中真实存在的节点
+        if (allPlanets.length >= maxNodes) {
+          openSubscriptionModal('NODE_LIMIT');
+          return null; // 拦截创建
+        }
+
         console.log("[Nebula] 检测到虚拟节点，正在数据库中创建新记录...");
         
         const { data, error } = await supabase
@@ -393,13 +406,14 @@ function useNebulaData(bossId: string | undefined) {
     }
   };
 
-  return {
-    planets,
+  return { 
+    planets, 
     allPlanets,
-    isLoading,
-    updateNode,
-    delegateManager,
-    revokeManager,
+    isLoading, 
+    subscriptionTier,
+    updateNode, 
+    delegateManager, 
+    revokeManager, 
     purgeNode,
     obliterateEnterprise
   };
@@ -496,7 +510,9 @@ function NodeManagementHUD({
   onPurge,
   onPlanetTransition,
   onDive,
-  onObliterate
+  onObliterate,
+  subscriptionTier = 'FREE',
+  activeNodesCount = 0
 }: { 
   planet: PlanetData; 
   onClose: () => void;
@@ -507,12 +523,19 @@ function NodeManagementHUD({
   onPlanetTransition: (newPlanet: PlanetData) => void;
   onDive: () => void;
   onObliterate?: () => Promise<void>;
+  subscriptionTier?: string;
+  activeNodesCount?: number;
 }) {
-    const t = useTranslations('nebula');
+  const t = useTranslations('nebula');
   const router = useRouter();
   const { setActiveShopId } = useShop(); // 引入全局店铺上下文
 
   const isPending = planet.status === 'pending';
+  const isNewNode = planet.id.startsWith('virtual-');
+  
+  const LIMITS: Record<string, number> = { FREE: 1, BASIC: 3, PRO: 10, ENTERPRISE: 9999 };
+  const currentLimit = LIMITS[subscriptionTier] || 1;
+  const isLimitExceeded = isNewNode && activeNodesCount >= currentLimit;
   
   const [nameInput, setNameInput] = useState(planet.name === '筹备中' ? '' : planet.name);
   const [industryInput, setIndustryInput] = useState(planet.industry || '');
@@ -592,6 +615,14 @@ function NodeManagementHUD({
     // 2. 携带 Token 和真实 shopId 穿越至对应行业日历
     router.push(`/calendar/${planet.industry}?shopId=${planet.id}`);
   };
+
+  // --- 星际扩容限制 UI (Limit Exceeded HUD) ---
+  // 已重构：移除此处硬编码的弹窗。由于上层（NebulaPage的updateNode方法中）
+  // 已经通过 openSubscriptionModal('NODE_LIMIT') 呼出了全局矩阵弹窗，
+  // 此处当 isLimitExceeded 为 true 时，不再渲染任何局部弹窗内容。
+  if (isLimitExceeded) {
+    return null;
+  }
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center p-4 sm:p-8 pointer-events-none">
@@ -1587,18 +1618,20 @@ export default function NebulaPage() {
 
   // 获取真实数据库 ID (假设 activeRole 是 boss 并且 user 存在，这里需要真实的 profile id，如果是沙盒则用 undefined 测试)
   const bossProfileId = sUser?.id; 
+  const { openSubscriptionModal } = useShop();
 
   // 使用自定义 Hook 拉取 Supabase 数据
   const { 
     planets, 
     allPlanets,
     isLoading, 
+    subscriptionTier,
     updateNode, 
     delegateManager, 
     revokeManager, 
     purgeNode,
     obliterateEnterprise
-  } = useNebulaData(bossProfileId);
+  } = useNebulaData(bossProfileId, openSubscriptionModal);
 
   // 当星球数据更新时，如果当前选中了某个星球，也需要同步更新面板状态
   useEffect(() => {
@@ -1650,10 +1683,23 @@ export default function NebulaPage() {
     }, 800);
   };
 
+  // --- 全局星际扩张拦截 ---
+  const handleSelectPlanet = (planet: PlanetData) => {
+    const isNewNode = planet.id.startsWith('virtual-');
+    const LIMITS: Record<string, number> = { FREE: 1, BASIC: 3, PRO: 10, ENTERPRISE: 9999 };
+    const currentLimit = LIMITS[subscriptionTier] || 1;
+    
+    // 核心修复：如果点击的是筹备中的星球，且已达到订阅上限，直接拦截弹窗，不弹出输入名字的 HUD
+    if (isNewNode && allPlanets.length >= currentLimit) {
+      openSubscriptionModal('NODE_LIMIT');
+      return;
+    }
+    
+    setSelectedPlanet(planet);
+  };
+
   return (
     <main className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col">
-      
-      {/* 虫洞跃迁全屏遮罩特效：极光深渊 (Abyssal Aurora) */}
       <AnimatePresence>
         {diveState.isTransitioning && (
           <motion.div
@@ -1695,7 +1741,7 @@ export default function NebulaPage() {
       {!diveState.isActive && (
         <GlobalSearchHUD 
           allPlanets={allPlanets} 
-          onSelect={(planet) => setSelectedPlanet(planet)} 
+          onSelect={handleSelectPlanet} 
         />
       )}
 
@@ -1711,6 +1757,8 @@ export default function NebulaPage() {
           onPlanetTransition={(newPlanet) => setSelectedPlanet(newPlanet)}
           onDive={() => selectedPlanet && triggerNebulaDive(selectedPlanet)}
           onObliterate={obliterateEnterprise}
+          subscriptionTier={subscriptionTier}
+          activeNodesCount={allPlanets.length}
         />
       )}
 
@@ -1739,7 +1787,7 @@ export default function NebulaPage() {
           userName={userName} 
           userId={userId} 
           planets={planets} 
-          onPlanetClick={(planet) => setSelectedPlanet(planet)}
+          onPlanetClick={handleSelectPlanet}
         />
       ) : (
         <NebulaSubSystem
@@ -1748,6 +1796,7 @@ export default function NebulaPage() {
       )}
     </Canvas>
       </div>
+
     </main>
   );
 }

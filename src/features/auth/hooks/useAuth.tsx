@@ -185,7 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (profile) {
           const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
           const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
-          const actualName = profile.name || nextSession.user.user_metadata?.full_name;
+          const actualName = profile.name || nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name;
           const actualAvatar = profile.avatar_url || nextSession.user.user_metadata?.avatar_url;
           const actualId = isBoss ? "GX88888888" : profile.gx_id;
           const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
@@ -198,20 +198,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             avatar: actualAvatar,
             phone: profile.phone,
             name: actualName,
-            gender: profile.gender || "unknown", // 核心补全：读取性别
-            birthday: profile.birthday || null,  // 核心补全：读取生日
+            gender: profile.gender || nextSession.user.user_metadata?.gender || "unknown",
+            birthday: profile.birthday || nextSession.user.user_metadata?.birthday || null,
             bindings: shopBindings,
             applicationStatus: appStatus
-          } as SandboxUser;
+          } as SandboxUser; 
           
           setUser(extendedUser);
           setActiveRoleState(effectiveRole as UserRole);
           await syncDeviceSession(nextSession);
         } else {
-          setUser(nextSession.user);
-          if (nextSession.user.email === ADMIN_EMAIL) {
-            setActiveRoleState("boss");
-          }
+          // 【终极防爆兜底】：如果底层 profile 触发器失效导致记录为空，从 Metadata 提取降级档案
+          const fallbackRole = isBoss ? "boss" : "user";
+          const fallbackUser = {
+            ...nextSession.user,
+            gxId: "PENDING",
+            role: fallbackRole,
+            avatar: nextSession.user.user_metadata?.avatar_url,
+            name: nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name,
+            gender: nextSession.user.user_metadata?.gender || "unknown",
+            birthday: nextSession.user.user_metadata?.birthday || null,
+            bindings: [],
+            applicationStatus: 'idle'
+          } as SandboxUser;
+          
+          setUser(fallbackUser);
+          if (isBoss) setActiveRoleState("boss");
         }
       } catch (error) {
         console.error("[AuthProvider] Hydrate Error:", error);
@@ -357,7 +369,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (profile) {
         const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
         const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
-        const actualName = profile.name || activeSession.user.user_metadata?.full_name;
+        const actualName = profile.name || activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name;
         const actualAvatar = profile.avatar_url || activeSession.user.user_metadata?.avatar_url;
         const actualId = isBoss ? "GX88888888" : profile.gx_id;
         const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
@@ -370,14 +382,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           avatar: actualAvatar,
           phone: profile.phone,
           name: actualName,
-          gender: profile.gender || "unknown", // 刷新时重新读取
-          birthday: profile.birthday || null,  // 刷新时重新读取
+          gender: profile.gender || activeSession.user.user_metadata?.gender || "unknown",
+          birthday: profile.birthday || activeSession.user.user_metadata?.birthday || null,
           bindings: shopBindings,
           applicationStatus: appStatus
         } as SandboxUser;
         
         setUser(extendedUser);
         setActiveRoleState(effectiveRole as UserRole);
+      } else {
+        // 【终极防爆兜底：refreshUserData 同样支持 Metadata 降级提取】
+        const fallbackRole = isBoss ? "boss" : "user";
+        const fallbackUser = {
+          ...activeSession.user,
+          gxId: "PENDING",
+          role: fallbackRole,
+          avatar: activeSession.user.user_metadata?.avatar_url,
+          name: activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name,
+          gender: activeSession.user.user_metadata?.gender || "unknown",
+          birthday: activeSession.user.user_metadata?.birthday || null,
+          bindings: [],
+          applicationStatus: 'idle'
+        } as SandboxUser;
+        setUser(fallbackUser);
       }
     } catch (error) {
       console.error("[AuthProvider] Refresh User Data Error:", error);

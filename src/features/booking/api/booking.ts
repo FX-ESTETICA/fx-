@@ -820,5 +820,19 @@ export const BookingService = {
     })();
 
     return this._pendingApplicationQuery;
+  },
+
+  /**
+   * 恢复为原生闭环：移除联邦计费的拦截逻辑，回归原生 API
+   */
+  async checkShopSubscription(shopId: string): Promise<{ allowed: boolean; reason?: 'GRACE_PENDING' | 'FROZEN' | 'LIMIT_EXCEEDED' | 'TRIAL_ACTIVATED' }> {
+    return { allowed: true };
+  },
+
+  /**
+   * 恢复为原生闭环：移除联邦计费的续命逻辑
+   */
+  async activateEmergencyGrace(shopId: string): Promise<boolean> {
+    return true;
   }
 };

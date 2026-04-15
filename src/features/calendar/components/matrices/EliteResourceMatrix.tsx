@@ -22,6 +22,7 @@ export interface EliteResourceMatrixProps {
   onHorizontalScroll?: (scrollLeft: number) => void;
   onGridClick?: (resourceId?: string, time?: string, dateStr?: string) => void;
   onBookingClick?: (booking: MatrixBooking) => void; // 新增：点击预约块的回调
+  onReadOnlyIntercept?: () => void; // 新增：只读模式拦截回调
   matrixScrollRef?: React.Ref<HTMLDivElement>;
   onDateSwipe?: (direction: 'prev' | 'next') => void; // 传递日期切换事件
   onPhantomDateChange?: (dateStr: string) => void; // 新增：幻象投影雷达回调
@@ -108,24 +109,9 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
         
         if (Math.abs(distance) < 10) return; // 已经在黄金视界内，不打扰
 
-        const duration = 1500; // 1.5s 物理弹簧感
-        const startTime = performance.now();
-
-        // 阻尼缓动函数 (Expo Ease Out)，前段加速，后段极其顺滑
-        const easeOutExpo = (t: number) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-
-        const step = (currentTime: number) => {
-          const elapsed = currentTime - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          const easeProgress = easeOutExpo(progress);
-
-          scrollContainer.scrollTop = startScroll + distance * easeProgress;
-
-          if (progress < 1) {
-            animationFrameRef.current = requestAnimationFrame(step);
-          }
-        };
-        animationFrameRef.current = requestAnimationFrame(step);
+        // 【极速效率模式】：1.5s 物理弹簧感 -> 0s 瞬间到位
+        // 直接设置 scrollTop，移除 requestAnimationFrame 缓动逻辑
+        scrollContainer.scrollTop = targetScroll;
       }
     }, 30000);
   }, [getYCoordinate, matrixRef, stopAutoScroll]);
@@ -178,7 +164,7 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
   );
 });
 
-export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, matrixScrollRef, onDateSwipe, onPhantomDateChange, storeStatus }: EliteResourceMatrixProps & { storeStatus?: string }) => {
+export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, storeStatus, isReadOnly }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
   const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => setIsMounted(true), []);
@@ -542,6 +528,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   };
 
   const handleBookingDragStart = (booking: MatrixBooking) => {
+    if (isReadOnly) {
+      if (onReadOnlyIntercept) onReadOnlyIntercept();
+      return;
+    }
     setDraggedBooking(booking);
     setPendingVoidBooking(null); // 取消之前的悬停状态
   };
@@ -795,7 +785,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
                       // 2. 判定是否已结账/结束 (彻底隐身)
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const isCheckedOut = booking.status === 'COMPLETED' || booking.status === 'CHECKED_OUT';
+                      const isCheckedOut = booking.status?.toUpperCase() === 'COMPLETED' || booking.status?.toUpperCase() === 'CHECKED_OUT';
+
+                      // 3. 判定是否为爽约 (降维打击：幽灵灰，彻底熄灭)
+                      const isNoShow = resource.id === 'NO' || booking.status?.toUpperCase() === 'NO_SHOW';
 
                       // 恢复您的设计：未指定的散单保留青色，作为店长灵活调度的视觉锚点
                       const blockColor = isUnassigned ? '#00f0ff' : (resource.id === 'NO' ? '#ef4444' : (resource.themeColor || dna.themeColor));
@@ -808,6 +801,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       const handleContextMenu = (e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
+
+                        // 0. 只读模式物理拦截
+                        if (isReadOnly && onReadOnlyIntercept) {
+                          onReadOnlyIntercept();
+                          return;
+                        }
+
                         // 1. 如果有别的卡片正在拖拽/删除中，或者系统处于硬加载态，锁死右键。
                         if (draggedBooking || pendingVoidBooking || processingOrderId === booking.id) return;
                         
@@ -866,6 +866,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                           onContextMenu={handleContextMenu}
                         >
                           <EliteBookingBlock 
+                            isReadOnly={isReadOnly}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isProcessing) return; // 物理级拦截多余点击
@@ -918,6 +919,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                             isPending={isPending} // 传递待确认标识，触发跑马灯
                             isPast={isPast} // 跨过红线
                             isCheckedOut={isCheckedOut} // 已结账
+                            isNoShow={isNoShow} // 爽约幽灵降维
                           />
 
                           {/* 渲染内爆菜单 (微缩派单器，只在第一个子订单处渲染) */}

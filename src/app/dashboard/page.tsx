@@ -74,7 +74,16 @@ export default function DashboardPage() {
     availableRoles.push('merchant');
   }
 
-  // (为了测试新 ID 渲染，临时注入 mock ID)
+  // 完美体验拦截：在认证状态完全就绪之前，渲染一个空底盘以防止视觉闪烁
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-transparent text-white relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
+      </main>
+    );
+  }
+
   const getMockIdForRole = (role: UserRole) => {
     if (role === 'boss') return 'GX88888888';
     if (role === 'merchant') return 'GX-MC-000015';

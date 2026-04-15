@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay } from "lucide-react";
+import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay, TrendingUp, Crown } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -21,6 +21,8 @@ export interface StaffItem {
   frontendId?: string;
   phone?: string;
   baseSalary?: number;
+  guarantee?: number; // 新增：保底工资
+  daysOff?: number; // 新增：每月休假天数
   commissionRate?: number;
   calendarView: string;
   nebulaAccess: boolean;
@@ -208,23 +210,24 @@ export const NebulaConfigHub = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* 背景遮罩 */}
+          {/* 背景遮罩 - 已移除全屏黑色和毛玻璃，保持左侧清透 */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0 }} // 极速响应
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-transparent z-[100]"
           />
 
-          {/* 抽屉主体 */}
+          {/* 抽屉主体 - 赛博半透明黑玻璃材质 */}
           <motion.div
             key="config-panel"
-            initial={{ x: "100%", opacity: 0.5 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "100%", opacity: 0.5 }}
-            transition={{ type: "spring", damping: 30, stiffness: 200 }}
-            className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-black/95 md:bg-black/80 backdrop-blur-3xl md:border-l border-white/10 z-[101] flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0 }} // 极速响应，移除弹簧动画
+            className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-black/70 backdrop-blur-2xl md:border-l border-white/10 z-[101] flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.3)]"
           >
             {/* 头部 */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
@@ -734,6 +737,8 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
     frontendId: staff.frontendId || "",
     phone: staff.phone || "",
     baseSalary: staff.baseSalary || 0,
+    guarantee: staff.guarantee || 0, // 新增：保底工资初始值
+    daysOff: staff.daysOff ?? 4,     // 新增：休假天数初始值，默认4
     commissionRate: staff.commissionRate || 0,
     calendarView: staff.calendarView || "self",
     nebulaAccess: staff.nebulaAccess || false,
@@ -929,33 +934,195 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
 
         {activeTab === "finance" && (
           <div className="space-y-5 animate-in fade-in">
-            <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_761c91')}</label>
-                <input type="number" value={formData.baseSalary} onChange={e => setFormData({...formData, baseSalary: Number(e.target.value)})} className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder="0" />
+            {/* 新版动态表单：底薪类型选择器 */}
+            <div className="space-y-3 mb-6">
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><CreditCard className="w-3 h-3"/> 薪酬模型 (SALARY MODEL)</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {[
+                  { id: "guarantee", label: "保底提成制", desc: "设保底额度，赚回本后分润" },
+                  { id: "fixed", label: "纯底薪制", desc: "固定死工资，无提成" },
+                  { id: "commission", label: "纯提成制", desc: "无底薪，纯按比例分润" }
+                ].map(opt => {
+                  // 简单推导当前选中的模型
+                  let currentModel = "guarantee";
+                  if ((formData.guarantee || 0) === 0 && (formData.commissionRate || 0) === 0) currentModel = "fixed";
+                  if ((formData.baseSalary || 0) === 0 && (formData.guarantee || 0) === 0 && (formData.commissionRate || 0) > 0) currentModel = "commission";
+                  // 老板模式推导：全0
+                  if ((formData.baseSalary || 0) === 0 && (formData.guarantee || 0) === 0 && (formData.commissionRate || 0) === 0) currentModel = "boss";
+
+                  const isSelected = currentModel === opt.id || (currentModel === "boss" && opt.id === "fixed"); // 老板模式默认选中样式上可能需要特殊处理，这里暂时让纯底薪高亮或者都不高亮
+
+                  return (
+                    <div 
+                      key={opt.id} 
+                      onClick={() => {
+                        if (opt.id === "guarantee") setFormData({...formData, baseSalary: 0, guarantee: 3000, commissionRate: 40});
+                        if (opt.id === "fixed") setFormData({...formData, baseSalary: 3000, guarantee: 0, commissionRate: 0});
+                        if (opt.id === "commission") setFormData({...formData, baseSalary: 0, guarantee: 0, commissionRate: 50});
+                      }} 
+                      className={cn("p-3 rounded-xl border cursor-pointer transition-all", isSelected ? "bg-gx-cyan/10 border-gx-cyan/30" : "bg-white/[0.02] border-white/5 hover:border-white/20")}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={cn("text-xs font-bold", isSelected ? "text-gx-cyan" : "text-white")}>{opt.label}</span>
+                        {isSelected && <Check className="w-3 h-3 text-gx-cyan" />}
+                      </div>
+                      <span className="text-[9px] text-white/40 leading-tight block">{opt.desc}</span>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
-                  <span>{t('txt_44100b')}</span>
-                </label>
+            </div>
+
+            {/* 动态显示的输入框阵列 */}
+            <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-4">
+              
+              {/* 仅在【纯底薪制】或【有底薪】时显示 */}
+              {((formData.guarantee || 0) === 0 && (formData.commissionRate || 0) === 0) && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">基础底薪 / BASE SALARY (€)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={formData.baseSalary === 0 ? '' : formData.baseSalary} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData({...formData, baseSalary: val === '' ? 0 : Math.max(0, Number(val))})
+                    }} 
+                    className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" 
+                    placeholder="0" 
+                  />
+                </div>
+              )}
+              
+              {/* 仅在【保底提成制】显示 */}
+              {((formData.guarantee || 0) > 0 || ((formData.baseSalary || 0) === 0 && (formData.commissionRate || 0) > 0 && (formData.guarantee || 0) > 0) || ((formData.guarantee || 0) !== 0)) && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest text-gx-cyan/80">业绩保底 / GUARANTEE TARGET (€)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={formData.guarantee === 0 ? '' : formData.guarantee} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData({...formData, guarantee: val === '' ? 0 : Math.max(0, Number(val))})
+                    }} 
+                    className="w-full bg-transparent border-b border-gx-cyan/30 text-gx-cyan text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" 
+                    placeholder="如：3200" 
+                  />
+                </div>
+              )}
+
+              {/* 仅在【保底提成制】和【纯提成制】显示 */}
+              {((formData.commissionRate || 0) > 0 || (formData.guarantee || 0) > 0) && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
+                    <span>提成比例 / COMMISSION RATE</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      min="0"
+                      max="100"
+                      value={formData.commissionRate === 0 ? '' : formData.commissionRate} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setFormData({...formData, commissionRate: val === '' ? 0 : Math.max(0, Math.min(100, Number(val)))})
+                      }} 
+                      className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors pr-8" 
+                      placeholder="0" 
+                    />
+                    <span className="absolute right-0 bottom-2 text-white/40 font-mono">%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 始终显示：每月休假天数 (用于推算日目标) */}
+              <div className="space-y-1 pt-2 border-t border-white/5 animate-in fade-in">
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">每月休假 / MONTHLY DAYS OFF</label>
                 <div className="relative">
-                  <input type="number" value={formData.commissionRate} onChange={e => setFormData({...formData, commissionRate: Number(e.target.value)})} className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder="0" max="100" />
-                  <span className="absolute right-0 bottom-2 text-white/40 font-mono">%</span>
+                  <input 
+                    type="number" 
+                    min="0"
+                    max="31"
+                    value={formData.daysOff === 0 ? '' : formData.daysOff} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData({...formData, daysOff: val === '' ? 0 : Math.max(0, Math.min(31, Number(val)))})
+                    }} 
+                    className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors pr-12" 
+                    placeholder="0" 
+                  />
+                  <span className="absolute right-0 bottom-2 text-white/40 font-mono">天/月</span>
                 </div>
               </div>
             </div>
 
-            {/* 自动化提示看板 */}
-            <div className="p-4 rounded-xl bg-gradient-to-br from-gx-purple/10 to-transparent border border-gx-purple/20 flex gap-3 items-start">
-              <div className="p-2 rounded-lg bg-gx-purple/20 text-gx-purple shrink-0">
-                <Settings className="w-4 h-4" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-white">{t('txt_db0a2c')}</h4>
-                <p className="text-[10px] text-white/50 leading-relaxed">
-                  {t('txt_c2fab9')}</p>
-              </div>
-            </div>
+            {/* 自动化提示看板 (动态推演) */}
+            {(() => {
+              const b = formData.baseSalary || 0;
+              const g = formData.guarantee || 0;
+              const r = formData.commissionRate || 0;
+              const d = formData.daysOff ?? 4;
+              
+              // 获取当前月真实天数
+              const today = new Date();
+              const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+              const workDays = Math.max(1, daysInMonth - d);
+              
+              let monthTarget = 0;
+              let dayTarget = 0;
+              let targetStr = "该员工未设置保底要求，无需进行回本推演。";
+              
+              // 老板模式判定 (All Zero)
+              const isBossMode = b === 0 && g === 0 && r === 0;
+
+              if (isBossMode) {
+                return (
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/30 flex gap-3 items-start relative overflow-hidden">
+                    <div className="absolute -right-4 -top-4 w-20 h-20 bg-amber-500/20 blur-2xl rounded-full"></div>
+                    <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 shrink-0 relative z-10">
+                      <Crown className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-1 relative z-10">
+                      <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                        [ 老板模式 ] 顶级权限激活
+                      </h4>
+                      <p className="text-[10px] text-white/60 leading-relaxed font-mono">
+                        无薪酬参数，自动豁免所有业绩考核。此账号产生的业绩将作为门店纯利润，不计入个人提成支出。
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (g > 0 && r > 0) {
+                monthTarget = Math.round(g / (r / 100));
+                dayTarget = Math.round(monthTarget / workDays);
+                targetStr = `本月共 ${daysInMonth} 天，扣除 ${d} 天休假，剩余 ${workDays} 个工作日。日均回本目标为：€ ${dayTarget}。`;
+              } else if (g === 0 && r === 0) {
+                targetStr = `该员工为纯底薪模式，无业绩硬性考核要求。`;
+              } else if (g === 0 && r > 0) {
+                targetStr = `该员工为纯提成模式，无保底成本压力。日目标取决于其个人期望。`;
+              }
+
+              return (
+                <div className="p-4 rounded-xl bg-gradient-to-br from-gx-cyan/10 to-transparent border border-gx-cyan/20 flex gap-3 items-start relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-gx-cyan/20 blur-2xl rounded-full"></div>
+                  <div className="p-2 rounded-lg bg-gx-cyan/20 text-gx-cyan shrink-0 relative z-10">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1 relative z-10">
+                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                      AI 动态目标推演 
+                      {g > 0 && r > 0 && <span className="text-gx-cyan font-mono tracking-wider">€ {monthTarget} / 月</span>}
+                    </h4>
+                    <p className="text-[10px] text-white/60 leading-relaxed font-mono">
+                      {targetStr}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
