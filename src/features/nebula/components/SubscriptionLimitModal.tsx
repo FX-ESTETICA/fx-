@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, X } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useEffect, useState } from "react";
+import { initializePaddle, Paddle } from "@paddle/paddle-js";
 
 import { SubscriptionModalMode } from "@/features/shop/ShopContext";
 
@@ -19,7 +21,38 @@ const TIER_LIMITS: Record<string, number> = {
   ENTERPRISE: 9999, // 无限
 };
 
+const PADDLE_PRICES = {
+  FREE: 'pri_01kp9eymwgh0y8fpnfe3bh4qwc',
+  BASIC: 'pri_01kp9f0kawf39jg3rjqb4j2zxt',
+  PRO: 'pri_01kp9f2dsx370schxp07sxe60n',
+  ENTERPRISE: 'pri_01kp9f4b1exnpntneywz9z53kr',
+};
+
 export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'NODE_LIMIT', onStartGracePeriod }: SubscriptionLimitModalProps) => {
+  const [paddle, setPaddle] = useState<Paddle>();
+
+  useEffect(() => {
+    if (isOpen && !paddle) {
+      initializePaddle({ environment: 'sandbox', token: 'test_71aa785f189494f81f7e5014fb5' }).then(
+        (paddleInstance: Paddle | undefined) => {
+          if (paddleInstance) {
+            setPaddle(paddleInstance);
+          }
+        }
+      ).catch(err => console.error("Failed to initialize Paddle", err));
+    }
+  }, [isOpen, paddle]);
+
+  const handleCheckout = (priceId: string) => {
+    if (paddle) {
+      paddle.Checkout.open({
+        items: [{ priceId: priceId, quantity: 1 }]
+      });
+    } else {
+      console.warn("Paddle is still loading, please wait...");
+    }
+  };
+
   if (!isOpen) return null;
 
   const maxNodes = TIER_LIMITS[currentTier] || 1;
@@ -107,6 +140,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
                   </div>
                 )}
                 <button 
+                  onClick={() => handleCheckout(PADDLE_PRICES.FREE)}
                   className={cn(
                     "w-full py-3 rounded-xl font-black tracking-widest uppercase border transition-all",
                     currentTier === 'FREE'
@@ -129,6 +163,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               
               <div className="mt-auto pt-6 border-t border-white/5">
                 <button 
+                  onClick={() => handleCheckout(PADDLE_PRICES.BASIC)}
                   className={cn(
                     "w-full py-3 rounded-xl font-black tracking-widest uppercase border transition-all",
                     currentTier === 'BASIC'
@@ -159,6 +194,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               
               <div className="mt-auto pt-6 border-t border-white/5">
                 <button 
+                  onClick={() => handleCheckout(PADDLE_PRICES.PRO)}
                   className={cn(
                     "w-full py-4 rounded-xl font-black tracking-widest uppercase transition-all border",
                     currentTier === 'PRO' 
@@ -181,6 +217,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               
               <div className="mt-auto pt-6 border-t border-white/5">
                 <button 
+                  onClick={() => handleCheckout(PADDLE_PRICES.ENTERPRISE)}
                   className={cn(
                     "w-full py-3 rounded-xl font-black tracking-widest uppercase border transition-all",
                     currentTier === 'ENTERPRISE'
