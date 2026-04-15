@@ -3,8 +3,9 @@ import { Lock, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useEffect, useState } from "react";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
+import { supabase } from "@/lib/supabase";
 
-import { SubscriptionModalMode } from "@/features/shop/ShopContext";
+import { SubscriptionModalMode, useShop } from "@/features/shop/ShopContext";
 
 interface SubscriptionLimitModalProps {
   isOpen: boolean;
@@ -30,10 +31,46 @@ const PADDLE_PRICES = {
 
 export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'NODE_LIMIT', onStartGracePeriod }: SubscriptionLimitModalProps) => {
   const [paddle, setPaddle] = useState<Paddle>();
+  const { subscription } = useShop(); // 获取当前用户的 empireId
 
   useEffect(() => {
     if (isOpen && !paddle) {
-      initializePaddle({ environment: 'sandbox', token: 'test_71aa785f189494f81f7e5014fb5' }).then(
+      initializePaddle({ 
+        environment: 'sandbox', 
+        token: 'test_71aa785f189494f81f7e5014fb5',
+        eventCallback: async function(data) {
+          if (data.name === "checkout.completed") {
+            console.log("Checkout completed successfully!", data);
+            
+            // 沙盒测试期：前端直接触发提权 (真实生产环境应交给 Webhook 处理)
+            if (subscription.empireId) {
+              // 提取刚才购买的层级 (从 customData 中)
+              const targetTier = data.data?.custom_data?.target_tier || 'PRO';
+              
+              // 物理级写入数据库
+              const { error } = await supabase
+                .from('profiles')
+                .update({ 
+                  subscription_tier: targetTier,
+                  // 重置试用期和剩余次数，代表正式成为了尊贵的付费用户
+                  grace_period_actions_left: null 
+                })
+                .eq('id', subscription.empireId);
+
+              if (error) {
+                console.error("Failed to upgrade tier:", error);
+              } else {
+                console.log("Tier upgraded successfully to:", targetTier);
+                // 强制刷新页面或触发全局事件让 context 重新拉取
+                window.location.reload();
+              }
+            }
+            
+            // 支付成功后，自动关闭弹窗
+            onClose();
+          }
+        }
+      }).then(
         (paddleInstance: Paddle | undefined) => {
           if (paddleInstance) {
             setPaddle(paddleInstance);
@@ -41,12 +78,19 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
         }
       ).catch(err => console.error("Failed to initialize Paddle", err));
     }
-  }, [isOpen, paddle]);
+  }, [isOpen, paddle, onClose]);
 
   const handleCheckout = (priceId: string) => {
     if (paddle) {
+      // 获取订阅等级名称，用于在后台记录
+      const tierName = Object.entries(PADDLE_PRICES).find(([_, id]) => id === priceId)?.[0] || 'UNKNOWN';
+
       paddle.Checkout.open({
-        items: [{ priceId: priceId, quantity: 1 }]
+        items: [{ priceId: priceId, quantity: 1 }],
+        customData: {
+          empire_id: subscription.empireId || '',
+          target_tier: tierName
+        }
       });
     } else {
       console.warn("Paddle is still loading, please wait...");
