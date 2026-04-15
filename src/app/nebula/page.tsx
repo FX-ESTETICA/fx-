@@ -7,14 +7,13 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html, Sphere, Billboard, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { useEffect, useState, useRef } from "react";
-import { ShieldCheck, X, Calendar, LineChart, Trash2, Search, Loader2, Zap, Rocket, ArrowLeft, Lock, Activity, Sparkles, UserMinus, Crown } from "lucide-react";
+import { ShieldCheck, X, Calendar, LineChart, Trash2, Search, Loader2, Zap, Rocket, ArrowLeft, Lock, Activity, Sparkles, UserMinus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext"; // 引入 ShopContext
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { SubscriptionModalMode } from "@/features/shop/ShopContext";
-import { SubscriptionWatermark } from "@/components/shared/SubscriptionWatermark";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 
 // --- Types ---& State ---
@@ -514,9 +513,7 @@ function NodeManagementHUD({
   onDive,
   onObliterate,
   subscriptionTier = 'FREE',
-  activeNodesCount = 0,
-  subscriptionModalMode,
-  closeSubscriptionModal
+  activeNodesCount = 0
 }: { 
   planet: PlanetData; 
   onClose: () => void;
@@ -529,8 +526,6 @@ function NodeManagementHUD({
   onObliterate?: () => Promise<void>;
   subscriptionTier?: string;
   activeNodesCount?: number;
-  subscriptionModalMode: SubscriptionModalMode;
-  closeSubscriptionModal: () => void;
 }) {
   const t = useTranslations('nebula');
   const router = useRouter();
@@ -1765,8 +1760,6 @@ export default function NebulaPage() {
           onObliterate={obliterateEnterprise}
           subscriptionTier={subscriptionTier}
           activeNodesCount={allPlanets.length}
-          subscriptionModalMode={subscriptionModalMode}
-          closeSubscriptionModal={closeSubscriptionModal}
         />
       )}
 
@@ -1804,9 +1797,6 @@ export default function NebulaPage() {
       )}
     </Canvas>
       </div>
-
-      {/* 会员/试用期专属水印雷达 */}
-      <SubscriptionWatermark />
 
       {/* 全局算力矩阵大一统弹窗 (Global Subscription Matrix) */}
       <SubscriptionLimitModal 

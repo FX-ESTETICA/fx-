@@ -2,7 +2,6 @@
 
 import { IndustryCalendar } from "@/features/calendar/components/IndustryCalendar";
 import { Suspense } from "react";
-import { SubscriptionWatermark } from "@/components/shared/SubscriptionWatermark";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 import { useShop } from "@/features/shop/ShopContext";
 
@@ -17,9 +16,6 @@ export default function CalendarPage() {
           <IndustryCalendar initialIndustry="beauty" mode="admin" />
         </Suspense>
       </div>
-
-      {/* 会员/试用期专属水印雷达 */}
-      <SubscriptionWatermark />
 
       {/* 全局算力矩阵大一统弹窗 (Global Subscription Matrix) */}
       <SubscriptionLimitModal 
