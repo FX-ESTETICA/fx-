@@ -917,6 +917,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         {/* 紧急运力续命横幅 */}
         <GracePeriodBanner 
           remainingTime={remainingTime} 
+          remainingMilliseconds={subscription.remainingMilliseconds}
           isReadOnlyMode={isReadOnlyMode} 
           isGracePeriodActive={isGracePeriodActive} 
           gracePeriodActionsLeft={gracePeriodActionsLeft}

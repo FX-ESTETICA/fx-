@@ -354,6 +354,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
     <div className="space-y-8 animate-in fade-in duration-700 relative">
       <GracePeriodBanner 
         remainingTime={remainingTime} 
+        remainingMilliseconds={subscription.remainingMilliseconds}
         isReadOnlyMode={remainingTime === "LIMIT_EXCEEDED" && !isGracePeriodActive} 
         isGracePeriodActive={isGracePeriodActive} 
         gracePeriodActionsLeft={gracePeriodActionsLeft}

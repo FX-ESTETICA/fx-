@@ -2,11 +2,16 @@ import { motion } from 'framer-motion';
 import { cn } from "@/utils/cn";
 import { useShop } from "@/features/shop/ShopContext";
 
-export const GracePeriodBanner = ({ remainingTime, isReadOnlyMode, isGracePeriodActive, gracePeriodActionsLeft }: { remainingTime: string | null; isReadOnlyMode: boolean; isGracePeriodActive?: boolean; gracePeriodActionsLeft?: number | null }) => {
+export const GracePeriodBanner = ({ remainingTime, remainingMilliseconds, isReadOnlyMode, isGracePeriodActive, gracePeriodActionsLeft }: { remainingTime: string | null; remainingMilliseconds?: number | null; isReadOnlyMode: boolean; isGracePeriodActive?: boolean; gracePeriodActionsLeft?: number | null }) => {
   const { openSubscriptionModal } = useShop();
 
   // 横幅在过期状态下不再隐藏，保持显示以供测试和视觉定位
   if (!remainingTime) return null;
+
+  // 终极拦截：如果拥有超过 1 天（24小时）的剩余时间，说明是正式付费用户，永久隐藏底部横条！
+  if (remainingMilliseconds !== null && remainingMilliseconds !== undefined && remainingMilliseconds > 24 * 60 * 60 * 1000) {
+    return null;
+  }
 
   const isExhausted = remainingTime === "ACTIONS_EXHAUSTED";
 
