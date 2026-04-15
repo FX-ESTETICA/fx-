@@ -56,11 +56,12 @@ export const metadata: Metadata = {
   description: "极致简洁的赛博风格局部生活服务平台",
   appleWebApp: {
     title: "GX Core",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "black-translucent", // 虽然无法物理隐藏iOS网页顶栏，但保持沉浸透明
     capable: true,
   },
   other: {
     "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes", // 强化 PWA 全屏沉浸宣告
   },
 };
 

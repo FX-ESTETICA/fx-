@@ -67,9 +67,12 @@ export function NativeBridgeProvider() {
         console.warn("GoogleAuth init warning (often ignored on mobile):", e);
       }
 
-      // 1. 初始化原生状态栏（全透明沉浸式）
+      // 1. 初始化原生状态栏（彻底隐藏，实现极致全屏无字沉浸）
       const initNative = async () => {
         try {
+          // 隐藏系统状态栏（电池、时间全部消失）
+          await StatusBar.hide();
+          // 如果某些机型或弹窗导致状态栏重新出现，确保它依然是沉浸透明的作为 fallback
           await StatusBar.setOverlaysWebView({ overlay: true });
           await StatusBar.setStyle({ style: Style.Dark });
         } catch (e) {
