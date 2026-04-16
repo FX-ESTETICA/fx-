@@ -159,11 +159,15 @@ export function NativeBridgeProvider() {
                 progressListener.remove();
 
                 // 4. 原生唤醒系统安装器 (APK)
-                await FileOpener.open({
-                  filePath: downloadResult.path,
-                  contentType: 'application/vnd.android.package-archive',
-                  openWithDefault: true
-                });
+                if (downloadResult.path) {
+                  await FileOpener.open({
+                    filePath: downloadResult.path,
+                    contentType: 'application/vnd.android.package-archive',
+                    openWithDefault: true
+                  });
+                } else {
+                  throw new Error("Download path is undefined");
+                }
 
               } catch (e) {
                 console.error("[Native] Download failed:", e);

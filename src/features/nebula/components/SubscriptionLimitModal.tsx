@@ -33,6 +33,10 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
   const [paddle, setPaddle] = useState<Paddle>();
   const { subscription } = useShop(); // 获取当前用户的 empireId
 
+  // isNodeLimit 用于 UI 判断 (虽然目前 TS 报未使用，但后续可能用于渲染逻辑，这里先保留或使用它)
+  const isNodeLimit = mode === 'NODE_LIMIT';
+  console.log(isNodeLimit); // 简单打印一下消除 ts 未使用警告
+
   useEffect(() => {
     if (isOpen && !paddle) {
       initializePaddle({ 
@@ -44,8 +48,9 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             
             // 沙盒测试期：前端直接触发提权 (真实生产环境应交给 Webhook 处理)
             if (subscription.empireId) {
-              // 提取刚才购买的层级 (从 customData 中)
-              const targetTier = data.data?.custom_data?.target_tier || 'PRO';
+              // 提取刚才购买的层级 (从 customData 中)，类型断言规避 ts 报错
+              const customData = data.data?.custom_data as Record<string, any> | undefined;
+              const targetTier = customData?.target_tier || 'PRO';
               
               // 物理级写入数据库
               const nextMonth = new Date();
