@@ -34,6 +34,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
+import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
 import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
@@ -345,19 +346,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 试用期水印雷达 (Watermark Radar) 从 ShopContext 同步
   // ==========================================
   const { subscription } = useShop();
+  const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
   const [isReadOnlyMode, setIsReadOnlyMode] = useState<boolean>(false);
 
   useEffect(() => {
     // 【强制拦截】只读状态判定全部交给全局中枢 ShopContext 接管，防止退出重置
     // 从全局上下文中直接映射 isReadOnlyMode，废弃日历内部自算的倒计时！
-    if ((subscription.remainingTime === "LIMIT_EXCEEDED" || subscription.remainingTime === "ACTIONS_EXHAUSTED") && !subscription.isGracePeriodActive) {
+    if ((remainingTime === "LIMIT_EXCEEDED" || remainingTime === "ACTIONS_EXHAUSTED") && !subscription.isGracePeriodActive) {
       setIsReadOnlyMode(true);
     } else {
       setIsReadOnlyMode(false);
     }
-  }, [subscription.remainingTime, subscription.isGracePeriodActive]);
+  }, [remainingTime, subscription.isGracePeriodActive]);
 
-  const remainingTime = subscription.remainingTime;
   const isGracePeriodActive = subscription.isGracePeriodActive;
   const { subscriptionTier, trialStartedAt, empireId, gracePeriodActionsLeft } = subscription;
   const { openSubscriptionModal } = useShop();
@@ -929,7 +930,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         {/* 紧急运力续命横幅 */}
         <GracePeriodBanner 
           remainingTime={remainingTime} 
-          remainingMilliseconds={subscription.remainingMilliseconds}
+          remainingMilliseconds={remainingMilliseconds}
           isReadOnlyMode={isReadOnlyMode} 
           isGracePeriodActive={isGracePeriodActive} 
           gracePeriodActionsLeft={gracePeriodActionsLeft}
