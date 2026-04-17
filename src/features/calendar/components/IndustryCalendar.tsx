@@ -29,7 +29,6 @@ import { Settings } from "lucide-react";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { createPortal } from "react-dom";
 import { DualPaneBookingModal, type BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
-import { BookingService, type BookingRealtimePayload } from "@/features/booking/api/booking";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +42,7 @@ import { RecycleBinModal } from "./RecycleBinModal";
 import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
 import { useTranslations } from "next-intl";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 export interface OperatingHour {
   id: string;
@@ -215,6 +215,43 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   
   // 新增：世界顶端的“靶向雷达”信标，用于控制跨期野单的瞬间物理位移
   const [targetBookingId, setTargetBookingId] = useState<string | null>(null);
+
+  // 注册物理返回键拦截（顶端架构：优先收起弹窗/侧边栏，而不后退页面）
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isBookingModalOpen) {
+      registerBack('calendar-booking-modal', () => { setIsBookingModalOpen(false); return true; }, 20);
+    } else {
+      unregisterBack('calendar-booking-modal');
+    }
+    
+    if (isConfigOpen) {
+      registerBack('calendar-config', () => { setIsConfigOpen(false); return true; }, 10);
+    } else {
+      unregisterBack('calendar-config');
+    }
+    
+    if (isFinanceDashboardOpen) {
+      registerBack('calendar-finance', () => { setIsFinanceDashboardOpen(false); return true; }, 15);
+    } else {
+      unregisterBack('calendar-finance');
+    }
+    
+    if (isRecycleBinOpen) {
+      registerBack('calendar-recycle', () => { setIsRecycleBinOpen(false); return true; }, 15);
+    } else {
+      unregisterBack('calendar-recycle');
+    }
+
+    return () => {
+      unregisterBack('calendar-booking-modal');
+      unregisterBack('calendar-config');
+      unregisterBack('calendar-finance');
+      unregisterBack('calendar-recycle');
+    };
+  }, [isBookingModalOpen, isConfigOpen, isFinanceDashboardOpen, isRecycleBinOpen, registerBack, unregisterBack]);
 
   // 新增背景控制 hook
   const { settings: visualSettings } = useVisualSettings();

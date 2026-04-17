@@ -8,6 +8,8 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useChatStore } from '@/store/useChatStore';
 import { useTranslations } from "next-intl";
 import { BottomNavBar } from '@/components/shared/BottomNavBar';
+import { useEffect } from 'react';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 export default function ChatListPage() {
   const t = useTranslations('chat');
@@ -18,6 +20,22 @@ export default function ChatListPage() {
 
   // 状态机：控制当前显示的视图和选中的聊天对象 (通过 Zustand 同步给全局)
   const { activeChat, setActiveChat } = useChatStore();
+
+  // 注册物理返回键拦截（顶端架构：仅收起聊天室，不后退页面）
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (activeChat) {
+      registerBack('chat-room', () => {
+        setActiveChat(null);
+        return true; // 消费拦截事件
+      }, 10);
+    } else {
+      unregisterBack('chat-room');
+    }
+    return () => unregisterBack('chat-room');
+  }, [activeChat, setActiveChat, registerBack, unregisterBack]);
 
   return (
     // 修复高度塌陷：必须使用强制视口高度 h-[100dvh] 而不是 min-h-[100dvh]

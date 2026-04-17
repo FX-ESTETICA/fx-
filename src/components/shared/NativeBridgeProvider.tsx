@@ -10,6 +10,8 @@ import { Directory, Filesystem } from "@capacitor/filesystem";
 import { FileTransfer } from "@capacitor/file-transfer";
 import { FileOpener } from "@capacitor-community/file-opener";
 import { useTranslations } from "next-intl";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
+import { useViewStack } from "@/hooks/useViewStack";
 
 export function NativeBridgeProvider() {
     const t = useTranslations('NativeBridgeProvider');
@@ -81,13 +83,28 @@ export function NativeBridgeProvider() {
       };
       initNative();
 
-      // C. 接管安卓物理返回键（防止闪退，实现平滑回退）
+      // C. 顶端架构：接管安卓物理返回键（实现多级平滑回退、弹层拦截与状态机同步）
       CapacitorApp.addListener("backButton", () => {
+        // 1. 最高优先级：触发物理拦截栈（如有打开的聊天室、日历侧边栏等，则仅关闭该子界面）
+        const { pop } = useHardwareBack.getState();
+        if (pop()) return; // 拦截器已消费该事件，终止后退
+
         const path = window.location.pathname;
-        // 如果在首页或登录页，则退出应用；否则返回上一页（相当于浏览器后退）
+        
+        // 2. 第二优先级：主导航归位（发现、聊天、我的页 -> 强制归位到首页，修复 SPA Tab 切换无历史记录的问题）
+        const mainTabs = ['/discovery', '/chat', '/me', '/dashboard'];
+        if (mainTabs.some(p => path.startsWith(p))) {
+          const { setActiveTab } = useViewStack.getState();
+          setActiveTab('home');
+          router.replace('/');
+          return;
+        }
+
+        // 3. 第三优先级：如果已经在首页或登录页，则安全退出 App
         if (path === '/home' || path === '/' || path === '/login') {
           CapacitorApp.exitApp();
         } else {
+          // 4. 常规后退：比如日历页面，因为是通过常规跳转进入，执行 back 会完美“从哪进回哪去”
           router.back();
         }
       });
