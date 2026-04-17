@@ -67,6 +67,21 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
     };
   }, [shopId]);
 
+  // 生成当前周的日期
+  const weekDates = useMemo(() => {
+    const dates = [];
+    const curr = new Date(currentDate);
+    const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
+    const startDate = new Date(curr.setDate(first));
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  }, [currentDate]);
+
   // 提取动态渲染的时间段（智能剔除全局非营业时间）
   const timeSlots = useMemo(() => {
     const activeHours = new Set<number>();
@@ -111,7 +126,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
         isOvertime: false
       };
     });
-  }, [operatingHours, sandboxBookings]);
+  }, [operatingHours, sandboxBookings, weekDates]);
 
   // 过滤出选中的人员
   const filteredResources = useMemo(() => {
@@ -125,21 +140,6 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
       timeColumnRef.current.scrollTop = e.currentTarget.scrollTop;
     }
   };
-
-  // 生成当前周的日期
-  const weekDates = useMemo(() => {
-    const dates = [];
-    const curr = new Date(currentDate);
-    const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1);
-    const startDate = new Date(curr.setDate(first));
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  }, [currentDate]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-transparent">
