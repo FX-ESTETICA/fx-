@@ -949,7 +949,14 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                   BookingService.updateBookingResource(booking.id, targetId)
                                     .then(async () => {
                                       // 核心修复：移除 null 限制，无论指派给谁都强制全局唤醒智能排盘大脑
-                                      await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                      // 注入 manualOverrides 避免由于视图同步延迟读到旧数据
+                                      const isAssignedToPerson = targetId !== null && targetId !== 'UNASSIGNED_POOL';
+                                      await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+                                        [booking.id]: {
+                                          resourceId: targetId,
+                                          originalUnassigned: !isAssignedToPerson
+                                        }
+                                      });
                                       setImplodedOrderId(null);
                                       setSplitServiceAssignments({});
                                       refreshBookings();
@@ -1003,7 +1010,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                         BookingService.updateBookingResource(booking.id, null)
                                           .then(async () => {
                                             // 触发智能重排算法
-                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                            // 注入 manualOverrides 避免由于视图同步延迟读到旧数据
+                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+                                              [booking.id]: {
+                                                resourceId: null,
+                                                originalUnassigned: true
+                                              }
+                                            });
                                             setImplodedOrderId(null);
                                             refreshBookings();
                                             trackAction();
@@ -1040,7 +1053,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                         BookingService.updateBookingResource(booking.id, res.id)
                                           .then(async () => {
                                             // 强制全局唤醒智能排盘大脑，处理重叠
-                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+                                              [booking.id]: {
+                                                resourceId: res.id,
+                                                originalUnassigned: false
+                                              }
+                                            });
                                             setImplodedOrderId(null);
                                             refreshBookings();
                                             trackAction();
@@ -1057,7 +1075,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                         BookingService.updateBookingResource(booking.id, res.id)
                                           .then(async () => {
                                             // 强制全局唤醒智能排盘大脑，处理重叠
-                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+                                              [booking.id]: {
+                                                resourceId: res.id,
+                                                originalUnassigned: false
+                                              }
+                                            });
                                             setImplodedOrderId(null);
                                             refreshBookings();
                                             trackAction();

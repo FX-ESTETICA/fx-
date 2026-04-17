@@ -8,13 +8,22 @@ export const BookingScheduler = {
   /**
    * 重新计算指定日期下所有“未指定”订单的落位
    */
-  async reflowDayBookings(dateStr: string, shopId: string, staffs: any[]) {
+  async reflowDayBookings(dateStr: string, shopId: string, staffs: any[], manualOverrides?: Record<string, any>) {
     if (!shopId || shopId === 'default') return;
 
     try {
       // 1. 获取当天所有的订单
       const { data: allBookings } = await BookingService.getBookings(shopId);
       const todayBookings = allBookings.filter(b => b.date === dateStr);
+
+      // 应用手动内存覆盖 (防止视图延迟导致读取到旧状态)
+      if (manualOverrides) {
+        todayBookings.forEach(b => {
+          if (manualOverrides[b.id]) {
+             Object.assign(b, manualOverrides[b.id]);
+          }
+        });
+      }
 
       // 【终极排爆过滤记录】：记录每个订单进场前的原始 resourceId 和 startTime
       const originalStateMap = new Map(todayBookings.map(b => [b.id, {
@@ -80,19 +89,9 @@ export const BookingScheduler = {
         placedBookings.push(unassignedBkg);
       });
 
-      // 5. 【手术级保存】：只保存那些真正被重排算法改变了座位或时间的无指定订单
-      const finalUpdatedBookings = unassignedBookings.filter(b => {
-        const originalState = originalStateMap.get(b.id);
-        if (!originalState) return true;
-        
-        const resourceChanged = b.resourceId !== originalState.resourceId;
-        const timeChanged = b.startTime !== originalState.startTime;
-        
-        return resourceChanged || timeChanged;
-      });
-
-      if (finalUpdatedBookings.length > 0) {
-        await BookingService.upsertBookings(finalUpdatedBookings);
+      // 5. 仅将重新分配过的无指定订单存盘，避免误伤和多余写入
+      if (unassignedBookings.length > 0) {
+        await BookingService.upsertBookings(unassignedBookings);
       }
 
     } catch (error) {
