@@ -215,9 +215,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       
     // 3. Realtime Subscription (Bookings)
     // 接管原有的订单监听，直接在此处触发全局订单拉取
+    let realtimeDebounceTimer: NodeJS.Timeout | null = null;
     const handleBookingUpdate = () => {
-      refreshBookings();
+      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+      realtimeDebounceTimer = setTimeout(() => {
+        if (isMounted) refreshBookings();
+      }, 300); // 300ms 防抖，将几十次连续插入合并为 1 次 Fetch
     };
+
     const channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
       console.log(`[ShopContext] Realtime Bookings change received for shop ${resolvedActiveShopId}:`, payload);
       handleBookingUpdate();
@@ -225,6 +230,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       isMounted = false;
+      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       supabase.removeChannel(channelConfig);
       if (channelBookings) {
         BookingService.unsubscribe(channelBookings);
