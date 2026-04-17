@@ -133,10 +133,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
 
         // 【核心修复】：查询新表 bindings，使用 principal_id (对应 profiles.gx_id)
-        const { data: bindings } = await supabase
-          .from('bindings')
-          .select('shop_id, role, shops(id, name, industry)')
-          .eq('principal_id', profile.gx_id);
+        let bindings = null;
+        if (profile?.gx_id) {
+          const { data } = await supabase
+            .from('bindings')
+            .select('shop_id, role, shops(id, name, industry)')
+            .eq('principal_id', profile.gx_id);
+          bindings = data;
+        }
         
         let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
 
@@ -333,10 +337,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
 
       // 【核心修复】：查询新表 bindings，使用 principal_id (对应 profiles.gx_id)
-      const { data: bindings } = await supabase
-        .from('bindings')
-        .select('shop_id, role, shops(id, name, industry)')
-        .eq('principal_id', profile.gx_id);
+      let bindings = null;
+      if (profile?.gx_id) {
+        const { data } = await supabase
+          .from('bindings')
+          .select('shop_id, role, shops(id, name, industry)')
+          .eq('principal_id', profile.gx_id);
+        bindings = data;
+      }
       
       let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
 

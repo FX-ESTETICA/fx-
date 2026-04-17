@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { BookingService, BookingRealtimePayload } from "@/features/booking/api/booking";
