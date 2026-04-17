@@ -8,13 +8,15 @@ import { OrbitControls, Html, Sphere, Billboard, Stars } from "@react-three/drei
 import * as THREE from "three";
 import { useEffect, useState, useRef } from "react";
 import { ShieldCheck, X, Calendar, LineChart, Trash2, Search, Loader2, Zap, Rocket, ArrowLeft, Lock, Activity, Sparkles, UserMinus } from "lucide-react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext"; // 引入 ShopContext
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { SubscriptionModalMode } from "@/features/shop/ShopContext";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
+
+import { useViewStack } from "@/hooks/useViewStack";
 
 // --- Types ---& State ---
 type NodeStatus = 'pending' | 'active';
@@ -528,8 +530,9 @@ function NodeManagementHUD({
   activeNodesCount?: number;
 }) {
   const t = useTranslations('nebula');
-  const router = useRouter();
+  // const router = useRouter();
   const { setActiveShopId } = useShop(); // 引入全局店铺上下文
+  const { setActiveTab } = useViewStack();
 
   const isPending = planet.status === 'pending';
   const isNewNode = planet.id.startsWith('virtual-');
@@ -613,8 +616,15 @@ function NodeManagementHUD({
     // 1. 将全局 ShopContext 切换为当前选中的星球
     setActiveShopId(planet.id);
     
-    // 2. 携带 Token 和真实 shopId 穿越至对应行业日历
-    router.push(`/calendar/${planet.industry}?shopId=${planet.id}`);
+    // 2. 关闭星云控制舱和星云 Overlay，彻底退回主舞台
+    onClose();
+    if (typeof window !== 'undefined') window.history.back();
+
+    // 3. 携带 Token 和真实 shopId 穿越至对应行业日历
+    // 【修复】：在单页架构中，使用 setActiveTab 而不是 router.push
+    setTimeout(() => {
+      setActiveTab('calendar', { industry: planet.industry });
+    }, 10);
   };
 
   // --- 星际扩容限制 UI (Limit Exceeded HUD) ---
@@ -628,7 +638,7 @@ function NodeManagementHUD({
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center p-4 sm:p-8 pointer-events-none">
       {/* 核心全息控制舱 (Holographic Command Pod) */}
-      <div className="relative w-full max-w-4xl bg-[#0a0a0a]/60 backdrop-blur-2xl ring-1 ring-white/5 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] rounded-3xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0a0a0a]/60 backdrop-blur-2xl ring-1 ring-white/5 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] rounded-3xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-300">
         
         {/* 四角折角装饰 (Cyber Brackets) */}
         <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/10 rounded-tl-3xl" />
@@ -657,7 +667,7 @@ function NodeManagementHUD({
         </div>
 
         {/* --- 主体双舱矩阵 (Dual-Pane Matrix) / 状态机折叠 --- */}
-        <div className="relative min-h-[400px]" style={{ perspective: 2000 }}>
+        <div className="relative flex-1 overflow-y-auto scrollbar-hide" style={{ perspective: 2000 }}>
           <AnimatePresence mode="wait">
             {viewMode === 'control' ? (
               <motion.div 
@@ -666,50 +676,50 @@ function NodeManagementHUD({
                 animate={{ opacity: 1, rotateY: 0, scale: 1 }}
                 exit={{ opacity: 0, rotateY: 10, scale: 0.95 }}
                 transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="flex flex-col md:flex-row h-full min-h-[400px]"
+                className="flex flex-col md:flex-row h-full min-h-fit md:min-h-[400px]"
               >
                 {planet.isCore ? (
-                <div className="w-full p-8 flex flex-col h-full">
+                <div className="w-full p-4 md:p-8 flex flex-col h-full">
                   {/* 核心联邦数据大盘 - 世界顶端 AI 报表 (宏观 + 异常 + 建议) */}
-                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 h-full">
                     
                     {/* 左侧板块：帝国的生命体征 (绝对数据流) 7/12 */}
-                    <div className="lg:col-span-7 flex flex-col gap-6">
+                    <div className="lg:col-span-7 flex flex-col gap-4 md:gap-6">
                       
                       {/* Top: 宏观现金流与利润 (联邦能量核心) */}
-                      <div className="bg-black/40 border border-white/5 rounded-3xl p-8 flex flex-col justify-center relative overflow-hidden group hover:border-gx-cyan/30 transition-colors h-[45%]">
+                      <div className="bg-black/40 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-8 flex flex-col justify-center relative overflow-hidden group hover:border-gx-cyan/30 transition-colors h-auto md:h-[45%]">
                         {/* 背景微光 */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-gx-cyan/5 blur-[80px] rounded-full pointer-events-none" />
                         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_24px] pointer-events-none" />
                         
                         <div className="relative z-10">
                           <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xs text-white/40 font-mono tracking-widest flex items-center gap-2">
-                              <Activity className="w-4 h-4 text-gx-cyan animate-pulse" />
+                            <h2 className="text-[10px] md:text-xs text-white/40 font-mono tracking-widest flex items-center gap-2">
+                              <Activity className="w-3 h-3 md:w-4 md:h-4 text-gx-cyan animate-pulse" />
                               {t('txt_105031')}</h2>
-                            <span className="px-3 py-1 bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan text-[10px] font-bold rounded-full tracking-widest shadow-[0_0_15px_rgba(0,242,255,0.2)]">
+                            <span className="px-2 md:px-3 py-0.5 md:py-1 bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan text-[9px] md:text-[10px] font-bold rounded-full tracking-widest shadow-[0_0_15px_rgba(0,242,255,0.2)]">
                               {t('txt_829f9b')}</span>
                           </div>
                           
-                          <div className="flex items-end gap-6 mb-6">
-                            <div className="text-5xl md:text-6xl font-black tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                          <div className="flex items-end gap-4 md:gap-6 mb-4 md:mb-6">
+                            <div className="text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
                               € 1,245,800
                             </div>
                             <div className="flex flex-col mb-1">
-                              <span className="text-gx-cyan font-bold text-lg flex items-center gap-1">
+                              <span className="text-gx-cyan font-bold text-sm md:text-lg flex items-center gap-1">
                                 ↑ 12.4%
                               </span>
-                              <span className="text-[10px] text-white/30 font-mono tracking-widest">{t('txt_7ccf55')}</span>
+                              <span className="text-[9px] md:text-[10px] text-white/30 font-mono tracking-widest">{t('txt_7ccf55')}</span>
                             </div>
                           </div>
 
                           {/* 利润瀑布 (进度条对比) */}
-                          <div className="w-full space-y-2">
-                            <div className="flex justify-between text-[10px] font-mono tracking-widest">
+                          <div className="w-full space-y-1 md:space-y-2">
+                            <div className="flex justify-between text-[9px] md:text-[10px] font-mono tracking-widest">
                               <span className="text-gx-cyan">{t('txt_a5891d')}</span>
                               <span className="text-red-500/80">{t('txt_013e29')}</span>
                             </div>
-                            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
+                            <div className="h-1.5 md:h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
                               <div className="h-full bg-gx-cyan/80 shadow-[0_0_10px_rgba(0,242,255,0.5)]" style={{ width: '68%' }} />
                               <div className="h-full bg-red-500/50" style={{ width: '32%' }} />
                             </div>
@@ -718,39 +728,39 @@ function NodeManagementHUD({
                       </div>
 
                       {/* Bottom: 节点脉络分析 (各分店贡献度战力对比) */}
-                      <div className="bg-black/40 border border-white/5 rounded-3xl p-6 relative overflow-hidden group hover:border-white/10 transition-colors h-[55%] flex flex-col">
-                        <h2 className="text-xs text-white/40 font-mono tracking-widest mb-6">
+                      <div className="bg-black/40 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-6 relative overflow-hidden group hover:border-white/10 transition-colors h-auto md:h-[55%] flex flex-col">
+                        <h2 className="text-[10px] md:text-xs text-white/40 font-mono tracking-widest mb-4 md:mb-6">
                           {t('txt_c3b0b7')}</h2>
                         
-                        <div className="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="flex-1 space-y-4 md:space-y-5 overflow-y-auto pr-2 custom-scrollbar">
                           {/* Node A */}
-                          <div className="flex items-center gap-4">
-                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8d0')}</div>
-                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
+                          <div className="flex items-center gap-2 md:gap-4">
+                            <div className="w-16 md:w-24 text-[9px] md:text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8d0')}</div>
+                            <div className="flex-1 h-1 md:h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                               <div className="absolute top-0 left-0 h-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" style={{ width: '65%' }} />
                             </div>
-                            <div className="w-12 text-right text-[10px] font-mono text-gx-cyan">65%</div>
-                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-gx-cyan/30 bg-gx-cyan/10 text-gx-cyan tracking-wider">{t('txt_572a4f')}</div>
+                            <div className="w-8 md:w-12 text-right text-[9px] md:text-[10px] font-mono text-gx-cyan">65%</div>
+                            <div className="w-12 md:w-16 text-center text-[8px] md:text-[9px] py-0.5 rounded border border-gx-cyan/30 bg-gx-cyan/10 text-gx-cyan tracking-wider">{t('txt_572a4f')}</div>
                           </div>
                           
                           {/* Node B */}
-                          <div className="flex items-center gap-4">
-                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_1462d2')}</div>
-                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
+                          <div className="flex items-center gap-2 md:gap-4">
+                            <div className="w-16 md:w-24 text-[9px] md:text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_1462d2')}</div>
+                            <div className="flex-1 h-1 md:h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                               <div className="absolute top-0 left-0 h-full bg-white/60" style={{ width: '30%' }} />
                             </div>
-                            <div className="w-12 text-right text-[10px] font-mono text-white/60">30%</div>
-                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-white/20 bg-white/5 text-white/60 tracking-wider">{t('txt_42f8a0')}</div>
+                            <div className="w-8 md:w-12 text-right text-[9px] md:text-[10px] font-mono text-white/60">30%</div>
+                            <div className="w-12 md:w-16 text-center text-[8px] md:text-[9px] py-0.5 rounded border border-white/20 bg-white/5 text-white/60 tracking-wider">{t('txt_42f8a0')}</div>
                           </div>
 
                           {/* Node C */}
-                          <div className="flex items-center gap-4">
-                            <div className="w-24 text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8b6')}</div>
-                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
+                          <div className="flex items-center gap-2 md:gap-4">
+                            <div className="w-16 md:w-24 text-[9px] md:text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8b6')}</div>
+                            <div className="flex-1 h-1 md:h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                               <div className="absolute top-0 left-0 h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" style={{ width: '5%' }} />
                             </div>
-                            <div className="w-12 text-right text-[10px] font-mono text-red-500">5%</div>
-                            <div className="w-16 text-center text-[9px] py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-500 tracking-wider">{t('txt_83c21d')}</div>
+                            <div className="w-8 md:w-12 text-right text-[9px] md:text-[10px] font-mono text-red-500">5%</div>
+                            <div className="w-12 md:w-16 text-center text-[8px] md:text-[9px] py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-500 tracking-wider">{t('txt_83c21d')}</div>
                           </div>
                         </div>
                       </div>
@@ -758,57 +768,57 @@ function NodeManagementHUD({
                     </div>
 
                     {/* 右侧板块：AI 幕僚长的深度洞察 (预警与行动) 5/12 */}
-                    <div className="lg:col-span-5 flex flex-col gap-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="w-4 h-4 text-gx-cyan" />
-                        <span className="text-xs font-bold tracking-widest text-white/80">{t('txt_6c2342')}</span>
+                    <div className="lg:col-span-5 flex flex-col gap-3 md:gap-4">
+                      <div className="flex items-center gap-2 mb-1 md:mb-2">
+                        <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-gx-cyan" />
+                        <span className="text-[10px] md:text-xs font-bold tracking-widest text-white/80">{t('txt_6c2342')}</span>
                       </div>
 
                       {/* 致命警报 (Critical) */}
-                      <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-5 relative overflow-hidden group hover:bg-red-500/10 transition-colors">
+                      <div className="bg-red-500/5 border border-red-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group hover:bg-red-500/10 transition-colors">
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-                        <div className="flex items-start gap-3">
-                          <Zap className="w-4 h-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
+                        <div className="flex items-start gap-2 md:gap-3">
+                          <Zap className="w-3 h-3 md:w-4 md:h-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
                           <div>
-                            <div className="text-[10px] font-black text-red-500 tracking-widest mb-1">{t('txt_2ee3dd')}</div>
-                            <p className="text-xs text-white/80 leading-relaxed font-medium">
+                            <div className="text-[9px] md:text-[10px] font-black text-red-500 tracking-widest mb-1">{t('txt_2ee3dd')}</div>
+                            <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium">
                               {t('txt_e12bb1')}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* 异动监控 (Warning) */}
-                      <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-5 relative overflow-hidden group hover:bg-yellow-500/10 transition-colors">
+                      <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group hover:bg-yellow-500/10 transition-colors">
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]" />
-                        <div className="flex items-start gap-3">
-                          <UserMinus className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-2 md:gap-3">
+                          <UserMinus className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 shrink-0 mt-0.5" />
                           <div>
-                            <div className="text-[10px] font-black text-yellow-500 tracking-widest mb-1">{t('txt_7717e3')}</div>
-                            <p className="text-xs text-white/80 leading-relaxed font-medium">
+                            <div className="text-[9px] md:text-[10px] font-black text-yellow-500 tracking-widest mb-1">{t('txt_7717e3')}</div>
+                            <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium">
                               {t('txt_9e9590')}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* 战术推演 (Advice) */}
-                      <div className="bg-gx-cyan/5 border border-gx-cyan/20 rounded-2xl p-5 relative overflow-hidden group hover:bg-gx-cyan/10 transition-colors flex-1">
+                      <div className="bg-gx-cyan/5 border border-gx-cyan/20 rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group hover:bg-gx-cyan/10 transition-colors flex-1 min-h-[120px]">
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" />
-                        <div className="flex items-start gap-3">
-                          <Rocket className="w-4 h-4 text-gx-cyan shrink-0 mt-0.5" />
-                          <div className="flex flex-col h-full justify-between">
+                        <div className="flex items-start gap-2 md:gap-3 h-full">
+                          <Rocket className="w-3 h-3 md:w-4 md:h-4 text-gx-cyan shrink-0 mt-0.5" />
+                          <div className="flex flex-col h-full justify-between w-full">
                             <div>
-                              <div className="text-[10px] font-black text-gx-cyan tracking-widest mb-1">{t('txt_1ec201')}</div>
-                              <p className="text-xs text-white/80 leading-relaxed font-medium mb-4">
+                              <div className="text-[9px] md:text-[10px] font-black text-gx-cyan tracking-widest mb-1">{t('txt_1ec201')}</div>
+                              <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium mb-3 md:mb-4">
                                 {t('txt_a6dc6b')}</p>
                             </div>
-                            <button className="w-full py-2 bg-gx-cyan/10 hover:bg-gx-cyan/20 border border-gx-cyan/30 text-gx-cyan text-[10px] font-bold tracking-widest rounded-lg transition-all">
+                            <button className="w-full py-1.5 md:py-2 bg-gx-cyan/10 hover:bg-gx-cyan/20 border border-gx-cyan/30 text-gx-cyan text-[9px] md:text-[10px] font-bold tracking-widest rounded-lg transition-all mt-auto">
                               {t('txt_416e0d')}</button>
                           </div>
                         </div>
                       </div>
                       
                       {/* 底部危险操作折叠区 */}
-                      <div className="mt-2 w-full flex justify-end">
+                      <div className="mt-1 md:mt-2 w-full flex justify-end pb-4 md:pb-0">
                         {onObliterate && (
                           <button
                             onClick={async () => {
@@ -820,9 +830,9 @@ function NodeManagementHUD({
                               }
                             }}
                             disabled={isSubmitting}
-                            className="text-[9px] text-white/20 hover:text-red-500 tracking-widest font-mono transition-colors flex items-center gap-1"
+                            className="text-[8px] md:text-[9px] text-white/20 hover:text-red-500 tracking-widest font-mono transition-colors flex items-center gap-1"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-2.5 h-2.5 md:w-3 md:h-3" />
                             {t('txt_7b2419')}</button>
                         )}
                       </div>
@@ -1599,7 +1609,7 @@ function NebulaUniverse({
   );
 }
 
-export default function NebulaPage() {
+export const NebulaOverlay = () => {
     const t = useTranslations('nebula');
 
   const { user, activeRole } = useAuth();
@@ -1638,11 +1648,11 @@ export default function NebulaPage() {
   useEffect(() => {
     if (selectedPlanet) {
       const updated = planets.find(p => p.id === selectedPlanet.id);
-      if (updated) {
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPlanet)) {
         setSelectedPlanet(updated);
       }
     }
-  }, [planets]);
+  }, [planets, selectedPlanet]);
 
   if (isLoading) {
     return (
@@ -1733,6 +1743,27 @@ export default function NebulaPage() {
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
               <span className="text-xs font-bold tracking-widest uppercase">{t('txt_8f3492')}</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 退出星云按钮 (仅在主星系视图显示，置于顶层) */}
+      <AnimatePresence>
+        {!diveState.isActive && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="absolute top-6 left-6 z-50 pointer-events-auto"
+          >
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') window.history.back();
+              }}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95"
+            >
+              <ArrowLeft className="w-5 h-5" />
             </button>
           </motion.div>
         )}

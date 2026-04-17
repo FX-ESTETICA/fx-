@@ -33,12 +33,20 @@ const nextConfig: any = {
   },
   async rewrites() {
     return [
+      { source: '/home', destination: '/' },
+      { source: '/discovery', destination: '/' },
+      { source: '/calendar', destination: '/' },
+      { source: '/calendar/:path*', destination: '/' },
+      { source: '/chat', destination: '/' },
+      { source: '/me', destination: '/' },
+      { source: '/dashboard', destination: '/' },
+      
       { source: '/1', destination: '/' },
       { source: '/2', destination: '/login' },
-      { source: '/3', destination: '/dashboard' },
-      { source: '/5', destination: '/discovery' },
+      { source: '/3', destination: '/' }, // mapped to dashboard
+      { source: '/5', destination: '/' }, // mapped to discovery
       { source: '/6', destination: '/nebula' },
-      { source: '/7', destination: '/calendar' },
+      { source: '/7', destination: '/' }, // mapped to calendar
       { source: '/8', destination: '/analytics' },
       { source: '/9', destination: '/studio' },
     ];

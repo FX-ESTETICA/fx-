@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Blurhash } from 'react-blurhash';
 import { ArrowLeft, X, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2 } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';

@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { X, RefreshCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { BookingService, BookingRecord } from '@/features/booking/api/booking';
 import { useTranslations } from "next-intl";
+import { useShop } from "@/features/shop/ShopContext";
 
 export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, onClose: () => void, shopId: string }) {
-    const t = useTranslations('RecycleBinModal');
+  const t = useTranslations('RecycleBinModal');
+  const { refreshBookings, trackAction } = useShop();
   const [voidedBookings, setVoidedBookings] = useState<BookingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,7 +31,8 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
   const handleRestore = async (id: string) => {
     await BookingService.restoreBookings([id]);
     await loadVoidedBookings();
-    window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+    refreshBookings();
+    trackAction();
   };
 
   const handlePurge = async (id: string) => {

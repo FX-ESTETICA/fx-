@@ -178,7 +178,7 @@ export default function DiscoveryPage() {
   };
 
   return (
-    <main className="fixed inset-0 z-40 bg-black md:bg-transparent text-white overflow-hidden">
+    <main className="relative w-full h-full z-40 bg-black md:bg-transparent text-white overflow-hidden">
     
       {/* 顶部悬浮导航 (Overlay) */}
       <div className="absolute top-0 left-0 right-0 z-50 flex items-start justify-between p-4 pt-safe md:pt-8 bg-gradient-to-b from-black/60 via-black/20 to-transparent pointer-events-none">
@@ -186,7 +186,7 @@ export default function DiscoveryPage() {
         {/* 左上角: 逃生舱按钮 (返回大厅) */}
         <div className="pointer-events-auto mt-2">
           <button 
-            onClick={() => window.history.back()}
+            onClick={() => window.dispatchEvent(new Event('gx-return-home'))}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop } from "./ShopContext";
-import { Zap, ChevronDown, Store, CheckCircle2 } from "lucide-react";
+import { Store, CheckCircle2 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useTranslations } from "next-intl";
 

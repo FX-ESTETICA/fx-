@@ -27,9 +27,10 @@ import { EliteMonthMatrix } from "./matrices/EliteMonthMatrix";
 import { NebulaConfigHub, CategoryItem as HubCategoryItem, ServiceItem as HubServiceItem, StaffItem } from './NebulaConfigHub';
 import { Settings } from "lucide-react";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
+import { createPortal } from "react-dom";
 import { DualPaneBookingModal, type BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
-import { BookingService, type BookingRealtimePayload, type ShopConfig } from "@/features/booking/api/booking";
-import { useSearchParams, useRouter } from "next/navigation";
+import { BookingService, type BookingRealtimePayload } from "@/features/booking/api/booking";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
@@ -48,10 +49,82 @@ export interface OperatingHour {
   end: number;
 }
 
-// 默认营业时间配置 (修改为24小时)
-const DEFAULT_HOURS: OperatingHour[] = [
-  { id: '1', start: 0, end: 24 }
-];
+export interface SpecialDateHours {
+  isClosed: boolean;
+  hours: OperatingHour[];
+}
+
+export interface DailyOverride {
+  date: string; // YYYY-MM-DD
+  isClosed: boolean;
+  hours: OperatingHour[];
+}
+
+export interface ShopOperatingConfig {
+  regular: {
+    monday: OperatingHour[];
+    tuesday: OperatingHour[];
+    wednesday: OperatingHour[];
+    thursday: OperatingHour[];
+    friday: OperatingHour[];
+    saturday: OperatingHour[];
+    sunday: OperatingHour[];
+  };
+  specialDates: Record<string, SpecialDateHours>;
+  todayOverride?: DailyOverride | null;
+}
+
+// 默认营业时间配置 (兼容旧版与新版)
+export const DEFAULT_OPERATING_CONFIG: ShopOperatingConfig = {
+  regular: {
+    monday: [{ id: '1', start: 9, end: 18 }],
+    tuesday: [{ id: '1', start: 9, end: 18 }],
+    wednesday: [{ id: '1', start: 9, end: 18 }],
+    thursday: [{ id: '1', start: 9, end: 18 }],
+    friday: [{ id: '1', start: 9, end: 18 }],
+    saturday: [{ id: '1', start: 10, end: 18 }],
+    sunday: [{ id: '1', start: 10, end: 18 }],
+  },
+  specialDates: {},
+  todayOverride: null
+};
+
+// 【核心】：时间降维引擎 (Time Resolution Engine)
+// 传入任意日期和商家配置，计算出当天最高优先级的营业时间
+export const resolveOperatingHours = (date: Date, config?: ShopOperatingConfig | OperatingHour[] | null): { isClosed: boolean, hours: OperatingHour[] } => {
+  if (!config) return { isClosed: false, hours: DEFAULT_OPERATING_CONFIG.regular.monday };
+  
+  // 兼容旧版的单薄数组格式
+  if (Array.isArray(config)) {
+    return { isClosed: config.length === 0, hours: config };
+  }
+
+  // 【防御性合并】：防止数据库里的 config 因为之前的错误导致残缺（比如只有 todayOverride 却没有 regular）
+  const safeConfig: ShopOperatingConfig = {
+    ...DEFAULT_OPERATING_CONFIG,
+    ...config,
+    regular: config.regular || DEFAULT_OPERATING_CONFIG.regular,
+    specialDates: config.specialDates || {}
+  };
+
+  const dateString = date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  
+  // 1. 最高优先级：今日临时覆盖 (Today Override)
+  if (safeConfig.todayOverride && safeConfig.todayOverride.date === dateString) {
+    return { isClosed: safeConfig.todayOverride.isClosed, hours: safeConfig.todayOverride.hours };
+  }
+
+  // 2. 次高优先级：特殊节假日 (Special Dates)
+  if (safeConfig.specialDates && safeConfig.specialDates[dateString]) {
+    return { isClosed: safeConfig.specialDates[dateString].isClosed, hours: safeConfig.specialDates[dateString].hours };
+  }
+
+  // 3. 基础优先级：常规星期 (Regular)
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+  const dayName = days[date.getDay()];
+  const regularHours = safeConfig.regular[dayName];
+  return { isClosed: !regularHours || regularHours.length === 0, hours: regularHours || [] };
+};
 
 // 默认员工配置 (A, B, C, D, E)
 const DEFAULT_STAFFS = [
@@ -88,8 +161,6 @@ type ServiceItem = {
 };
 
 type CalendarBooking = MatrixBooking;
-
-type CloudConfig = Pick<ShopConfig, "staffs" | "hours" | "categories" | "services" | "storeStatus">;
 
 interface AuroraSchedulerProps {
   initialIndustry?: IndustryType;
@@ -147,10 +218,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 新增背景控制 hook
   const { settings: visualSettings } = useVisualSettings();
   const searchParams = useSearchParams();
-  const router = useRouter();
   
   // 共享的全局配置状态
-  const [operatingHours, setOperatingHours] = useState<OperatingHour[]>(DEFAULT_HOURS);
+  const [operatingHours, setOperatingHours] = useState<OperatingHour[] | ShopOperatingConfig>(DEFAULT_OPERATING_CONFIG);
   
   // 共享的人员列表状态
   const [staffs, setStaffs] = useState<StaffMember[]>(DEFAULT_STAFFS);
@@ -159,7 +229,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 默认服务配置
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
-  const [globalBookings, setGlobalBookings] = useState<CalendarBooking[]>([]);
   
   // 核心：全局营业状态
   const [storeStatus, setStoreStatus] = useState<'open' | 'closed_today' | 'holiday'>('open');
@@ -216,7 +285,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 获取当前商户的专属 shopId，实现多租户数据物理隔离
   // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
-  const { activeShopId, availableShops } = useShop();
+  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction } = useShop();
   const urlShopId = searchParams.get('shopId');
   const shopId = urlShopId || activeShopId || 'default';
 
@@ -228,132 +297,49 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 获取当前监视的真实店铺名称 (基于绝对物理 ID)
   const activeShopName = availableShops?.find((s) => s.shopId === shopId)?.shopName || "未知节点";
 
-  // 初始化：从云端 读取沙盒数据 (带 shopId 隔离)
+  // ==========================================
+  // 【核心修改】：全面消费全局 ShopContext，废弃内部拉取和监听
+  // ==========================================
   useEffect(() => {
-    // 【完美 0 冲突架构】：防脏读取消令牌 (Anti-Stale-Closure Token)
-    let isSubscribed = true;
-
-    // 异步加载云端订单及云端配置 (配置接管)
-    const loadCloudData = async () => {
-      try {
-        // 直接从 Supabase 获取配置
-        const { data: configs } = await BookingService.getConfigs(shopId);
-        // 直接从 Supabase 获取订单
-        const { data: bookings } = await BookingService.getBookings(shopId);
-        
-        // 致命拦截：如果当前组件的 shopId 已经改变，或者组件已卸载，直接抛弃数据，禁止污染当前状态
-        if (!isSubscribed) return;
-
-        // 1. 加载云端订单
-        setGlobalBookings((bookings || []).map((booking) => ({
-          ...booking,
-          resourceId: booking.resourceId ?? null,
-          date: booking.date || "",
-          startTime: booking.startTime || "00:00",
-          duration: booking.duration ?? 0
-        })));
-        
-        // 2. 接管配置
-        const cloudConfig = configs as CloudConfig | null;
-        
-        if (cloudConfig) {
-          if (cloudConfig.storeStatus) {
-            setStoreStatus(cloudConfig.storeStatus as any);
-          } else {
-            setStoreStatus('open');
-          }
-          
-          // 【方案A 强行注入】：无论云端如何，只要没有有效的（非离职）员工，就强行塞入 DEFAULT_STAFFS
-          const activeStaffs = (cloudConfig.staffs as unknown as { id: string, status?: string }[] || []).filter(s => s.status !== 'resigned');
-          if (cloudConfig.staffs && activeStaffs.length > 0) {
-            setStaffs(cloudConfig.staffs as unknown as StaffMember[]);
-            setSelectedStaffIds(activeStaffs.map((s) => s.id));
-          } else {
-            // 云端确实没有员工配置，或所有员工都离职了，使用兜底以防空旷
-            setStaffs(DEFAULT_STAFFS);
-            setSelectedStaffIds(DEFAULT_STAFFS.map(s => s.id));
-          }
-          
-          if (cloudConfig.hours) setOperatingHours(cloudConfig.hours as OperatingHour[]);
-          if (cloudConfig.categories) setCategories(cloudConfig.categories as CategoryItem[]);
-          if (cloudConfig.services) setServices(cloudConfig.services as ServiceItem[]);
-        } else {
-          // 【产品诉求兼容】：如果彻底没有云端配置（新店），使用默认数据兜底，不让客户觉得空旷
-          setSelectedStaffIds(DEFAULT_STAFFS.map(s => s.id));
-          setStaffs(DEFAULT_STAFFS);
-        }
-        
-        // 数据拉取并处理完毕，解除防反补锁，允许前端状态自由流动和保存
-        setIsCloudDataLoaded(true);
-      } catch (e) {
-        console.error("Failed to load cloud data:", e);
-        if (!isSubscribed) return;
-        // 即便报错也应该解锁，避免系统彻底死锁
-        setIsCloudDataLoaded(true);
-      }
-    };
+    if (!isShopConfigLoaded || !shopConfig) return;
     
-    loadCloudData();
+    // 从全局 shopConfig 中提取数据
+    const activeStaffs = (shopConfig.staffs as unknown as { id: string, status?: string }[] || []).filter(s => s.status !== 'resigned');
+    if (shopConfig.staffs && activeStaffs.length > 0) {
+      setStaffs(shopConfig.staffs as unknown as StaffMember[]);
+      setSelectedStaffIds(activeStaffs.map((s) => s.id));
+    } else {
+      setStaffs(DEFAULT_STAFFS);
+      setSelectedStaffIds(DEFAULT_STAFFS.map(s => s.id));
+    }
     
-    // 监听本地跨组件事件 (兼容保留)
-    window.addEventListener('gx-sandbox-bookings-updated', loadCloudData);
-
-    // 🌟 激活 Supabase Realtime 引擎 (基于 shopId 的物理隔离)
-    const realtimeChannel = BookingService.subscribeToShopBookings(shopId, (payload: BookingRealtimePayload) => {
-      console.log(`[IndustryCalendar] Realtime DB change received for shop ${shopId}:`, payload);
-      // 当当前店铺的数据库发生变化时，重新拉取最新数据以刷新日历
-      // 避免 React 批处理导致的延迟，强制使用 setTimeout 放到下一个事件循环   
-      setTimeout(() => {
-        loadCloudData();
-      }, 50);
-    });
-
-    // 🌟 挂载门店配置实时雷达 (Shop Config Radar)
-    const configChannel = BookingService.subscribeToShopConfig(shopId, (payload) => {
-      console.log(`[IndustryCalendar] Realtime Config change received for shop ${shopId}:`, payload);
-      const newConfig = payload.new?.config as any;
-      if (newConfig) {
-        if (newConfig.storeStatus) {
-          setStoreStatus(newConfig.storeStatus);
-        }
-        if (newConfig.hours && Array.isArray(newConfig.hours) && newConfig.hours.length > 0) {
-          setOperatingHours(newConfig.hours);
-        }
-        
-        // 【方案A 强行注入】：实时同步配置时，如果员工为空，也必须强塞假数据兜底
-        const newStaffs = newConfig.staffs as unknown as { id: string, status?: string }[] || [];
-        const activeNewStaffs = newStaffs.filter(s => s.status !== 'resigned');
-        
-        if (newStaffs.length > 0 && activeNewStaffs.length > 0) {
-          setStaffs(newStaffs as unknown as StaffMember[]);
-          setSelectedStaffIds(activeNewStaffs.map((s) => s.id));
-        } else {
-          setStaffs(DEFAULT_STAFFS);
-          setSelectedStaffIds(DEFAULT_STAFFS.map((s) => s.id));
-        }
-        
-        if (newConfig.categories && Array.isArray(newConfig.categories)) {
-          setCategories(newConfig.categories as CategoryItem[]);
-        }
-        if (newConfig.services && Array.isArray(newConfig.services)) {
-          setServices(newConfig.services as ServiceItem[]);
-        }
+    if (shopConfig.hours) {
+      const rawHours = shopConfig.hours;
+      if (!Array.isArray(rawHours)) {
+         setOperatingHours({
+           ...DEFAULT_OPERATING_CONFIG,
+           ...(rawHours as ShopOperatingConfig),
+           regular: (rawHours as ShopOperatingConfig).regular || DEFAULT_OPERATING_CONFIG.regular,
+           specialDates: (rawHours as ShopOperatingConfig).specialDates || {}
+         });
+      } else {
+         setOperatingHours(rawHours as OperatingHour[]);
       }
-    });
+    } else {
+      setOperatingHours(DEFAULT_OPERATING_CONFIG);
+    }
+    if (shopConfig.categories) setCategories(shopConfig.categories as CategoryItem[]);
+    if (shopConfig.services) setServices(shopConfig.services as ServiceItem[]);
+    if (shopConfig.storeStatus) {
+      setStoreStatus(shopConfig.storeStatus as any);
+    } else {
+      setStoreStatus('open');
+    }
+    
+    setIsCloudDataLoaded(true);
+  }, [shopConfig, isShopConfigLoaded]);
 
-    return () => {
-      // 核心：当 shopId 发生变化时，绞杀上一回合的令牌。前面的慢请求即使回来了也会被物理丢弃
-      isSubscribed = false;
-      
-      window.removeEventListener('gx-sandbox-bookings-updated', loadCloudData);
-      if (realtimeChannel) {
-        BookingService.unsubscribe(realtimeChannel);
-      }
-      if (configChannel) {
-        BookingService.unsubscribe(configChannel);
-      }
-    };
-  }, [shopId]);
+  // 全局订单拉取逻辑已被移除，完全由 ShopContext 的 globalBookings 接管
 
   // ==========================================
   // 试用期水印雷达 (Watermark Radar) 从 ShopContext 同步
@@ -376,76 +362,57 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const { subscriptionTier, trialStartedAt, empireId, gracePeriodActionsLeft } = subscription;
   const { openSubscriptionModal } = useShop();
 
-  // --- 紧急运力续命逻辑：监听任意修改动作并扣减 ---
-  useEffect(() => {
-    if (!isGracePeriodActive || gracePeriodActionsLeft === null || !empireId) return;
-
-    const handleAction = async () => {
-      try {
-        const newActionsLeft = Math.max(0, gracePeriodActionsLeft - 1);
-        await supabase.from('profiles').update({ grace_period_actions_left: newActionsLeft }).eq('id', empireId);
-        // Realtime 会自动把新的次数同步到所有端
-      } catch (e) {
-        console.error("Failed to deduct grace period action:", e);
-      }
-    };
-
-    window.addEventListener('gx-sandbox-bookings-updated', handleAction);
-    return () => {
-      window.removeEventListener('gx-sandbox-bookings-updated', handleAction);
-    };
-  }, [isGracePeriodActive, gracePeriodActionsLeft, empireId]);
-
   // ==========================================
   // 【世界顶端 0 冲突架构】：显式全局保存机制 (替换隐式 useEffect 监听)
   // ==========================================
-  const handleSaveConfigs = async (
-    newHours: OperatingHour[],
+  const handleSaveConfigs = useCallback(async (
+    newHours: ShopOperatingConfig | OperatingHour[],
     newStaffs: StaffItem[],
     newCategories: HubCategoryItem[],
     newServices: HubServiceItem[]
   ) => {
-    try {
-      if (!isCloudDataLoaded) {
-        console.warn("Cloud data not fully loaded yet, rejecting save to prevent two-way sync storm.");
-        return;
+    if (isReadOnlyMode) return;
+    
+    // 解析 newHours 看看是否触发了今日关门或节假日
+    // 根据用户的操作（例如从 NebulaConfigHub 传过来的 newHours）自动同步 storeStatus
+    let nextStoreStatus: 'open' | 'closed_today' | 'holiday' = 'open';
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    
+    if (newHours && !Array.isArray(newHours)) {
+      // 1. 优先判断今日临时覆盖 (Today Override)
+      if (newHours.todayOverride && newHours.todayOverride.date === todayStr && newHours.todayOverride.isClosed) {
+        nextStoreStatus = 'closed_today';
+      } 
+      // 2. 其次判断特殊节假日 (Special Dates)
+      else if (newHours.specialDates && newHours.specialDates[todayStr] && newHours.specialDates[todayStr].isClosed) {
+        nextStoreStatus = 'holiday';
       }
-      
-      // 处理员工绑定：如果填写了 Frontend ID，触发云端绑定授权
-      const bindPromises = newStaffs
-        .filter(staff => staff.frontendId && staff.frontendId.trim() !== '')
-        .map(staff => 
-          BookingService.bindUserToShop(staff.frontendId!.trim(), shopId).catch(e => {
-            console.error("[IndustryCalendar] Failed to link frontend ID to shop:", e);
-          })
-        );
-
-      // 【终极防并发写灾难】：一次性合并写入数据库
-      // 绝不能使用 Promise.all 去并发 updateConfigs 同一个 shops.config JSON 字段，否则会导致脏读相互覆盖！
-      await Promise.all([
-        BookingService.updateFullConfig(shopId, {
-          hours: newHours,
-          staffs: newStaffs,
-          categories: newCategories,
-          services: newServices,
-          storeStatus: 'open'
-        }),
-        ...bindPromises
-      ]);
-      
-      // 本地状态更新
-      setOperatingHours(newHours);
-      setStoreStatus('open');
-      setStaffs(newStaffs as unknown as StaffMember[]);
-      setCategories(newCategories as unknown as CategoryItem[]);
-      setServices(newServices as unknown as ServiceItem[]);
-      
-      console.log("[IndustryCalendar] Explicit save successful.");
-    } catch (e) {
-      console.error("[IndustryCalendar] Explicit save failed:", e);
-      throw e; // 抛给 Auto-Save 引擎捕获
+      // 3. 最后判断常规星期几 (Regular)
+      else if (newHours.regular) {
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+        const dayName = days[today.getDay()];
+        const regularHours = newHours.regular[dayName];
+        if (!regularHours || regularHours.length === 0) {
+          // 常规的某天不营业，虽然不算 holiday，但也是今天不营业
+          nextStoreStatus = 'closed_today';
+        }
+      }
     }
-  };
+    
+    // 【世界顶端架构】：直接通过 ShopContext 的 patch API 将数据写入云端
+    // 乐观更新已经在 Context 内部处理完毕，日历和智控页会瞬间拿到新数据
+    await updateFullShopConfig({
+      hours: newHours,
+      staffs: newStaffs,
+      categories: newCategories,
+      services: newServices,
+      storeStatus: nextStoreStatus // 确保 status 联动更新
+    });
+    
+    // 触发动作记录，扣减运力
+    trackAction();
+  }, [isReadOnlyMode, updateFullShopConfig, trackAction]);
 
   // 控制左侧边栏显示状态
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -510,7 +477,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 新增：跨天点击传来的特定日期（为了不污染全局 currentDate，单向传递给预约弹窗）
   const [crosshairDate, setCrosshairDate] = useState<Date | undefined>();
 
-  const handleBookingClick = (booking: CalendarBooking) => {
+  // 使用 Ref 暂存 globalBookings，防止它作为依赖导致 handleBookingClick 等 useCallback 被击穿
+  const globalBookingsRef = useRef(globalBookings);
+  useEffect(() => {
+    globalBookingsRef.current = globalBookings;
+  }, [globalBookings]);
+
+  const handleBookingClick = useCallback((booking: CalendarBooking) => {
     // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
     if (!subscription.isLoaded) return;
 
@@ -529,7 +502,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
     if (booking.masterOrderId) {
       // 在全局池中寻找所有同宗同源的兄弟
-      const related = globalBookings.filter(b => b.masterOrderId === booking.masterOrderId);
+      const related = globalBookingsRef.current.filter(b => b.masterOrderId === booking.masterOrderId);
       if (related.length > 1) {
         superBooking = {
           ...booking,
@@ -548,9 +521,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
     setEditingBooking(superBooking);
     openBookingModal();
-  };
+  }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal]);
 
-  const handleCreateBookingClick = async () => {
+  const handleCreateBookingClick = useCallback(async () => {
     // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
     if (!subscription.isLoaded) return;
 
@@ -563,9 +536,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     // 触碰即激活：如果是免费试用且尚未激活，立即激活试用期
     if (subscriptionTier === 'FREE' && !trialStartedAt && empireId) {
       try {
-        // 【核心修复】：不要使用前端本地时间，而是依赖数据库。这里暂时先传本地时间，但理想情况应该是让 DB 处理。
-        // 为了兼容性，使用 supabase server 的时间戳（通过特殊方式或容忍少量误差）
-        // 既然不能修改 DB，这里先保持。
         const now = new Date().toISOString();
         if (typeof window !== "undefined") {
           localStorage.setItem(`gx_trial_empire_${empireId}`, now);
@@ -578,9 +548,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
     // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
     openBookingModal();
-  };
+  }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId]);
 
-  const handleGridClick = async (resourceId?: string, time?: string, dateStr?: string) => {
+  const handleGridClick = useCallback(async (resourceId?: string, time?: string, dateStr?: string) => {
     // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
     if (!subscription.isLoaded) return;
 
@@ -624,22 +594,28 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     }
     
     openBookingModal();
-  };
+  }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId]);
 
   // 用于同步表头与矩阵的横向滚动
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const matrixScrollRef = useRef<HTMLDivElement>(null); // Add ref for matrix to sync from header
+  const horizontalScrollRafRef = useRef<number | null>(null);
   
-  const handleMatrixHorizontalScroll = (scrollLeft: number) => {
-    if (headerScrollRef.current) {
-      headerScrollRef.current.scrollLeft = scrollLeft;
-    }
-  };
+  const handleMatrixHorizontalScroll = useCallback((scrollLeft: number) => {
+    if (horizontalScrollRafRef.current) return;
+    
+    horizontalScrollRafRef.current = requestAnimationFrame(() => {
+      if (headerScrollRef.current) {
+        headerScrollRef.current.scrollLeft = scrollLeft;
+      }
+      horizontalScrollRafRef.current = null;
+    });
+  }, []);
 
   // 如果预约弹窗打开，我们需要隐藏日历主体，仅保留星空背景
   const isMainContentVisible = !isBookingModalOpen;
 
-  const handleNavigate = (direction: 'prev' | 'next') => {
+  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
       const next = new Date(prev);
       const step = direction === 'prev' ? -1 : 1;
@@ -655,7 +631,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       setPhantomDate(next);
       return next;
     });
-  };
+  }, [viewMode]);
 
   const getTodayLabel = () => {
     switch (viewMode) {
@@ -668,6 +644,26 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 强化 Admin 判定：优先读取组件传入的 mode，同时作为兜底，同步读取本地通行证，防止刷新时的时序闪烁隐藏
   // 核心业务法则：只要能进这个日历并且身份是老板（boss/merchant），就绝对拥有 Admin 权限！
   const isAdmin = mode === "admin" || currentUserRole === 'boss' || currentUserRole === 'merchant';
+
+  const handleDateSwipe = useCallback((direction: 'prev' | 'next') => {
+    handleNavigate(direction);
+  }, [handleNavigate]);
+
+  const handleReadOnlyIntercept = useCallback(() => {
+    openSubscriptionModal('EXPIRED_WARNING');
+  }, [openSubscriptionModal]);
+
+  const handlePhantomDateChange = useCallback((dateStr: string) => {
+    const newDate = new Date(dateStr);
+    if (!isNaN(newDate.getTime())) {
+      setPhantomDate(newDate);
+    }
+  }, []);
+
+  const handleWeekDateClick = useCallback((date: Date) => {
+    setCurrentDate(date);
+    setViewMode("day");
+  }, []);
 
 
   // 行业 DNA 配置中心 - 升级版
@@ -800,8 +796,20 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       ];
     } else {
       // 使用全局 staffs 状态，过滤掉离职员工
-      baseResources = staffs
-        .filter(s => s.status !== 'resigned')
+      let validStaffs = staffs.filter(s => s.status !== 'resigned');
+
+      // 【物理权限隔离】：如果是普通员工（非 boss/merchant），且他在系统中有绑定记录
+      if (currentUserRole === 'user' && userGxId) {
+        // 找到当前登录员工在门店中的身份档案
+        const myStaffProfile = validStaffs.find(s => s.frontendId === userGxId);
+        
+        // 如果他配置了 calendarView === 'self'，那么彻底阻断他看到其他人的排班，只保留自己
+        if (myStaffProfile && myStaffProfile.calendarView === 'self') {
+          validStaffs = [myStaffProfile];
+        }
+      }
+
+      baseResources = validStaffs
         .map(s => ({
           id: s.id,
           name: s.name,
@@ -818,8 +826,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     // 动态 NEXUS 网络预约列逻辑：
     // 查询云端数据，如果今天存在 originalUnassigned 或 status: PENDING 的野单，则在最左侧强行挂载 NEXUS 列
     let hasPendingToday = false;
+    
+    // 【物理隔离衍生】：如果当前员工仅限查看自己，则不显示 NEXUS 和 NO 列
+    const isSelfViewOnly = currentUserRole === 'user' && userGxId && staffs.find(s => s.frontendId === userGxId)?.calendarView === 'self';
+
     try {
-      if (globalBookings && globalBookings.length > 0) {
+      if (globalBookings && globalBookings.length > 0 && !isSelfViewOnly) {
         // 【核心修复】：使用 YYYY-MM-DD 格式进行安全比对，避免时区偏差
         const year = currentDate.getFullYear();
         const month = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -862,7 +874,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     // 动态 No-Show 爽约列逻辑：
     // 查询云端数据，如果今天存在 resourceId 为 'NO' 的订单，则在末尾挂载 NO 列
     try {
-      if (globalBookings && globalBookings.length > 0) {
+      if (globalBookings && globalBookings.length > 0 && !isSelfViewOnly) {
         // 【核心修复】：使用 YYYY-MM-DD 格式进行安全比对，与 NEXUS 列保持一致
         const year = currentDate.getFullYear();
         const month = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -898,7 +910,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     }
 
     return paginatedResources;
-  }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams]);
+  }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams, currentUserRole, userGxId]);
 
   // 表头翻页手势处理
   const handleHeaderPanEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -926,7 +938,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         {/* 幽灵隐匿结界 (Phantom Fade Protocol) - 极致硬核版：零延迟瞬切 */}
       <div 
         className={cn(
-          "flex h-full w-full flex-col md:flex-row absolute inset-0",
+          "flex h-full w-full flex-col md:flex-row relative",
           !isMainContentVisible && "hidden" // 直接使用 hidden，完全阻断渲染树计算，0延迟硬切
         )}
         // 撤销最外层遮罩的手势监听，点击遮罩关闭的逻辑通过 onClick 实现
@@ -962,7 +974,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 bossAvatar={trueBusinessAvatar}
                 shopName={activeShopName}
                 shopId={shopId}
-                onNavigateHome={() => router.push('/dashboard')} // 恢复为正确的 React Router SPA 跳转，防止物理级重置
+                onNavigateHome={() => {
+                  // 触发单页架构切换
+                  const event = new CustomEvent('gx-set-tab', { detail: 'me' });
+                  window.dispatchEvent(event);
+                }} 
               />
             )}
 
@@ -974,7 +990,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 </div>
                 <div className="absolute left-4 top-2 bottom-6 w-px bg-white/10" />
                 <div 
-                  onClick={() => router.push('/me')}
+                  onClick={() => {
+                    const event = new CustomEvent('gx-set-tab', { detail: 'me' });
+                    window.dispatchEvent(event);
+                  }}
                   className="flex items-center gap-3 p-3 rounded-xl bg-transparent border border-white/10 ml-6 relative cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group"
                   title={t('txt_5bcc6c')}
                 >
@@ -1193,9 +1212,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       </AnimatePresence>
 
       {/* [MAIN CONTENT] 主内容区 */}
-      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden h-full">
+      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden h-full pointer-events-auto">
         {/* [CONTAINER GROUP] 置顶贴合容器组 (Triple-Axe Sticky Hub) */}
-        <div className="shrink-0 z-40 flex flex-col gap-0 bg-transparent">
+        <div className="shrink-0 z-40 flex flex-col gap-0 bg-transparent pointer-events-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={industry + viewMode}
@@ -1206,17 +1225,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               className="flex flex-col gap-0"
             >
               {/* [CONTAINER 2] 日期与视图控制栏 (Date & Navigation Bar) */}
-              <div className="px-4 md:px-6 py-3 flex items-center justify-between bg-transparent">
-                <div className="flex items-center gap-4 md:gap-6">
+              <div className="px-3 md:px-6 py-2 md:py-3 flex items-center justify-between bg-transparent">
+                <div className="flex items-center gap-2 md:gap-6 shrink">
                   <div 
-                    className="flex items-baseline gap-3 md:gap-4 cursor-pointer group hover:opacity-80 transition-opacity"
+                    className="flex items-baseline gap-1.5 md:gap-4 cursor-pointer group hover:opacity-80 transition-opacity shrink"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     title={t('txt_84e0cd')}
                   >
                     <h3 
                       suppressHydrationWarning 
                       className={cn(
-                        "text-3xl md:text-4xl font-black tracking-[0.1em] md:tracking-[0.15em] leading-none font-mono transition-all", 
+                        "text-2xl md:text-4xl font-black tracking-[0.02em] md:tracking-[0.15em] leading-none font-mono transition-all truncate", 
                         // 如果是今天，应用全息流光渐变；否则使用用户设置的单色
                         phantomDate.toDateString() === new Date().toDateString()
                           ? "bg-gradient-to-r from-gx-cyan via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(0,240,255,0.8)]"
@@ -1230,11 +1249,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     >
                       {phantomDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {phantomDate.getDate()}
                     </h3>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col shrink-0">
                       <span 
                         suppressHydrationWarning 
                         className={cn(
-                          "text-xs md:text-sm font-mono tracking-[0.2em] md:tracking-[0.4em] uppercase transition-all", 
+                          "text-[10px] md:text-sm font-mono tracking-[0.1em] md:tracking-[0.4em] uppercase transition-all", 
                           phantomDate.toDateString() === new Date().toDateString()
                             ? "bg-gradient-to-r from-gx-cyan via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]"
                             : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
@@ -1251,35 +1270,38 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   </div>
                 </div>
 
-                {/* Desktop controls */}
-                <div className="hidden md:flex items-center gap-4">
-                  {/* 多门店切换舱 */}
-                  <NexusSwitcher />
+                {/* 响应式控制中枢 (Unified Cyber Controls) */}
+                <div className="flex items-center gap-1 md:gap-4 shrink-0">
+                  {/* 多门店切换舱 (移动端隐藏，节省空间) */}
+                  <div className="hidden md:block">
+                    <NexusSwitcher />
+                  </div>
 
-                  <div className="flex bg-transparent rounded-xl p-1 border border-white/10 transition-colors" style={{ borderColor: `${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}40` }}>
+                  <div className="flex bg-transparent rounded-lg md:rounded-xl p-0.5 md:p-1 border border-white/10 transition-colors" style={{ borderColor: `${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}40` }}>
                     <button
                       onClick={() => {
                         const modes = ['day', 'week', 'month'] as const;
                         const currentIndex = modes.indexOf(viewMode);
                         setViewMode(modes[(currentIndex + 1) % modes.length]);
                       }}
-                      className="px-6 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all text-black w-20 text-center"
+                      className="px-2 md:px-6 py-1 md:py-1.5 text-[9px] md:text-[10px] font-black uppercase rounded-md md:rounded-lg transition-all text-black min-w-[32px] md:w-20 text-center"
                       style={{ 
                         backgroundColor: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
                         boxShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80`
                       }}
                     >
-                      {viewMode}
+                      <span className="md:hidden">{viewMode.charAt(0)}</span>
+                      <span className="hidden md:inline">{viewMode}</span>
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0.5 md:gap-2">
                     <button 
                       onClick={() => handleNavigate('prev')}
-                      className="p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
+                      className="p-1 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
                       style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-4 h-4 md:w-4 md:h-4" />
                     </button>
                     <button 
                       onClick={() => {
@@ -1287,41 +1309,42 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         setCurrentDate(now);
                         setPhantomDate(now);
                       }}
-                      className="px-4 py-2 text-[10px] font-black rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100"
+                      className="px-1.5 md:px-4 py-1 md:py-2 text-[10px] font-black rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100 flex items-center justify-center"
                       style={{ 
                         color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
                         textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80` 
                       }}
                     >
-                      {getTodayLabel()}
+                      <span className="md:hidden text-[10px] leading-none tracking-normal">今</span>
+                      <span className="hidden md:inline">{getTodayLabel()}</span>
                     </button>
                     <button 
                       onClick={() => handleNavigate('next')}
-                      className="p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
+                      className="p-1 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
                       style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 md:w-4 md:h-4" />
                     </button>
 
-                    {/* 移动到右上角的设置按钮与回收站 */}
+                    {/* 设置按钮与回收站 */}
                     {isAdmin && (
-                      <>
+                      <div className="flex items-center ml-0.5 md:ml-2 gap-0.5 md:gap-1">
                         <button 
                           onClick={() => setIsRecycleBinOpen(true)}
-                          className="p-2 ml-2 rounded-lg transition-all opacity-60 hover:opacity-100 hover:bg-red-500/10 group flex items-center justify-center text-red-400"
+                          className="p-1.5 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100 hover:bg-red-500/10 group flex items-center justify-center text-red-400"
                           title={t('txt_6508a1')}
                         >
-                          <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                          <Trash2 className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" />
                         </button>
                         <button 
                           onClick={() => setIsConfigOpen(true)}
-                          className="p-2 rounded-lg transition-all opacity-60 hover:opacity-100 group flex items-center justify-center"
+                          className="p-1.5 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100 group flex items-center justify-center"
                           style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                           title={t('txt_677a64')}
                         >
-                          <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+                          <Settings className="w-4 h-4 md:w-5 md:h-5 group-hover:rotate-90 transition-transform duration-500" />
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1430,17 +1453,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     matrixScrollRef={matrixScrollRef}
                     onGridClick={handleGridClick}
                     onBookingClick={handleBookingClick}
-                    onDateSwipe={(direction) => handleNavigate(direction)}
+                    onDateSwipe={handleDateSwipe}
                     storeStatus={storeStatus}
                     isReadOnly={isReadOnlyMode}
-                    onReadOnlyIntercept={() => openSubscriptionModal('EXPIRED_WARNING')}
-                    onPhantomDateChange={(dateStr) => {
-                      // 接收到底层雷达的信号，更新顶部的幻象投影日期
-                      const newDate = new Date(dateStr);
-                      if (!isNaN(newDate.getTime())) {
-                        setPhantomDate(newDate);
-                      }
-                    }}
+                    onReadOnlyIntercept={handleReadOnlyIntercept}
+                    onPhantomDateChange={handlePhantomDateChange}
                   />
                 )}
                 {dna.pivot === "resource" && viewMode === "week" && (
@@ -1452,10 +1469,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     operatingHours={operatingHours} 
                     currentDate={currentDate}
                     onGridClick={handleGridClick}
-                    onDateClick={(date) => {
-                      setCurrentDate(date);
-                      setViewMode("day");
-                    }}
+                    onDateClick={handleWeekDateClick}
                   />
                 )}
                 {dna.pivot === "resource" && viewMode === "month" && (
@@ -1492,109 +1506,56 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           </motion.div>
         </AnimatePresence>
 
-        {/* 移动端专属：全息赛博控制胶囊 (Holographic Cyber Capsule) */}
-        <div className="md:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
-          <div className="flex bg-transparent rounded-xl p-0.5 border border-white/10">
-            <button
-                onClick={() => {
-                  const modes = ['day', 'week', 'month'] as const;
-                  const currentIndex = modes.indexOf(viewMode);
-                  setViewMode(modes[(currentIndex + 1) % modes.length]);
-                }}
-                className="px-4 py-1 text-[10px] font-black uppercase rounded-lg transition-all text-black w-16 text-center"
-                style={{ 
-                  backgroundColor: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
-                  boxShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80`
-                }}
-              >
-                {viewMode}
-              </button>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={() => handleNavigate('prev')}
-              className="p-1.5 rounded-lg transition-all opacity-60 hover:opacity-100"
-              style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-1.5 text-[10px] font-black rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100"
-              style={{ 
-                color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
-                textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80` 
-              }}
-            >
-              {getTodayLabel()}
-            </button>
-            <button 
-              onClick={() => handleNavigate('next')}
-              className="p-1.5 rounded-lg transition-all opacity-60 hover:opacity-100"
-              style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {/* 移动端设置按钮 */}
-            {isAdmin && (
-              <button 
-                onClick={() => setIsConfigOpen(true)}
-                className="p-1.5 ml-1 rounded-lg transition-all opacity-60 hover:opacity-100 group flex items-center justify-center"
-                style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
-              >
-                <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
-              </button>
-            )}
-          </div>
-        </div>
+      </div>
       </div>
       
-      {/* 注入星云配置中枢抽屉 (需在结界之外，不受透明度影响) */}
-      <NebulaConfigHub 
-        isOpen={isConfigOpen} 
-        onClose={() => setIsConfigOpen(false)}
-        shopId={shopId}
-        industryLabel={industryDNAs[industry].label}
-        operatingHours={operatingHours}
-        staffs={staffs as unknown as StaffItem[]}
-        categories={categories as unknown as HubCategoryItem[]}
-        services={services as unknown as HubServiceItem[]}
-        onGlobalSave={handleSaveConfigs}
-        isCloudDataLoaded={isCloudDataLoaded}
-        businessName={userName || 'BOSS'}
-        businessAvatar={trueBusinessAvatar}
-      />
+      {/* 注入星云配置中枢抽屉及其他全局弹窗 (需在结界之外，不受透明度及transform影响) */}
+      {isMounted && document.body && createPortal(
+        <>
+          <NebulaConfigHub 
+            isOpen={isConfigOpen} 
+            onClose={() => setIsConfigOpen(false)}
+            shopId={shopId}
+            industryLabel={industryDNAs[industry].label}
+            operatingHours={operatingHours}
+            staffs={staffs as unknown as StaffItem[]}
+            categories={categories as unknown as HubCategoryItem[]}
+            services={services as unknown as HubServiceItem[]}
+            onGlobalSave={handleSaveConfigs}
+            isCloudDataLoaded={isCloudDataLoaded}
+            businessName={userName || 'BOSS'}
+            businessAvatar={trueBusinessAvatar}
+          />
 
-      <AiFinanceDashboardModal
-        isOpen={isFinanceDashboardOpen}
-        onClose={() => setIsFinanceDashboardOpen(false)}
-        staffs={staffs as any}
-        globalBookings={globalBookings}
-      />
-      
-      <RecycleBinModal 
-        isOpen={isRecycleBinOpen}
-        onClose={() => setIsRecycleBinOpen(false)}
-        shopId={shopId}
-      />
-      </div>
+          <AiFinanceDashboardModal
+            isOpen={isFinanceDashboardOpen}
+            onClose={() => setIsFinanceDashboardOpen(false)}
+            staffs={staffs as any}
+            globalBookings={globalBookings}
+          />
+          
+          <RecycleBinModal 
+            isOpen={isRecycleBinOpen}
+            onClose={() => setIsRecycleBinOpen(false)}
+            shopId={shopId}
+          />
 
-      {/* 注入极致双窗预约界面 (必须在结界之外，以保持清晰呈现) */}
-      <DualPaneBookingModal
-        key={bookingModalKey}
-        isOpen={isBookingModalOpen}
-        onClose={() => setIsBookingModalOpen(false)}
-        initialDate={crosshairDate || currentDate}
-        initialTime={crosshairTime}
-        initialResourceId={crosshairResourceId}
-        editingBooking={editingBooking || undefined}
-        staffs={staffs}
-        categories={categories}
-        services={services}
-        isReadOnly={isReadOnlyMode}
-      />
+          <DualPaneBookingModal
+            key={bookingModalKey}
+            isOpen={isBookingModalOpen}
+            onClose={() => setIsBookingModalOpen(false)}
+            initialDate={crosshairDate || currentDate}
+            initialTime={crosshairTime}
+            initialResourceId={crosshairResourceId}
+            editingBooking={editingBooking || undefined}
+            staffs={staffs}
+            categories={categories}
+            services={services}
+            isReadOnly={isReadOnlyMode}
+          />
+        </>,
+        document.body
+      )}
     </div>
   );
 };

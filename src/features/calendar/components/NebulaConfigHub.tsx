@@ -5,7 +5,8 @@ import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, C
 import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { OperatingHour } from "./IndustryCalendar";
+import { OperatingHour, ShopOperatingConfig, DEFAULT_OPERATING_CONFIG, DailyOverride } from "./IndustryCalendar";
+import { TodayOverrideController } from "./TodayOverrideController";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -36,11 +37,11 @@ export interface NebulaConfigHubProps {
   onClose: () => void;
   shopId?: string;
   industryLabel?: string;
-  operatingHours: OperatingHour[];
+  operatingHours: ShopOperatingConfig | OperatingHour[];
   staffs: StaffItem[];
   categories: CategoryItem[];
   services: ServiceItem[];
-  onGlobalSave: (hours: OperatingHour[], staffs: StaffItem[], categories: CategoryItem[], services: ServiceItem[]) => void;
+  onGlobalSave: (hours: ShopOperatingConfig | OperatingHour[], staffs: StaffItem[], categories: CategoryItem[], services: ServiceItem[]) => void;
   isCloudDataLoaded?: boolean; // 新增：防反杀物理锁
   businessName?: string;       // 新增：业务名称（用于全息雷达显示）
   businessAvatar?: string;     // 新增：业务头像（用于全息雷达显示）
@@ -71,8 +72,7 @@ export const NebulaConfigHub = ({
   
   const { user } = useAuth();
   
-  // 本地暂存状态，Live Edit 模式下随时准备同步
-  const [localHours, setLocalHours] = useState<OperatingHour[]>(operatingHours);
+  const [localHours, setLocalHours] = useState<ShopOperatingConfig | OperatingHour[]>(operatingHours);
   const [localStaffs, setLocalStaffs] = useState<StaffItem[]>(staffs);
   const [localCategories, setLocalCategories] = useState<CategoryItem[]>(categories);
   const [localServices, setLocalServices] = useState<ServiceItem[]>(services);
@@ -123,9 +123,9 @@ export const NebulaConfigHub = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, shopId, user]);
+  }, [isOpen, shopId, user, businessName, businessAvatar]);
 
-  // 【单向数据流实时同步】：绝对信任来自外部 (Supabase DB onUpdate) 的数据推送
+  // 【单向数据流实时同步】：绝对信任来自外部 (Supabase DB onUpdate 或 全局广播) 的数据推送
   useEffect(() => {
     if (isOpen) {
       setLocalHours(operatingHours);
@@ -137,7 +137,12 @@ export const NebulaConfigHub = ({
       // 核心：同步更新指纹，防止外部数据流入时被当成本地修改触发二次保存（死循环）
       prevDataRef.current = JSON.stringify({ operatingHours, staffs, categories, services });
     }
-  }, [isOpen, operatingHours, staffs, categories, services]); // 恢复对 props 数据的依赖，实现绝对实时同步
+  }, [isOpen, operatingHours, staffs, categories, services]);
+
+  const onGlobalSaveRef = useRef(onGlobalSave);
+  useEffect(() => {
+    onGlobalSaveRef.current = onGlobalSave;
+  }, [onGlobalSave]);
 
   // 【Live Edit 自动同步引擎 (Auto-Save Debouncer)】
   useEffect(() => {
@@ -158,7 +163,7 @@ export const NebulaConfigHub = ({
     // 防抖 800ms：用户停止操作 0.8 秒后，像幽灵一样静默落盘
     const timer = setTimeout(async () => {
       try {
-        await onGlobalSave(localHours, localStaffs, localCategories, localServices);
+        await onGlobalSaveRef.current(localHours, localStaffs, localCategories, localServices);
         prevDataRef.current = currentDataStr;
         setSyncStatus('saved');
         
@@ -173,7 +178,24 @@ export const NebulaConfigHub = ({
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [localHours, localStaffs, localCategories, localServices, isOpen, isCloudDataLoaded, onGlobalSave]);
+  }, [localHours, localStaffs, localCategories, localServices, isOpen, isCloudDataLoaded]);
+
+  // 原子修改包装器：只更新本地状态，让 useEffect 防抖去处理真实的保存
+  const handleHoursChange = (newHours: ShopOperatingConfig | OperatingHour[]) => {
+    setLocalHours(newHours);
+  };
+
+  const handleStaffsChange = (newStaffs: StaffItem[]) => {
+    setLocalStaffs(newStaffs);
+  };
+
+  const handleCategoriesChange = (newCategories: CategoryItem[]) => {
+    setLocalCategories(newCategories);
+  };
+
+  const handleServicesChange = (newServices: ServiceItem[]) => {
+    setLocalServices(newServices);
+  };
 
 
   // 状态机：感知当前是否有子表单正在编辑
@@ -338,13 +360,13 @@ export const NebulaConfigHub = ({
                   {activeTab === "hours" && (
                     <HoursConfig 
                       hours={localHours} 
-                      onChange={setLocalHours} 
+                      onChange={handleHoursChange} 
                     />
                   )}
                   {activeTab === "staff" && (
                     <StaffConfig 
                       staffs={localStaffs} 
-                      onChange={setLocalStaffs} 
+                      onChange={handleStaffsChange} 
                       onEditingStateChange={handleEditingStateChange}
                       services={localServices}
                     />
@@ -353,8 +375,8 @@ export const NebulaConfigHub = ({
                     <ServicesConfig 
                       categories={localCategories}
                       services={localServices}
-                      onCategoriesChange={setLocalCategories}
-                      onServicesChange={setLocalServices}
+                      onCategoriesChange={handleCategoriesChange}
+                      onServicesChange={handleServicesChange}
                     />
                   )}
                   {activeTab === "visual" && (
@@ -555,87 +577,311 @@ const VisualSettingsConfig = () => {
   );
 };
 
-const HoursConfig = ({ hours, onChange }: { hours: OperatingHour[], onChange: (h: OperatingHour[]) => void }) => {
-    const t = useTranslations('NebulaConfigHub');
+const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | OperatingHour[], onChange: (h: ShopOperatingConfig | OperatingHour[]) => void }) => {
   const idSeed = useRef(0);
-  const handleAdd = () => {
+  
+  // 初始化/升级为完整的新版结构，防御数据残缺
+  const fullConfig: ShopOperatingConfig = Array.isArray(hours) 
+    ? {
+        ...DEFAULT_OPERATING_CONFIG,
+        regular: {
+          monday: hours, tuesday: hours, wednesday: hours, thursday: hours, friday: hours, saturday: hours, sunday: hours
+        }
+      }
+    : {
+        ...DEFAULT_OPERATING_CONFIG,
+        ...(hours || {}),
+        regular: (hours as ShopOperatingConfig)?.regular || DEFAULT_OPERATING_CONFIG.regular,
+        specialDates: (hours as ShopOperatingConfig)?.specialDates || {}
+      };
+
+  const daysOfWeek = [
+    { key: 'monday', label: '周一' },
+    { key: 'tuesday', label: '周二' },
+    { key: 'wednesday', label: '周三' },
+    { key: 'thursday', label: '周四' },
+    { key: 'friday', label: '周五' },
+    { key: 'saturday', label: '周六' },
+    { key: 'sunday', label: '周日' },
+  ] as const;
+
+  const handleAddRegular = (dayKey: keyof ShopOperatingConfig['regular']) => {
     idSeed.current += 1;
-    const newId = `hour_${idSeed.current}`;
-    onChange([...hours, { id: newId, start: 9, end: 18 }]);
+    const newId = `hour_${Date.now()}_${idSeed.current}`;
+    const newConfig = { ...fullConfig };
+    if (!newConfig.regular) newConfig.regular = { ...DEFAULT_OPERATING_CONFIG.regular };
+    newConfig.regular[dayKey] = [...(newConfig.regular[dayKey] || []), { id: newId, start: 9, end: 18 }];
+    onChange(newConfig);
   };
 
-  const handleRemove = (id: string) => {
-    onChange(hours.filter(h => h.id !== id));
+  const handleRemoveRegular = (dayKey: keyof ShopOperatingConfig['regular'], id: string) => {
+    const newConfig = { ...fullConfig };
+    newConfig.regular[dayKey] = newConfig.regular[dayKey].filter(h => h.id !== id);
+    onChange(newConfig);
   };
 
-  const handleUpdate = (id: string, field: 'start' | 'end', value: string) => {
+  const handleUpdateRegular = (dayKey: keyof ShopOperatingConfig['regular'], id: string, field: 'start' | 'end', value: string) => {
     const numValue = parseInt(value, 10);
     if (isNaN(numValue)) return;
-    
-    onChange(hours.map(h => h.id === id ? { ...h, [field]: numValue } : h));
+    const newConfig = { ...fullConfig };
+    newConfig.regular[dayKey] = newConfig.regular[dayKey].map(h => h.id === id ? { ...h, [field]: numValue } : h);
+    onChange(newConfig);
   };
 
-  // 0-24 营业时间选项
+  const handleToggleClosedRegular = (dayKey: keyof ShopOperatingConfig['regular'], isClosed: boolean) => {
+    const newConfig = { ...fullConfig };
+    if (!newConfig.regular) newConfig.regular = { ...DEFAULT_OPERATING_CONFIG.regular };
+    if (isClosed) {
+      newConfig.regular[dayKey] = []; // 清空时间段表示休息
+    } else {
+      idSeed.current += 1;
+      newConfig.regular[dayKey] = [{ id: `hour_${Date.now()}_${idSeed.current}`, start: 9, end: 18 }];
+    }
+    onChange(newConfig);
+  };
+
+  // --- Special Dates Handlers ---
+  const [newSpecialDate, setNewSpecialDate] = useState('');
+
+  const handleAddSpecialDate = () => {
+    if (!newSpecialDate) return;
+    const newConfig = { ...fullConfig };
+    if (!newConfig.specialDates) newConfig.specialDates = {};
+    if (!newConfig.specialDates[newSpecialDate]) {
+      newConfig.specialDates[newSpecialDate] = { isClosed: true, hours: [] };
+    }
+    onChange(newConfig);
+    setNewSpecialDate('');
+  };
+
+  const handleRemoveSpecialDate = (dateStr: string) => {
+    const newConfig = { ...fullConfig };
+    delete newConfig.specialDates[dateStr];
+    onChange(newConfig);
+  };
+
+  const handleToggleClosedSpecial = (dateStr: string, isClosed: boolean) => {
+    const newConfig = { ...fullConfig };
+    newConfig.specialDates[dateStr].isClosed = isClosed;
+    if (!isClosed && newConfig.specialDates[dateStr].hours.length === 0) {
+      idSeed.current += 1;
+      newConfig.specialDates[dateStr].hours = [{ id: `hour_${Date.now()}_${idSeed.current}`, start: 9, end: 18 }];
+    } else if (isClosed) {
+      newConfig.specialDates[dateStr].hours = [];
+    }
+    onChange(newConfig);
+  };
+
+  const handleAddSpecialHour = (dateStr: string) => {
+    idSeed.current += 1;
+    const newId = `hour_${Date.now()}_${idSeed.current}`;
+    const newConfig = { ...fullConfig };
+    newConfig.specialDates[dateStr].hours = [...newConfig.specialDates[dateStr].hours, { id: newId, start: 9, end: 18 }];
+    newConfig.specialDates[dateStr].isClosed = false;
+    onChange(newConfig);
+  };
+
+  const handleRemoveSpecialHour = (dateStr: string, id: string) => {
+    const newConfig = { ...fullConfig };
+    newConfig.specialDates[dateStr].hours = newConfig.specialDates[dateStr].hours.filter(h => h.id !== id);
+    onChange(newConfig);
+  };
+
+  const handleUpdateSpecialHour = (dateStr: string, id: string, field: 'start' | 'end', value: string) => {
+    const numValue = parseInt(value, 10);
+    if (isNaN(numValue)) return;
+    const newConfig = { ...fullConfig };
+    newConfig.specialDates[dateStr].hours = newConfig.specialDates[dateStr].hours.map(h => h.id === id ? { ...h, [field]: numValue } : h);
+    onChange(newConfig);
+  };
+
+  // --- Today Override Handlers ---
+  const handleTodayOverrideChange = (newOverride: DailyOverride | null) => {
+    const newConfig = { ...fullConfig, todayOverride: newOverride };
+    onChange(newConfig);
+  };
+
   const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i);
+
+  // 内部通用时间段渲染组件
+  const renderTimeBlocks = (
+    hoursList: OperatingHour[], 
+    onUpdate: (id: string, field: 'start' | 'end', value: string) => void,
+    onRemove: (id: string) => void
+  ) => (
+    <div className="space-y-2 w-full mt-2">
+      <AnimatePresence>
+        {hoursList.map((hour) => (
+          <motion.div 
+            key={hour.id}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center gap-3 p-2 md:p-3 bg-white/5 rounded-xl border border-white/10 group overflow-hidden"
+          >
+            <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-[8px] font-mono text-white/40 uppercase">Start</span>
+                <select 
+                  value={hour.start} 
+                  onChange={(e) => onUpdate(hour.id, 'start', e.target.value)}
+                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                >
+                  {HOUR_OPTIONS.map(h => (
+                    <option key={`start-${h}`} value={h} className="bg-black text-white">
+                      {h.toString().padStart(2, '0')}:00
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[8px] font-mono text-white/40 uppercase">End</span>
+                <select 
+                  value={hour.end}
+                  onChange={(e) => onUpdate(hour.id, 'end', e.target.value)}
+                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                >
+                  {HOUR_OPTIONS.map(h => (
+                    <option key={`end-${h}`} value={h} className="bg-black text-white">
+                      {h.toString().padStart(2, '0')}:00
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button onClick={() => onRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors p-1">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
+      {/* 0. 今日临时覆盖设置 (Today's Live Override) */}
+      <TodayOverrideController 
+        todayOverride={fullConfig.todayOverride?.date === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') ? fullConfig.todayOverride : null} 
+        onChange={handleTodayOverrideChange}
+        fullConfig={fullConfig}
+      />
+
+      {/* 1. 常规星期几设置 */}
       <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-white">{t('txt_c19d9e')}</span>
-          <button onClick={handleAdd} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
-            <Plus className="w-3 h-3" /> {t('txt_8fb3bc')}</button>
+          <span className="text-xs font-black text-white">常规营业时间段 (Regular Hours)</span>
         </div>
         <p className="text-[10px] font-mono text-white/40">
-          {t('txt_0bb77d')}</p>
+          按照星期一到星期日设置基础营业时间。如果一天内有午休，请添加多个时间段。
+        </p>
         
-        <div className="space-y-3">
-          <AnimatePresence>
-            {hours.map((hour) => (
-              <motion.div 
-                key={hour.id}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 group overflow-hidden"
-              >
-                <div className="flex-1 grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-mono text-white/40 uppercase">Start</span>
-                    <select 
-                      value={hour.start} 
-                      onChange={(e) => handleUpdate(hour.id, 'start', e.target.value)}
-                      className="bg-transparent text-white font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+        <div className="space-y-2">
+          {daysOfWeek.map(({ key, label }) => {
+            const dayHours = fullConfig.regular?.[key] || [];
+            const isClosed = dayHours.length === 0;
+
+            return (
+              <div key={key} className="flex flex-col p-3 bg-black/40 border border-white/5 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 text-xs font-black text-white/80">{label}</div>
+                    <button 
+                      onClick={() => handleToggleClosedRegular(key, !isClosed)}
+                      className={cn("px-2 py-1 text-[9px] font-bold tracking-widest rounded-md transition-colors border", 
+                        isClosed ? "bg-red-500/10 text-red-400 border-red-500/30" : "bg-gx-cyan/10 text-gx-cyan border-gx-cyan/30"
+                      )}
                     >
-                      {HOUR_OPTIONS.map(h => (
-                        <option key={`start-${h}`} value={h} className="bg-black text-white">
-                          {h.toString().padStart(2, '0')}:00
-                        </option>
-                      ))}
-                    </select>
+                      {isClosed ? '休息 CLOSED' : '营业 OPEN'}
+                    </button>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[8px] font-mono text-white/40 uppercase">End</span>
-                    <select 
-                      value={hour.end}
-                      onChange={(e) => handleUpdate(hour.id, 'end', e.target.value)}
-                      className="bg-transparent text-white font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                  {!isClosed && (
+                    <button onClick={() => handleAddRegular(key)} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
+                      <Plus className="w-3 h-3" /> 添加时段
+                    </button>
+                  )}
+                </div>
+                {!isClosed && renderTimeBlocks(
+                  dayHours, 
+                  (id, field, val) => handleUpdateRegular(key, id, field, val),
+                  (id) => handleRemoveRegular(key, id)
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. 特殊节假日例外设置 */}
+      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-white">特殊日期与节假日 (Special Dates Override)</span>
+        </div>
+        <p className="text-[10px] font-mono text-white/40">
+          设置未来的店庆、节假日等例外时间。在日历渲染时，特殊日期的配置将强制覆盖常规星期的规律。
+        </p>
+
+        {/* 添加特殊日期器 */}
+        <div className="flex gap-2 items-center">
+          <input 
+            type="date" 
+            value={newSpecialDate}
+            onChange={(e) => setNewSpecialDate(e.target.value)}
+            className="flex-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-gx-cyan/50"
+          />
+          <button 
+            onClick={handleAddSpecialDate}
+            disabled={!newSpecialDate}
+            className="px-4 py-2 bg-gx-cyan/20 text-gx-cyan text-xs font-bold rounded-lg border border-gx-cyan/30 disabled:opacity-30"
+          >
+            添加日期
+          </button>
+        </div>
+
+        {/* 渲染已有的特殊日期列表 */}
+        <div className="space-y-2 mt-4">
+          <AnimatePresence>
+            {Object.entries(fullConfig.specialDates || {}).sort(([a], [b]) => a.localeCompare(b)).map(([dateStr, specialConfig]) => (
+              <motion.div 
+                key={dateStr}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                className="flex flex-col p-3 bg-gx-cyan/5 border border-gx-cyan/20 rounded-xl"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs font-mono font-bold text-white tracking-widest">{dateStr}</div>
+                    <button 
+                      onClick={() => handleToggleClosedSpecial(dateStr, !specialConfig.isClosed)}
+                      className={cn("px-2 py-1 text-[9px] font-bold tracking-widest rounded-md transition-colors border", 
+                        specialConfig.isClosed ? "bg-red-500/10 text-red-400 border-red-500/30" : "bg-gx-cyan/10 text-gx-cyan border-gx-cyan/30"
+                      )}
                     >
-                      {HOUR_OPTIONS.map(h => (
-                        <option key={`end-${h}`} value={h} className="bg-black text-white">
-                          {h.toString().padStart(2, '0')}:00
-                        </option>
-                      ))}
-                    </select>
+                      {specialConfig.isClosed ? '休息 CLOSED' : '营业 OPEN'}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!specialConfig.isClosed && (
+                      <button onClick={() => handleAddSpecialHour(dateStr)} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
+                        <Plus className="w-3 h-3" /> 时段
+                      </button>
+                    )}
+                    <button onClick={() => handleRemoveSpecialDate(dateStr)} className="text-white/20 hover:text-red-500 transition-colors p-1">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-                <button onClick={() => handleRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {!specialConfig.isClosed && renderTimeBlocks(
+                  specialConfig.hours,
+                  (id, field, val) => handleUpdateSpecialHour(dateStr, id, field, val),
+                  (id) => handleRemoveSpecialHour(dateStr, id)
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
+
       </div>
     </div>
   );

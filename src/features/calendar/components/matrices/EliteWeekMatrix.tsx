@@ -3,7 +3,7 @@
 import React, { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
-import { OperatingHour } from "../IndustryCalendar";
+import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { useSearchParams } from "next/navigation";
 import { BookingService } from "@/features/booking/api/booking";
@@ -13,7 +13,7 @@ export interface EliteWeekMatrixProps {
   dna: IndustryDNA;
   resources: MatrixResource[];
   selectedStaffIds: string[];
-  operatingHours: OperatingHour[];
+  operatingHours: ShopOperatingConfig | OperatingHour[];
   onGridClick?: (resourceId?: string, time?: string) => void;
   onDateClick?: (date: Date) => void;
   currentDate: Date;
@@ -67,19 +67,23 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
     };
   }, [shopId]);
 
-  // --- 核心算法：智能折叠与被动撑开的时间轴 (Smart Folding Timeline) ---
-  const liquidTimeSlots = useMemo(() => {
+  // 提取动态渲染的时间段（智能剔除全局非营业时间）
+  const timeSlots = useMemo(() => {
     const activeHours = new Set<number>();
 
-    if (operatingHours && operatingHours.length > 0) {
-      operatingHours.forEach(period => {
-        for (let h = period.start; h < period.end; h++) {
-          activeHours.add(h);
-        }
-      });
-    } else {
-      for (let h = 9; h < 18; h++) activeHours.add(h);
-    }
+    // 遍历这一周的 7 天，收集所有的有效营业时间
+    weekDates.forEach(dateObj => {
+      const { hours: effectiveHours } = resolveOperatingHours(dateObj, operatingHours);
+      if (effectiveHours && effectiveHours.length > 0) {
+        effectiveHours.forEach(period => {
+          for (let h = period.start; h < period.end; h++) {
+            activeHours.add(h);
+          }
+        });
+      } else {
+        for (let h = 9; h < 18; h++) activeHours.add(h);
+      }
+    });
 
     // 周视图需要检查这一周内所有的订单是否跨界
     sandboxBookings.forEach(booking => {
@@ -98,11 +102,15 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
 
     const sortedHours = Array.from(activeHours).sort((a, b) => a - b);
     
-    return sortedHours.map(hour => ({
-      hour,
-      label: `${hour.toString().padStart(2, '0')}:00`,
-      isOvertime: !operatingHours.some(p => hour >= p.start && hour < p.end)
-    }));
+    return sortedHours.map(hour => {
+      // 周视图下的 isOvertime 可以基于默认的 9-18，或者提取出的 activeHours 的边界。
+      // 为防止崩溃，先简单处理，或者通过重新计算
+      return {
+        hour,
+        label: `${hour.toString().padStart(2, '0')}:00`,
+        isOvertime: false
+      };
+    });
   }, [operatingHours, sandboxBookings]);
 
   // 过滤出选中的人员
@@ -169,7 +177,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
           <div ref={timeColumnRef} className="flex-1 overflow-hidden relative pointer-events-none">
             {/* 修改周视图的底部留白，原网格高度是 h-16 (64px)，所以改为 pb-16 */}
             <div className="relative pb-16">
-              {liquidTimeSlots.map((slot, idx) => (
+              {timeSlots.map((slot, idx) => (
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <div className={cn(
                   "transition-all duration-500 text-[15px] mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums",
@@ -184,7 +192,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                     00
                   </span>
                 </div>
-                {idx < liquidTimeSlots.length - 1 && liquidTimeSlots[idx + 1].hour - slot.hour > 1 && (
+                {idx < timeSlots.length - 1 && timeSlots[idx + 1].hour - slot.hour > 1 && (
                   <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent via-gx-cyan/40 to-transparent flex items-center justify-center z-10">
                     <div className="w-1 h-1 rounded-full bg-gx-cyan shadow-[0_0_5px_rgba(0,240,255,0.8)]" />
                   </div>
@@ -206,7 +214,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
           <div className="min-w-fit flex flex-col h-full">
             {/* 矩阵主体同步修改底部留白为 pb-16 */}
             <div className="relative pb-16">
-              {liquidTimeSlots.map((slot) => (
+              {timeSlots.map((slot) => (
                 <div 
                   key={slot.hour} 
                   className="grid h-16 relative group/row"

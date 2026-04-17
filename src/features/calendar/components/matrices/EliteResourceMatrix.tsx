@@ -5,18 +5,19 @@ import { cn } from "@/utils/cn";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
-import { OperatingHour } from "../IndustryCalendar";
+import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
  
 
 import { BookingService } from "@/features/booking/api/booking";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
+import { useShop } from "@/features/shop/ShopContext";
 
 export interface EliteResourceMatrixProps {
   industry: IndustryType;
   dna: IndustryDNA;
   resources: MatrixResource[];
-  operatingHours: OperatingHour[];
+  operatingHours: ShopOperatingConfig | OperatingHour[];
   currentDate?: Date; // 新增：接收父组件传来的当前日期
   bookings?: MatrixBooking[];
   onHorizontalScroll?: (scrollLeft: number) => void;
@@ -164,8 +165,9 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
   );
 });
 
-export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, storeStatus, isReadOnly }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
+export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, isReadOnly }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
   const [isMounted, setIsMounted] = React.useState(false);
+  const { refreshBookings, trackAction } = useShop();
 
   React.useEffect(() => setIsMounted(true), []);
   const currentHour = isMounted ? new Date().getHours() : -1;
@@ -229,10 +231,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     targetDates.forEach(dateObj => {
       const dateStr = formatDateStr(dateObj);
       const activeHours = new Set<number>();
+      
+      const { hours: effectiveHours } = resolveOperatingHours(dateObj, operatingHours);
 
       // 1. 收集配置中的正常营业时间
-      if (operatingHours && operatingHours.length > 0) {
-        operatingHours.forEach(period => {
+      if (effectiveHours && effectiveHours.length > 0) {
+        effectiveHours.forEach(period => {
           for (let h = period.start; h < period.end; h++) activeHours.add(h);
         });
       } else {
@@ -262,7 +266,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
             dateStr: dateStr,
             hour: hour,
             label: `${hour.toString().padStart(2, '0')}:00`,
-            isOvertime: !operatingHours.some(p => hour >= p.start && hour < p.end),
+            isOvertime: !effectiveHours.some(p => hour >= p.start && hour < p.end),
             isDayStart: index === 0, // 每天的第一个有效营业小时被标记为光刃挂载点
             height: 80,
             top: currentTop
@@ -385,11 +389,25 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    // 允许穿透：只有当点击在已有的预约色块内部时才拦截，点击空白背景直接放行！
     const target = e.target as HTMLElement;
-    if (target.closest('.pointer-events-auto')) return;
+    if (target.closest('.pointer-events-auto.z-20')) return; // 只拦截预约块的交互层
+    
     startPointerRef.current = { x: e.clientX, y: e.clientY };
     pointerDownAtRef.current = Date.now();
-    containerRectRef.current = matrixContainerRef.current?.getBoundingClientRect() || null;
+    
+    // 【关键修复】：获取元素的真实物理位置时，必须考虑容器本身的 scrollTop
+    // ClientY 是相对于屏幕视口的，但我们的日历画布是在一个可滚动的 div 内部
+    // 所以在计算十字准星坐标时，必须把滚动偏移量加回来！
+    const container = matrixContainerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      containerRectRef.current = {
+        ...rect,
+        top: rect.top - container.scrollTop // 将容器的 scrollTop 抵消掉，获得绝对顶部的虚拟坐标
+      } as DOMRect;
+    }
+    
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       activateCrosshair(e.clientY, e.clientX);
@@ -419,36 +437,58 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   const handlePointerUp = (e: React.PointerEvent) => {
     const start = startPointerRef.current;
     const downAt = pointerDownAtRef.current;
+    
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    startPointerRef.current = null;
-    pointerDownAtRef.current = null;
+    
     if (crosshair.active) {
       const { resourceId, time, dateStr } = crosshair;
       _setCrosshair({ active: false, y: 0, time: '00:00', resourceId: null, dateStr: '' });
       if (onGridClick) onGridClick(resourceId || undefined, time, dateStr);
+      startPointerRef.current = null;
+      pointerDownAtRef.current = null;
       return;
     }
+    
     if (start && downAt) {
       const dt = Date.now() - downAt;
       const dx = Math.abs(e.clientX - start.x);
       const dy = Math.abs(e.clientY - start.y);
-      if (dt <= 300 && dx <= 10 && dy <= 10) {
-        const rect = matrixContainerRef.current?.getBoundingClientRect();
-        if (rect) {
-          const { timeStr, resourceId, dateStr } = calculateCrosshair(e.clientY, e.clientX, rect);
+      
+      // 点击判定：时间极短且没有发生大幅度滑动
+      if (dt <= 500 && dx <= 15 && dy <= 15) {
+        const container = matrixContainerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          // 在获取网格点击坐标时，同样必须补偿 scrollTop，否则点击页面下方时算出的坐标全是错的
+          const virtualRect = {
+            ...rect,
+            top: rect.top - container.scrollTop,
+            left: rect.left,
+            width: rect.width
+          } as DOMRect;
           
-          // 【物理级门禁】：如果点击的这天是关门或休假，彻底拦截派单弹窗
-          const isToday = dateStr === new Date().toISOString().split('T')[0];
-          const isLocked = storeStatus === 'holiday' || (storeStatus === 'closed_today' && isToday);
-          if (isLocked) return;
-
-          if (onGridClick) onGridClick(resourceId || undefined, timeStr, dateStr);
+          const { timeStr, resourceId, dateStr } = calculateCrosshair(e.clientY, e.clientX, virtualRect);
+          
+          // 获取当前店铺真实状态 (考虑多端同步情况，从 Context 提取到的最新 status)
+          // 注意：storeStatus='closed_today' 仅仅只是打个标签，底层真正起决定性作用的应该是 config.hours 的长度或 todayOverride.isClosed。
+          // 但由于我们现在有了全局状态，我们可以直接通过判断今天是不是被 closed 拦截。
+          // 之前的 bug 在于：storeStatus === 'closed_today' 时，如果 isToday 为 true 就被锁死了。
+          // 可是如果老板想要在“关门”期间，依然允许店长在后台排单（给明天排、或者给今天强制排），那么严格的物理锁死会导致无法操作。
+          // 【根据关门特权排单法则】：即使关门了，作为管理员也应该能创建特权预约。所以这里我们彻底废除物理门禁的拦截。
+          const isLocked = false; 
+          
+          if (!isLocked && onGridClick) {
+            onGridClick(resourceId || undefined, timeStr, dateStr);
+          }
         }
       }
     }
+    
+    startPointerRef.current = null;
+    pointerDownAtRef.current = null;
   };
 
   const handlePointerCancel = () => {
@@ -463,26 +503,33 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
   // 用于防抖的幻象投影日期缓存
   const currentPhantomDateRef = useRef<string | null>(null);
+  const scrollRafRef = useRef<number | null>(null);
 
   const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
     
-    // 垂直同步时间轴
-    if (timeColumnRef.current) {
-      timeColumnRef.current.scrollTop = scrollTop;
-    }
-    
-    // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
-    if (onPhantomDateChange && waterfallData.nodes.length > 0) {
-      // 找到当前滚动视口顶部所属的日期节点
-      let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
-      if (!activeNode) activeNode = waterfallData.nodes[0];
-      
-      if (activeNode.dateStr !== currentPhantomDateRef.current) {
-        currentPhantomDateRef.current = activeNode.dateStr;
-        onPhantomDateChange(activeNode.dateStr);
+    // 使用 requestAnimationFrame 进行节流，防止疯狂触发 DOM 更新导致卡顿
+    if (scrollRafRef.current) return;
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      // 垂直同步时间轴
+      if (timeColumnRef.current) {
+        timeColumnRef.current.scrollTop = scrollTop;
       }
-    }
+      
+      // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
+      if (onPhantomDateChange && waterfallData.nodes.length > 0) {
+        // 找到当前滚动视口顶部所属的日期节点
+        let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
+        if (!activeNode) activeNode = waterfallData.nodes[0];
+        
+        if (activeNode.dateStr !== currentPhantomDateRef.current) {
+          currentPhantomDateRef.current = activeNode.dateStr;
+          onPhantomDateChange(activeNode.dateStr);
+        }
+      }
+      scrollRafRef.current = null;
+    });
   };
 
   // 矩阵区的手势接管：滑动切换日期
@@ -559,7 +606,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
         // 单卡：直接瞬间处决
         try {
           await BookingService.deleteBookings([booking.id]);
-          window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+          refreshBookings();
+          trackAction();
         } catch (error) {
           console.error("Failed to destroy single booking:", error);
         }
@@ -571,7 +619,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     if (!pendingVoidBooking) return;
     try {
       await BookingService.deleteBookings([pendingVoidBooking.id]);
-      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+      refreshBookings();
+      trackAction();
     } catch (error) {
       console.error("Failed to destroy booking:", error);
     } finally {
@@ -588,7 +637,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
       
     try {
       await BookingService.deleteBookings(idsToDelete);
-      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+      refreshBookings();
+      trackAction();
     } catch (error) {
       console.error("Failed to destroy all bookings:", error);
     } finally {
@@ -674,10 +724,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                   {node.isDayStart && idx > 0 && (
                     <div className="absolute top-0 left-0 w-full h-[2px] -translate-y-[1px] bg-gradient-to-r from-transparent via-gx-cyan/50 to-transparent shadow-[0_0_15px_rgba(0,240,255,0.6)] z-20" />
                   )}
-                  {/* 仅保留非营业时间的暗场遮罩，移除所有 border-t 网格线 */}
-                  {node.isOvertime && (
-                    <div className="absolute inset-0 bg-stripes-white/[0.02]" />
-                  )}
+                  {/* 【第四步改造】：直接物理隐藏非营业时间的灰色遮罩，让时间轴只显示有效开店时间 */}
+                  {/* 原本的 bg-stripes 被物理删除了，保持极致干净 */}
                 </div>
               );
             })}
@@ -685,10 +733,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
             {/* 【物理级幽灵锁块】：渲染关门或休假的不可点击区域 */}
             {waterfallData.nodes.filter(n => n.isDayStart).map(dayNode => {
               // 判断这天是否被锁定
-              const isToday = dayNode.dateStr === new Date().toISOString().split('T')[0];
-              const isLocked = storeStatus === 'holiday' || (storeStatus === 'closed_today' && isToday);
+              // 【完美终极法则】：放弃依赖全局 storeStatus，直接根据当前日期在时间轴引擎里的高度计算！
+              // 如果这天没有任何营业时间，它的 dayHeight 会接近 0，或者 nextDayNode 会紧贴着它。
+              // 更精确的做法：利用外部传进来的 operatingHours，针对 dayNode.dateStr 再次调用 resolveOperatingHours
+              const parts = dayNode.dateStr.split('-');
+              if (parts.length !== 3) return null;
               
-              if (!isLocked) return null;
+              const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+              const { isClosed } = resolveOperatingHours(d, operatingHours);
+              
+              if (!isClosed) return null;
 
               // 计算这一天的总高度 (从这天开始，到下一天开始前)
               const nextDayNode = waterfallData.nodes.find(n => n.isDayStart && n.top > dayNode.top);
@@ -705,7 +759,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                   <div className="absolute inset-0 bg-red-500/10 pointer-events-none" />
                   <div className="p-8 rounded-2xl border bg-red-500/10 border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center relative z-10">
                     <h2 className="text-2xl font-black tracking-widest mb-2 text-red-500">
-                      {storeStatus === 'closed_today' ? "今日关门" : "节假日休假"}
+                      {dayNode.dateStr === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') ? "今日关门" : "休息 CLOSED"}
                     </h2>
                     <p className="text-red-400/80 font-mono text-sm">
                       暂停营业与一切排班预约操作
@@ -943,14 +997,15 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (!isSplitMode) {
-                                      // 单项换人：退回未指定池 (null)
-                                      BookingService.updateBookingResource(booking.id, null)
-                                        .then(async () => {
-                                          // 触发智能重排算法
-                                          await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
-                                          setImplodedOrderId(null);
-                                          window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
-                                        });
+                                        // 单项换人：退回未指定池 (null)
+                                        BookingService.updateBookingResource(booking.id, null)
+                                          .then(async () => {
+                                            // 触发智能重排算法
+                                            await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+                                            setImplodedOrderId(null);
+                                            refreshBookings();
+                                            trackAction();
+                                          });
                                     } else {
                                       // 多项拆单：激活“未指定”状态
                                       setSplitActiveEmployeeId('UNASSIGNED_POOL' === splitActiveEmployeeId ? null : 'UNASSIGNED_POOL');

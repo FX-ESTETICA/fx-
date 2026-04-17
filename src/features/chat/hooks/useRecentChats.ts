@@ -103,7 +103,7 @@ export function useRecentChats(currentUserId: string) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
+        (_payload) => {
           // 有新消息，重新拉取列表以更新顺序和内容
           fetchRecentChats();
         }

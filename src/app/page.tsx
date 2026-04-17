@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation';
+import { MainStage } from "@/components/shared/MainStage";
 
-export default function Home() {
-  redirect('/home');
+// 服务端不再做任何跳转，将整个视图栈渲染权交给客户端的 MainStage
+export default function RootPage() {
+  return <MainStage />;
 }

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Search, ScanLine, Plus, MoreHorizontal, CheckCheck } from 'lucide-react';
+import { Search, ScanLine, Plus, CheckCheck } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useTranslations } from "next-intl";
 

@@ -91,7 +91,7 @@ export function DualPaneBookingModal({
   isReadOnly
 }: DualPaneBookingModalProps) {
   const t = useTranslations('DualPaneBookingModal');
-  const { activeShopId } = useShop();
+  const { activeShopId, refreshBookings, trackAction } = useShop();
 
   // --- 结账模式状态 (Neon Core Checkout) ---
   const [checkoutOverride, setCheckoutOverride] = useState<boolean | null>(null);
@@ -670,7 +670,8 @@ export function DualPaneBookingModal({
       
       // 核心修复：虽然有实时引擎，但是由于我们取消了全局重新拉取，
       // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据
-      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+      refreshBookings();
+      trackAction();
       
       // 关闭弹窗
       handleClose();
@@ -1031,10 +1032,11 @@ export function DualPaneBookingModal({
                                 await BookingService.upsertBookings(updatedBookings);
                                 
                                 // 触发全局重刷，因为有时候实时订阅会有毫秒级延迟
-                                  window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
-                                  // 极速模式：结账完成后瞬间关闭窗口，追求极致效率
-                                  handleClose(); 
-                                } catch (error) {
+                                refreshBookings();
+                                trackAction();
+                                // 极速模式：结账完成后瞬间关闭窗口，追求极致效率
+                                handleClose(); 
+                              } catch (error) {
                                 console.error("Failed to checkout:", error);
                                 alert("结算更新失败，请重试");
                                 setCheckoutSlideProgress(0); // 失败时回弹
@@ -1086,7 +1088,8 @@ export function DualPaneBookingModal({
                         try {
                           // 纯净网络预约：直接从数据库中物理抹除 (Hard Delete)
                           await BookingService.purgeBookings([editingBooking.id as string]);
-                          window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                          refreshBookings();
+                          trackAction();
                           onClose();
                         } catch (e) {
                           console.error("Reject failed:", e);

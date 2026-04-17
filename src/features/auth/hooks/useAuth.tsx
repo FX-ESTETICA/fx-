@@ -132,11 +132,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', nextSession.user.id)
           .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
 
+        // 【核心修复】：查询新表 bindings，使用 principal_id (对应 profiles.gx_id)
         const { data: bindings } = await supabase
-          .from('shop_bindings')
+          .from('bindings')
           .select('shop_id, role, shops(id, name, industry)')
-          .eq('user_id', nextSession.user.id);
+          .eq('principal_id', profile.gx_id);
+        
         let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
+
+        // 为了平滑过渡，同时兼容旧的 shop_bindings (如果是 OWNER)
+        if (!shopBindings || shopBindings.length === 0) {
+          const { data: oldBindings } = await supabase
+            .from('shop_bindings')
+            .select('shop_id, role, shops(id, name, industry)')
+            .eq('user_id', nextSession.user.id)
+            .eq('role', 'OWNER');
+          shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
+        }
 
         const isBoss = nextSession.user.email === ADMIN_EMAIL;
         
@@ -320,11 +332,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', activeSession.user.id)
         .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
 
+      // 【核心修复】：查询新表 bindings，使用 principal_id (对应 profiles.gx_id)
       const { data: bindings } = await supabase
-        .from('shop_bindings')
+        .from('bindings')
         .select('shop_id, role, shops(id, name, industry)')
-        .eq('user_id', activeSession.user.id);
+        .eq('principal_id', profile.gx_id);
+      
       let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
+
+      // 为了平滑过渡，同时兼容旧的 shop_bindings (如果是 OWNER)
+      if (!shopBindings || shopBindings.length === 0) {
+        const { data: oldBindings } = await supabase
+          .from('shop_bindings')
+          .select('shop_id, role, shops(id, name, industry)')
+          .eq('user_id', activeSession.user.id)
+          .eq('role', 'OWNER');
+        shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
+      }
 
       const isBoss = activeSession.user.email === ADMIN_EMAIL;
 
@@ -415,6 +439,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isMockMode) return;
     if (!user || !user.id) return;
+    
+    // 我们需要用户的 gxId 来订阅 bindings 表的变动
+    const profileGxId = 'gxId' in user ? user.gxId : null;
 
     const profileSubscription = supabase
       .channel(`public:profiles:${user.id}`)
@@ -429,10 +456,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .subscribe();
 
     const bindingsSubscription = supabase
-      .channel(`public:shop_bindings:${user.id}`)
+      .channel(`public:bindings:${profileGxId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'shop_bindings', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'bindings', filter: `principal_id=eq.${profileGxId}` },
         async (payload) => {
           console.log("[AuthProvider] Bindings realtime update received:", payload);
           await refreshUserData();
@@ -453,8 +480,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe();
 
-    // 监听全局 shops 表的变动 (处理门店名称修改、删除等情况)
-    // 注意：如果是普通用户可能没权限监听所有shops，但这里只用来触发刷新，所以不带 filter
+    // 修复：取消全局无 filter 的 shops 监听，因为配置更新会导致死循环
+    // 只有在真的需要时（比如新建了店）才手动触发刷新
+    /*
     const shopsSubscription = supabase
       .channel('public:shops:global')
       .on(
@@ -467,12 +495,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       )
       .subscribe();
+    */
 
     return () => {
       supabase.removeChannel(profileSubscription);
       supabase.removeChannel(bindingsSubscription);
       supabase.removeChannel(applicationsSubscription);
-      supabase.removeChannel(shopsSubscription);
+      // supabase.removeChannel(shopsSubscription);
     };
   }, [user, refreshUserData]); // 仅当 user 变化时重新订阅
 

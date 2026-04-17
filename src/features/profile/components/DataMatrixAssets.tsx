@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, X, Terminal } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 

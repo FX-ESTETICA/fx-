@@ -12,9 +12,11 @@ import {
   LogOut,
   Search
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BookingDetails } from "@/features/booking/types";
 import { BookingService } from "@/features/booking/api/booking";
+import { ShopOperatingConfig, DailyOverride } from "@/features/calendar/components/IndustryCalendar";
+import { TodayOverrideController } from "@/features/calendar/components/TodayOverrideController";
 import { cn } from "@/utils/cn";
 import Link from "next/link";
 import { PhoneAuthBar } from "./PhoneAuthBar";
@@ -25,7 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 
 interface MerchantDashboardProps {
@@ -97,12 +99,18 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
  * MerchantDashboard - 商家端管理看板
  * 采用 Admin Red (#FF2D55) 视觉规范
  */
+import { useViewStack } from "@/hooks/useViewStack";
+import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
+
 export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: MerchantDashboardProps) => {
   const t = useTranslations('MerchantDashboard');
-  const router = useRouter();
+  // const router = useRouter();
   const { user, signOut } = useAuth();
-  const { activeShopId, setActiveShopId, availableShops, subscription } = useShop();
-  const { remainingTime, isGracePeriodActive, gracePeriodActionsLeft } = subscription;
+  const { activeShopId, setActiveShopId, availableShops, subscription, shopConfig, isShopConfigLoaded, updateShopConfig, refreshBookings, trackAction } = useShop();
+  const { setActiveTab, pushOverlay } = useViewStack();
+  const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
+  const isGracePeriodActive = subscription.isGracePeriodActive;
+  const gracePeriodActionsLeft = subscription.gracePeriodActionsLeft;
   const [bookings, setBookings] = useState<BookingDetails[]>([]);
 
   // 多门店全局下拉菜单状态
@@ -115,107 +123,70 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
     (shop.shopName || "未知门店").toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  // 营业状态控制 (微动开关)
-  const [storeStatus, setStoreStatus] = useState<'open' | 'closed_today' | 'holiday'>('open');
+  // 从 ShopContext 全局中枢获取配置，并做防御性降维
+  const fullConfig = useMemo(() => {
+    if (!shopConfig || !shopConfig.hours) return null;
+    const parsedConfig = shopConfig.hours;
+    if (Array.isArray(parsedConfig)) return null;
+    
+    return {
+      ...parsedConfig,
+      regular: (parsedConfig as ShopOperatingConfig).regular || { monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] },
+      specialDates: (parsedConfig as ShopOperatingConfig).specialDates || {}
+    } as ShopOperatingConfig;
+  }, [shopConfig]);
 
-  // 营业时间无极滑轨状态 (HUD 风格)
-  const [openTime, setOpenTime] = useState(8); // 8:00
-  const [closeTime, setCloseTime] = useState(22); // 22:00
-  
-  // 状态与时间防抖同步状态
-  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
-  
-  useEffect(() => {
-    // 监听 config 变动，拉取店长设置的真实营业时间和状态
+  // 提取当天的 Override
+  const todayDateStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+  const todayOverride = fullConfig?.todayOverride?.date === todayDateStr ? fullConfig.todayOverride : null;
+
+  // 当 TodayOverrideController 改变时触发
+  const handleTodayOverrideChange = async (newOverride: DailyOverride | null) => {
     const targetShopId = activeShopId || shopId;
-    if (!targetShopId || targetShopId === 'default') return;
-
-    let isSubscribed = true;
-
-    // 【致命 0 污染法则】：无论如何，先强制把 UI 状态重置回系统的出厂默认值
-    // 彻底斩断上一个商店残留的数据污染
-    setStoreStatus('open');
-    setOpenTime(8);
-    setCloseTime(22);
-
-    const loadStoreConfig = async () => {
+    if (targetShopId && targetShopId !== 'default' && isShopConfigLoaded) {
       try {
-        const { data: config } = await BookingService.getConfigs(targetShopId);
-        if (!isSubscribed) return;
+        const newConfig: ShopOperatingConfig = fullConfig 
+          ? { ...fullConfig } 
+          : { regular: { monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] }, specialDates: {} };
+
+        newConfig.todayOverride = newOverride;
+
+        // 计算新的 storeStatus
+        let nextStoreStatus: 'open' | 'closed_today' | 'holiday' = 'open';
+        if (newOverride && newOverride.isClosed && newOverride.date === todayDateStr) {
+          nextStoreStatus = 'closed_today';
+        } else if (newConfig.specialDates && newConfig.specialDates[todayDateStr]?.isClosed) {
+          nextStoreStatus = 'holiday';
+        }
+
+        // 我们不能再只更新局部了，我们需要同时更新 hours 和 storeStatus，所以改用批量 API
+        const patchObj = {
+          hours: newConfig,
+          storeStatus: nextStoreStatus
+        };
+
+        // 乐观更新 + 强制物理写入
+        const { data: currentShop } = await supabase
+          .from('shops')
+          .select('config')
+          .eq('id', targetShopId)
+          .single();
+
+        const mergedConfig = {
+          ...(currentShop?.config as Record<string, unknown> || {}),
+          ...patchObj
+        };
+
+        // 乐观更新 context
+        updateShopConfig('hours', newConfig);
+        updateShopConfig('storeStatus', nextStoreStatus);
+
+        await supabase.from('shops').update({ config: mergedConfig }).eq('id', targetShopId);
         
-        if (config) {
-          // 只有数据库里有这个字段，才去覆盖默认值
-          if (config.storeStatus) {
-            setStoreStatus(config.storeStatus as any);
-          }
-          if (config.hours && Array.isArray(config.hours)) {
-            if (config.hours.length > 0) {
-              const h = config.hours[0] as any;
-              if (h.start !== undefined) setOpenTime(h.start);
-              if (h.end !== undefined) setCloseTime(h.end);
-            } else {
-              setOpenTime(8);
-              setCloseTime(22);
-            }
-          }
-          // 注意：如果 config 存在，但刚好没有 hours，它就会老老实实地保持前面强制设置的 8-22
-        }
-        setIsConfigLoaded(true);
+        refreshBookings();
+        trackAction();
       } catch (e) {
-        console.error("Failed to load store config for Dashboard", e);
-      }
-    };
-    loadStoreConfig();
-
-    // 挂载实时雷达监听
-    const channel = BookingService.subscribeToShopConfig(targetShopId, (payload) => {
-      const newConfig = payload.new?.config as any;
-      if (newConfig) {
-        if (newConfig.storeStatus) {
-          setStoreStatus(newConfig.storeStatus);
-        }
-        if (newConfig.hours && Array.isArray(newConfig.hours)) {
-          if (newConfig.hours.length > 0) {
-            const h = newConfig.hours[0];
-            if (h.start !== undefined) setOpenTime(h.start);
-            if (h.end !== undefined) setCloseTime(h.end);
-          } else {
-            // 如果全局营业时间被清空，则默认显示 0-24 或 8-22
-            setOpenTime(8);
-            setCloseTime(22);
-          }
-        }
-      }
-    });
-
-    return () => {
-      isSubscribed = false;
-      if (channel) BookingService.unsubscribe(channel);
-    };
-  }, [activeShopId, shopId]);
-
-  // 当店长操作开关时，立刻写入数据库
-  const handleStatusChange = async (newStatus: 'open' | 'closed_today' | 'holiday') => {
-    setStoreStatus(newStatus);
-    const targetShopId = activeShopId || shopId;
-    if (targetShopId && targetShopId !== 'default' && isConfigLoaded) {
-      try {
-        await BookingService.updateConfigs(targetShopId, 'storeStatus', newStatus);
-      } catch (e) {
-        console.error("Failed to update storeStatus", e);
-      }
-    }
-  };
-
-  // 当店长松开滑轨时，同步更新时间 (使用 useEffect 配合防抖，或者简单的失去焦点)
-  // 为了更简单的实现，我们可以在 onChange 里更新 state，然后在 onMouseUp / onTouchEnd 里写入数据库
-  const handleHoursSave = async (start: number, end: number) => {
-    const targetShopId = activeShopId || shopId;
-    if (targetShopId && targetShopId !== 'default' && isConfigLoaded) {
-      try {
-        await BookingService.updateConfigs(targetShopId, 'hours', [{ id: '1', start, end }]);
-      } catch (e) {
-        console.error("Failed to update hours", e);
+        console.error("Failed to update hours override", e);
       }
     }
   };
@@ -275,6 +246,26 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
     { id: "5", title: "机械臂理疗", views: "900", duration: "00:20", cover: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop" },
   ];
 
+  // ==========================================
+  // 【单页架构跳转适配】：Nebula 和 Studio 现在是全局 Overlay
+  // ==========================================
+  const handleNavigateToStudio = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // 【修复传递断层】：将当前在智控页选中的 activeShopId 透传给 Studio 引擎
+    const targetShopId = activeShopId || shopId;
+    pushOverlay('studio', { shopId: targetShopId });
+  };
+  
+  const handleNavigateToCalendar = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setActiveTab('calendar', { industry: industry || 'beauty' });
+  };
+  
+  const handleNavigateToNebula = (e: React.MouseEvent) => {
+    e.preventDefault();
+    pushOverlay('nebula');
+  };
+
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -308,8 +299,6 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
   // 2. 实时状态监听 (物理隔离)
   useEffect(() => {
     if (!shopId) return;
-    
-    // 订阅当前门店的所有预约变更
     const channel = BookingService.subscribeToShopBookings(shopId, (payload: unknown) => {
       const typedPayload = payload as ShopBookingPayload;
       console.log(`[MerchantDashboard] New event received for shop ${shopId}:`, typedPayload);
@@ -354,10 +343,10 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
     <div className="space-y-8 animate-in fade-in duration-700 relative">
       <GracePeriodBanner 
         remainingTime={remainingTime} 
-        remainingMilliseconds={subscription.remainingMilliseconds}
+        remainingMilliseconds={remainingMilliseconds}
         isReadOnlyMode={remainingTime === "LIMIT_EXCEEDED" && !isGracePeriodActive} 
         isGracePeriodActive={isGracePeriodActive} 
-        gracePeriodActionsLeft={gracePeriodActionsLeft}
+        gracePeriodActionsLeft={gracePeriodActionsLeft || 0}
       />
       
       {/* 待配置的数字门店横幅 - 核心 B 端流程闭环 */}
@@ -407,34 +396,34 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
       </GlassCard>
 
       {/* 核心控制台 (全息驾驶舱风格) - 贯穿全宽连体控制舱 */}
-      <div onClick={() => router.push('/studio')} className="cursor-pointer group">
-        <GlassCard className="p-6 overflow-visible relative z-40 group-hover:bg-white/[0.02] transition-all duration-500">
+      <div className="relative group">
+        <GlassCard className="p-6 overflow-visible relative z-40 transition-all duration-500">
         <div className="absolute inset-0 bg-gradient-to-r from-white/[0.02] via-transparent to-white/[0.02] pointer-events-none rounded-2xl" />
         <div className="absolute top-1/2 left-20 -translate-y-1/2 w-40 h-40 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500 pointer-events-none" />
         <div className="absolute top-1/2 right-20 -translate-y-1/2 w-40 h-40 bg-gx-purple/5 blur-[60px] rounded-full group-hover:bg-gx-purple/10 transition-all duration-500 pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col xl:flex-row items-center xl:items-center w-full gap-6 xl:gap-12 min-h-[80px]">
+        <div className="relative z-10 flex flex-row items-stretch w-full gap-4 md:gap-8">
           
           {/* 左侧控制中枢：店铺选择与状态开关 */}
-          <div className="flex flex-col xl:flex-row items-center shrink-0 w-full xl:w-auto justify-center xl:justify-start gap-6 xl:gap-8">
+          <div className="flex flex-col items-center shrink-0 w-[140px] md:w-64 border-r border-white/5 pr-4 md:pr-6 justify-center">
             {/* 门店统御区 (全局多店切换锚点) */}
-            <div className="flex flex-col relative items-center xl:items-start w-full xl:w-auto">
+            <div className="flex flex-col relative items-center w-full">
               <h3 
-                className="text-lg font-bold tracking-tight text-white/80 hover:text-white transition-colors flex items-center justify-center xl:justify-start gap-2 cursor-pointer w-full"
+                className="text-sm md:text-lg font-bold tracking-tight text-white/80 hover:text-white transition-colors flex items-center justify-center gap-2 cursor-pointer w-full"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setIsDropdownOpen(!isDropdownOpen);
                 }}
               >
-                <div className="truncate max-w-[200px] xl:max-w-[150px]">{activeShopName}</div>
+                <div className="truncate max-w-[100px] md:max-w-[150px] text-center">{activeShopName}</div>
                 <div className={cn(
-                  "text-[10px] text-white/30 flex items-center justify-center w-4 h-4 rounded-full hover:bg-white/10 hover:text-white transition-all",
+                  "text-[8px] md:text-[10px] text-white/30 flex items-center justify-center w-4 h-4 rounded-full hover:bg-white/10 hover:text-white transition-all shrink-0",
                   isDropdownOpen && "rotate-180 bg-white/10 text-white"
                 )}>▼</div>
               </h3>
-              <div className="text-white/40 text-[10px] uppercase tracking-widest font-mono group-hover:text-gx-cyan/60 transition-colors mt-0.5 text-center xl:text-left w-full">
-                <div>{t('txt_58a86b')}</div>
+              <div className="text-white/40 text-[8px] md:text-[10px] uppercase tracking-widest font-mono group-hover:text-gx-cyan/60 transition-colors mt-0.5 text-center w-full truncate">
+                <div>多门店切换引擎</div>
               </div>
 
               {/* 悬浮下拉菜单 (Glassmorphism 赛博空间) */}
@@ -491,145 +480,33 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
               )}
               
               {/* 移动端显示的箭头：绝对定位到右上角，不破坏居中结构 */}
-              <ArrowRight className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 transition-all shrink-0 xl:hidden" />
             </div>
 
-            {/* 状态控制微动开关 (Micro-Switches) */}
-            <div className="flex items-center justify-center gap-3 w-full xl:w-auto" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            {/* 装修数字门店专属按钮，紧贴在店铺名称下方，确保一比一对应 */}
+            <div className="flex justify-center w-full mt-4">
               <button 
-                onClick={() => handleStatusChange('open')} 
-                className={cn(
-                  "px-4 py-2 xl:px-3 xl:py-1.5 rounded-md text-xs xl:text-[10px] font-bold border transition-all uppercase tracking-widest flex-1 xl:flex-none", 
-                  storeStatus === 'open' ? "bg-gx-cyan/20 border-gx-cyan/50 text-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"
-                )}
+                onClick={handleNavigateToStudio}
+                className="flex items-center justify-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-full bg-white/5 border border-white/10 hover:bg-gx-cyan/10 hover:border-gx-cyan/30 hover:text-gx-cyan transition-all text-[9px] md:text-[11px] font-mono tracking-widest text-white/60 w-full max-w-[120px]"
               >
-                <div>{t('txt_145da8')}</div>
-              </button>
-              <button 
-                onClick={() => handleStatusChange('closed_today')} 
-                className={cn(
-                  "px-4 py-2 xl:px-3 xl:py-1.5 rounded-md text-xs xl:text-[10px] font-bold border transition-all uppercase tracking-widest flex-1 xl:flex-none", 
-                  storeStatus === 'closed_today' ? "bg-red-500/20 border-red-500/50 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"
-                )}
-              >
-                <div>{t('txt_52aa20')}</div>
-              </button>
-              <button 
-                onClick={() => handleStatusChange('holiday')} 
-                className={cn(
-                  "px-4 py-2 xl:px-3 xl:py-1.5 rounded-md text-xs xl:text-[10px] font-bold border transition-all uppercase tracking-widest flex-1 xl:flex-none", 
-                  storeStatus === 'holiday' ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.2)]" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"
-                )}
-              >
-                <div>{t('txt_99af0d')}</div>
+                <MonitorSmartphone className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
+                <span className="truncate">装修门店</span>
               </button>
             </div>
           </div>
 
-          {/* 右侧纯净滑轨区：营业时间矩阵 (HUD 无极滑轨) */}
-          <div className="flex-1 w-full relative bg-transparent flex items-center justify-center pt-10 pb-4 px-2 xl:px-8 xl:pt-4 xl:pb-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-            <div className="relative h-2 bg-white/5 rounded-full group-hover:bg-white/10 transition-colors w-full">
-              <div 
-                className={cn(
-                  "absolute h-full rounded-full transition-colors pointer-events-none",
-                  storeStatus === 'closed_today' ? "bg-red-500/30 group-hover:bg-red-500/50" :
-                  storeStatus === 'holiday' ? "bg-yellow-500/30 group-hover:bg-yellow-500/50" :
-                  "bg-gx-cyan/30 group-hover:bg-gx-cyan/50"
-                )}
-                style={{ 
-                  left: `${(openTime / 24) * 100}%`, 
-                  right: `${100 - (closeTime / 24) * 100}%` 
-                }}
-              />
-              
-              {storeStatus === 'open' && (
-                <>
-                  <input 
-                    type="range" 
-                    min="0" max="24" 
-                    value={openTime} 
-                    onChange={(e) => setOpenTime(Math.min(Number(e.target.value), closeTime - 1))}
-                    onMouseUp={() => handleHoursSave(openTime, closeTime)}
-                    onTouchEnd={() => handleHoursSave(openTime, closeTime)}
-                    className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none z-20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:cursor-grab active:[&::-webkit-slider-thumb]:cursor-grabbing [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:cursor-grab active:[&::-moz-range-thumb]:cursor-grabbing [&::-moz-range-thumb]:border-0"
-                  />
-                  <input 
-                    type="range" 
-                    min="0" max="24" 
-                    value={closeTime} 
-                    onChange={(e) => setCloseTime(Math.max(Number(e.target.value), openTime + 1))}
-                    onMouseUp={() => handleHoursSave(openTime, closeTime)}
-                    onTouchEnd={() => handleHoursSave(openTime, closeTime)}
-                    className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-none z-30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:cursor-grab active:[&::-webkit-slider-thumb]:cursor-grabbing [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:cursor-grab active:[&::-moz-range-thumb]:cursor-grabbing [&::-moz-range-thumb]:border-0"
-                  />
-                </>
-              )}
-              
-              {/* 起点发光节点指示器与悬浮时间 */}
-              <div 
-                className={cn("absolute top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10", storeStatus !== 'open' && "opacity-50")} 
-                style={{ left: `${(openTime / 24) * 100}%`, transform: 'translate(-50%, -50%)' }}
-              >
-                <div className={cn(
-                  "text-xs font-mono font-bold tracking-tighter mix-blend-screen text-shadow-sm group-hover:text-white transition-colors mb-2.5 whitespace-nowrap bg-black/60 px-2 py-1 rounded-md border backdrop-blur-md shadow-[0_0_10px_rgba(0,0,0,0.5)]",
-                  storeStatus === 'closed_today' ? "text-red-500 border-red-500/30" :
-                  storeStatus === 'holiday' ? "text-yellow-500 border-yellow-500/30" :
-                  "text-gx-cyan border-gx-cyan/30"
-                )}>
-                  {openTime.toString().padStart(2, '0')}:00
-                </div>
-                <div className={cn(
-                  "w-3.5 h-3.5 rounded-full transition-shadow relative",
-                  storeStatus === 'closed_today' ? "bg-red-500 shadow-[0_0_10px_#EF4444] group-hover:shadow-[0_0_15px_#EF4444]" :
-                  storeStatus === 'holiday' ? "bg-yellow-500 shadow-[0_0_10px_#EAB308] group-hover:shadow-[0_0_15px_#EAB308]" :
-                    "bg-gx-cyan shadow-[0_0_10px_#00F0FF] group-hover:shadow-[0_0_15px_#00F0FF]"
-                  )}>
-                    {storeStatus === 'open' && <div className="absolute inset-0 rounded-full bg-gx-cyan animate-ping opacity-40" />}
-                  </div>
-                </div>
-
-                {/* 终点发光节点指示器与悬浮时间 */}
-                <div 
-                  className={cn("absolute top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10", storeStatus !== 'open' && "opacity-50")} 
-                  style={{ left: `${(closeTime / 24) * 100}%`, transform: 'translate(-50%, -50%)' }}
-                >
-                  <div className={cn(
-                    "text-xs font-mono font-bold tracking-tighter mix-blend-screen text-shadow-sm group-hover:text-white transition-colors mb-2.5 whitespace-nowrap bg-black/60 px-2 py-1 rounded-md border backdrop-blur-md shadow-[0_0_10px_rgba(0,0,0,0.5)]",
-                    storeStatus === 'closed_today' ? "text-red-500 border-red-500/30" :
-                    storeStatus === 'holiday' ? "text-yellow-500 border-yellow-500/30" :
-                    "text-gx-cyan border-gx-cyan/30"
-                  )}>
-                    {closeTime.toString().padStart(2, '0')}:00
-                  </div>
-                  <div className={cn(
-                    "w-3.5 h-3.5 rounded-full transition-shadow relative",
-                    storeStatus === 'closed_today' ? "bg-red-500 shadow-[0_0_10px_#EF4444] group-hover:shadow-[0_0_15px_#EF4444]" :
-                    storeStatus === 'holiday' ? "bg-yellow-500 shadow-[0_0_10px_#EAB308] group-hover:shadow-[0_0_15px_#EAB308]" :
-                    "bg-gx-cyan shadow-[0_0_10px_#00F0FF] group-hover:shadow-[0_0_15px_#00F0FF]"
-                  )}>
-                    {storeStatus === 'open' && <div className="absolute inset-0 rounded-full bg-gx-cyan animate-ping opacity-40" />}
-                  </div>
-                </div>
-
-                {/* 锁单警告遮罩 */}
-                {storeStatus !== 'open' && (
-                  <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
-                    <div className={cn(
-                      "px-4 py-1.5 rounded-lg border backdrop-blur-md font-bold tracking-widest text-xs uppercase shadow-2xl",
-                      storeStatus === 'closed_today' ? "bg-red-500/10 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" :
-                      "bg-yellow-500/10 border-yellow-500/50 text-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
-                    )}>
-                      <div>{storeStatus === 'closed_today' ? t('status_closed_today') : t('status_vacation')}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-            </div>
-
+          <div className="flex-1 min-w-0 flex items-center justify-start pl-1 md:pl-4">
+            <TodayOverrideController 
+              todayOverride={todayOverride}
+              onChange={handleTodayOverrideChange}
+              title="今日营业时间控制舱"
+              subtitle=""
+              variant="minimal"
+              fullConfig={fullConfig}
+            />
           </div>
-        </GlassCard>
-      </div>
+        </div>
+      </GlassCard>
+    </div>
 
       {/* 功能入口区 - 横向连体数据舱 */}
       <GlassCard className="p-0 overflow-hidden relative">
@@ -642,7 +519,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
         <div className="relative z-10 grid grid-cols-2 divide-x divide-white/5">
           {/* 左侧：日历后台 */}
           {industry !== 'none' ? (
-            <Link href={`/calendar/${industry || 'beauty'}?shopId=${activeShopId || shopId || 'default'}`} prefetch={false} className="block group">
+            <div onClick={handleNavigateToCalendar} className="block group">
               <div className="p-4 sm:p-6 flex flex-col items-center justify-center gap-3 hover:bg-white/[0.02] transition-colors h-full cursor-pointer">
                 <div className="w-10 h-10 rounded-xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(0,240,255,0.1)]">
                   <Calendar className="w-5 h-5" />
@@ -652,7 +529,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
                   <p className="text-white/40 text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block">{t('txt_a75625')}</p>
                 </div>
               </div>
-            </Link>
+            </div>
           ) : (
             <div className="p-4 sm:p-6 flex flex-col items-center justify-center gap-3 opacity-50 cursor-not-allowed">
               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40">
@@ -665,7 +542,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
           )}
 
           {/* 右侧：星云入口 */}
-          <Link href="/nebula" prefetch={false} className="block group">
+          <div onClick={handleNavigateToNebula} className="block group">
             <div className="p-4 sm:p-6 flex flex-col items-center justify-center gap-3 hover:bg-white/[0.02] transition-colors h-full cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(168,85,247,0.1)]">
                 <Sparkles className="w-5 h-5" />
@@ -675,7 +552,7 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
                 <p className="text-white/40 text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block">{t('txt_66cf43')}</p>
               </div>
             </div>
-          </Link>
+          </div>
         </div>
       </GlassCard>
 

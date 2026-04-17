@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useChatEngine } from './hooks/useChatEngine';
 import { Blurhash } from 'react-blurhash';
 import { useTranslations } from "next-intl";

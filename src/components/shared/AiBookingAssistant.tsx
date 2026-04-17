@@ -1,10 +1,11 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Send, Mic, Phone, CalendarCheck, CheckCircle2 } from "lucide-react";
+import { X, Sparkles, Send, Mic, CalendarCheck } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 import { BookingService } from "@/features/booking/api/booking";
 import { useTranslations } from "next-intl";
+import { useShop } from "@/features/shop/ShopContext";
 
 interface Message {
   id: string;
@@ -24,7 +25,8 @@ interface AiBookingAssistantProps {
 }
 
 export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistantProps) {
-    const t = useTranslations('AiBookingAssistant');
+  const t = useTranslations('AiBookingAssistant');
+  const { refreshBookings, trackAction } = useShop();
   const config = shop?.config || {};
   const capsules = config.capsules || [];
   
@@ -34,13 +36,13 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
   // --- 防弹架构：完全原生接管 ---
   const [realCategories, setRealCategories] = useState<any[]>([]);
   const [realServices, setRealServices] = useState<any[]>([]);
-  const [isConfigLoading, setIsConfigLoading] = useState(false);
+  // 预留的状态
 
   // 核心：在弹窗打开时，穿透表层，直接向数据库底层 `shop_configs` 索要真实的日历配置数据
   useEffect(() => {
     if (isOpen && actualShopId) {
       const fetchDeepConfigs = async () => {
-        setIsConfigLoading(true);
+        // setIsConfigLoading(true);
         try {
           const { data } = await BookingService.getConfigs(actualShopId);
           if (data) {
@@ -50,7 +52,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
         } catch (e) {
           console.error("AI管家底层穿透拉取失败:", e);
         } finally {
-          setIsConfigLoading(false);
+          // setIsConfigLoading(false);
         }
       };
       fetchDeepConfigs();
@@ -161,9 +163,8 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
 
       // 5. 极其重要的物理级通讯：发射事件通知日历组件刷新！
       // 这能确保即使在同一个页面，日历也能瞬间捕获到这颗刚诞生的数据流星。
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
-      }
+      refreshBookings();
+      trackAction();
 
     } catch (err: any) {
       console.error("写入日历失败:", err);
@@ -212,7 +213,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
       const decoder = new TextDecoder();
       let done = false;
       let assistantContent = "";
-      let bookingActionData = undefined;
+      let bookingActionData: any = undefined;
 
       while (!done) {
         const { value, done: readerDone } = await reader.read();

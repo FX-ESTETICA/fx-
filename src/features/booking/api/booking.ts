@@ -2,6 +2,7 @@ import { supabase, isMockMode } from "@/lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { BookingDetails, DB_Booking } from "../types";
 import { BookingAdapter } from "../utils/adapter";
+import { addMutation, getMutations, clearMutations } from "./offlineQueue";
 
 export type BookingRecord = {
   id: string;
@@ -114,6 +115,49 @@ export const BookingService = {
     }
 
     return BookingAdapter.fromDB(data as DB_Booking);
+  },
+
+  // ==========================================
+  // 【离线优先架构】无网缓存与有网静默重传机制
+  // ==========================================
+  async syncOfflineMutations() {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    
+    try {
+      const mutations = await getMutations();
+      if (mutations.length === 0) return;
+      
+      console.log(`[BookingService] 🌐 网络恢复，正在静默重传 ${mutations.length} 个离线修改...`);
+      
+      // 这里为简单起见，按时间顺序重放。由于我们保存了完整 payload，可以直接调用对应方法
+      // （注意：需要避免死循环，所以在内部调用时要确保网络是通的，或者传入一个 bypassOffline 标志）
+      for (const m of mutations) {
+        try {
+          if (m.action === 'upsertBookings') {
+            await this.upsertBookings(m.payload, true);
+          } else if (m.action === 'updateBookingResource') {
+            await this.updateBookingResource(m.payload.id, m.payload.resourceId, true);
+          } else if (m.action === 'deleteBookings') {
+            await this.deleteBookings(m.payload, true);
+          } else if (m.action === 'restoreBookings') {
+            await this.restoreBookings(m.payload, true);
+          }
+        } catch (err) {
+          console.error(`[BookingService] ⚠️ 离线队列重放失败 (Action: ${m.action}):`, err);
+        }
+      }
+      
+      await clearMutations();
+      console.log(`[BookingService] ✅ 离线队列重传完毕。`);
+      
+      // 通知全局刷新
+      if (typeof window !== 'undefined') {
+        // 由于我们废弃了全局事件，这里其实最好是让 ShopContext 主动拉一次。
+        // 为了解耦，这里可以不发，因为成功 upsert 后 Realtime 会触发（如果你重新连上了 websocket）。
+      }
+    } catch (e) {
+      console.error("[BookingService] 离线队列同步失败:", e);
+    }
   },
 
   /**
@@ -370,9 +414,15 @@ export const BookingService = {
     return { data: formatted };
   },
 
-  async upsertBookings(bookings: BookingUpsertInput[]) {
+  async upsertBookings(bookings: BookingUpsertInput[], bypassOffline = false) {
     if (isMockMode) return;
-    
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine && !bypassOffline) {
+      console.log(`[BookingService] ⚠️ 检测到断网，已将 upsertBookings 动作缓存至本地 IndexedDB`);
+      await addMutation('upsertBookings', bookings);
+      return; // 乐观更新直接返回
+    }
+
     // 【世界顶端架构法则：物理分流插入与更新，彻底消灭 23502 陷阱】
     const inserts: any[] = [];
     const updates: any[] = [];
@@ -437,8 +487,14 @@ export const BookingService = {
     // 保留给未来批量更新使用
   },
 
-  async updateBookingResource(id: string, resourceId: string | null) {
+  async updateBookingResource(id: string, resourceId: string | null, bypassOffline = false) {
     if (isMockMode) return;
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine && !bypassOffline) {
+      console.log(`[BookingService] ⚠️ 检测到断网，已将 updateBookingResource 动作缓存至本地 IndexedDB`);
+      await addMutation('updateBookingResource', { id, resourceId });
+      return; // 乐观更新直接返回
+    }
 
     try {
       // 获取当前数据以更新其 JSONB 内容
@@ -598,10 +654,16 @@ export const BookingService = {
     }
   },
 
-  async deleteBookings(ids: string[]) {
+  async deleteBookings(ids: string[], bypassOffline = false) {
     if (isMockMode) return;
     
     if (!ids || ids.length === 0) return;
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine && !bypassOffline) {
+      console.log(`[BookingService] ⚠️ 检测到断网，已将 deleteBookings 动作缓存至本地 IndexedDB`);
+      await addMutation('deleteBookings', ids);
+      return;
+    }
 
     try {
       // 世界顶端防呆设计：软删除流放 (3天回收站)
@@ -650,9 +712,15 @@ export const BookingService = {
     return { data: formatted };
   },
 
-  async restoreBookings(ids: string[]) {
+  async restoreBookings(ids: string[], bypassOffline = false) {
     if (isMockMode) return;
     if (!ids || ids.length === 0) return;
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine && !bypassOffline) {
+      console.log(`[BookingService] ⚠️ 检测到断网，已将 restoreBookings 动作缓存至本地 IndexedDB`);
+      await addMutation('restoreBookings', ids);
+      return;
+    }
 
     try {
       const { error } = await supabase

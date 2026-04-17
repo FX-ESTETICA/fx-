@@ -93,6 +93,17 @@ export default function BossApprovalsPage() {
 
       if (bindError) throw bindError;
 
+      // 物理升维：将该用户的 profile role 永久升级为 merchant
+      const { error: upgradeError } = await supabase
+        .from('profiles')
+        .update({ role: 'merchant' })
+        .eq('id', app.user_id);
+
+      if (upgradeError) {
+        console.error("Failed to upgrade user role to merchant:", upgradeError);
+        // 不阻断流程，但这会导致该用户无法建单，最好记录日志
+      }
+
       // 4. 终极降维：如果存在集结码 (Nexus Code)，执行【双重绑定】，将大老板挂载为 SUPER_OWNER
       if (app.nexus_code) {
         // 先去 profiles 表查一下这个集结码 (gx_id) 是否真的存在，防止脏数据爆破

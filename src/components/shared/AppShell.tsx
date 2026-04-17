@@ -8,25 +8,29 @@ import { BottomNavBar } from "./BottomNavBar";
 import { GlobalWormholeCapsule } from "./GlobalWormholeCapsule";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 import { useShop } from "@/features/shop/ShopContext";
+import { useViewStack } from "@/hooks/useViewStack";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
   const { subscriptionModalMode, closeSubscriptionModal, subscription } = useShop();
+  const { activeTab, overlays } = useViewStack();
 
-  const isStandalonePage = pathname === "/login" || pathname === "/" || pathname === "/vision";
+  const isStandalonePage = pathname === "/login" || pathname === "/vision";
   // 白名单路由：绝对放行，防止回调死锁
   const isPublicRoute = isStandalonePage || pathname === "/auth/callback";
   
   if (isStandalonePage) return <>{children}</>;
 
-  // 终极上下文屏蔽：发现页和聊天室内（由于使用统一路由 /chat，通过 zustand 状态判断）彻底拔除底栏
-  const isDiscovery = pathname === "/discovery";
+  // 终极上下文屏蔽：发现页和聊天室内彻底拔除底栏
+  // 在单页架构中，我们通过 activeTab 和 overlays 来判断
+  const isDiscovery = activeTab === "discovery";
+  const hasOverlay = overlays.length > 0;
   
-  // 电脑端：聊天页面全局不显示底栏，由聊天页面自身在左侧渲染 BottomNavBar
-  // 手机端：进入聊天室(activeChat !== null)才隐藏，否则显示全局底栏
-  // 但为了简化逻辑，既然电脑端已经在左侧渲染了，全局的 BottomNavBar 在 /chat 路由下就直接隐藏
-  const showBottomTabs = !isDiscovery && pathname !== "/chat" && ["/home", "/me", "/dashboard"].includes(pathname || "");
+  // 只有在 Home, Me/Dashboard，且没有全局弹层时才显示底栏
+  // 【修复】：星云页面（/nebula）或装修页面（/studio）现在是原生路由，它们也不应该显示这个由 MainStage 控制的底导！
+  const isMainStageRoute = ["/", "/home", "/dashboard", "/me", "/chat", "/discovery", "/calendar"].some(p => pathname === p || pathname.startsWith("/calendar/"));
+  const showBottomTabs = !hasOverlay && !isDiscovery && activeTab !== "chat" && ["home", "me", "dashboard"].includes(activeTab) && isMainStageRoute;
 
   return (
     <div className="relative min-h-[100dvh] bg-transparent flex flex-col">
@@ -48,7 +52,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       )}
 
       {/* 3. 多门店管理全局“虫洞”悬浮枢纽：0冲突极简常驻 */}
-      <GlobalWormholeCapsule />
+      {!hasOverlay && <GlobalWormholeCapsule />}
 
       {/* 4. 全局算力矩阵大一统弹窗 (Global Subscription Matrix) - 修复无响应Bug */}
       <SubscriptionLimitModal 

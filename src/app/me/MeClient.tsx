@@ -15,8 +15,8 @@ export default function MePage() {
   useEffect(() => {
     if (isLoading) return;
     if (user) {
-      // 物理级强制重定向：彻底粉碎 Next.js App Router 的 Suspense 挂起死锁
-      window.location.replace("/dashboard");
+      // 在单页架构中，如果已经登录，应该由 MainStage 直接渲染 DashboardPage，这里不再需要硬跳转
+      // 这里的逻辑可以保留为空，或者触发 setActiveTab
     }
   }, [isLoading, user]);
 

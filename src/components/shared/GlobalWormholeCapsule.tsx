@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop } from "@/features/shop/ShopContext";
-import { useRouter } from "next/navigation";
 import { Zap, Store } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useViewStack } from "@/hooks/useViewStack";
 
 export const GlobalWormholeCapsule = () => {
   const { availableShops, setActiveShopId, activeShopId, subscription } = useShop();
-  const router = useRouter();
+  const { setActiveTab } = useViewStack();
   const [isOpen, setIsOpen] = useState(false);
   const capsuleRef = useRef<HTMLDivElement>(null);
 
@@ -42,8 +42,8 @@ export const GlobalWormholeCapsule = () => {
   const handleShopClick = (shop: typeof availableShops[0]) => {
     setActiveShopId(shop.shopId);
     setIsOpen(false);
-    // 精准折跃：跳转到对应行业的日历
-    router.push(`/calendar/${shop.industry || 'beauty'}`);
+    // 精准折跃：瞬间切换到对应行业的日历
+    setActiveTab('calendar', { industry: shop.industry || 'beauty' });
   };
 
   return (

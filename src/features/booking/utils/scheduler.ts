@@ -1,4 +1,4 @@
-import { BookingService, BookingRecord } from "../api/booking";
+import { BookingService } from "../api/booking";
 
 /**
  * BookingScheduler - 智能寻位调度大脑

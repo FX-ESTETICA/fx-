@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { Heart, MessageCircle, Play, Image as ImageIcon } from "lucide-react";
@@ -13,11 +13,31 @@ interface DiscoveryWaterfallProps {
   onItemClick?: (item: DiscoveryItem) => void;
 }
 
-/**
- * DiscoveryWaterfall - 发现页瀑布流组件
- * 采用高性能 CSS Columns 布局实现自适应瀑布流
- * 模拟 Bunny.net CDN 媒体分发效果
- */
+// 虚拟卡片包裹器：通过 IntersectionObserver 动态卸载屏幕外的重型 DOM
+const VirtualCardWrapper = ({ item, children }: { item: DiscoveryItem, children: React.ReactNode }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // 扩大缓冲区域，提前加载，防止滑动过快出现白块
+        setIsVisible(entry.isIntersecting);
+      },
+      { rootMargin: "600px" } 
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="break-inside-avoid mb-4" style={{ minHeight: `${(1 / item.aspectRatio) * 100 + 100}px` }}>
+      {isVisible ? children : null}
+    </div>
+  );
+};
+
 export const DiscoveryWaterfall = ({ 
   items, 
   onItemClick 
@@ -29,15 +49,15 @@ export const DiscoveryWaterfall = ({
   return (
     <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
       {items.map((item, index) => (
-        <motion.div
-          key={item.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.05 }}
-          className="break-inside-avoid"
-        >
-          <DiscoveryCard item={item} onClick={() => onItemClick?.(item)} />
-        </motion.div>
+        <VirtualCardWrapper key={item.id} item={item}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: Math.min(index * 0.05, 0.5) }} // 限制最大延迟时间
+          >
+            <DiscoveryCard item={item} onClick={() => onItemClick?.(item)} />
+          </motion.div>
+        </VirtualCardWrapper>
       ))}
     </div>
   );

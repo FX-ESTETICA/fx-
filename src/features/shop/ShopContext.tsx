@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { BookingService, BookingRealtimePayload } from "@/features/booking/api/booking";
 
 interface SubscriptionState {
   subscriptionTier: string;
@@ -10,8 +11,6 @@ interface SubscriptionState {
   subscriptionEndsAt: string | null;
   gracePeriodEndsAt: string | null;
   gracePeriodActionsLeft: number | null;
-  remainingTime: string | null;
-  remainingMilliseconds: number | null; // 新增：提供给 UI 做精确的阈值判断
   isGracePeriodActive: boolean;
   isLoaded: boolean;
   empireId: string | null;
@@ -27,6 +26,15 @@ interface ShopContextType {
   openSubscriptionModal: (mode: SubscriptionModalMode) => void;
   closeSubscriptionModal: () => void;
   subscriptionModalMode: SubscriptionModalMode;
+  // --- 全局配置中枢 ---
+  shopConfig: any | null; 
+  isShopConfigLoaded: boolean;
+  updateShopConfig: (key: string, payload: any) => Promise<void>;
+  updateFullShopConfig: (patchObj: Record<string, unknown>) => Promise<void>;
+  // --- 全局订单中枢 ---
+  globalBookings: any[];
+  refreshBookings: () => Promise<void>;
+  trackAction: () => Promise<void>;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -44,8 +52,6 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     subscriptionEndsAt: null,
     gracePeriodEndsAt: null,
     gracePeriodActionsLeft: null,
-    remainingTime: null,
-    remainingMilliseconds: null,
     isGracePeriodActive: false,
     isLoaded: false,
     empireId: null,
@@ -70,9 +76,15 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // 完全依赖 user.bindings，废除 isMockMode 逻辑
-  const availableShops = useMemo(() => {
-    return user && "bindings" in user && user.bindings ? user.bindings : [];
+  // 【致命修复】：使用 JSON.stringify 提取原始签名，防止 user 对象每次内存地址变更导致 availableShops 重算
+  const bindingsSignature = useMemo(() => {
+    if (!user || !("bindings" in user) || !user.bindings) return "[]";
+    return JSON.stringify(user.bindings);
   }, [user]);
+
+  const availableShops = useMemo(() => {
+    return JSON.parse(bindingsSignature);
+  }, [bindingsSignature]);
 
   const resolvedActiveShopId = useMemo(() => {
     if (availableShops.length === 0) return null;
@@ -99,13 +111,183 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
   const [subscriptionModalMode, setSubscriptionModalMode] = useState<SubscriptionModalMode>(null);
 
-  const openSubscriptionModal = (mode: SubscriptionModalMode) => {
+  const openSubscriptionModal = useCallback((mode: SubscriptionModalMode) => {
     setSubscriptionModalMode(mode);
-  };
+  }, []);
 
-  const closeSubscriptionModal = () => {
+  const closeSubscriptionModal = useCallback(() => {
     setSubscriptionModalMode(null);
-  };
+  }, []);
+
+  // ==========================================
+  // 全局门店配置中枢 (Shop Config Source of Truth)
+  // ==========================================
+  const [shopConfig, setShopConfig] = useState<any | null>(null);
+  const [isShopConfigLoaded, setIsShopConfigLoaded] = useState(false);
+
+  // ==========================================
+  // 全局订单中枢 (Bookings Source of Truth)
+  // ==========================================
+  const [globalBookings, setGlobalBookings] = useState<any[]>([]);
+
+  // 将加载订单提炼成一个全局的刷新函数，任何弹窗保存后都可以直接调它，代替原来的事件
+  const refreshBookings = useCallback(async () => {
+    if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
+    try {
+      const { data } = await BookingService.getBookings(resolvedActiveShopId);
+      // 预处理，防止空字段
+      const safeBookings = (data || []).map((booking: any) => ({
+        ...booking,
+        resourceId: booking.resourceId ?? null,
+        date: booking.date || "",
+        startTime: booking.startTime || "00:00",
+        duration: booking.duration ?? 0
+      }));
+      setGlobalBookings(safeBookings);
+    } catch (e) {
+      console.error("[ShopContext] Failed to load cloud bookings:", e);
+    }
+  }, [resolvedActiveShopId]);
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      console.log("[ShopContext] 🌐 网络已连接，触发离线队列重传");
+      await BookingService.syncOfflineMutations();
+      refreshBookings(); // 重传完后拉取最新云端数据，修正乐观更新可能存在的ID偏差
+    };
+    
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [refreshBookings]);
+
+  useEffect(() => {
+    if (!resolvedActiveShopId || resolvedActiveShopId === 'default') {
+      setShopConfig(null);
+      setIsShopConfigLoaded(true);
+      setGlobalBookings([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsShopConfigLoaded(false);
+
+    // 1. Initial Fetch
+    const fetchShopConfig = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('shops')
+          .select('config')
+          .eq('id', resolvedActiveShopId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (isMounted) {
+          setShopConfig(data?.config || {});
+          setIsShopConfigLoaded(true);
+        }
+      } catch (err) {
+        console.error("[ShopContext] Failed to load shop config:", err);
+        if (isMounted) setIsShopConfigLoaded(true);
+      }
+    };
+    fetchShopConfig();
+    
+    // 同时也立刻拉取一次订单
+    refreshBookings();
+
+    // 2. Realtime Subscription (Config)
+    const channelConfig = supabase
+      .channel(`shop_config_${resolvedActiveShopId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'shops', filter: `id=eq.${resolvedActiveShopId}` },
+        (payload) => {
+          console.log(`[ShopContext] Realtime Config change received for shop ${resolvedActiveShopId}:`, payload);
+          const newConfig = payload.new?.config;
+          if (newConfig && isMounted) {
+            setShopConfig(newConfig);
+          }
+        }
+      )
+      .subscribe();
+      
+    // 3. Realtime Subscription (Bookings)
+    // 接管原有的订单监听，直接在此处触发全局订单拉取
+    const channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
+      console.log(`[ShopContext] Realtime Bookings change received for shop ${resolvedActiveShopId}:`, payload);
+      refreshBookings();
+    });
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channelConfig);
+      if (channelBookings) {
+        BookingService.unsubscribe(channelBookings);
+      }
+    };
+  }, [resolvedActiveShopId, refreshBookings]);
+
+  // 原子级局部更新 API (乐观更新 + 数据库回写)
+  const updateShopConfig = useCallback(async (key: string, payload: any) => {
+    if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
+
+    // 乐观更新
+    const patch = { [key]: payload };
+    setShopConfig((prev: any) => ({ ...(prev || {}), ...patch }));
+
+    try {
+      // 因为数据库的 patch_shop_config RPC 可能存在静默失败（返回 204 但未实际写入），
+      // 这里采取绝对兜底方案：强制拉取最新数据，在前端进行深度合并，然后直接 Update 整行记录。
+      const { data: currentShop } = await supabase
+        .from('shops')
+        .select('config')
+        .eq('id', resolvedActiveShopId)
+        .single();
+
+      const mergedConfig = {
+        ...(currentShop?.config as Record<string, unknown> || {}),
+        ...patch
+      };
+
+      const { error } = await supabase.from('shops').update({ config: mergedConfig }).eq('id', resolvedActiveShopId);
+      if (error) {
+        console.error("[ShopContext] Update error:", error);
+      }
+    } catch (e) {
+      console.error("[ShopContext] Failed to update shop config:", e);
+    }
+  }, [resolvedActiveShopId]);
+
+  // 原子级批量更新 API (乐观更新 + 数据库回写)
+  const updateFullShopConfig = useCallback(async (patchObj: Record<string, unknown>) => {
+    if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
+
+    // 乐观更新
+    setShopConfig((prev: any) => ({ ...(prev || {}), ...patchObj }));
+
+    try {
+      // 强制使用 Update 兜底，绕过失效的 RPC
+      const { data: currentShop } = await supabase
+        .from('shops')
+        .select('config')
+        .eq('id', resolvedActiveShopId)
+        .single();
+
+      const mergedConfig = {
+        ...(currentShop?.config as Record<string, unknown> || {}),
+        ...patchObj
+      };
+
+      const { error } = await supabase.from('shops').update({ config: mergedConfig }).eq('id', resolvedActiveShopId);
+      if (error) {
+        console.error("[ShopContext] Update error:", error);
+      }
+    } catch (e) {
+      console.error("[ShopContext] Failed to update full shop config:", e);
+    }
+  }, [resolvedActiveShopId]);
 
   // ==========================================
   // 世界顶端：帝国级订阅联邦同步中枢 (Global Empire Context + Realtime)
@@ -243,79 +425,42 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       const elapsed = performance.now() - initPerformanceTime;
       const trueNow = new Date(initSystemTime + elapsed);
 
-      // 这里不要从外部的 subscription 对象解构，而是使用函数式的 setState
-      // 以确保每次 interval 都能拿到最新的 state，而不是闭包旧值
       setSubscription(prev => {
-        // 如果数据还没从云端拉下来，先不计算，保持原样，防止初始 null 闪烁
         if (!prev.isLoaded) return prev;
 
-        const { trialStartedAt, subscriptionEndsAt, subscriptionTier, gracePeriodEndsAt, gracePeriodActionsLeft } = prev;
+        const { trialStartedAt, subscriptionEndsAt, subscriptionTier, gracePeriodEndsAt, gracePeriodActionsLeft, isGracePeriodActive } = prev;
+        
+        let newIsGracePeriodActive = isGracePeriodActive;
 
-        // 1. 如果有真实的正式订阅到期时间 (通过 Paddle 购买后写入的 current_period_end)
         if (subscriptionEndsAt) {
           const end = new Date(subscriptionEndsAt);
           const diff = end.getTime() - trueNow.getTime();
-
-          if (diff > 0) {
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            // 如果大于 1 天，直接显示天数；否则显示精确倒计时
-            const timeStr = days > 0 ? `${days} 天` : `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            
-            return { ...prev, remainingTime: timeStr, remainingMilliseconds: diff, isGracePeriodActive: false };
-          } else {
-            return { ...prev, remainingTime: "MEMBERSHIP_EXPIRED", remainingMilliseconds: 0, isGracePeriodActive: false };
-          }
-        }
-
-        // 2. 原有的店级续命期逻辑 (店级配置的 grace_period_ends_at)
-        if (gracePeriodEndsAt) {
+          newIsGracePeriodActive = false;
+        } else if (gracePeriodEndsAt) {
           const end = new Date(gracePeriodEndsAt);
           const diff = end.getTime() - trueNow.getTime();
-          if (diff > 0) {
-            const h = Math.floor(diff / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((diff % (1000 * 60)) / 1000);
-            return { ...prev, remainingTime: `${h}H ${m}M ${s}S`, remainingMilliseconds: diff, isGracePeriodActive: true };
-          } else {
-            return { ...prev, remainingTime: "MEMBERSHIP_EXPIRED", remainingMilliseconds: 0, isGracePeriodActive: false };
-          }
-        }
-
-        // 如果在免费试用期
-        if (subscriptionTier === 'FREE' && trialStartedAt) {
+          newIsGracePeriodActive = diff > 0;
+        } else if (subscriptionTier === 'FREE' && trialStartedAt) {
           const start = new Date(trialStartedAt);
           const end = new Date(start.getTime() + 5 * 60 * 1000); // 5分钟满血试用
           const diff = end.getTime() - trueNow.getTime();
           
-          if (diff > 0) {
-            const h = Math.floor(diff / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((diff % (1000 * 60)) / 1000);
-            return { ...prev, remainingTime: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`, remainingMilliseconds: diff, isGracePeriodActive: false };
-          } else {
-            // 试用期结束，检查是否有紧急操作次数
-            if (gracePeriodActionsLeft !== null) {
-              if (gracePeriodActionsLeft > 0) {
-                // 还有剩余次数，处于续命期
-                return { ...prev, remainingTime: "GRACE_PERIOD", remainingMilliseconds: 0, isGracePeriodActive: true };
-              } else {
-                // 次数耗尽
-                return { ...prev, remainingTime: "ACTIONS_EXHAUSTED", remainingMilliseconds: 0, isGracePeriodActive: false };
-              }
+          if (diff <= 0) {
+            if (gracePeriodActionsLeft !== null && gracePeriodActionsLeft > 0) {
+              newIsGracePeriodActive = true;
             } else {
-              // 未开启续命
-              return { ...prev, remainingTime: "LIMIT_EXCEEDED", remainingMilliseconds: 0, isGracePeriodActive: false };
+              newIsGracePeriodActive = false;
             }
+          } else {
+            newIsGracePeriodActive = false;
           }
+        } else {
+          newIsGracePeriodActive = false;
         }
-        
-        // 如果免费试用尚未开始
-        if (subscriptionTier === 'FREE' && !trialStartedAt) {
-          return { ...prev, remainingTime: null, remainingMilliseconds: null, isGracePeriodActive: false };
+
+        // 只有当 isGracePeriodActive 真正发生物理状态翻转时，才触发 setSubscription 重绘
+        if (newIsGracePeriodActive !== isGracePeriodActive) {
+          return { ...prev, isGracePeriodActive: newIsGracePeriodActive };
         }
         
         return prev;
@@ -328,20 +473,55 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, []); // 移除依赖数组，让闭包只跑一次，内部用 setSubscription(prev => ...) 来计算
 
+  // --- 紧急运力续命逻辑：监听任意修改动作并扣减 ---
+  const trackAction = useCallback(async () => {
+    if (!subscription.isGracePeriodActive || subscription.gracePeriodActionsLeft === null || !subscription.empireId) return;
+    try {
+      const newActionsLeft = Math.max(0, subscription.gracePeriodActionsLeft - 1);
+      await supabase.from('profiles').update({ grace_period_actions_left: newActionsLeft }).eq('id', subscription.empireId);
+      // Realtime 会自动把新的次数同步到所有端
+    } catch (e) {
+      console.error("Failed to deduct grace period action:", e);
+    }
+  }, [subscription.isGracePeriodActive, subscription.gracePeriodActionsLeft, subscription.empireId]);
+
   const setActiveShopId = (shopId: string | null) => {
     setActiveShopIdState(shopId);
   };
 
+  const contextValue = useMemo(() => ({
+    activeShopId: resolvedActiveShopId, 
+    setActiveShopId, 
+    availableShops, 
+    subscription,
+    openSubscriptionModal,
+    closeSubscriptionModal,
+    subscriptionModalMode,
+    shopConfig,
+    isShopConfigLoaded,
+    updateShopConfig,
+    updateFullShopConfig,
+    globalBookings,
+    refreshBookings,
+    trackAction
+  }), [
+    resolvedActiveShopId, 
+    availableShops, 
+    subscription,
+    openSubscriptionModal,
+    closeSubscriptionModal,
+    subscriptionModalMode,
+    shopConfig,
+    isShopConfigLoaded,
+    updateShopConfig,
+    updateFullShopConfig,
+    globalBookings,
+    refreshBookings,
+    trackAction
+  ]);
+
   return (
-    <ShopContext.Provider value={{ 
-      activeShopId: resolvedActiveShopId, 
-      setActiveShopId, 
-      availableShops, 
-      subscription,
-      openSubscriptionModal,
-      closeSubscriptionModal,
-      subscriptionModalMode
-    }}>
+    <ShopContext.Provider value={contextValue}>
       {children}
     </ShopContext.Provider>
   );

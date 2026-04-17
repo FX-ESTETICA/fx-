@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronRight, ShieldCheck, Sparkles, Layers } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useTranslations } from "next-intl";

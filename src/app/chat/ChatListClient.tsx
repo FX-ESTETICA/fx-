@@ -40,7 +40,9 @@ export default function ChatListPage() {
           </div>
           
           {/* 桌面端：底部导航栏只在左侧显示，且手机端未选中聊天时也在此处显示底栏 */}
-          <BottomNavBar className="absolute bottom-0 left-0 right-0" />
+          <div className="absolute bottom-0 left-0 right-0 z-[100] pointer-events-auto">
+            <BottomNavBar />
+          </div>
         </div>
 
         {/* 右侧：主战场（手机端如果没选中则隐藏；平板/PC端如果没选中则显示星云空场占位符） */}

@@ -2,21 +2,27 @@
 
 import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MapPin, Search, ImagePlus, X, Clock, Plus, Star, Navigation2 } from "lucide-react";
-import { cn } from "@/utils/cn";
+import { MapPin, Search, ImagePlus, X, Clock, Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { StudioImageCropModal } from "./StudioImageCropModal";
 import { useTranslations } from "next-intl";
 import { ShopDetailView } from "@/components/shared/ShopDetailView";
+import { useViewStack } from "@/hooks/useViewStack";
 
 export function StudioLayout() {
     const t = useTranslations('StudioLayout');
-  const router = useRouter();
+  // const router = useRouter();
 
   const { user } = useAuth();
+
+  // 拦截智控页透传过来的特定 shopId (如果存在，说明是从“装修当前门店”按钮进来的)
+  const overlays = useViewStack(state => state.overlays);
+  const studioOverlay = overlays.find(o => o.id === 'studio');
+  const targetShopId = studioOverlay?.props?.shopId as string | undefined;
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form States
@@ -25,7 +31,7 @@ export function StudioLayout() {
   const [storeName, setStoreName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<{name: string, address: string, lat: number, lng: number} | null>(null);
-  const [isAddressExpanded, setIsAddressExpanded] = useState(false);
+  // const [isAddressExpanded, setIsAddressExpanded] = useState(false);
   const [autocompleteResults, setAutocompleteResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
@@ -51,26 +57,31 @@ export function StudioLayout() {
     const fetchExistingStore = async () => {
       if (!user?.id) return;
       try {
-        // 1. 查找用户的 OWNER 绑定记录
-        const { data: bindings, error: bindError } = await supabase
-          .from('shop_bindings')
-          .select('shop_id')
-          .eq('user_id', user.id)
-          .eq('role', 'OWNER')
-          .limit(1)
-          .maybeSingle();
+        let fetchTargetShopId = targetShopId;
 
-        if (bindError) {
-          console.error("Error fetching bindings:", bindError);
-          return;
+        // 如果没有透传特定的 shopId，才去 fallback 找用户的第一个 OWNER 店铺
+        if (!fetchTargetShopId) {
+          const { data: bindings, error: bindError } = await supabase
+            .from('shop_bindings')
+            .select('shop_id')
+            .eq('user_id', user.id)
+            .eq('role', 'OWNER')
+            .limit(1)
+            .maybeSingle();
+
+          if (bindError) {
+            console.error("Error fetching bindings:", bindError);
+            return;
+          }
+          fetchTargetShopId = bindings?.shop_id;
         }
 
-        if (bindings?.shop_id) {
+        if (fetchTargetShopId) {
           // 2. 拉取真实门店数据
           const { data: shopData, error: shopError } = await supabase
             .from('shops')
             .select('*')
-            .eq('id', bindings.shop_id)
+            .eq('id', fetchTargetShopId)
             .single();
 
           if (!shopError && shopData) {
@@ -97,7 +108,7 @@ export function StudioLayout() {
     };
 
     fetchExistingStore();
-  }, [user]);
+  }, [user, targetShopId]);
 
   const fetchPlaces = useCallback(async (input: string) => {
     if (!input || input.length < 2) {
@@ -189,7 +200,8 @@ export function StudioLayout() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('isStoreConfigured', 'true');
-        router.push('/dashboard');
+        // 部署成功后，退出弹层回到主舞台
+        window.history.back();
       }
     } catch (error: any) {
       console.error("Deploy failed:", error);
@@ -317,7 +329,9 @@ export function StudioLayout() {
     <div className="fixed inset-0 z-50 bg-black flex flex-col md:flex-row overflow-hidden text-white font-sans">
       {/* 极简返回按钮 - 悬浮 */}
       <button 
-        onClick={() => router.back()}
+        onClick={() => {
+          if (typeof window !== 'undefined') window.history.back();
+        }}
         className="absolute top-6 left-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
       >
         <ChevronLeft className="w-5 h-5" />

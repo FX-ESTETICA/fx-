@@ -1,4 +1,3 @@
-import React from "react";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useTranslations } from "next-intl";

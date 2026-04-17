@@ -1,17 +1,16 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Link from "next/link";
 import { cn } from "@/utils/cn";
 import { Home, Compass, User, MessageSquare } from "lucide-react";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useViewStack, TabId } from "@/hooks/useViewStack";
 
 export const BottomNavBar = ({ className }: { className?: string }) => {
   const t = useTranslations('BottomNavBar');
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { activeTab, setActiveTab } = useViewStack();
   
   // 闲置渐隐状态控制
   const [isIdle, setIsIdle] = useState(false);
@@ -48,11 +47,11 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
   }, [pathname]); // 路由切换也重置
 
   // 缝合聊天大枢纽入口
-  const tabRoutes = [
-    { href: "/home", label: t('nav_home'), icon: Home },
-    { href: "/discovery", label: t('nav_discovery'), icon: Compass },
-    { href: "/chat", label: t('nav_chat'), icon: MessageSquare },
-    { href: user ? "/dashboard" : "/me", label: t('nav_me'), icon: User },
+  const tabRoutes: { id: TabId, label: string, icon: any }[] = [
+    { id: "home", label: t('nav_home'), icon: Home },
+    { id: "discovery", label: t('nav_discovery'), icon: Compass },
+    { id: "chat", label: t('nav_chat'), icon: MessageSquare },
+    { id: "me", label: t('nav_me'), icon: User },
   ];
 
   return (
@@ -63,26 +62,30 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
         className
       )}
     >
-      {/* 
-        【返璞归真法则】: 彻底移除 transformZ 和 mixBlendMode。
-        使用最原始的 rgba 线性渐变，防止任何移动端浏览器或 WebKit 内核触发底层的“模糊/重绘”Bug。
-        这确保了在所有设备上都是绝对通透的“无界幽灵”状态。
-      */}
       <div 
         className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" 
         style={{ background: 'linear-gradient(to top, rgba(0,0,0, 0.9) 0%, rgba(0,0,0, 0) 100%)' }} 
       />
       <div className="w-full px-4 pb-[env(safe-area-inset-bottom)] relative pointer-events-auto">
-        {/* 彻底去除背景与边框，实现幽灵态全息悬浮 */}
         <div className="flex items-center justify-around p-2 bg-transparent">
-          {tabRoutes.map(({ href, label, icon: Icon }) => {
-            // 智能激活态：如果当前是我的页或仪表盘，且标签为"我的"，则保持高亮
-            const active = pathname === href || (label === t('nav_me') && (pathname === "/me" || pathname === "/dashboard"));
+          {tabRoutes.map(({ id, label, icon: Icon }) => {
+            const active = activeTab === id || (id === "me" && activeTab === "dashboard" as any);
             return (
-              <Link
-                key={label} // 使用稳定的 label 作为 key，防止 href 变化导致组件卸载重绘
-                href={href}
-                prefetch={true} // 启用 Next.js 原生预加载，实现真正的秒开
+              <button
+                key={label}
+                onClick={() => {
+                  // 【降维打击终极防逃逸】：如果当前其实并不在主舞台 (MainStage)，
+                  // 比如通过手速或者后退键到了星云页面，点击底导时必须强制 router.push('/')
+                  // 然后再派发 setActiveTab，从而强行把用户拉回单页架构的世界！
+                  // 【修复】：/chat 页面已经在我们的白名单里，不再属于外部逃逸页面，不需要重置！
+                  if (!["/", "/home", "/dashboard", "/me", "/chat", "/discovery", "/calendar"].some(p => pathname === p || pathname.startsWith("/calendar/"))) {
+                    window.location.href = '/';
+                    // 不用等待跳转，直接先改状态，下个页面瞬间就对位
+                    setTimeout(() => setActiveTab(id), 10);
+                  } else {
+                    setActiveTab(id);
+                  }
+                }}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all",
                   active ? "text-gx-cyan" : "text-white/40 hover:text-white/70"
@@ -90,7 +93,7 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
               >
                 <Icon className={cn("w-5 h-5", active ? "drop-shadow-[0_0_12px_rgba(0,240,255,0.5)]" : "drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]")} />
                 <span className="text-[10px] font-mono uppercase tracking-widest drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">{label}</span>
-              </Link>
+              </button>
             );
           })}
         </div>
