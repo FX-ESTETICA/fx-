@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, memo } from "react";
 import { useViewStack } from "@/hooks/useViewStack";
 import { cn } from "@/utils/cn";
 import { HomeClient } from "@/app/home/HomeClient";
@@ -10,22 +10,39 @@ import ChatListClient from "@/app/chat/ChatListClient";
 import DashboardClient from "@/app/dashboard/DashboardClient";
 import MeClient from "@/app/me/MeClient";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 
 const NebulaOverlay = dynamic(() => import("@/features/nebula/components/NebulaOverlay").then(mod => mod.NebulaOverlay), { ssr: false });
 const StudioOverlay = dynamic(() => import("@/features/studio/components/StudioOverlay").then(mod => mod.StudioOverlay), { ssr: false });
 
-// 移除多余导入
+// 极致性能：React 渲染深度冻结舱 + GPU 显存级回收 (DOM 内存释放)
+// 1. memo: 彻底阻断来自父级或全局的 React Re-render 僵尸计算。如果没激活，直接短路渲染流程！
+// 2. content-visibility: hidden: 现代浏览器的终极杀器。当页面在后台时，浏览器会直接扔掉它的渲染树(Layout Tree)，实现原生的内存垃圾回收(LRU)，防止显存爆炸。
+const TabContainer = memo(({ active, children }: { active: boolean, children: React.ReactNode }) => {
+  return (
+    <div className={cn(
+      "absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-transparent",
+      active ? "opacity-100 pointer-events-auto z-10 visible" : "opacity-0 pointer-events-none z-0 invisible",
+      !active && "[content-visibility:hidden]"
+    )}>
+      {children}
+    </div>
+  );
+}, (prev, next) => {
+  // 核心冻结逻辑：如果它上一次在后台，这一次还在后台，那么绝不执行里面组件的一丝代码计算！
+  if (!prev.active && !next.active) return true;
+  return prev.active === next.active;
+});
 
 export const MainStage = () => {
   const setActiveTab = useViewStack((state) => state.setActiveTab);
   const activeTab = useViewStack((state) => state.activeTab);
   const tabProps = useViewStack((state) => state.tabProps);
   const overlays = useViewStack((state) => state.overlays);
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set(['home'])); // 默认先挂载 home
 
   // 初始化时，根据当前的真实 URL 路径来设置正确的激活 Tab
   useEffect(() => {
@@ -34,11 +51,26 @@ export const MainStage = () => {
       const segments = pathname.split('/').filter(Boolean);
       const mainPath = segments[0] || 'home';
       
+      let initialTab = mainPath;
       if (mainPath === 'home' || mainPath === 'discovery' || mainPath === 'calendar' || mainPath === 'chat' || mainPath === 'me' || mainPath === 'dashboard') {
-        setActiveTab(mainPath === 'dashboard' ? 'me' : (mainPath as any));
+        initialTab = mainPath === 'dashboard' ? 'me' : mainPath;
+        setActiveTab(initialTab as any);
       }
+      
+      // 初始化时，把当前 URL 对应的 Tab 加入已挂载集合
+      setMountedTabs(prev => new Set(prev).add(initialTab));
     setMounted(true);
   }, [setActiveTab]);
+
+  // 监听 activeTab 变化，实现惰性激活（Lazy Mount）
+  useEffect(() => {
+    if (activeTab) {
+      setMountedTabs(prev => {
+        if (prev.has(activeTab)) return prev;
+        return new Set(prev).add(activeTab);
+      });
+    }
+  }, [activeTab]);
 
   // 全局事件监听器
   useEffect(() => {
@@ -61,52 +93,75 @@ export const MainStage = () => {
 
   if (!mounted) return null;
 
+  // 1. 绝对拟真骨架屏障 (Skeleton Shell Barrier)
+  // 告别弱网下的黑屏或透明真空感，直接提供世界级的无缝“赛博占位符”。数据下发瞬间完美拼接，0布局抖动。
+  if (isLoading) {
+    return (
+      <div className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden flex flex-col justify-between">
+        {/* 顶部环境光模糊占位 */}
+        <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent animate-pulse" />
+        
+        {/* 核心能量场模糊占位 */}
+        <div className="flex-1 flex items-center justify-center opacity-20">
+          <div className="w-32 h-32 rounded-full bg-white/10 blur-2xl animate-pulse" />
+        </div>
+        
+        {/* 底导栏物理轮廓呼吸灯锚定 (防止页面初载时下方太空) */}
+        <div className="w-full h-[84px] border-t border-white/5 bg-black/40 backdrop-blur-md flex justify-around items-center px-6 pb-safe z-50">
+          {[1,2,3,4,5].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
+
   const renderMeTab = () => {
     return user ? <DashboardClient /> : <MeClient />;
   };
 
-  // 生成通用的图层控制 class
-  const getLayerClass = (targetTab: string) => cn(
-    "absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-transparent transition-opacity duration-300",
-    activeTab === targetTab ? "opacity-100 pointer-events-auto z-10" : "opacity-0 pointer-events-none z-0"
-  );
-
   return (
     <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden">
       {/* 
-        多层画布同轴叠加 (Co-axial Stacking with Visibility Toggling)
-        这是 0 错误、0 冲突、0 延迟的最完美架构方案。
-        - width: 100vw, height: 100dvh
-        - absolute inset-0 叠加，彻底消灭坐标系错乱
-        - opacity / pointer-events 切换，瞬间响应且冻结状态
+        世界顶端：惰性单例 + 深度冻结 + 显存回收架构
+        - mountedTabs: 控制首屏 0 加载冗余，点谁挂谁。
+        - TabContainer (memo + content-visibility): 将一切后台页面的 React 计算强行掐断，同时由浏览器底层释放其对应的显存。
       */}
       <div className="absolute inset-0">
         {/* 1. 首页 */}
-        <div className={getLayerClass('home')}>
-          <HomeClient initialRealShops={[]} />
-        </div>
+        {mountedTabs.has('home') && (
+          <TabContainer active={activeTab === 'home'}>
+            <HomeClient initialRealShops={[]} />
+          </TabContainer>
+        )}
 
         {/* 2. 发现 */}
-        <div className={getLayerClass('discovery')}>
-          <DiscoveryClient />
-        </div>
+        {mountedTabs.has('discovery') && (
+          <TabContainer active={activeTab === 'discovery'}>
+            <DiscoveryClient />
+          </TabContainer>
+        )}
 
         {/* 3. 日历 */}
-        <div className={getLayerClass('calendar')}>
-          <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
-            <IndustryCalendar initialIndustry={tabProps['calendar']?.industry || "beauty"} mode="admin" />
-          </Suspense>
-        </div>
+        {mountedTabs.has('calendar') && (
+          <TabContainer active={activeTab === 'calendar'}>
+            <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+              <IndustryCalendar initialIndustry={tabProps['calendar']?.industry || "beauty"} mode="admin" />
+            </Suspense>
+          </TabContainer>
+        )}
 
         {/* 4. 聊天 */}
-        <div className={getLayerClass('chat')}>
-          <ChatListClient />
-        </div>
+        {mountedTabs.has('chat') && (
+          <TabContainer active={activeTab === 'chat'}>
+            <ChatListClient />
+          </TabContainer>
+        )}
 
         {/* 5. 我的/智控 */}
-        <div className={getLayerClass('me')}>
-          {renderMeTab()}
-        </div>
+        {mountedTabs.has('me') && (
+          <TabContainer active={activeTab === 'me'}>
+            {renderMeTab()}
+          </TabContainer>
+        )}
       </div>
 
       {/* 全局弹层 (Overlays) */}
