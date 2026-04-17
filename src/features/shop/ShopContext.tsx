@@ -431,13 +431,13 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       setSubscription(prev => {
         if (!prev.isLoaded) return prev;
 
-        const { trialStartedAt, subscriptionEndsAt, subscriptionTier, gracePeriodEndsAt, gracePeriodActionsLeft, isGracePeriodActive } = prev;
+        const { trialStartedAt, subscriptionEndsAt, subscriptionTier, gracePeriodEndsAt, gracePeriodActionsLeft } = prev;
         
-        let newIsGracePeriodActive = isGracePeriodActive;
+        let newIsGracePeriodActive = prev.isGracePeriodActive;
 
         if (subscriptionEndsAt) {
           const end = new Date(subscriptionEndsAt);
-          const diff = end.getTime() - trueNow.getTime();
+          // const diff = end.getTime() - trueNow.getTime();
           newIsGracePeriodActive = false;
         } else if (gracePeriodEndsAt) {
           const end = new Date(gracePeriodEndsAt);
@@ -462,7 +462,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // 只有当 isGracePeriodActive 真正发生物理状态翻转时，才触发 setSubscription 重绘
-        if (newIsGracePeriodActive !== isGracePeriodActive) {
+        if (newIsGracePeriodActive !== prev.isGracePeriodActive) {
           return { ...prev, isGracePeriodActive: newIsGracePeriodActive };
         }
         
