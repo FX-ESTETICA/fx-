@@ -90,6 +90,14 @@ export function NativeBridgeProvider() {
         const { pop } = useHardwareBack.getState();
         if (pop()) return; // 拦截器已消费该事件，终止后退
 
+        // 1.5 终极叠加层优先级：检查是否处于高维弹层 (Nebula 星云 / Studio 数字门店等)
+        const { overlays } = useViewStack.getState();
+        if (overlays.length > 0) {
+          // 触发浏览器原生后退，这会被 useViewStack 的 popstate 监听器捕获，从而完美剥离当前处于顶部的 Overlay
+          window.history.back();
+          return;
+        }
+
         const path = window.location.pathname;
         
         // 2. 第二优先级：主导航归位（发现、聊天、我的页 -> 强制归位到首页，修复 SPA Tab 切换无历史记录的问题）
@@ -98,14 +106,6 @@ export function NativeBridgeProvider() {
           const { setActiveTab } = useViewStack.getState();
           setActiveTab('home');
           router.replace('/');
-          return;
-        }
-        
-        // 特殊处理：如果当前在星云主界面 (/nebula) 或数字门店 (/studio)，物理返回键必须强制切回“我的”页 (Dashboard/Me)
-        if (path.startsWith('/nebula') || path.startsWith('/studio')) {
-          const { setActiveTab } = useViewStack.getState();
-          setActiveTab('me');
-          router.replace('/dashboard');
           return;
         }
 

@@ -12,6 +12,8 @@ import { useTranslations } from "next-intl";
 import { ShopDetailView } from "@/components/shared/ShopDetailView";
 import { useViewStack } from "@/hooks/useViewStack";
 
+import { useHardwareBack } from "@/hooks/useHardwareBack";
+
 export function StudioLayout() {
     const t = useTranslations('StudioLayout');
   // const router = useRouter();
@@ -330,8 +332,6 @@ export function StudioLayout() {
       {/* 极简返回按钮 - 悬浮 */}
       <button 
         onClick={() => {
-          const event = new CustomEvent('gx-set-tab', { detail: 'me' });
-          window.dispatchEvent(event);
           if (typeof window !== 'undefined') window.history.back();
         }}
         className="absolute top-6 left-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
