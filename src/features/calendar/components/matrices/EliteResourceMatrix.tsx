@@ -937,7 +937,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                       await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
                                       setImplodedOrderId(null);
                                       setSplitServiceAssignments({});
-                                      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                      refreshBookings();
+                                      trackAction();
                                     })
                                     .catch(err => console.error("Batch split failed:", err))
                                     .finally(() => setProcessingOrderId(null)); // 释放锁
@@ -951,7 +952,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                       await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
                                       setImplodedOrderId(null);
                                       setSplitServiceAssignments({});
-                                      window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                      refreshBookings();
+                                      trackAction();
                                     })
                                     .catch(err => console.error("Update resource failed:", err))
                                     .finally(() => setProcessingOrderId(null)); // 释放锁
@@ -1040,7 +1042,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                             // 强制全局唤醒智能排盘大脑，处理重叠
                                             await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
                                             setImplodedOrderId(null);
-                                            window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                            refreshBookings();
+                                            trackAction();
                                           });
                                       } else {
                                         // 多项拆单：激活该员工，等待点击项目
@@ -1056,7 +1059,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                             // 强制全局唤醒智能排盘大脑，处理重叠
                                             await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
                                             setImplodedOrderId(null);
-                                            window.dispatchEvent(new Event('gx-sandbox-bookings-updated'));
+                                            refreshBookings();
+                                            trackAction();
                                           });
                                       }
                                     }}

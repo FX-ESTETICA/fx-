@@ -674,18 +674,26 @@ export function DualPaneBookingModal({
 
       // 【终极排爆过滤】：不要把今天所有的订单都保存进去！
       // 只有那些 真正发生了变化 的订单才允许放行
-      // 我们通过比对它原始从数据库拉取时的 resourceId (存在 bookingsData 中)
-      const originalStateMap = new Map((bookingsData as ReflowBooking[] || []).map(b => [b.id, b.resourceId]));
+      // 我们通过比对它原始从数据库拉取时的 resourceId 和 startTime
+      const originalStateMap = new Map((bookingsData as ReflowBooking[] || []).map(b => [b.id, {
+        resourceId: b.resourceId,
+        startTime: b.startTime
+      }]));
 
       const finalUpdatedBookings = placedBookings
         .filter(b => {
           if (!b.id) return false;
           // 1. 如果是本次新建的订单，绝对放行
           if (newBookingIds.has(b.id)) return true;
-          // 2. 如果是无指定订单，且经过重排后，它的 resourceId 确实和原数据库中的不一样了，放行
+          // 2. 如果是旧订单，且经过重排后，它的 resourceId 或 startTime 确实和原数据库中的不一样了，放行
           if (oldUnassignedIds.has(b.id)) {
-            const originalResourceId = originalStateMap.get(b.id);
-            return b.resourceId !== originalResourceId;
+            const originalState = originalStateMap.get(b.id);
+            if (!originalState) return true; // 如果找不到原始状态（理论上不可能），保险起见放行
+            
+            const resourceChanged = b.resourceId !== originalState.resourceId;
+            const timeChanged = b.startTime !== originalState.startTime;
+            
+            return resourceChanged || timeChanged;
           }
           return false;
         })
