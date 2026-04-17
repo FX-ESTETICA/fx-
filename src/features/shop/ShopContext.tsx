@@ -442,8 +442,6 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         let newIsGracePeriodActive = prev.isGracePeriodActive;
 
         if (subscriptionEndsAt) {
-          const end = new Date(subscriptionEndsAt);
-          // const diff = end.getTime() - trueNow.getTime();
           newIsGracePeriodActive = false;
         } else if (gracePeriodEndsAt) {
           const end = new Date(gracePeriodEndsAt);

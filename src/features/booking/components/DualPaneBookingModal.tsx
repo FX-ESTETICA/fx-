@@ -659,14 +659,29 @@ export function DualPaneBookingModal({
         placedBookings.push(unassignedBkg);
       });
 
-      // 7. 合并重排后的今日订单与非今日订单，存盘
-      const finalUpdatedBookings = [...otherDayBookings, ...placedBookings].map((booking) => ({
-        ...booking,
-        resourceId: booking.resourceId ?? undefined
-      }));
+      // 7. 【世界顶端架构：精准手术级保存】
+      // 绝不全量陪绑！只从 placedBookings 中挑出真正发生物理改变的订单：
+      // A. 本次新建或编辑的订单 (newBookingIds)
+      // B. 因为避让而重新分配了座位的旧“无指定”订单 (oldUnassignedIds)
+      const newBookingIds = new Set(newBookings.map(b => b.id));
+      const oldUnassignedIds = new Set(
+        unassignedBookings.map(b => b.id).filter(id => id && !newBookingIds.has(id))
+      );
+
+      const finalUpdatedBookings = placedBookings
+        .filter(b => b.id && (newBookingIds.has(b.id) || oldUnassignedIds.has(b.id)))
+        .map((booking) => ({
+          ...booking,
+          resourceId: booking.resourceId ?? undefined
+        }));
       
-      // 异步保存到 Supabase
-      await BookingService.upsertBookings(finalUpdatedBookings);
+      // 如果原订单被拆分产生新ID，需要从数据库物理抹除旧ID
+      if (editingBooking && editingBooking.id && !newBookingIds.has(editingBooking.id)) {
+         await BookingService.deleteBookings([editingBooking.id as string]);
+      }
+
+      // 异步保存到 Supabase (只更新那几条，彻底消灭全量更新导致的 WebSocket 风暴)
+      await BookingService.upsertBookings(finalUpdatedBookings as BookingEdit[]);
       
       // 核心修复：虽然有实时引擎，但是由于我们取消了全局重新拉取，
       // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据

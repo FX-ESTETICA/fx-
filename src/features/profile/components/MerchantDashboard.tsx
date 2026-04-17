@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { BookingDetails } from "@/features/booking/types";
-import { BookingService } from "@/features/booking/api/booking";
 import { ShopOperatingConfig, DailyOverride } from "@/features/calendar/components/IndustryCalendar";
 import { TodayOverrideController } from "@/features/calendar/components/TodayOverrideController";
 import { cn } from "@/utils/cn";
@@ -37,45 +36,6 @@ interface MerchantDashboardProps {
   onIndustrySet?: (industry: string) => void;
   profile?: UserProfile;
 }
-
-type ServiceInfo = {
-  id?: string;
-  name?: string;
-};
-
-type BookingRecord = {
-  id: string;
-  date: string;
-  startTime: string;
-  duration: number;
-  status?: string;
-  services?: ServiceInfo[];
-  customServiceText?: string;
-  customer_name?: string;
-  customerName?: string;
-  customer_phone?: string;
-  customerPhone?: string;
-};
-
-type ShopBookingPayload = {
-  eventType: string;
-  new?: {
-    id: string;
-    date: string;
-    start_time: string;
-    duration_min: number;
-    status?: string;
-    data?: {
-      services?: ServiceInfo[];
-      customServiceText?: string;
-      customer_name?: string;
-      customerName?: string;
-      customer_phone?: string;
-      customerPhone?: string;
-    };
-  };
-  old?: { id?: string };
-};
 
 type StatsCardProps = {
   label: string;
@@ -102,7 +62,7 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
 import { useViewStack } from "@/hooks/useViewStack";
 import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
-export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: MerchantDashboardProps) => {
+export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboardProps) => {
   const t = useTranslations('MerchantDashboard');
   // const router = useRouter();
   const { user, signOut } = useAuth();
