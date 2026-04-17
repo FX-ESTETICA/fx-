@@ -691,7 +691,7 @@ export function DualPaneBookingModal({
         })
         .map((booking) => ({
           ...booking,
-          resourceId: booking.resourceId ?? undefined
+          resourceId: booking.resourceId ?? null // 【关键修复】：Supabase 需要 null 而不是 undefined 才能清空外键/字段
         }));
       
       // 如果原订单被拆分产生新ID，需要从数据库物理抹除旧ID
@@ -700,7 +700,12 @@ export function DualPaneBookingModal({
       }
 
       // 异步保存到 Supabase (只更新那几条，彻底消灭全量更新导致的 WebSocket 风暴)
-      await BookingService.upsertBookings(finalUpdatedBookings as BookingEdit[]);
+      const payload: BookingUpsertInput[] = finalUpdatedBookings.map(b => ({
+        ...b,
+        date: b.date || baseDate, // 确保有默认值，因为 BookingUpsertInput 要求 date 必须是 string
+        startTime: b.startTime || "00:00"
+      })) as BookingUpsertInput[];
+      await BookingService.upsertBookings(payload);
       
       // 核心修复：虽然有实时引擎，但是由于我们取消了全局重新拉取，
       // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据

@@ -328,7 +328,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', empireId)
           .maybeSingle();
 
-        let finalTrialStartedAt = profileData?.trial_started_at;
+        const finalTrialStartedAt = profileData?.trial_started_at;
         
         // 【单轨制强控】完全废弃前端 localStorage 的双轨同步！
         // 只有当云端真实存在 trial_started_at 时才承认。防止用户篡改本地缓存获取无限试用期。
