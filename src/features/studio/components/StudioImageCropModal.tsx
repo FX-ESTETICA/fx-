@@ -7,6 +7,7 @@ import { X, Check } from "lucide-react";
 import { Button } from "@/components/shared/Button";
 import { getCroppedImg } from "@/utils/cropImage";
 import { useTranslations } from "next-intl";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 interface StudioImageCropModalProps {
   isOpen: boolean;
@@ -21,6 +22,21 @@ export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: 
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerBack('studio-crop-modal', () => {
+        onClose();
+        return true;
+      }, 50);
+    } else {
+      unregisterBack('studio-crop-modal');
+    }
+    return () => unregisterBack('studio-crop-modal');
+  }, [isOpen, onClose, registerBack, unregisterBack]);
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);

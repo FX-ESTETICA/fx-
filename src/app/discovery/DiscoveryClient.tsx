@@ -17,6 +17,7 @@ import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
 import { useTranslations } from "next-intl";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
 
@@ -131,6 +132,21 @@ export default function DiscoveryPage() {
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [posts, setPosts] = useState<DiscoveryPost[]>([]);
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isUploadOpen) {
+      registerBack('discovery-upload', () => {
+        setIsUploadOpen(false);
+        return true;
+      }, 30);
+    } else {
+      unregisterBack('discovery-upload');
+    }
+    return () => unregisterBack('discovery-upload');
+  }, [isUploadOpen, registerBack, unregisterBack]);
 
   // 核心拉取逻辑
   const fetchPosts = useCallback(async () => {

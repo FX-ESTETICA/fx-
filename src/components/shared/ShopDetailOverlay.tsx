@@ -7,6 +7,7 @@ import { cn } from "@/utils/cn";
 import { BookingService } from "@/features/booking/api/booking";
 
 import { ShopDetailView } from "./ShopDetailView";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 interface ShopDetailOverlayProps {
   shop: any | null;
@@ -17,6 +18,21 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
     const t = useTranslations('ShopDetailOverlay');
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [realtimeConfig, setRealtimeConfig] = useState<any>(null);
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (shop) {
+      registerBack('shop-detail-overlay', () => {
+        onClose();
+        return true;
+      }, 30);
+    } else {
+      unregisterBack('shop-detail-overlay');
+    }
+    return () => unregisterBack('shop-detail-overlay');
+  }, [shop, onClose, registerBack, unregisterBack]);
 
   useEffect(() => {
     if (!shop?.id) return;

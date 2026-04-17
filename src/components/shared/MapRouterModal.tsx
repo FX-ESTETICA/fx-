@@ -2,8 +2,9 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, X, Navigation, Globe, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 interface MapRouterModalProps {
   isOpen: boolean;
@@ -13,6 +14,21 @@ interface MapRouterModalProps {
 export const MapRouterModal = ({ isOpen, onChoice }: MapRouterModalProps) => {
   const [remember, setRemember] = useState(false);
   const t = useTranslations('MapRouterModal');
+  
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerBack('map-router-modal', () => {
+        onChoice('cancel', false);
+        return true;
+      }, 50);
+    } else {
+      unregisterBack('map-router-modal');
+    }
+    return () => unregisterBack('map-router-modal');
+  }, [isOpen, onChoice, registerBack, unregisterBack]);
 
   return (
     <AnimatePresence>

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 export const DataMatrixAssets = () => {
   const t = useTranslations('DataMatrixAssets');
@@ -19,6 +20,21 @@ export const DataMatrixAssets = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [echoes, setEchoes] = useState(MOCK_ECHOES);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      registerBack('data-matrix-modal', () => {
+        setIsModalOpen(false);
+        return true;
+      }, 40);
+    } else {
+      unregisterBack('data-matrix-modal');
+    }
+    return () => unregisterBack('data-matrix-modal');
+  }, [isModalOpen, registerBack, unregisterBack]);
 
   // 状态 1: 自动轮播的呼吸态终端日志 (Holographic Ticker)
   useEffect(() => {

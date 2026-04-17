@@ -6,6 +6,7 @@ import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import { supabase } from "@/lib/supabase";
 
 import { SubscriptionModalMode, useShop } from "@/features/shop/ShopContext";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 interface SubscriptionLimitModalProps {
   isOpen: boolean;
@@ -32,6 +33,21 @@ const PADDLE_PRICES = {
 export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'NODE_LIMIT', onStartGracePeriod }: SubscriptionLimitModalProps) => {
   const [paddle, setPaddle] = useState<Paddle>();
   const { subscription } = useShop(); // 获取当前用户的 empireId
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerBack('subscription-limit', () => {
+        onClose();
+        return true;
+      }, 40);
+    } else {
+      unregisterBack('subscription-limit');
+    }
+    return () => unregisterBack('subscription-limit');
+  }, [isOpen, onClose, registerBack, unregisterBack]);
 
   useEffect(() => {
     if (isOpen && !paddle) {

@@ -10,6 +10,7 @@ import { TodayOverrideController } from "./TodayOverrideController";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 export interface CategoryItem { id: string; name: string }
 export interface ServiceItem { id: string; categoryId: string; name: string; fullName?: string; prices?: number[]; price?: number; duration: number }
@@ -993,6 +994,21 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
     services: staff.services || []
   });
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isServicesModalOpen) {
+      registerBack('nebula-services-modal', () => {
+        setIsServicesModalOpen(false);
+        return true;
+      }, 50);
+    } else {
+      unregisterBack('nebula-services-modal');
+    }
+    return () => unregisterBack('nebula-services-modal');
+  }, [isServicesModalOpen, registerBack, unregisterBack]);
 
   // 向父组件注册真实的保存动作
   // 使用 useRef 缓存回调函数，避免每次 formData 变化都导致外层组件重新渲染

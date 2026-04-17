@@ -25,6 +25,7 @@ import { UserProfile } from "../types";
 import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 // import { useRouter } from "next/navigation";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
@@ -77,6 +78,22 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  useEffect(() => {
+    if (isDropdownOpen) {
+      registerBack('merchant-dropdown', () => {
+        setIsDropdownOpen(false);
+        return true;
+      }, 30);
+    } else {
+      unregisterBack('merchant-dropdown');
+    }
+    return () => unregisterBack('merchant-dropdown');
+  }, [isDropdownOpen, registerBack, unregisterBack]);
+
+  // 从 ShopContext 提取需要的数据
   const activeShopName = availableShops?.find(s => s.shopId === activeShopId)?.shopName || "GX 高新旗舰店";
   
   const filteredShops = availableShops?.filter(shop => 
