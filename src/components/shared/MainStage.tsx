@@ -47,20 +47,36 @@ export const MainStage = () => {
   // 初始化时，根据当前的真实 URL 路径来设置正确的激活 Tab
   useEffect(() => {
     const pathname = window.location.pathname;
-      // 处理像 /calendar/beauty 这样的子路径
-      const segments = pathname.split('/').filter(Boolean);
-      const mainPath = segments[0] || 'home';
+    // 处理像 /calendar/beauty 这样的子路径
+    const segments = pathname.split('/').filter(Boolean);
+    const mainPath = segments[0] || 'home';
+    
+    let initialTab = mainPath;
+    if (mainPath === 'home' || mainPath === 'discovery' || mainPath === 'calendar' || mainPath === 'chat' || mainPath === 'me' || mainPath === 'dashboard') {
+      initialTab = mainPath === 'dashboard' ? 'me' : mainPath;
       
-      let initialTab = mainPath;
-      if (mainPath === 'home' || mainPath === 'discovery' || mainPath === 'calendar' || mainPath === 'chat' || mainPath === 'me' || mainPath === 'dashboard') {
-        initialTab = mainPath === 'dashboard' ? 'me' : mainPath;
-        setActiveTab(initialTab as any);
+      // 核心修复：深层入口防坠落 (Entry Fallback)
+      // 如果用户直接进入非 home 页面，我们在底层强行垫一个 home，保证左上角返回能回到主页
+      if (typeof window !== 'undefined' && !window.history.state?.tab) {
+        if (initialTab !== 'home') {
+          // 垫底操作：把当前历史栈的底部换成 /home，然后再把真实的深层路径推上去
+          window.history.replaceState({ tab: 'home' }, '', '/');
+          window.history.pushState({ tab: initialTab }, '', pathname);
+        } else {
+          // 如果本来就是 home，正常设置即可，把状态补全
+          window.history.replaceState({ tab: 'home' }, '', '/');
+        }
       }
       
-      // 初始化时，把当前 URL 对应的 Tab 加入已挂载集合
-      setMountedTabs(prev => new Set(prev).add(initialTab));
+      // 直接使用 setState 修改 Zustand 内部状态，而不是调用 setActiveTab
+      // 这样就不会再次触发 setActiveTab 内部的 pushState，保持栈纯净
+      useViewStack.setState({ activeTab: initialTab as any });
+    }
+    
+    // 初始化时，把当前 URL 对应的 Tab 加入已挂载集合
+    setMountedTabs(prev => new Set(prev).add(initialTab));
     setMounted(true);
-  }, [setActiveTab]);
+  }, []);
 
   // 监听 activeTab 变化，实现惰性激活（Lazy Mount）
   useEffect(() => {

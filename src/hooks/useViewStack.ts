@@ -20,10 +20,14 @@ export const useViewStack = create<ViewStackState>((set) => ({
   activeTab: 'home',
   tabProps: {},
   setActiveTab: (tab, props) => set((state) => {
-    // 同步更新浏览器 URL（静默替换，不触发 Next.js 路由）
+    // 同步更新浏览器 URL（将底层的 replaceState 升级为 pushState，实现 Web 端的虚拟历史栈）
     if (typeof window !== 'undefined') {
       const url = tab === 'home' ? '/' : `/${tab}`;
-      window.history.replaceState({ tab, props }, '', url);
+      if (state.activeTab !== tab) {
+        window.history.pushState({ tab, props }, '', url);
+      } else {
+        window.history.replaceState({ tab, props }, '', url);
+      }
     }
     return { activeTab: tab, tabProps: { ...state.tabProps, [tab]: props || {} } };
   }),
@@ -76,6 +80,7 @@ if (typeof window !== 'undefined') {
       state._popOverlayState();
     } else if (e.state && e.state.tab) {
       // 如果是 Tab 切换的历史记录
+      // 避免在此处调用 setActiveTab 从而再次触发 pushState，直接调用 setState 修改内部状态
       useViewStack.setState({ activeTab: e.state.tab });
     }
   });
