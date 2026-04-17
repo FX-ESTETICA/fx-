@@ -215,9 +215,12 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       
     // 3. Realtime Subscription (Bookings)
     // 接管原有的订单监听，直接在此处触发全局订单拉取
+    const handleBookingUpdate = () => {
+      refreshBookings();
+    };
     const channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
       console.log(`[ShopContext] Realtime Bookings change received for shop ${resolvedActiveShopId}:`, payload);
-      refreshBookings();
+      handleBookingUpdate();
     });
 
     return () => {

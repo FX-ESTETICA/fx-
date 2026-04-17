@@ -266,78 +266,23 @@ export const MerchantDashboard = ({ merchantId, shopId, industry, profile }: Mer
     pushOverlay('nebula');
   };
 
+  // 1 & 2. 移除 MerchantDashboard 内置的 Bookings 独立拉取和监听
+  // 【世界顶端架构】：完全复用 ShopContext 里的 globalBookings，消灭所有的并发与多重 websocket
   useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        if (!shopId) return;
-        console.log(`[MerchantDashboard] Fetching bookings for shop: ${shopId}`);
-        const { data } = await BookingService.getBookings(shopId);
-        
-        // Convert from flat DB format to UI format
-        const resolvedIndustry = resolveIndustry(industry);
-        const uiBookings = (data as BookingRecord[]).map((b) => ({
-          id: b.id,
-          industry: resolvedIndustry,
-          serviceId: b.services?.[0]?.id || "unknown",
-          serviceName: b.services?.map((s) => s.name).join(', ') || b.customServiceText || "未知服务",
-          date: b.date,
-          timeSlot: `${b.startTime} - ${b.duration}min`,
-          customerName: b.customer_name || b.customerName || "散客",
-          customerPhone: b.customer_phone || b.customerPhone || "无",
-          status: normalizeStatus(b.status),
-        }));
-        
-        setBookings(uiBookings);
-      } catch (error) {
-        console.error("Failed to fetch merchant bookings:", error);
-      }
-    };
-
-    fetchBookings();
-  }, [merchantId, shopId, industry]);
-
-  // 2. 实时状态监听 (物理隔离)
-  useEffect(() => {
-    if (!shopId) return;
-    const channel = BookingService.subscribeToShopBookings(shopId, (payload: unknown) => {
-      const typedPayload = payload as ShopBookingPayload;
-      console.log(`[MerchantDashboard] New event received for shop ${shopId}:`, typedPayload);
-      
-      if (typedPayload.eventType === "DELETE") {
-        const deletedId = typedPayload.old?.id;
-        if (deletedId) {
-          setBookings(prev => prev.filter(item => item.id !== deletedId));
-        }
-        return;
-      }
-      
-      const b = typedPayload.new;
-      if (!b) return;
-      const resolvedIndustry = resolveIndustry(industry);
-
-      const mappedBooking: BookingDetails = {
-        id: b.id,
-        industry: resolvedIndustry,
-        serviceId: b.data?.services?.[0]?.id || "unknown",
-        serviceName: b.data?.services?.map((s: { name?: string }) => s.name || '').filter(Boolean).join(', ') || b.data?.customServiceText || "未知服务",
-        date: b.date,
-        timeSlot: `${b.start_time} - ${b.duration_min}min`,
-        customerName: b.data?.customer_name || b.data?.customerName || "散客",
-        customerPhone: b.data?.customer_phone || b.data?.customerPhone || "无",
-        status: normalizeStatus(b.status),
-      };
-      
-      if (typedPayload.eventType === "INSERT") {
-        setBookings(prev => [mappedBooking, ...prev]);
-      } else if (typedPayload.eventType === "UPDATE") {
-        setBookings(prev => prev.map(item => item.id === mappedBooking.id ? mappedBooking : item));
-      }
-    });
-
-    return () => {
-      if (channel) BookingService.unsubscribe(channel);
-    };
-  }, [shopId, industry]);
+    const resolvedIndustry = resolveIndustry(industry);
+    const uiBookings = globalBookings.map((b) => ({
+      id: b.id,
+      industry: resolvedIndustry,
+      serviceId: b.services?.[0]?.id || "unknown",
+      serviceName: b.services?.map((s: any) => s.name).join(', ') || b.customServiceText || "未知服务",
+      date: b.date,
+      timeSlot: `${b.startTime} - ${b.duration || b.duration_min}min`,
+      customerName: b.customer_name || b.customerName || "散客",
+      customerPhone: b.customer_phone || b.customerPhone || "无",
+      status: normalizeStatus(b.status),
+    }));
+    setBookings(uiBookings);
+  }, [globalBookings, industry]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 relative">
