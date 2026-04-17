@@ -101,8 +101,8 @@ export function NativeBridgeProvider() {
           return;
         }
         
-        // 特殊处理：如果当前在星云主界面 (/nebula)，物理返回键必须强制切回“我的”页 (Dashboard/Me)
-        if (path.startsWith('/nebula')) {
+        // 特殊处理：如果当前在星云主界面 (/nebula) 或数字门店 (/studio)，物理返回键必须强制切回“我的”页 (Dashboard/Me)
+        if (path.startsWith('/nebula') || path.startsWith('/studio')) {
           const { setActiveTab } = useViewStack.getState();
           setActiveTab('me');
           router.replace('/dashboard');
