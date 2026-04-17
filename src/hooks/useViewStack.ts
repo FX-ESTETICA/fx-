@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useHardwareBack } from './useHardwareBack';
 
 export type TabId = 'home' | 'discovery' | 'calendar' | 'chat' | 'me';
 
@@ -51,6 +52,23 @@ export const useViewStack = create<ViewStackState>((set) => ({
 // 初始化监听器：处理浏览器的物理返回键
 if (typeof window !== 'undefined') {
   window.addEventListener('popstate', (e) => {
+    // 0. 拦截幽灵栈自毁动作
+    if ((window as any)._isPhantomPopping) {
+      // 这里只需要消费掉这个标记并阻止它继续往下传递
+      // 由于我们是在 popstate 触发时执行的，说明浏览器的回退动作“已经发生并结算完成”了
+      // 此时将标记重置回 false 是绝对安全且原子的
+      (window as any)._isPhantomPopping = false;
+      return;
+    }
+
+    // 1. 最高优先级：局部弹窗的物理拦截栈 (与 App 端 Capacitor 逻辑保持绝对一致)
+    const hwState = useHardwareBack.getState();
+    if (hwState.pop()) {
+      // 成功消费了一个弹窗，拦截后续动作，由于浏览器已经执行了后退，弹窗自己被关闭，
+      // 我们不仅成功抵消了这次后退，还刚好把刚刚写入的 pushState 给吃掉了
+      return;
+    }
+
     const state = useViewStack.getState();
     // 如果当前有弹层，物理返回键应当关闭顶层弹层，而不是真正后退页面
     if (state.overlays.length > 0) {
