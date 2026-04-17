@@ -90,8 +90,18 @@ export const BookingScheduler = {
       });
 
       // 5. 仅将重新分配过的无指定订单存盘，避免误伤和多余写入
-      if (unassignedBookings.length > 0) {
-        await BookingService.upsertBookings(unassignedBookings);
+      const finalUpdatedBookings = unassignedBookings.filter(b => {
+        const originalState = originalStateMap.get(b.id);
+        if (!originalState) return true;
+
+        const resourceChanged = b.resourceId !== originalState.resourceId;
+        const timeChanged = b.startTime !== originalState.startTime;
+
+        return resourceChanged || timeChanged;
+      });
+
+      if (finalUpdatedBookings.length > 0) {
+        await BookingService.upsertBookings(finalUpdatedBookings);
       }
 
     } catch (error) {
