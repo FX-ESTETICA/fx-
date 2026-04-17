@@ -17,6 +17,7 @@ import { SubscriptionModalMode } from "@/features/shop/ShopContext";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 
 import { useViewStack } from "@/hooks/useViewStack";
+import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 // --- Types ---& State ---
 type NodeStatus = 'pending' | 'active';
@@ -546,6 +547,18 @@ function NodeManagementHUD({
   const [managerInput, setManagerInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<'control' | 'financial'>('control');
+
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+
+  // 注册星云控制舱弹窗拦截
+  useEffect(() => {
+    registerBack('nebula-overlay', () => {
+      onClose();
+      return true;
+    }, 30);
+    return () => unregisterBack('nebula-overlay');
+  }, [onClose, registerBack, unregisterBack]);
 
   // 当星球切换时，重置表单
   useEffect(() => {

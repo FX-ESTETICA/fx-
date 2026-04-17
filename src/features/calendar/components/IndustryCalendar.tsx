@@ -455,6 +455,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 控制左侧边栏显示状态
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // 注册侧边栏的物理返回拦截
+  useEffect(() => {
+    if (isSidebarOpen && window.innerWidth < 1024) { // 仅在移动端/小屏幕下拦截侧边栏
+      registerBack('calendar-sidebar', () => { setIsSidebarOpen(false); return true; }, 5);
+    } else {
+      unregisterBack('calendar-sidebar');
+    }
+    return () => unregisterBack('calendar-sidebar');
+  }, [isSidebarOpen, registerBack, unregisterBack]);
+
   // 【智能折叠协议】: 监听屏幕宽度，实现 PC 端常驻、移动端自动折叠
   useEffect(() => {
     const handleResize = () => {
@@ -1013,9 +1023,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 shopName={activeShopName}
                 shopId={shopId}
                 onNavigateHome={() => {
-                  // 触发单页架构切换
+                  // 顶端架构：不仅派发事件，且必须同时修改 activeTab 以彻底断绝后顾之忧
                   const event = new CustomEvent('gx-set-tab', { detail: 'me' });
                   window.dispatchEvent(event);
+                  // 同步触发浏览器原生返回，或调用状态机 (由外层监听器消费)
+                  if (typeof window !== 'undefined') window.history.back();
                 }} 
               />
             )}
@@ -1031,6 +1043,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   onClick={() => {
                     const event = new CustomEvent('gx-set-tab', { detail: 'me' });
                     window.dispatchEvent(event);
+                    if (typeof window !== 'undefined') window.history.back();
                   }}
                   className="flex items-center gap-3 p-3 rounded-xl bg-transparent border border-white/10 ml-6 relative cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group"
                   title={t('txt_5bcc6c')}

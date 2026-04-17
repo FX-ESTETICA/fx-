@@ -83,7 +83,8 @@ export function NativeBridgeProvider() {
       };
       initNative();
 
-      // C. 顶端架构：接管安卓物理返回键（实现多级平滑回退、弹层拦截与状态机同步）
+      // C. 顶端架构：接管安卓物理返回键（实现多级平滑回退、弹层拦截与状态机同步、二次退出）
+      let lastBackPressTime = 0;
       CapacitorApp.addListener("backButton", () => {
         // 1. 最高优先级：触发物理拦截栈（如有打开的聊天室、日历侧边栏等，则仅关闭该子界面）
         const { pop } = useHardwareBack.getState();
@@ -99,13 +100,35 @@ export function NativeBridgeProvider() {
           router.replace('/');
           return;
         }
+        
+        // 特殊处理：如果当前在星云主界面 (/nebula)，物理返回键必须强制切回“我的”页 (Dashboard/Me)
+        if (path.startsWith('/nebula')) {
+          const { setActiveTab } = useViewStack.getState();
+          setActiveTab('me');
+          router.replace('/dashboard');
+          return;
+        }
 
-        // 3. 第三优先级：如果已经在首页或登录页，则安全退出 App
+        // 3. 第三优先级：如果已经在首页或登录页，则触发【双击退出】逻辑
         if (path === '/home' || path === '/' || path === '/login') {
-          CapacitorApp.exitApp();
+          const currentTime = new Date().getTime();
+          if (currentTime - lastBackPressTime < 2000) {
+            CapacitorApp.exitApp();
+          } else {
+            lastBackPressTime = currentTime;
+            // 触发原生 Toast 提示 (这里简单处理，实际生产可能需要调用 @capacitor/toast)
+            console.log("再按一次退出应用 / Press again to exit");
+            // 可选：在这里可以通过一个全局状态展示个幽灵 Toast "再按一次退出"
+          }
         } else {
-          // 4. 常规后退：比如日历页面，因为是通过常规跳转进入，执行 back 会完美“从哪进回哪去”
-          router.back();
+          // 4. 常规后退：比如日历页面，为了保证绝对不会闪退，我们强制将日历退回到“我的”页，因为大多数人是从“我的”进的日历
+          if (path.startsWith('/calendar')) {
+            const { setActiveTab } = useViewStack.getState();
+            setActiveTab('me');
+            router.replace('/dashboard');
+          } else {
+            router.back();
+          }
         }
       });
 
