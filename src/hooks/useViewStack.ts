@@ -23,10 +23,11 @@ export const useViewStack = create<ViewStackState>((set) => ({
     // 同步更新浏览器 URL（将底层的 replaceState 升级为 pushState，实现 Web 端的虚拟历史栈）
     if (typeof window !== 'undefined') {
       const url = tab === 'home' ? '/' : `/${tab}`;
+      const currentState = window.history.state || {};
       if (state.activeTab !== tab) {
-        window.history.pushState({ tab, props }, '', url);
+        window.history.pushState({ ...currentState, tab, props }, '', url);
       } else {
-        window.history.replaceState({ tab, props }, '', url);
+        window.history.replaceState({ ...currentState, tab, props }, '', url);
       }
     }
     return { activeTab: tab, tabProps: { ...state.tabProps, [tab]: props || {} } };
