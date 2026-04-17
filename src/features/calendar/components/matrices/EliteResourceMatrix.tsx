@@ -391,7 +391,11 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   const handlePointerDown = (e: React.PointerEvent) => {
     // 允许穿透：只有当点击在已有的预约色块内部时才拦截，点击空白背景直接放行！
     const target = e.target as HTMLElement;
-    if (target.closest('.pointer-events-auto')) return; // 只拦截预约块的交互层
+    // 【关键修复】：如果点击的是卡片内部 (包含 implosion-container) 或右键菜单，就拦截
+    // 注意不要拦截整个日历画布的 pointer-events-auto
+    if (target.closest('.implosion-container') || target.closest('[id^="booking-block-"]')) {
+      return; 
+    }
     
     startPointerRef.current = { x: e.clientX, y: e.clientY };
     pointerDownAtRef.current = Date.now();
