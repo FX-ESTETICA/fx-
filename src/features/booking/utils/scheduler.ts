@@ -16,6 +16,12 @@ export const BookingScheduler = {
       const { data: allBookings } = await BookingService.getBookings(shopId);
       const todayBookings = allBookings.filter(b => b.date === dateStr);
 
+      // 【终极排爆过滤记录】：记录每个订单进场前的原始 resourceId 和 startTime
+      const originalStateMap = new Map(todayBookings.map(b => [b.id, {
+        resourceId: b.resourceId,
+        startTime: b.startTime
+      }]));
+
       const timeToMinutes = (timeStr: string) => {
         const [h, m] = (timeStr || "00:00").split(':').map(Number);
         return h * 60 + m;
@@ -74,8 +80,20 @@ export const BookingScheduler = {
         placedBookings.push(unassignedBkg);
       });
 
-      // 5. 仅将重新分配过的无指定订单存盘，避免误伤和多余写入
-      await BookingService.upsertBookings(unassignedBookings);
+      // 5. 【手术级保存】：只保存那些真正被重排算法改变了座位或时间的无指定订单
+      const finalUpdatedBookings = unassignedBookings.filter(b => {
+        const originalState = originalStateMap.get(b.id);
+        if (!originalState) return true;
+        
+        const resourceChanged = b.resourceId !== originalState.resourceId;
+        const timeChanged = b.startTime !== originalState.startTime;
+        
+        return resourceChanged || timeChanged;
+      });
+
+      if (finalUpdatedBookings.length > 0) {
+        await BookingService.upsertBookings(finalUpdatedBookings);
+      }
 
     } catch (error) {
       console.error("[BookingScheduler] reflowDayBookings Error:", error);

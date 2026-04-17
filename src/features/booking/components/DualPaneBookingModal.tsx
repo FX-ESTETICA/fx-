@@ -596,7 +596,14 @@ export function DualPaneBookingModal({
 
       // 3. 过滤出今天的订单进行重排，非今天的订单保持不动
       const todayBookings = allBookings.filter((b) => b.date === baseDate);
-      // const otherDayBookings = allBookings.filter((b) => b.date !== baseDate);
+      
+      // 【关键修复】：为了让新生成的子单 (newBookings) 能被后面的逻辑正确识别并最终落入 finalUpdatedBookings，
+      // 我们必须记录下它们在 allBookings 里的原始状态 (此时它们还没有被赋予 resourceId，即 resourceId 为 undefined)。
+      // 后面的 originalStateMap 必须包含这些新订单！
+      const originalStateMap = new Map(todayBookings.map(b => [b.id, {
+        resourceId: b.resourceId,
+        startTime: b.startTime
+      }]));
 
       // 将时间字符串(HH:MM)转化为当天的绝对分钟数，用于碰撞检测
       const timeToMinutes = (timeStr: string) => {
@@ -674,28 +681,23 @@ export function DualPaneBookingModal({
 
       // 【终极排爆过滤】：不要把今天所有的订单都保存进去！
       // 只有那些 真正发生了变化 的订单才允许放行
-      // 我们通过比对它原始从数据库拉取时的 resourceId 和 startTime
-      const originalStateMap = new Map((bookingsData as ReflowBooking[] || []).map(b => [b.id, {
-        resourceId: b.resourceId,
-        startTime: b.startTime
-      }]));
+      // 我们在第 600 行已经创建了包含所有 (含新单和旧单) 的 originalStateMap
 
       const finalUpdatedBookings = placedBookings
         .filter(b => {
           if (!b.id) return false;
-          // 1. 如果是本次新建的订单，绝对放行
-          if (newBookingIds.has(b.id)) return true;
-          // 2. 如果是旧订单，且经过重排后，它的 resourceId 或 startTime 确实和原数据库中的不一样了，放行
-          if (oldUnassignedIds.has(b.id)) {
-            const originalState = originalStateMap.get(b.id);
-            if (!originalState) return true; // 如果找不到原始状态（理论上不可能），保险起见放行
-            
-            const resourceChanged = b.resourceId !== originalState.resourceId;
-            const timeChanged = b.startTime !== originalState.startTime;
-            
-            return resourceChanged || timeChanged;
-          }
-          return false;
+          
+          // 获取订单重排前的初始状态
+          const originalState = originalStateMap.get(b.id);
+          
+          // 如果找不到原始状态，或者是新创建的单子，绝对放行
+          if (!originalState || newBookingIds.has(b.id)) return true;
+
+          // 比对它最终的 resourceId 或 startTime 是否和进入重排算法前发生了改变
+          const resourceChanged = b.resourceId !== originalState.resourceId;
+          const timeChanged = b.startTime !== originalState.startTime;
+          
+          return resourceChanged || timeChanged;
         })
         .map((booking) => ({
           ...booking,
