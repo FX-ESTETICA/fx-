@@ -76,7 +76,7 @@ export const LoginForm = () => {
       setMessage(null);
       try {
         await AuthService.verifyEmailOtp(email, otp);
-        router.push(nextParam || "/home");
+        router.replace(nextParam || "/home");
       } catch {
         setOtpError(t("otpError"));
         setOtp("");
@@ -97,18 +97,18 @@ export const LoginForm = () => {
     try {
       if (isMockMode && email === ADMIN_EMAIL && ADMIN_PASSWORD && password === ADMIN_PASSWORD) {
         sandboxLogin({ id: "gx-admin", gxId: "GX_ADM_ROOT", email: ADMIN_EMAIL, role: "boss", name: "GX Admin", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" });
-        router.push(nextParam || "/home");
+        router.replace(nextParam || "/home");
         return;
       }
       if (isMockMode && password === "123456" && MOCK_ACCOUNTS[email]) {
         sandboxLogin(MOCK_ACCOUNTS[email]);
-        router.push(nextParam || "/home");
+        router.replace(nextParam || "/home");
         return;
       }
       
       // 真实 Supabase 逻辑
       await AuthService.signInWithEmail(email, password);
-      router.push(nextParam || "/home");
+      router.replace(nextParam || "/home");
     } catch {
       setPasswordError(t("passwordError"));
     } finally {
@@ -145,7 +145,7 @@ export const LoginForm = () => {
 
   const handleGuestLogin = () => {
     setGuestMode();
-    router.push("/home");
+    router.replace("/home");
   };
 
   return (

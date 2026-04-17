@@ -79,8 +79,8 @@ export const AuthService = {
         
         if (error) throw error;
         
-        // 原生模式下不需要回调重定向，直接手动触发跳转
-        window.location.href = next || "/home";
+        // 原生模式下不需要回调重定向，直接手动触发替换跳转
+        window.location.replace(next || "/home");
         return data;
       } catch (error) {
         console.error("[Native Auth] Google Sign-In failed:", error);

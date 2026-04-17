@@ -36,7 +36,7 @@ export function AuthCallbackClient() {
         }
 
         // 验证成功，重定向
-        router.push(next);
+        router.replace(next);
       } else {
         // 如果没有 token_hash，尝试从 hash (PKCE) 中获取 session
         const { error } = await supabase.auth.getSession();
@@ -50,7 +50,7 @@ export function AuthCallbackClient() {
           localStorage.removeItem("gx_guest_mode");
         } catch {}
         
-        router.push(next || "/home");
+        router.replace(next || "/home");
       }
     };
 
@@ -59,11 +59,11 @@ export function AuthCallbackClient() {
 
   if (error) {
     return (
-      <div className="min-h-[100dvh] bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-red-500 bg-red-500/10 px-6 py-4 rounded-lg border border-red-500/20">
-          {t('txt_3048f0')}{error}
+          认证失败: {error}
           <button 
-            onClick={() => router.push('/login')}
+            onClick={() => router.replace('/login')}
             className="block mt-4 text-gx-cyan underline"
           >
             {t('txt_977deb')}</button>
