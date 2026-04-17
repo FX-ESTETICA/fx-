@@ -391,7 +391,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   const handlePointerDown = (e: React.PointerEvent) => {
     // 允许穿透：只有当点击在已有的预约色块内部时才拦截，点击空白背景直接放行！
     const target = e.target as HTMLElement;
-    if (target.closest('.pointer-events-auto.z-20')) return; // 只拦截预约块的交互层
+    if (target.closest('.pointer-events-auto')) return; // 只拦截预约块的交互层
     
     startPointerRef.current = { x: e.clientX, y: e.clientY };
     pointerDownAtRef.current = Date.now();
@@ -403,8 +403,14 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     if (container) {
       const rect = container.getBoundingClientRect();
       containerRectRef.current = {
-        ...rect,
-        top: rect.top - container.scrollTop // 将容器的 scrollTop 抵消掉，获得绝对顶部的虚拟坐标
+        top: rect.top - container.scrollTop, // 将容器的 scrollTop 抵消掉，获得绝对顶部的虚拟坐标
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        bottom: rect.bottom,
+        right: rect.right,
+        x: rect.x,
+        y: rect.y
       } as DOMRect;
     }
     
