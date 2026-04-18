@@ -112,7 +112,10 @@ export const MainStage = () => {
 
   // 1. 绝对拟真骨架屏障 (Skeleton Shell Barrier)
   // 告别弱网下的黑屏或透明真空感，直接提供世界级的无缝“赛博占位符”。数据下发瞬间完美拼接，0布局抖动。
-  if (isLoading) {
+  // 世界顶端防漏防线：如果 isLoading 是 false，但是 user 存在且未被完全组装（缺少 gxId），继续强锁！
+  const isHydrating = isLoading || (user && !('gxId' in user));
+
+  if (isHydrating) {
     return (
       <div className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden flex flex-col justify-between">
         {/* 顶部环境光模糊占位 */}

@@ -75,7 +75,9 @@ export default function DashboardPage() {
   }
 
   // 完美体验拦截：在认证状态完全就绪之前，渲染一个空底盘以防止视觉闪烁
-  if (isLoading) {
+  const isHydrating = isLoading || (user && !('gxId' in user));
+  
+  if (isHydrating) {
     return (
       <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />

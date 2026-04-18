@@ -118,7 +118,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (isMockMode) {
       setSession(nextSession);
       setUser(null);
-      setIsLoading(false);
       return;
     }
     setSession(nextSession);
@@ -248,7 +247,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setUser(null);
     }
-    setIsLoading(false);
   }, [localViewRole, syncDeviceSession]);
 
   const initLock = useRef(false);
@@ -292,6 +290,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("[AuthProvider] Init Error:", error);
       } finally {
+        // 【世界顶端单轨锁定】：不论成功与否，必须等上方的 hydrateSession (包括所有网络请求) 彻底 await 完成后，
+        // 才允许解开 isLoading 的锁。绝不漏出半成品的 UI！
         setIsLoading(false);
       }
     };
@@ -306,7 +306,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 【防重排风暴】: 拦截 INITIAL_SESSION，因为它与上方的 initAuth 完全重叠，
       // 会导致两次并发的 profiles 和 shop_bindings 网络请求，从而引发 React 剧烈重排卡顿。
       if (_event === 'INITIAL_SESSION') return;
-      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+      
+      // 世界顶端：在任何会导致重新获取数据的事件期间，重新加上状态锁
+      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+        setIsLoading(true);
         setHasConfirmedSession(true);
       }
       if (_event === 'SIGNED_OUT') {
@@ -314,6 +317,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       await hydrateSession(currentSession);
+      setIsLoading(false); // 在此处明确释放锁
     });
 
     return () => {
@@ -518,17 +522,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === "undefined") return;
     const handleVisibility = async () => {
       if (document.visibilityState !== "visible") return;
+      // 世界顶端防漏：用户从后台切回前台（特别是隔天唤醒时），强制重新上锁，防止旧数据污染
+      setIsLoading(true);
       const { data: { session: nextSession } } = await supabase.auth.getSession();
       await hydrateSession(nextSession);
       await refreshUserData(nextSession);
       if (nextSession?.user) {
         await syncDeviceSession(nextSession);
       }
+      setIsLoading(false); // 彻底刷新完毕后才释放锁
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
+    const intervalId = window.setInterval(async () => {
+      // 后台静默刷新，不阻塞 UI
+      const { data: { session: nextSession } } = await supabase.auth.getSession();
+      await hydrateSession(nextSession);
+      if (nextSession?.user) {
+        await syncDeviceSession(nextSession);
+      }
+    }, 30000);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(intervalId);
     };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 

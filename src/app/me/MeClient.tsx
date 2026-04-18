@@ -9,8 +9,10 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 
 export default function MePage() {
-    const t = useTranslations('me');
+  const t = useTranslations('me');
   const { user, isLoading } = useAuth();
+  
+  const isHydrating = isLoading || (user && !('gxId' in user));
 
   useEffect(() => {
     if (isLoading) return;
@@ -23,7 +25,7 @@ export default function MePage() {
   return (
     <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden flex items-center justify-center">
       
-      {isLoading ? (
+      {isHydrating ? (
         // 视觉降噪：真空期不渲染任何文字，避免被快照冻结，保持绝对清透
         <div className="relative z-10 w-full h-full" />
       ) : (

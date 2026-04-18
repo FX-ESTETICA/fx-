@@ -661,7 +661,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     // --- 处理正常的跨列拖拽换人 (Cross-Column Drag & Drop) ---
     // 1. 获取容器尺寸与拖拽位置
     if (!containerRectRef.current) return;
-    const dropY = info.point.y - containerRectRef.current.top;
+    // const dropY = info.point.y - containerRectRef.current.top; // 垂直时间拖拽暂时废弃，保留注释
     const dropX = info.point.x - containerRectRef.current.left;
     
     // 2. 只有拖拽距离足够大，才认为是有效拖拽
@@ -677,13 +677,11 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
       const newResourceId = targetResource.id === 'NEXUS' ? null : targetResource.id;
       
       // 时间计算：每 80px 代表 1 小时 (60分钟)
-      const minutesFromTop = Math.floor((dropY / 80) * 60);
+      // const minutesFromTop = Math.floor((dropY / 80) * 60);
       // 对齐到最近的 15 分钟
-      const snappedMinutes = Math.round(minutesFromTop / 15) * 15;
+      // const snappedMinutes = Math.round(minutesFromTop / 15) * 15;
       
-      const newStartH = Math.floor(snappedMinutes / 60) + 13; // 假设基准是 13:00，需要动态读取，这里暂用绝对位移近似
-      const newStartM = snappedMinutes % 60;
-      // 由于这部分原本没有完整实现时间吸附，我们至少先保留原来的起始时间，让 Scheduler 去推演
+      // 由于这部分原本没有完整实现垂直时间吸附拖拽，我们只改变人员列，保留原来的起始时间，让 Scheduler 去推演顺延
       const newStartTime = booking.startTime; 
 
       // 4. 触发智能排盘
@@ -870,7 +868,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
             {/* 渲染资源列与卡片 (The Cyber Matrix Data Layer) */}
             <div className="absolute inset-0 flex pl-[0px] pb-20 pointer-events-none">
               {resources.map((resource) => {
-                const colBookings = bookings.filter(b => {
+                let colBookings = bookings.filter(b => {
                   // 【NEXUS 终极法则】：只捕获前端 AI 生成的待确认订单 (PENDING)
                   if (resource.id === 'NEXUS') {
                     return b.status === 'PENDING';
@@ -883,6 +881,33 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
                   // 正常实体员工列：必须严格匹配 resourceId
                   return b.resourceId === resource.id;
+                });
+                
+                // 【时间流水印与延误计算】：在当前列对所有卡片按 startTime 排序
+                colBookings.sort((a, b) => {
+                  const aMin = parseInt(a.startTime.split(':')[0]) * 60 + parseInt(a.startTime.split(':')[1]);
+                  const bMin = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
+                  return aMin - bMin;
+                });
+                
+                let runningWatermark = 0;
+                colBookings = colBookings.map(booking => {
+                  const startMin = parseInt(booking.startTime.split(':')[0]) * 60 + parseInt(booking.startTime.split(':')[1]);
+                  const duration = booking.duration || 60;
+                  
+                  let delayMins = 0;
+                  // 如果当前订单的起点小于水线（被前面的挤压了）
+                  if (runningWatermark > startMin) {
+                    delayMins = runningWatermark - startMin;
+                  }
+                  
+                  // 更新水线到这个订单真正的结束时间
+                  const actualEndMin = startMin + delayMins + duration;
+                  if (actualEndMin > runningWatermark) {
+                    runningWatermark = actualEndMin;
+                  }
+                  
+                  return { ...booking, _delayMins: delayMins };
                 });
                 
                 return (
@@ -1085,6 +1110,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                             isPast={isPast} // 跨过红线
                             isCheckedOut={isCheckedOut} // 已结账
                             isNoShow={isNoShow} // 爽约幽灵降维
+                            delayMins={(booking as any)._delayMins} // 注入延误时间
                           />
 
                           {/* 渲染内爆菜单 (微缩派单器，只在第一个子订单处渲染) */}

@@ -17,6 +17,7 @@ export interface EliteBookingBlockProps {
   isPast?: boolean; // 新增：是否已过时（跨过红线）
   isCheckedOut?: boolean; // 新增：是否已结账（生命周期终结）
   isNoShow?: boolean; // 新增：是否爽约（幽灵灰降维）
+  delayMins?: number; // 新增：挤压延误时间，若大于 0，渲染红色沙漏警示
   onClick?: (e: React.MouseEvent) => void;
   onDragStart?: () => void;
   onDrag?: (e: any, info: any) => void;
@@ -30,7 +31,7 @@ export interface EliteBookingBlockProps {
  */
 export const EliteBookingBlock = ({ 
   title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false,
-  isPast = false, isCheckedOut = false, isNoShow = false,
+  isPast = false, isCheckedOut = false, isNoShow = false, delayMins = 0,
   onClick, onDragStart, onDrag, onDragEnd, isReadOnly 
 }: EliteBookingBlockProps) => {
   // Check if the color is a hex code
@@ -146,11 +147,18 @@ export const EliteBookingBlock = ({
         // --- 充足空间：两行经典排版 ---
         <>
           <div className="flex flex-col gap-1 relative z-10 w-full">
-            <span 
-              className={cn("text-xs md:text-sm font-black uppercase tracking-tighter leading-none line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
-            >
-              {title}
-            </span>
+            <div className="flex justify-between items-start">
+              <span 
+                className={cn("text-xs md:text-sm font-black uppercase tracking-tighter leading-none line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+              >
+                {title}
+              </span>
+              {delayMins > 0 && !isCheckedOut && !isNoShow && (
+                <div className="flex items-center justify-center bg-red-600/90 border border-red-400 px-1.5 rounded-sm shrink-0 ml-1 shadow-[0_0_10px_rgba(239,68,68,0.8)] backdrop-blur-md">
+                  <span className="text-[10px] text-white font-black animate-pulse tracking-wider">+{delayMins}m</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between mt-1 relative z-10 w-full">

@@ -73,14 +73,16 @@ export const BookingScheduler = {
 
       const placedBookings = [...absoluteBookings];
 
-      // 辅助函数：在一个员工列上寻找/顺延空位 (Time Pushdown)
-      const findSlotOnStaff = (booking: any, staffId: string, startMin: number) => {
+      // 辅助函数：在一个员工列上寻找/顺延空位 (双轨制碰撞法则)
+      // isStrict: true 代表绝对防撞（未指定散客寻位），false 代表软穿透挤压（店长强行指派加塞）
+      const findSlotOnStaff = (booking: any, staffId: string, startMin: number, isStrict: boolean) => {
         let currentStart = startMin;
         const duration = booking.duration || 60;
         
         while (true) {
           const currentEnd = currentStart + duration;
-          // 检查该员工的所有已放置订单是否与 [currentStart, currentEnd] 碰撞
+          
+          // 检查该员工的所有已放置订单是否与我们发生碰撞
           const conflict = placedBookings.find(placed => {
             if (placed.resourceId !== staffId) return false;
             if (placed.shopId && booking.shopId && placed.shopId !== booking.shopId) return false;
@@ -88,32 +90,42 @@ export const BookingScheduler = {
             const pStartMin = timeToMinutes(placed.startTime);
             const pEndMin = pStartMin + (placed.duration || 60);
             
-            // 碰撞检测：两个时间段有重叠
-            return Math.max(currentStart, pStartMin) < Math.min(currentEnd, pEndMin);
+            if (isStrict) {
+              // 【轨道一：绝对防撞】(散客寻位)
+              // 必须保证整个时间段 [currentStart, currentEnd] 与别人完全没有重叠
+              return Math.max(currentStart, pStartMin) < Math.min(currentEnd, pEndMin);
+            } else {
+              // 【轨道二：软穿透挤压】(店长强塞)
+              // 只关心起点是否被别人占据！
+              // 如果我选的 currentStart 落在别人的 [pStartMin, pEndMin) 之间，说明我的起点被“硬防线”挡住了，必须顺延。
+              // 但是，如果我的起点没有被挡住，哪怕我的结尾 (currentEnd) 压到了下一个订单，我也允许“软穿透向下重叠”。
+              return currentStart >= pStartMin && currentStart < pEndMin;
+            }
           });
           
           if (!conflict) {
             return currentStart; // 找到空位
           } else {
-            // 发生碰撞，直接顺延到碰撞订单的结束时间
+            // 发生碰撞/阻挡，顺延到碰撞订单的结束时间，然后再次循环检测
             const conflictEndMin = timeToMinutes(conflict.startTime) + (conflict.duration || 60);
             currentStart = conflictEndMin;
           }
         }
       };
 
-      // 3. 处理指定了员工，但需要顺延检测的订单 (Pushdown)
+      // 3. 处理指定了员工，但需要顺延检测的订单 (Pushdown - 轨道二：软穿透)
       pushdownBookings.forEach(bkg => {
         const targetStaffId = bkg.resourceId;
         const originalStartMin = timeToMinutes(bkg.startTime);
         
-        const newStartMin = findSlotOnStaff(bkg, targetStaffId, originalStartMin);
+        // 店长指定的，允许软穿透挤压 (isStrict = false)
+        const newStartMin = findSlotOnStaff(bkg, targetStaffId, originalStartMin, false);
         bkg.startTime = minutesToTime(newStartMin);
         
         placedBookings.push(bkg);
       });
 
-      // 4. 处理未指定员工的订单 (Floating)
+      // 4. 处理未指定员工的订单 (Floating - 轨道一：绝对防撞)
       floatingBookings.forEach(bkg => {
         const originalStartMin = timeToMinutes(bkg.startTime);
         let foundStaffId = null;
@@ -123,7 +135,8 @@ export const BookingScheduler = {
         for (const staff of staffs) {
           if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
           
-          const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin);
+          // 散客自己找位置，必须绝对无重叠 (isStrict = true)
+          const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin, true);
           if (newStartMin === originalStartMin) {
             foundStaffId = staff.id;
             bestStartMin = newStartMin;
@@ -132,11 +145,11 @@ export const BookingScheduler = {
         }
 
         if (!foundStaffId) {
-          // 如果所有人都放不下（都会顺延），那就选第一个员工强制顺延
+          // 如果所有人都放不下（都会顺延），那就选第一个员工强制顺延 (此时仍然用绝对防撞，尽量找个完全空的地方)
           const fallbackStaff = staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO');
           if (fallbackStaff) {
             foundStaffId = fallbackStaff.id;
-            bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin);
+            bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin, true);
           }
         }
 

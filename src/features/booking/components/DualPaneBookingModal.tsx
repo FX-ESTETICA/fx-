@@ -71,15 +71,6 @@ export type BookingEdit = {
   [key: string]: unknown;
 };
 
-type ReflowBooking = BookingEdit & {
-  date: string;
-  startTime: string;
-  duration: number;
-  resourceId?: string | null;
-  originalUnassigned?: boolean;
-  shopId?: string;
-};
-
 export function DualPaneBookingModal({
   isOpen,
   onClose,
@@ -247,22 +238,13 @@ export function DualPaneBookingModal({
   });
 
   // --- 双轨 HUD 时间选择器状态 ---
-  const [isAM, setIsAM] = useState(() => {
-    const hour = parseInt((editingBooking?.startTime || initialTime || "").split(':')[0], 10);
-    return Number.isNaN(hour) ? true : hour < 12;
-  });
-  const [draggingHour, setDraggingHour] = useState<number | null>(null);
-  const [hoveredMinute, setHoveredMinute] = useState<number | null>(null);
-  const [dragStartPos, setDragStartPos] = useState<{x: number, y: number} | null>(null);
+  const [timeSelectionMode, setTimeSelectionMode] = useState<'hour' | 'minute'>('hour');
+  const [isSwitching, setIsSwitching] = useState(false);
   const [centerDragStart, setCenterDragStart] = useState<number | null>(null);
   const phoneMatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   const updateSelectedTime = (time: string) => {
     setSelectedTime(time);
-    const hour = parseInt(time.split(':')[0], 10);
-    if (!Number.isNaN(hour)) {
-      setIsAM(hour < 12);
-    }
   };
 
   const scheduleProfileMatch = (phone: string) => {
@@ -603,19 +585,21 @@ export function DualPaneBookingModal({
       await BookingService.upsertBookings(payload);
 
       // 3. 将刚刚入库的新订单注入到覆盖字典里，告诉智能大脑：这些是需要重新排盘的“浮动订单”
-      const manualOverrides: Record<string, any> = {};
+      const manualOverrides: Record<string, { resourceId?: string | null; originalUnassigned?: boolean; _needsTimeReflow: boolean }> = {};
       newBookings.forEach(b => {
         // 【核心修复】：
         // 1. 如果它是新建的（原来没有资源），或者是从弹窗的编辑中发生了人员指派变动
         // 我们必须强行给它打上 _needsTimeReflow: true，强迫排盘大脑去进行时间顺延和碰撞检测
         const isResourceChanged = editingBooking && editingBooking.resourceId !== b.resourceId;
-        const needsReflow = b.originalUnassigned || isResourceChanged;
+        const needsReflow = !!(b.originalUnassigned || isResourceChanged);
 
-        manualOverrides[b.id] = {
-          resourceId: b.resourceId,
-          originalUnassigned: b.originalUnassigned,
-          _needsTimeReflow: needsReflow 
-        };
+        if (b.id) {
+          manualOverrides[b.id] = {
+            resourceId: b.resourceId as string | null,
+            originalUnassigned: !!b.originalUnassigned,
+            _needsTimeReflow: needsReflow 
+          };
+        }
       });
 
       // 4. 【世界顶端架构：呼叫 BookingScheduler 智能大脑】
@@ -736,15 +720,15 @@ export function DualPaneBookingModal({
   return (
     <>
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-none pointer-events-none"
-        >
-          {/* 背景暗场遮罩 (仅在结账模式下保留强力遮罩防止误触，常规开单模式下保留微弱暗场防止视觉穿透) */}
+        <div className="fixed inset-0 z-[100] font-sans text-white">
+          {/* 背景暗场遮罩 (固定在底层，不随滚动条滚动) */}
           {/* 【硬派商业系统法则】：彻底移除 onClick={handleClose} 属性，防止幽灵点击闪退及防止店长误触导致填单数据丢失 */}
           <div 
-            className={cn("absolute inset-0 pointer-events-auto transition-colors duration-200", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/20 backdrop-blur-sm")}
+            className={cn("fixed inset-0 pointer-events-auto transition-colors duration-200", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/20 backdrop-blur-sm")}
           />
 
+          {/* 滚动容器：允许在移动端键盘弹起时进行瀑布流滑动 */}
+          <div className="fixed inset-0 overflow-y-auto pointer-events-none flex flex-col items-center justify-start md:justify-center py-4 md:py-8 custom-scrollbar">
           {isCheckoutMode ? (
             /* ===================== Neon Core 结账舱 ===================== */
             <div 
@@ -1061,25 +1045,23 @@ export function DualPaneBookingModal({
                 </div>
               )}
 
-              {/* 核心双窗容器 (Glassmorphism + Neon Border) - 增加微弱暗色托底防止文字与背景重叠光度吞噬 */}
+              {/* 核心双窗容器 (Glassmorphism + Neon Border) */}
               <main className={cn(
-                "w-full h-[80vh] md:h-[450px] flex flex-col md:flex-row rounded-2xl overflow-hidden relative group border shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40 pointer-events-auto backdrop-blur-xl transition-all duration-300",
+                "w-full h-auto min-h-[500px] md:h-[450px] flex flex-col md:flex-row relative group transition-all duration-300 rounded-2xl border shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40 pointer-events-auto backdrop-blur-xl",
                 isAIPending ? "border-white/20 opacity-60 grayscale-[0.2]" : "border-gx-cyan/50"
               )}>
-                {/* 右上角关闭按钮 */}
                 <button 
                   onClick={handleClose} 
-                  className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all hover:opacity-100"
+                  className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition-colors z-50"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
-
                 {/* ===================== 左侧/顶部：控制台面板 ===================== */}
-                <section 
-                  className="w-full md:w-[50%] h-[50%] md:h-full p-5 md:pb-16 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0"
-                  onTouchStart={handleTouchStart}
-                  onTouchEnd={handleTouchEnd}
-                >
+                  <section 
+                    className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 pb-24 md:pb-24 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                  >
                 
                 {/* 表单录入区 */}
                 <div className="flex flex-col gap-4 mt-1">
@@ -1296,7 +1278,7 @@ export function DualPaneBookingModal({
 
               {/* ===================== 右侧/底部：动态监视器区 ===================== */}
               <section 
-                className="flex-1 h-[50%] md:h-full p-4 md:p-6 relative z-10 overflow-hidden"
+                className="flex-1 h-auto min-h-[400px] md:min-h-0 md:h-full p-4 md:p-6 pb-24 relative z-10 overflow-hidden"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
               >
@@ -1580,10 +1562,10 @@ export function DualPaneBookingModal({
                     </div>
 
                     {/* 2. 中间：过往消费记录卡片 (可滚动区) / 散客游离态联系方式 */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 mb-4 px-2">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 mb-4 px-2 pb-2">
                       {phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" ? (
-                        <>
-                          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] block mb-3">History Data Stream</span>
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] block mb-3 sticky top-0 bg-black/80 backdrop-blur-sm z-10 py-1">History Data Stream</span>
                           
                           {/* 历史卡片 1 (最新，带间隔天数) */}
                           <div className="relative group cursor-pointer">
@@ -1633,7 +1615,7 @@ export function DualPaneBookingModal({
                               </div>
                             </div>
                           </div>
-                        </>
+                        </div>
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center relative">
                           {/* 散客游离态 (输入了内容但未分配分类) */}
@@ -1881,258 +1863,241 @@ export function DualPaneBookingModal({
 
                 {activePaneMode === 'time' && (
                   <div 
-                    className="h-full flex flex-col items-center justify-center relative select-none pt-4 pb-12 touch-none cursor-ew-resize"
-                    onPointerDown={(e) => {
-                      // 只有当没有点击小时时，才启动全局 AM/PM 滑动
-                      if (draggingHour === null) {
-                        e.preventDefault();
-                        e.currentTarget.setPointerCapture(e.pointerId);
-                        setCenterDragStart(e.clientX);
-                      }
-                    }}
-                    onPointerMove={(e) => {
-                      // 处理全局横滑切换 AM/PM
-                      if (centerDragStart !== null && draggingHour === null) {
-                        const dx = e.clientX - centerDragStart;
-                        const threshold = 40; // 稍微调大一点阈值，防止太灵敏
-                        if (dx > threshold && isAM) {
-                          setIsAM(false);
-                          setCenterDragStart(e.clientX);
-                        } else if (dx < -threshold && !isAM) {
-                          setIsAM(true);
-                          setCenterDragStart(e.clientX);
-                        }
-                      }
-                    }}
-                    onPointerUp={(e) => {
-                      if (centerDragStart !== null) {
-                        e.currentTarget.releasePointerCapture(e.pointerId);
-                        setCenterDragStart(null);
-                      }
-                    }}
+                    className="h-full flex flex-col items-center justify-start relative select-none pt-0 touch-none cursor-default"
                   >
-                    <div 
-                      className="relative w-[360px] h-[360px] flex items-center justify-center group touch-none cursor-default"
-                      onPointerMove={(e) => {
-                        // 处理分钟的矢量拖拽 (D-Pad 逻辑)
-                        if (draggingHour !== null && dragStartPos !== null) {
-                          const dx = e.clientX - dragStartPos.x;
-                          const dy = e.clientY - dragStartPos.y;
-                          
-                          // 设定一个触发阈值（死区），防止误触
-                          const threshold = 15;
-                          
-                          if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-                            if (Math.abs(dx) > Math.abs(dy)) {
-                              // 水平方向移动更多
-                              setHoveredMinute(dx > 0 ? 15 : 45);
-                            } else {
-                              // 垂直方向移动更多
-                              setHoveredMinute(dy > 0 ? 30 : 0);
-                            }
-                          } else {
-                            // 在死区内，默认 00
-                            setHoveredMinute(0);
-                          }
-                        }
-                      }}
-                      onPointerUp={() => {
-                        if (draggingHour !== null) {
-                          const min = hoveredMinute !== null ? hoveredMinute : 0;
-                          updateSelectedTime(`${draggingHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
-                        }
-                        setDraggingHour(null);
-                        setHoveredMinute(null);
-                        setDragStartPos(null);
-                      }}
-                      onPointerLeave={() => {
-                        if (draggingHour !== null) {
-                          const min = hoveredMinute !== null ? hoveredMinute : 0;
-                          updateSelectedTime(`${draggingHour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
-                        }
-                        setDraggingHour(null);
-                        setHoveredMinute(null);
-                        setDragStartPos(null);
-                      }}
-                    >
-                      {/* 外圈 (仅仅作为视觉水印，不参与交互) */}
-                      <div className="absolute inset-0 rounded-full border border-white/5 pointer-events-none">
-                        {[0, 15, 30, 45].map(min => {
-                          const angle = (min / 60) * 360 - 90;
-                          const rad = 180; // 从 150 放大到 180
-                          const x = Math.cos(angle * Math.PI / 180) * rad;
-                          const y = Math.sin(angle * Math.PI / 180) * rad;
-                          const isHovered = hoveredMinute === min;
-                          const isDragging = draggingHour !== null;
-
-                          return (
-                            <div
-                              key={min}
-                              className={cn(
-                                "absolute w-12 h-12 -ml-6 -mt-6 rounded-full flex items-center justify-center font-mono text-xs transition-all duration-300",
-                                isDragging ? "opacity-100" : "opacity-20",
-                                isHovered 
-                                  ? "text-gx-cyan scale-110 drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]" 
-                                  : "text-white/20"
-                              )}
-                              style={{ left: '50%', top: '50%', transform: `translate(${x}px, ${y}px)` }}
-                            >
-                              {min.toString().padStart(2, '0')}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* 移除连线 SVG */}
-
-                      {/* 内圈 C 型轨道背景 */}
-                      <svg className="absolute inset-[40px] w-[280px] h-[280px] pointer-events-none z-0">
-                        <path 
-                          d="M 41 239 A 140 140 0 1 1 239 239" 
-                          fill="none" 
-                          stroke="rgba(255,255,255,0.05)" 
-                          strokeWidth="2" 
-                          strokeDasharray="4 4"
-                        />
-                      </svg>
-
-                      {/* 内圈 (小时星轨 - The Hour Ring) */}
-                      <div className="absolute inset-[40px] z-20">
-                        {Array.from({ length: 12 }).map((_, i) => {
-                          const hr = isAM ? i : i + 12;
-                          // C shape from 135 deg to 405 deg
-                          const angle = 135 + i * (270 / 11);
-                          const rad = 140; // 从 100 放大到 140
-                          const x = Math.cos(angle * Math.PI / 180) * rad;
-                          const y = Math.sin(angle * Math.PI / 180) * rad;
-                          
-                          const isSelectedHour = selectedTime.startsWith(hr.toString().padStart(2, '0'));
-                          const isDraggingThis = draggingHour === hr;
-                          
-                          return (
-                            <div
-                              key={hr}
-                              className={cn(
-                                "absolute w-12 h-12 -ml-[24px] -mt-[24px] rounded-full flex items-center justify-center font-mono text-lg transition-all cursor-pointer font-bold",
-                                isDraggingThis 
-                                  ? "text-gx-cyan scale-125 drop-shadow-[0_0_15px_rgba(0,255,255,0.8)]" 
-                                  : isSelectedHour 
-                                    ? "text-gx-cyan drop-shadow-[0_0_10px_rgba(0,255,255,0.5)]" 
-                                    : "text-white/90 hover:text-white hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]"
-                              )}
-                              style={{ left: '50%', top: '50%', transform: `translate(${x}px, ${y}px)` }}
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation(); // 防止触发中心区域的滑动
-                                // 必须捕获指针，否则在触摸屏上滑动过快可能会丢失目标
-                                e.currentTarget.setPointerCapture(e.pointerId);
-                                setDraggingHour(hr);
-                                setHoveredMinute(0); // 默认 00
-                                setDragStartPos({ x: e.clientX, y: e.clientY });
-                              }}
-                              onPointerUp={(e) => {
-                                e.currentTarget.releasePointerCapture(e.pointerId);
-                              }}
-                              // 支持纯点击选择整点
-                              onClick={() => {
-                                if (draggingHour === null) {
-                                  updateSelectedTime(`${hr.toString().padStart(2, '0')}:00`);
-                                }
-                              }}
-                            >
-                              {hr.toString().padStart(2, '0')}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* 中心枢纽 (The Core) - 仅作展示 */}
-                      <div 
-                        className="absolute inset-[100px] rounded-full flex flex-col items-center justify-center z-10 pointer-events-none"
+                    {/* 顶部中心 HUD (HH:mm) */}
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 flex shrink-0 items-center gap-2 z-30 font-black font-mono text-[50px] tracking-widest leading-none drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                      <button 
+                        onClick={() => setTimeSelectionMode('hour')}
+                        className={cn(
+                          "transition-all px-2 rounded-lg",
+                          timeSelectionMode === 'hour' ? "text-gx-cyan bg-white/5" : "text-white/40 hover:text-white/80"
+                        )}
                       >
-                        <span 
-                          key={isAM ? 'AM' : 'PM'} // 利用 key 触发动画
-                          className="text-[48px] font-black tracking-widest text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] font-mono leading-none"
-                        >
-                          {draggingHour !== null 
-                            ? `${draggingHour.toString().padStart(2, '0')}:${hoveredMinute !== null ? hoveredMinute.toString().padStart(2, '0') : '00'}`
-                            : selectedTime
-                          }
-                        </span>
-                        
-                        {/* AM/PM 状态指示器 (纯展示，点击事件也可以保留作为后备) */}
-                        <div className="mt-5 pointer-events-auto">
-                          <button 
-                            className="px-5 py-2 rounded-full bg-black/40 border border-gx-cyan/30 text-xs text-gx-cyan font-bold tracking-widest transition-all shadow-[0_0_15px_rgba(0,255,255,0.1)] flex items-center gap-3"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsAM(!isAM);
-                            }}
-                          >
-                            <div className={cn("w-2 h-2 rounded-full transition-all", isAM ? "bg-gx-cyan shadow-[0_0_5px_rgba(0,255,255,0.8)] scale-125" : "bg-white/20")} />
-                            <span className={cn("transition-all", isAM ? "text-gx-cyan" : "text-white/40")}>{t('txt_f8fbea')}</span>
-                            <div className="w-0.5 h-3 bg-white/10" />
-                            <span className={cn("transition-all", !isAM ? "text-gx-cyan" : "text-white/40")}>{t('txt_e2eb28')}</span>
-                            <div className={cn("w-2 h-2 rounded-full transition-all", !isAM ? "bg-gx-cyan shadow-[0_0_5px_rgba(0,255,255,0.8)] scale-125" : "bg-white/20")} />
-                          </button>
-                        </div>
-                      </div>
+                        {selectedTime.split(':')[0]}
+                      </button>
+                      <span className="text-white/20 mb-3">:</span>
+                      <button 
+                        onClick={() => setTimeSelectionMode('minute')}
+                        className={cn(
+                          "transition-all px-2 rounded-lg",
+                          timeSelectionMode === 'minute' ? "text-gx-cyan bg-white/5" : "text-white/40 hover:text-white/80"
+                        )}
+                      >
+                        {selectedTime.split(':')[1]}
+                      </button>
                     </div>
 
-                    {/* 操作提示 */}
-                    <div className="absolute bottom-6 text-[10px] font-mono tracking-[0.3em] transition-all duration-300 flex flex-col items-center gap-1">
-                      {draggingHour !== null ? (
-                        <span className="text-gx-cyan animate-pulse">{t('txt_81c636')}</span>
+                    <div className={cn(
+                      "relative w-[340px] h-[340px] flex items-center justify-center group touch-none cursor-default mt-8 transition-all duration-300",
+                      isSwitching ? "scale-95 opacity-50 pointer-events-none" : "scale-100 opacity-100"
+                    )}>
+                      {/* 中心光点 */}
+                      <div className="absolute inset-0 m-auto w-3 h-3 rounded-full bg-gx-cyan shadow-[0_0_15px_rgba(0,255,255,1)] z-30 pointer-events-none" />
+
+                      {/* 双圈 / 单圈 渲染 */}
+                      {timeSelectionMode === 'hour' ? (
+                        <>
+                          {/* 外圈 1-12 */}
+                          <div className="absolute inset-0 z-20 pointer-events-none">
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const hr = i === 0 ? 12 : i;
+                              const angle = i * 30 - 90;
+                              const rad = 130;
+                              const x = Math.cos(angle * Math.PI / 180) * rad;
+                              const y = Math.sin(angle * Math.PI / 180) * rad;
+                              
+                              const currentSelectedHour = parseInt(selectedTime.split(':')[0], 10);
+                              const isSelected = currentSelectedHour === hr || (hr === 12 && currentSelectedHour === 12);
+
+                              return (
+                                <div
+                                  key={`out-${hr}`}
+                                  className={cn(
+                                    "absolute rounded-full flex items-center justify-center font-mono text-base transition-all cursor-pointer font-bold pointer-events-auto",
+                                    isSelected 
+                                      ? "text-black bg-gx-cyan scale-110 shadow-[0_0_15px_rgba(0,255,255,0.6)] w-12 h-12" 
+                                      : "text-white/90 hover:text-gx-cyan hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] w-10 h-10"
+                                  )}
+                                  style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+                                  onClick={() => {
+                                    if (isSwitching) return;
+                                    updateSelectedTime(`${hr.toString().padStart(2, '0')}:${selectedTime.split(':')[1]}`);
+                                    setIsSwitching(true);
+                                    setTimeout(() => {
+                                      setTimeSelectionMode('minute');
+                                      setIsSwitching(false);
+                                    }, 250);
+                                  }}
+                                >
+                                  {hr}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* 内圈 13-00 */}
+                          <div className="absolute inset-0 z-20 pointer-events-none">
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const hr = i === 0 ? 0 : i + 12;
+                              const angle = i * 30 - 90;
+                              const rad = 85;
+                              const x = Math.cos(angle * Math.PI / 180) * rad;
+                              const y = Math.sin(angle * Math.PI / 180) * rad;
+                              
+                              const currentSelectedHour = parseInt(selectedTime.split(':')[0], 10);
+                              const isSelected = currentSelectedHour === hr;
+
+                              return (
+                                <div
+                                  key={`in-${hr}`}
+                                  className={cn(
+                                    "absolute rounded-full flex items-center justify-center font-mono text-xs transition-all cursor-pointer font-bold pointer-events-auto",
+                                    isSelected 
+                                      ? "text-black bg-gx-cyan scale-110 shadow-[0_0_15px_rgba(0,255,255,0.6)] w-8 h-8" 
+                                      : "text-white/60 hover:text-gx-cyan hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] w-6 h-6"
+                                  )}
+                                  style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+                                  onClick={() => {
+                                    if (isSwitching) return;
+                                    updateSelectedTime(`${hr.toString().padStart(2, '0')}:${selectedTime.split(':')[1]}`);
+                                    setIsSwitching(true);
+                                    setTimeout(() => {
+                                      setTimeSelectionMode('minute');
+                                      setIsSwitching(false);
+                                    }, 250);
+                                  }}
+                                >
+                                  {hr === 0 ? '00' : hr}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* 绘制选中连线 (Hour) */}
+                          {(() => {
+                            const hr = parseInt(selectedTime.split(':')[0], 10);
+                            const rad = (hr >= 1 && hr <= 12) ? 130 : 85;
+                            let angle = 0;
+                            if (hr >= 1 && hr <= 12) {
+                              angle = (hr === 12 ? 0 : hr) * 30 - 90;
+                            } else {
+                              angle = (hr === 0 ? 0 : hr - 12) * 30 - 90;
+                            }
+                            const x = Math.cos(angle * Math.PI / 180) * rad;
+                            const y = Math.sin(angle * Math.PI / 180) * rad;
+                            const distance = Math.sqrt(x*x + y*y);
+                            const rotation = angle;
+
+                            return (
+                              <div 
+                                className="absolute top-1/2 left-1/2 h-[2px] bg-gx-cyan origin-left z-10 opacity-70 transition-all duration-300 pointer-events-none"
+                                style={{ 
+                                  width: `${distance}px`, 
+                                  transform: `translate(0, -50%) rotate(${rotation}deg)`
+                                }}
+                              />
+                            );
+                          })()}
+                        </>
                       ) : (
                         <>
-                          <span className="text-white/30">HOLD HOUR & SWIPE FOR MINUTES</span>
-                          <span className="text-white/20 text-[8px]">SWIPE CENTER FOR AM/PM</span>
+                          {/* 分钟单圈 0-55 */}
+                          <div className="absolute inset-0 z-20 pointer-events-none">
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const min = i * 5;
+                              const angle = i * 30 - 90;
+                              const rad = 130;
+                              const x = Math.cos(angle * Math.PI / 180) * rad;
+                              const y = Math.sin(angle * Math.PI / 180) * rad;
+                              
+                              const currentSelectedMinute = parseInt(selectedTime.split(':')[1], 10);
+                              const isSelected = currentSelectedMinute === min;
+
+                              return (
+                                <div
+                                  key={`min-${min}`}
+                                  className={cn(
+                                    "absolute rounded-full flex items-center justify-center font-mono text-base transition-all cursor-pointer font-bold pointer-events-auto",
+                                    isSelected 
+                                      ? "text-black bg-gx-cyan scale-110 shadow-[0_0_15px_rgba(0,255,255,0.6)] w-12 h-12" 
+                                      : "text-white/90 hover:text-gx-cyan hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] w-10 h-10"
+                                  )}
+                                  style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+                                  onClick={() => {
+                                    updateSelectedTime(`${selectedTime.split(':')[0]}:${min.toString().padStart(2, '0')}`);
+                                  }}
+                                >
+                                  {min.toString().padStart(2, '0')}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* 绘制选中连线 (Minute) */}
+                          {(() => {
+                            const min = parseInt(selectedTime.split(':')[1], 10);
+                            const angle = (min / 60) * 360 - 90;
+                            const rad = 130;
+                            const x = Math.cos(angle * Math.PI / 180) * rad;
+                            const y = Math.sin(angle * Math.PI / 180) * rad;
+                            const distance = Math.sqrt(x*x + y*y);
+                            const rotation = angle;
+
+                            return (
+                              <div 
+                                className="absolute top-1/2 left-1/2 h-[2px] bg-gx-cyan origin-left z-10 opacity-70 transition-all duration-300 pointer-events-none"
+                                style={{ 
+                                  width: `${distance}px`, 
+                                  transform: `translate(0, -50%) rotate(${rotation}deg)`
+                                }}
+                              />
+                            );
+                          })()}
                         </>
                       )}
                     </div>
                   </div>
-                  )}
-                </section>
-              </main>
-
-            {/* 底部悬浮按钮栏 (内部居中跨越双窗) */}
-            <div className={cn(
-              "absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50 pointer-events-auto transition-opacity",
-              isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
-            )}>
-              {isReadOnly ? (
-                <div className="w-64 py-3 text-center rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-[10px] uppercase tracking-widest">
-                  只读模式 / READ ONLY
-                </div>
-              ) : (
-                <>
-                  {editingBooking && (
-                    <button 
-                      onClick={handleMarkAsNoShow}
-                      className="w-32 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                    >
-                      {t('txt_81c4b2')}</button>
-                  )}
-                  <button 
-                    onClick={handleConfirmBooking}
-                    disabled={selectedServices.length === 0}
-                    className={cn(
-                      "w-48 py-3 rounded-xl text-xs font-black tracking-widest transition-all",
-                      selectedServices.length > 0 
-                        ? "bg-gx-cyan text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white" 
-                        : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
+                )}
+                
+                {/* ===================== 新增：内嵌底部操作舱 ===================== */}
+              </section>
+              
+              {/* 内嵌底部操作舱 */}
+              <div className={cn(
+                "absolute bottom-0 left-0 right-0 w-full p-4 flex flex-wrap justify-center items-center gap-3 z-50 pointer-events-auto transition-opacity bg-black/60 backdrop-blur-md border-t border-white/5",
+                isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
+              )}>
+                {isReadOnly ? (
+                  <div className="w-full md:w-64 py-3 text-center rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-[10px] uppercase tracking-widest">
+                    只读模式 / READ ONLY
+                  </div>
+                ) : (
+                  <>
+                    {editingBooking && (
+                      <button 
+                        onClick={handleMarkAsNoShow}
+                        className="flex-1 md:flex-none md:w-32 min-w-[100px] py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                      >
+                        {t('txt_81c4b2')}
+                      </button>
                     )}
-                  >
-                    {editingBooking ? "更新预约" : "确认预约"}
-                  </button>
-                </>
-              )}
-              <button 
-                onClick={handleClose}
-                className="w-40 py-3 rounded-xl bg-black/60 border border-gx-cyan/30 text-white hover:border-gx-cyan transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
-              >
-                {t('txt_8fc52a')}</button>
-            </div>
+                    <button 
+                      onClick={handleConfirmBooking}
+                      disabled={selectedServices.length === 0}
+                      className={cn(
+                        "flex-1 md:flex-none md:w-48 min-w-[120px] py-3 rounded-xl text-xs font-black tracking-widest transition-all",
+                        selectedServices.length > 0 
+                          ? "bg-gx-cyan text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white" 
+                          : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
+                      )}
+                    >
+                      {editingBooking ? "更新预约" : "确认预约"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </main>
 
             {/* Global styles for custom scrollbar */}
             <style dangerouslySetInnerHTML={{__html: `
@@ -2154,6 +2119,7 @@ export function DualPaneBookingModal({
             `}} />
           </div>
           )}
+        </div>
         </div>
       )}
     </>

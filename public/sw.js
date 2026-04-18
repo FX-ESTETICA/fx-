@@ -37,23 +37,18 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
+    fetch(event.request).then((response) => {
+      // 优先从网络获取，如果是有效响应，存入缓存
+      if (response && response.status === 200 && response.type === 'basic') {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
       }
-
-      return fetch(event.request).then((response) => {
-        // 如果是有效响应且不是第三方资源，存入缓存
-        if (response && response.status === 200 && response.type === 'basic') {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return response;
-      }).catch(() => {
-        // 离线且无缓存时返回一个备选方案（可选）
-      });
+      return response;
+    }).catch(() => {
+      // 网络失败（离线）时，降级使用缓存
+      return caches.match(event.request);
     })
   );
 });
