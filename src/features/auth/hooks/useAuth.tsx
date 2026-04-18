@@ -50,6 +50,7 @@ interface AuthContextType {
   session: Session | null;
   isGuest: boolean;
   isLoading: boolean;
+  isProfileLoading: boolean;
   activeRole: UserRole;
   signOut: () => Promise<void>;
   setGuestMode: () => void;
@@ -70,6 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isGuest, setIsGuest] = useState(false);
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(true);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [hasConfirmedSession, setHasConfirmedSession] = useState(false);
   const [localViewRole, setLocalViewRole] = useState<UserRole | null>(() => {
     if (typeof window === "undefined") return null;
@@ -120,6 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       return;
     }
+    setIsProfileLoading(true);
     setSession(nextSession);
     if (nextSession?.user) {
       setIsGuest(false);
@@ -243,9 +246,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("[AuthProvider] Hydrate Error:", error);
         setUser(nextSession.user);
+      } finally {
+        setIsProfileLoading(false);
       }
     } else {
       setUser(null);
+      setIsProfileLoading(false);
     }
   }, [localViewRole, syncDeviceSession]);
 
@@ -305,19 +311,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // 【防重排风暴】: 拦截 INITIAL_SESSION，因为它与上方的 initAuth 完全重叠，
       // 会导致两次并发的 profiles 和 shop_bindings 网络请求，从而引发 React 剧烈重排卡顿。
-      if (_event === 'INITIAL_SESSION') return;
+      if (_event === 'INITIAL_SESSION') {
+        // 【完美修复法则】：绝对禁止在这里提前释放锁，彻底粉碎并发挂载导致被踢回 login 的幽灵 Bug。
+        // 锁的释放必须且只能由上方的 initAuth 的 finally 块来执行！
+        return;
+      }
       
-      // 世界顶端：在任何会导致重新获取数据的事件期间，重新加上状态锁
-      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+      // 世界顶端：剥夺 TOKEN_REFRESHED 和 USER_UPDATED 的全局 Loading 锁权限，仅在初始登入时允许骨架屏
+      if (_event === 'SIGNED_IN') {
         setIsLoading(true);
         setHasConfirmedSession(true);
+      } else if (_event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+        setHasConfirmedSession(true);
       }
+      
       if (_event === 'SIGNED_OUT') {
         setHasConfirmedSession(false);
       }
 
       await hydrateSession(currentSession);
-      setIsLoading(false); // 在此处明确释放锁
+      
+      // 【关键修复】：不仅在 SIGNED_IN 释放，任何改变状态的事件完成后，都必须确保锁是开的，防止死锁
+      setIsLoading(false);
     });
 
     return () => {
@@ -522,15 +537,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === "undefined") return;
     const handleVisibility = async () => {
       if (document.visibilityState !== "visible") return;
-      // 世界顶端防漏：用户从后台切回前台（特别是隔天唤醒时），强制重新上锁，防止旧数据污染
-      setIsLoading(true);
+      
+      // 世界顶端 0 妥协法则：静默唤醒 (Silent Hydration)
+      // 绝不触发 setIsLoading(true) 摧毁当前 DOM，而是像幽灵一样在后台静默获取最新数据，
+      // 获取后通过 React 响应式精准替换脏数据，让前台画面纹丝不动。
       const { data: { session: nextSession } } = await supabase.auth.getSession();
       await hydrateSession(nextSession);
       await refreshUserData(nextSession);
       if (nextSession?.user) {
         await syncDeviceSession(nextSession);
       }
-      setIsLoading(false); // 彻底刷新完毕后才释放锁
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
@@ -603,6 +619,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     session,
     isGuest,
     isLoading,
+    isProfileLoading,
     activeRole,
     signOut: handleSignOut,
     setGuestMode,

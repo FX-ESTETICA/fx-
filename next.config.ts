@@ -26,6 +26,7 @@ const nextConfig: any = {
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
       { protocol: "https", hostname: "places.googleapis.com", pathname: "/**" },
       { protocol: "https", hostname: "api.dicebear.com", pathname: "/**" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/**" },
       ...(bunnyHost ? [{ protocol: "https" as const, hostname: bunnyHost, pathname: "/**" }] : []),
       ...(supabaseHost ? [{ protocol: "https" as const, hostname: supabaseHost, pathname: "/**" }] : []),
     ],

@@ -1224,8 +1224,9 @@ function CyberSphere({
     }
   });
 
-  const effectiveHex = isDimmed ? '#444444' : colorHex;
+  const effectiveHex = isDimmed ? '#6b7280' : colorHex;
   const effectiveGlow = glowColor || colorHex;
+  const effectiveEmissiveIntensity = isDimmed ? 0.15 : 0;
 
   return (
     <group>
@@ -1240,7 +1241,7 @@ function CyberSphere({
         <meshStandardMaterial 
           color={effectiveHex} 
           emissive={effectiveHex}
-          emissiveIntensity={0} 
+          emissiveIntensity={effectiveEmissiveIntensity} 
           roughness={0.1}
           metalness={0.2}
         />

@@ -12,7 +12,7 @@ import { useViewStack } from "@/hooks/useViewStack";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isProfileLoading } = useAuth();
   const { subscriptionModalMode, closeSubscriptionModal, subscription } = useShop();
   const { activeTab, overlays } = useViewStack();
 
@@ -42,8 +42,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       </div>
 
       {/* 2. 全息档案舱：0冲突悬浮拦截层 */}
-      {/* 拦截逻辑升级：只要名字为空、性别未知或生日为空，全部强制拦截！包含历史 Google 账号 */}
-      {!isLoading && user && (!(user as any).name || (user as any).gender === "unknown" || !(user as any).birthday) && !isPublicRoute && (
+      {/* 拦截逻辑升级：增加 isProfileLoading 锁，只有当 Auth 认证完毕 且 档案数据彻底拉取完毕后，才进行拦截判断，彻底消除闪烁 */}
+      {!isLoading && !isProfileLoading && user && (!(user as any).name || (user as any).gender === "unknown" || !(user as any).birthday) && !isPublicRoute && (
         <CyberOnboardingModal />
       )}
 

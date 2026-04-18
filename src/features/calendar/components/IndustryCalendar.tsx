@@ -509,7 +509,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     }, 50);
 
     return () => clearInterval(radarInterval);
-  }, [targetBookingId, currentDate, globalBookings]); // 依赖项改为 globalBookings，修复 ReferenceError
+  }, [targetBookingId]); // 移除了 currentDate, globalBookings，防止它们高频更新导致 setInterval 被不断重置和死循环
 
   // 翻页逻辑：每页 5 个员工
   const [currentStaffPage, setCurrentStaffPage] = useState(0);
