@@ -434,8 +434,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     const start = startPointerRef.current;
     if (!start) return;
     
-    // 只允许单指操作，避免多指缩放误触
-    if (!e.isPrimary) return;
+    // 只允许单指操作，避免多指缩放误触 (兼容 isPrimary 未定义的旧设备)
+    if (e.isPrimary === false) return;
 
     const dx = Math.abs(e.clientX - start.x);
     const dy = Math.abs(e.clientY - start.y);
