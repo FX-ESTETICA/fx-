@@ -1156,7 +1156,7 @@ export function DualPaneBookingModal({
                 {/* 右上角关闭按钮 */}
                 <button 
                   onClick={handleClose} 
-                  className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100"
+                  className="absolute top-4 right-4 z-50 p-2 bg-black/40 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-full backdrop-blur-md transition-all hover:opacity-100"
                 >
                   <X className="w-4 h-4" />
                 </button>
