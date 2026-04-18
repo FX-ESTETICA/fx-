@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft } from 'lucide-react';
 import Image from "next/image";
 import { cn } from "@/utils/cn";
-import { BookingService } from "@/features/booking/api/booking";
+import { BookingService, BookingUpsertInput } from "@/features/booking/api/booking";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 
@@ -672,14 +672,6 @@ export function DualPaneBookingModal({
       // B. 因为避让而重新分配了座位的旧“无指定”订单 (所有 unassignedBookings 在这一轮都被重新计算了位置，只有前后位置不同才需要保存)
       const newBookingIds = new Set(newBookings.map(b => b.id));
       
-      // 我们需要比对之前的状态，或者最安全的做法是：只保存新订单，以及 resourceId 被改变的旧订单。
-      // 为了安全起见，所有在这一轮被我们“重排”的无指定订单 (unassignedBookings)，如果在云端的 resourceId 和计算出来的不同，才保存。
-      // 最暴力的安全过滤：只提取 newBookingIds 和所有 unassignedBookings (因为它们刚刚被重新赋予了 foundStaffId)
-      const oldUnassignedIds = new Set(
-        unassignedBookings.map(b => b.id).filter(id => id && !newBookingIds.has(id))
-      );
-
-      // 【终极排爆过滤】：不要把今天所有的订单都保存进去！
       // 只有那些 真正发生了变化 的订单才允许放行
       // 我们在第 600 行已经创建了包含所有 (含新单和旧单) 的 originalStateMap
 
