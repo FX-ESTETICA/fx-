@@ -346,22 +346,6 @@ export function DualPaneBookingModal({
     onClose();
   }, [onClose, resetFormState]);
 
-  // 【终极防御结界】：时空锁 (Time Lock) 免疫机制
-  // 专门防御平板端/移动端因 300ms 延迟产生的 "Ghost Click (幽灵点击)" 击穿遮罩导致弹窗闪退
-  const [isJustMounted, setIsJustMounted] = useState(false);
-  useEffect(() => {
-    if (isOpen) {
-      setIsJustMounted(true);
-      const timer = setTimeout(() => setIsJustMounted(false), 400); // 400ms 的幽灵免疫期
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  const handleBackgroundClick = useCallback(() => {
-    if (isJustMounted) return; // 护盾期间，任何来自背景的点击全部无效化！
-    handleClose();
-  }, [isJustMounted, handleClose]);
-
   useEffect(() => {
     return () => {
       if (phoneMatchTimerRef.current) {
@@ -851,9 +835,9 @@ export function DualPaneBookingModal({
           className="fixed inset-0 z-[100] flex items-center justify-center font-sans text-white touch-none pointer-events-none"
         >
           {/* 背景暗场遮罩 (仅在结账模式下保留强力遮罩防止误触，常规开单模式下保留微弱暗场防止视觉穿透) */}
+          {/* 【硬派商业系统法则】：彻底移除 onClick={handleClose} 属性，防止幽灵点击闪退及防止店长误触导致填单数据丢失 */}
           <div 
             className={cn("absolute inset-0 pointer-events-auto transition-colors duration-200", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/20 backdrop-blur-sm")}
-            onClick={handleClose}
           />
 
           {isCheckoutMode ? (
