@@ -423,23 +423,33 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     }
     
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    
+    // 【修改点二】：将长按阈值从 300ms 提高到 450ms，彻底剥离单点和长按的界限
     longPressTimerRef.current = setTimeout(() => {
       activateCrosshair(e.clientY, e.clientX);
-    }, 300);
+    }, 450);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     const start = startPointerRef.current;
     if (!start) return;
+    
+    // 只允许单指操作，避免多指缩放误触
+    if (!e.isPrimary) return;
+
     const dx = Math.abs(e.clientX - start.x);
     const dy = Math.abs(e.clientY - start.y);
+    
+    // 在准星尚未激活时，如果发生了超过 10px 的物理位移，说明用户意图是“滚动屏幕”
     if (!crosshair.active && (dx > 10 || dy > 10)) {
+      // 立刻取消长按定时器，释放滚动权
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
       }
       return;
     }
+    
     if (crosshair.active) {
       const rect = containerRectRef.current;
       if (!rect) return;
@@ -447,6 +457,25 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
       _setCrosshair({ active: true, y: exactY, time: timeStr, resourceId, dateStr });
     }
   };
+
+  // 【核心修改点三】：引入底层 DOM 拦截器，一旦准星激活，绝对禁止页面滚动！
+  useEffect(() => {
+    const container = matrixContainerRef.current;
+    if (!container) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (crosshair.active) {
+        // 如果准星处于激活状态，强行阻止浏览器默认的滚动行为
+        // { passive: false } 是必须的，否则 preventDefault() 无效
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => {
+      container.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [crosshair.active]);
 
   const handlePointerUp = (e: React.PointerEvent) => {
     const start = startPointerRef.current;
