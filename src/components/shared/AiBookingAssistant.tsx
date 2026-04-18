@@ -282,16 +282,26 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          key="ai-assistant-modal"
-          initial={{ opacity: 0, y: 50, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-12 md:bottom-12 md:w-[400px] h-[60vh] max-h-[600px] min-h-[400px] z-[1001] rounded-3xl overflow-hidden flex flex-col bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto"
-        >
+    <>
+      {/* 顶级修复：持久化毛玻璃护盾 (Persistent Glass Shield) 永不销毁 */}
+      <motion.div
+        initial={false}
+        animate={isOpen ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 50, scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-12 md:bottom-12 md:w-[400px] h-[60vh] max-h-[600px] min-h-[400px] z-[1000] rounded-3xl pointer-events-none bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+        style={{ willChange: 'opacity, transform' }}
+      />
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="ai-assistant-modal"
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-12 md:bottom-12 md:w-[400px] h-[60vh] max-h-[600px] min-h-[400px] z-[1001] rounded-3xl overflow-hidden flex flex-col pointer-events-auto"
+          >
             {/* Header */}
             <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-white/5 to-transparent">
               <div className="flex items-center gap-3">
@@ -457,7 +467,8 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
               </form>
             </div>
           </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

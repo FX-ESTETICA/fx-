@@ -78,15 +78,21 @@ export const DataMatrixAssets = () => {
       </div>
 
       {/* 状态 2: 零容器全息展开 (Zero-Container Fullscreen Overlay) - 物理逃逸，无实体框 */}
+      {/* 顶级修复：持久化全屏毛玻璃护盾 (Persistent Glass Shield) */}
+      <motion.div
+        initial={false}
+        animate={isModalOpen ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="fixed inset-0 z-[99] bg-black/70 backdrop-blur-xl pointer-events-none"
+        style={{ willChange: 'opacity' }}
+      />
+      
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center">
-            {/* 纯净模糊层，无任何色块叠加 */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/70 backdrop-blur-xl"
+            {/* 点击遮罩拦截事件 */}
+            <div 
+              className="absolute inset-0 bg-transparent cursor-pointer"
               onClick={() => setIsModalOpen(false)}
             />
             
@@ -96,7 +102,7 @@ export const DataMatrixAssets = () => {
               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
               exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="relative w-full max-w-2xl flex flex-col h-[80vh] px-6"
+              className="relative w-full max-w-2xl flex flex-col h-[80vh] px-6 pointer-events-auto"
             >
               {/* 标题头 */}
               <div className="flex flex-col items-center justify-center pb-12 shrink-0">

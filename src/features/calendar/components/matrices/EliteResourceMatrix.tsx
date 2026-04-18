@@ -332,11 +332,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     // 移除导致多重滚动的 + scrollY，clientY - rect.top 已经正确计算了相对于容器的内容偏移量
     let absY = clientY - rect.top;
     
-    // 【The Data-Layer Shift Paradigm】：十字准星顶部磁吸拦截
-    // 如果用户点击了 0~16px 的顶部安全空白区，强制将坐标吸附 (Snap) 到第一根时间轴起跑线，防止越界计算
+    // 【The Data-Layer Shift Paradigm】：十字准星顶部磁吸拦截 (终极防御)
+    // 拦截因平板端极速点击时减去 scrollTop 或 padding 导致的越界甚至负坐标
     if (waterfallData.nodes.length > 0 && absY < waterfallData.nodes[0].top) {
       absY = waterfallData.nodes[0].top;
-    } else if (absY < 0) {
+    } 
+    // 绝对兜底防御
+    if (absY < 0) {
       absY = 0;
     }
     
@@ -348,7 +350,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
     let timeStr = '00:00';
     
     if (targetNode.type === 'time') {
-      const offsetYInRow = absY - targetNode.top;
+      // ⚠️ 终极防御结界：强制确保偏移量永远大于等于 0，绝不产生负数导致的越界时间！
+      const offsetYInRow = Math.max(0, absY - targetNode.top);
+      
       let finalMin = Math.round((offsetYInRow / 80) * 60 / 15) * 15;
       let finalHour = targetNode.hour!;
       

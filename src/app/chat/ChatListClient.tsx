@@ -65,15 +65,25 @@ export default function ChatListPage() {
 
         {/* 右侧：主战场（手机端如果没选中则隐藏；平板/PC端如果没选中则显示星云空场占位符） */}
         <div className={`flex-1 h-full relative ${!activeChat ? 'hidden md:flex' : 'block'}`}>
+          
+          {/* 世界顶级修复法则：毛玻璃层持久化剥离 (Persistent Glass Shield)
+              绝对禁止将 backdrop-blur 放入带有动态 key 的 AnimatePresence 容器中！
+              将毛玻璃层提升为静态兄弟节点，仅控制 opacity，彻底消灭 GPU 重建渲染层导致的黑场闪烁。
+          */}
+          <div 
+            className={`absolute inset-0 w-full h-full bg-black/40 backdrop-blur-sm pointer-events-none transition-opacity duration-300 ${activeChat ? 'opacity-100 z-0' : 'opacity-0 -z-10'}`}
+            style={{ willChange: 'opacity' }}
+          />
+
           <AnimatePresence initial={false} mode="wait">
             {activeChat ? (
               <motion.div
                 key={activeChat.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="absolute inset-0 w-full h-full bg-black/40 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 w-full h-full z-10"
               >
                 <ChatRoomUI 
                   currentUserId={currentUserId} 
@@ -89,7 +99,7 @@ export default function ChatListPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white/30"
+                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white/30 z-10"
               >
                 <div className="w-24 h-24 mb-6 rounded-full border border-white/10 flex items-center justify-center relative">
                   <div className="absolute inset-0 rounded-full border-t border-gx-cyan animate-spin opacity-50" />

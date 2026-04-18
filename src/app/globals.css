@@ -67,6 +67,15 @@
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* 终极防网页感：全局禁止选中文字 (物理级屏蔽) */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* 豁免输入框：保持正常的光标和文本选中能力 */
+  input, textarea {
+    -webkit-user-select: auto;
+    user-select: auto;
   }
 }
 

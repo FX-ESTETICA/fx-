@@ -844,7 +844,7 @@ export function DualPaneBookingModal({
             /* ===================== Neon Core 结账舱 ===================== */
             <div 
               key="checkout-pane"
-              className="relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 touch-pan-y"
+              className="relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 touch-pan-y pointer-events-auto"
             >
               {/* 顶角关闭 / 返回按钮 */}
               {!isAlreadyCompleted && (

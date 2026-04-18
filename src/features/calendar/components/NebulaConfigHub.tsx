@@ -230,28 +230,38 @@ export const NebulaConfigHub = ({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* 背景遮罩 - 已移除全屏黑色和毛玻璃，保持左侧清透 */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0 }} // 极速响应
-            onClick={onClose}
-            className="fixed inset-0 bg-transparent z-[100]"
-          />
+    <>
+      {/* 顶级修复：持久化毛玻璃抽屉护盾 (Persistent Drawer Glass Shield) */}
+      <motion.div
+        initial={false}
+        animate={isOpen ? { x: 0, opacity: 1 } : { x: "100%", opacity: 0 }}
+        transition={{ duration: 0 }} // 极速响应
+        className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-black/70 backdrop-blur-2xl md:border-l border-white/10 z-[100] shadow-[-20px_0_50px_rgba(0,0,0,0.3)] pointer-events-none"
+        style={{ willChange: 'transform, opacity' }}
+      />
 
-          {/* 抽屉主体 - 赛博半透明黑玻璃材质 */}
-          <motion.div
-            key="config-panel"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ duration: 0 }} // 极速响应，移除弹簧动画
-            className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-black/70 backdrop-blur-2xl md:border-l border-white/10 z-[101] flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.3)]"
-          >
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* 背景遮罩 - 已移除全屏黑色和毛玻璃，保持左侧清透 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0 }} // 极速响应
+              onClick={onClose}
+              className="fixed inset-0 bg-transparent z-[101]"
+            />
+
+            {/* 抽屉主体 - 赛博半透明黑玻璃材质 */}
+            <motion.div
+              key="config-panel"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0 }} // 极速响应，移除弹簧动画
+              className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-transparent z-[102] flex flex-col pointer-events-auto"
+            >
             {/* 头部 */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
               {/* 左侧：标题与图标 */}
@@ -414,8 +424,9 @@ export const NebulaConfigHub = ({
             </div>
           </motion.div>
         </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
