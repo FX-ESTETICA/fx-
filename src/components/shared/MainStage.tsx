@@ -24,7 +24,7 @@ const TabContainer = memo(({ active, children }: { active: boolean, children: Re
     <div className={cn(
       "absolute inset-0 w-full h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-transparent",
       active ? "opacity-100 pointer-events-auto z-10 visible" : "opacity-0 pointer-events-none z-0 invisible",
-      !active && "[content-visibility:hidden]"
+      !active && "hidden"
     )}>
       {children}
     </div>
@@ -146,7 +146,7 @@ export const MainStage = () => {
         {/* 1. 首页 */}
         {mountedTabs.has('home') && (
           <TabContainer active={activeTab === 'home'}>
-            <HomeClient initialRealShops={[]} />
+            <HomeClient initialRealShops={[]} isActive={activeTab === 'home'} />
           </TabContainer>
         )}
 

@@ -12,6 +12,7 @@ export interface EliteBookingBlockProps {
   accent?: string; // Optional now, since we use exact hex color
   height: string | number; // 允许传入数字或字符串
   isTiny?: boolean; // 新增：由父组件基于 duration 计算传入的绝对静态标识
+  isMicro?: boolean; // 新增：极限微缩态（25分钟及以下），砸碎内边距
   isPending?: boolean; // 新增：是否是待确认预约（触发跑马灯动画）
   isPast?: boolean; // 新增：是否已过时（跨过红线）
   isCheckedOut?: boolean; // 新增：是否已结账（生命周期终结）
@@ -28,7 +29,7 @@ export interface EliteBookingBlockProps {
  * 采用物理引擎反馈，极光呼吸灯，降维打击级质感
  */
 export const EliteBookingBlock = ({ 
-  title, client, color, accent, height, isTiny = false, isPending = false,
+  title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false,
   isPast = false, isCheckedOut = false, isNoShow = false,
   onClick, onDragStart, onDrag, onDragEnd, isReadOnly 
 }: EliteBookingBlockProps) => {
@@ -81,7 +82,7 @@ export const EliteBookingBlock = ({
         onDragEnd={onDragEnd}
         className={cn(
           "absolute inset-x-1.5 top-0 z-10 rounded-2xl border flex cursor-pointer group overflow-hidden",
-          isTiny ? "p-1 items-center justify-center" : "p-3 flex-col justify-between",
+          isMicro ? "py-0 px-1.5 items-center justify-center" : (isTiny ? "p-1 items-center justify-center" : "p-3 flex-col justify-between"),
           !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),
           !isHexColor && !isCheckedOut && !isNoShow && isActiveBorderColor(accent || ''),
           isPending && "border-transparent bg-black/60 m-[2px]" // 如果有跑马灯，缩小一圈并让自身边框透明
@@ -105,8 +106,17 @@ export const EliteBookingBlock = ({
         />
       )}
 
-      {isTiny ? (
-        // --- 极限空间：单行居中排版 ---
+      {isMicro ? (
+        // --- 极限微缩态 (15-25 分钟)：绝对居中，只有服务名称，超小字体，隐藏多余元素 ---
+        <div className="flex items-center justify-center relative z-10 w-full truncate">
+          <span 
+            className={cn("text-[10px] leading-none font-black uppercase tracking-tighter shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+          >
+            {title}
+          </span>
+        </div>
+      ) : isTiny ? (
+        // --- 紧凑态 (30-40 分钟)：单行居中排版 ---
         <div className="flex items-center justify-center gap-2 relative z-10 w-full truncate px-2">
           <span 
             className={cn("text-xs font-black uppercase tracking-tighter shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}

@@ -152,7 +152,7 @@ const fetcher = async (url: string) => {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
-export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
+export function HomeClient({ initialRealShops, isActive = true }: { initialRealShops: any[], isActive?: boolean }) {
   const t = useTranslations("Home");
   const { openGoogleMaps, showMapModal, handleMapModalChoice } = useMapRouter();
   const router = useRouter();
@@ -616,7 +616,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
               )}>
                 {t("tabs.merchant")}
               </span>
-              {activeTab === "merchant" && (
+              {isActive && activeTab === "merchant" && (
                 <motion.div 
                   layoutId="trinityIndicator"
                   className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full shadow-[0_0_12px_rgba(0,240,255,1)]"
@@ -651,7 +651,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                     : "text-white/50"
                 )} />
               </div>
-              {activeTab === "gx_pro" && (
+              {isActive && activeTab === "gx_pro" && (
                 <motion.div 
                   layoutId="trinityIndicator"
                   className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full shadow-[0_0_12px_rgba(255,215,0,1)]"
@@ -678,7 +678,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
               )}>
                 {t("tabs.third")}
               </span>
-              {activeTab === "service" && (
+              {isActive && activeTab === "service" && (
                 <motion.div 
                   layoutId="trinityIndicator"
                   className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full shadow-[0_0_12px_rgba(168,85,247,1)]"
@@ -696,7 +696,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
           
           <div className="flex justify-center w-full">
             <motion.div 
-              drag="x"
+              drag={isActive ? "x" : false}
               // 因为一级分类很多，肯定会超出屏幕，所以给予左右拖拽的弹性空间
               // 实际项目中可以根据内容总宽度精确计算 right 和 left 值，这里使用较大值配合弹性阻尼
               dragConstraints={{ left: -300, right: 300 }} 
@@ -762,7 +762,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
                 </div>
                 
                 {/* 底部能量注入游标 (液态张力) */}
-                {activeCategory === cat.id && (
+                {isActive && activeCategory === cat.id && (
                   <motion.div 
                     layoutId="activeCategoryIndicator"
                     transition={{ type: "spring", stiffness: 300, damping: 24 }}
@@ -793,7 +793,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
           <div className="pt-0 flex flex-col items-center justify-start min-h-[50vh] w-full pb-20">
             {/* 顶部轮播广告位：GX PRO 全站展示 */}
             <div className="w-full mb-[clamp(32px,5vw,64px)]">
-              <HolographicCarousel shops={carouselRealShops} onShopClick={setSelectedShop} />
+              <HolographicCarousel shops={carouselRealShops} onShopClick={setSelectedShop} isActive={isActive} />
             </div>
             
             {/* 下方货架区：所有入驻商家的静态卡片瀑布流 */}
@@ -826,7 +826,7 @@ export function HomeClient({ initialRealShops }: { initialRealShops: any[] }) {
             {/* 核心升级：全息流体景深堆叠轮播 (Holographic Depth Stack Carousel) - 广告位全站竞价展示 */}
             {carouselRealShops.length > 0 && (
               <div className="mb-[clamp(32px,5vw,64px)] w-full">
-                <HolographicCarousel shops={carouselRealShops} onShopClick={setSelectedShop} />
+                <HolographicCarousel shops={carouselRealShops} onShopClick={setSelectedShop} isActive={isActive} />
               </div>
             )}
 

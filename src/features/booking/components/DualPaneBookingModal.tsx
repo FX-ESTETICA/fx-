@@ -7,6 +7,7 @@ import { cn } from "@/utils/cn";
 import { BookingService, BookingUpsertInput } from "@/features/booking/api/booking";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
+import { BookingScheduler } from "@/features/booking/utils/scheduler";
 
 interface DualPaneBookingModalProps {
   isOpen: boolean;
@@ -577,137 +578,49 @@ export function DualPaneBookingModal({
       if (typeof window !== 'undefined') {
          currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
       }
-      const { data: bookingsData } = await BookingService.getBookings(currentShopId);
-      let allBookings: ReflowBooking[] = (bookingsData as ReflowBooking[]) || [];
       
-      // 1. 如果是编辑模式，先从现存列表中移除这笔被编辑的旧订单
-      // 【绝对焦点编辑】：只移除当前这个独立订单，不再连坐移除其他 relatedBookings
-      if (editingBooking) {
-        allBookings = allBookings.filter((b) => b.id !== editingBooking.id);
+      // 1. 如果是编辑模式，我们需要物理抹除旧ID (如果原订单被拆分产生新ID)
+      // 【状态隔离法则】：由于初始化时采用了单体本源隔离，弹窗只针对当前点击的子订单。
+      // 绝不可越权删除相关的兄弟订单（relatedBookings），否则会导致同组的其他预约块意外消失！
+      let idsToDelete: string[] = [];
+      if (editingBooking && editingBooking.id) {
+         idsToDelete.push(editingBooking.id);
       }
-
-      // 2. 将当前操作产生的新订单加入全量列表
-      allBookings = [...allBookings, ...newBookings.map(b => ({
-        ...b,
-        date: b.date || baseDate, // 确保 date 存在
-        startTime: b.startTime || "00:00", // 确保 startTime 存在
-        duration: b.duration || 60, // 确保 duration 存在
-      })) as ReflowBooking[]];
-
-      // 3. 过滤出今天的订单进行重排，非今天的订单保持不动
-      const todayBookings = allBookings.filter((b) => b.date === baseDate);
       
-      // 【关键修复】：为了让新生成的子单 (newBookings) 能被后面的逻辑正确识别并最终落入 finalUpdatedBookings，
-      // 我们必须记录下它们在 allBookings 里的原始状态 (此时它们还没有被赋予 resourceId，即 resourceId 为 undefined)。
-      // 后面的 originalStateMap 必须包含这些新订单！
-      const originalStateMap = new Map(todayBookings.map(b => [b.id, {
-        resourceId: b.resourceId,
-        startTime: b.startTime
-      }]));
-
-      // 将时间字符串(HH:MM)转化为当天的绝对分钟数，用于碰撞检测
-      const timeToMinutes = (timeStr: string) => {
-        const [h, m] = (timeStr || "00:00").split(':').map(Number);
-        return h * 60 + m;
-      };
-
-      // 4. 剥离并分类：指定预约（含NO）、无指定预约
-      const assignedBookings: ReflowBooking[] = [];
-      const unassignedBookings: ReflowBooking[] = [];
-
-      todayBookings.forEach((b) => {
-        // 如果它是无指定预约，且不是已经被锁定在爽约列的 NO
-        if (b.originalUnassigned && b.resourceId !== 'NO') {
-          // 【核心修复】：必须清空它之前的坑位记忆，让它变成纯粹的“无家可归”状态
-          // 否则它会携带着旧的 resourceId 参与碰撞检测，导致死锁或自我挤压
-          b.resourceId = undefined;
-          unassignedBookings.push(b);
-        } else {
-          // 真正的指定预约（拥有绝对路权）
-          assignedBookings.push(b);
-        }
-      });
-
-      // 5. 对无指定预约进行时间排序（先到先得），保证寻位稳定性
-      unassignedBookings.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-
-      // 6. 核心重排：从左到右依次为无指定预约寻找第一个无冲突的列
-      // 这里的已落位列表初始为所有“指定预约”
-      const placedBookings = [...assignedBookings];
-
-      unassignedBookings.forEach(unassignedBkg => {
-        const newStartMin = timeToMinutes(unassignedBkg.startTime);
-        const newEndMin = newStartMin + unassignedBkg.duration;
-        let foundStaffId = null;
-
-        // 严格从左到右扫描实体员工列
-        for (const staff of staffs) {
-          const hasConflict = placedBookings.some(placed => {
-            if (placed.resourceId !== staff.id) return false;
-            // 如果 shopId 不同，则不会产生物理碰撞 (虽然通常在一个日历视图下都是同 shopId)
-            if (placed.shopId && unassignedBkg.shopId && placed.shopId !== unassignedBkg.shopId) return false;
-
-            const pStartMin = timeToMinutes(placed.startTime);
-            const pEndMin = pStartMin + placed.duration;
-            // 绝对碰撞检测
-            return Math.max(newStartMin, pStartMin) < Math.min(newEndMin, pEndMin);
-          });
-
-          if (!hasConflict) {
-            foundStaffId = staff.id;
-            break; // 找到即落位
-          }
-        }
-
-        // 如果找到空位则落位，否则兜底放到第一个员工（允许视觉挤压）
-        unassignedBkg.resourceId = foundStaffId || (staffs.length > 0 ? staffs[0].id : undefined);
-        
-        // 落位后，加入 placedBookings 参与后续无指定预约的碰撞检测
-        placedBookings.push(unassignedBkg);
-      });
-
-      // 7. 【世界顶端架构：精准手术级保存】
-      // 绝不全量陪绑！只从 placedBookings 中挑出真正发生物理改变的订单：
-      // A. 本次新建或编辑的订单 (newBookingIds)
-      // B. 因为避让而重新分配了座位的旧“无指定”订单 (所有 unassignedBookings 在这一轮都被重新计算了位置，只有前后位置不同才需要保存)
       const newBookingIds = new Set(newBookings.map(b => b.id));
-      
-      // 只有那些 真正发生了变化 的订单才允许放行
-      // 我们在第 600 行已经创建了包含所有 (含新单和旧单) 的 originalStateMap
+      idsToDelete = idsToDelete.filter(id => !newBookingIds.has(id));
 
-      const finalUpdatedBookings = placedBookings
-        .filter(b => {
-          if (!b.id) return false;
-          
-          // 获取订单重排前的初始状态
-          const originalState = originalStateMap.get(b.id);
-          
-          // 如果找不到原始状态，或者是新创建的单子，绝对放行
-          if (!originalState || newBookingIds.has(b.id)) return true;
-
-          // 比对它最终的 resourceId 或 startTime 是否和进入重排算法前发生了改变
-          const resourceChanged = b.resourceId !== originalState.resourceId;
-          const timeChanged = b.startTime !== originalState.startTime;
-          
-          return resourceChanged || timeChanged;
-        })
-        .map((booking) => ({
-          ...booking,
-          resourceId: booking.resourceId ?? null // 【关键修复】：Supabase 需要 null 而不是 undefined 才能清空外键/字段
-        }));
-      
-      // 如果原订单被拆分产生新ID，需要从数据库物理抹除旧ID
-      if (editingBooking && editingBooking.id && !newBookingIds.has(editingBooking.id)) {
-         await BookingService.deleteBookings([editingBooking.id as string]);
+      if (idsToDelete.length > 0) {
+         await BookingService.deleteBookings(idsToDelete);
       }
 
-      // 异步保存到 Supabase (只更新那几条，彻底消灭全量更新导致的 WebSocket 风暴)
-      const payload: BookingUpsertInput[] = finalUpdatedBookings.map(b => ({
+      // 2. 将当前操作产生的新订单加入全量列表并强制存入数据库，作为“锚定”基准
+      const payload: BookingUpsertInput[] = newBookings.map(b => ({
         ...b,
-        date: b.date || baseDate, // 确保有默认值，因为 BookingUpsertInput 要求 date 必须是 string
+        date: b.date || baseDate, // 确保有默认值
         startTime: b.startTime || "00:00"
       })) as BookingUpsertInput[];
       await BookingService.upsertBookings(payload);
+
+      // 3. 将刚刚入库的新订单注入到覆盖字典里，告诉智能大脑：这些是需要重新排盘的“浮动订单”
+      const manualOverrides: Record<string, any> = {};
+      newBookings.forEach(b => {
+        // 【核心修复】：
+        // 1. 如果它是新建的（原来没有资源），或者是从弹窗的编辑中发生了人员指派变动
+        // 我们必须强行给它打上 _needsTimeReflow: true，强迫排盘大脑去进行时间顺延和碰撞检测
+        const isResourceChanged = editingBooking && editingBooking.resourceId !== b.resourceId;
+        const needsReflow = b.originalUnassigned || isResourceChanged;
+
+        manualOverrides[b.id] = {
+          resourceId: b.resourceId,
+          originalUnassigned: b.originalUnassigned,
+          _needsTimeReflow: needsReflow 
+        };
+      });
+
+      // 4. 【世界顶端架构：呼叫 BookingScheduler 智能大脑】
+      // 废弃掉 Modal 里这段简陋的老旧重排逻辑，直接调用刚刚升级过的强大智能磁吸引擎
+      await BookingScheduler.reflowDayBookings(baseDate, currentShopId, staffs, manualOverrides);
       
       // 核心修复：虽然有实时引擎，但是由于我们取消了全局重新拉取，
       // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据

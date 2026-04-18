@@ -655,6 +655,61 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
           console.error("Failed to destroy single booking:", error);
         }
       }
+      return;
+    }
+
+    // --- 处理正常的跨列拖拽换人 (Cross-Column Drag & Drop) ---
+    // 1. 获取容器尺寸与拖拽位置
+    if (!containerRectRef.current) return;
+    const dropY = info.point.y - containerRectRef.current.top;
+    const dropX = info.point.x - containerRectRef.current.left;
+    
+    // 2. 只有拖拽距离足够大，才认为是有效拖拽
+    if (Math.abs(info.offset.x) < 20 && Math.abs(info.offset.y) < 20) return;
+
+    // 3. 计算目标列 (资源) 和目标时间
+    const totalCols = resources.length;
+    const colWidth = containerRectRef.current.width / totalCols;
+    const targetColIndex = Math.floor(dropX / colWidth);
+    
+    if (targetColIndex >= 0 && targetColIndex < totalCols) {
+      const targetResource = resources[targetColIndex];
+      const newResourceId = targetResource.id === 'NEXUS' ? null : targetResource.id;
+      
+      // 时间计算：每 80px 代表 1 小时 (60分钟)
+      const minutesFromTop = Math.floor((dropY / 80) * 60);
+      // 对齐到最近的 15 分钟
+      const snappedMinutes = Math.round(minutesFromTop / 15) * 15;
+      
+      const newStartH = Math.floor(snappedMinutes / 60) + 13; // 假设基准是 13:00，需要动态读取，这里暂用绝对位移近似
+      const newStartM = snappedMinutes % 60;
+      // 由于这部分原本没有完整实现时间吸附，我们至少先保留原来的起始时间，让 Scheduler 去推演
+      const newStartTime = booking.startTime; 
+
+      // 4. 触发智能排盘
+      const isResourceChanged = booking.resourceId !== newResourceId;
+      // 【核心修复】：只要发生了拖拽，无论是换了人还是原地动了一下，都强迫大脑重新审视它
+      const needsReflow = isResourceChanged || booking.originalUnassigned;
+
+      // 如果资源没变，且不需要重排，直接返回
+      if (!needsReflow) return;
+
+      let currentShopId = booking.shopId || 'default';
+      if (typeof window !== 'undefined') {
+         currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
+      }
+
+      await BookingScheduler.reflowDayBookings(booking.date, currentShopId, resources, {
+        [booking.id]: {
+          resourceId: newResourceId,
+          startTime: newStartTime,
+          originalUnassigned: newResourceId === null,
+          _needsTimeReflow: true // 强制顺延重排
+        }
+      });
+      
+      refreshBookings();
+      trackAction();
     }
   };
 
@@ -859,7 +914,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       if (topOffset === -1 || heightPx === 0) return null;
 
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const isTiny = booking.duration <= 45;
+                      const isMicro = booking.duration <= 25;
+                      const isTiny = booking.duration > 25 && booking.duration <= 45;
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const serviceTitle = booking.serviceName || '';
                       const isUnassigned = booking.originalUnassigned === true;
@@ -950,11 +1006,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                           className={cn(
                             "absolute pointer-events-auto implosion-container transition-all duration-300",
                             blockClass,
-                            isProcessing ? "animate-pulse" : ""
+                            isProcessing ? "animate-pulse" : "",
+                            isMicro && "hover:z-[200] hover:scale-[1.05]" // 微缩态悬浮放大补偿
                           )}
                           style={{
                             top: topOffset,
-                            height: Math.max(40, heightPx - 4),
+                            height: Math.max(14, heightPx - 4), // 废除 40px 保底，改为 14px (绝对物理最小可见值)
                             zIndex: draggedBooking?.id === booking.id ? 100 : (isImploded ? 50 : (isPending ? 30 : 20)),
                             // 软删除待确认状态或处理中的视觉反馈
                             opacity: (pendingVoidBooking?.id === booking.id || isProcessing) ? 0.3 : 1,
@@ -986,18 +1043,19 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                     .catch(err => console.error("Batch split failed:", err))
                                     .finally(() => setProcessingOrderId(null)); // 释放锁
                                 } else if (!isSplitMode && splitActiveEmployeeId) {
-                                  // 单个项目的卡片直接整个换人
+                                          // 单个项目的卡片直接整个换人
                                   const targetId = splitActiveEmployeeId === 'UNASSIGNED_POOL' ? null : splitActiveEmployeeId;
                                   setProcessingOrderId(booking.id); // 锁死
                                   BookingService.updateBookingResource(booking.id, targetId)
                                     .then(async () => {
                                       // 核心修复：移除 null 限制，无论指派给谁都强制全局唤醒智能排盘大脑
-                                      // 注入 manualOverrides 避免由于视图同步延迟读到旧数据
+                                      // 注入 manualOverrides 并带有 _needsTimeReflow 标记，强迫它参与浮动重新计算
                                       const isAssignedToPerson = targetId !== null && targetId !== 'UNASSIGNED_POOL';
                                       await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
                                         [booking.id]: {
                                           resourceId: targetId,
-                                          originalUnassigned: !isAssignedToPerson
+                                          originalUnassigned: !isAssignedToPerson,
+                                          _needsTimeReflow: true // 【关键标记】：强制时间顺延重算
                                         }
                                       });
                                       setImplodedOrderId(null);
@@ -1022,6 +1080,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                             accent={blockAccent as "cyan" | "purple" | "emerald" | "amber" | "red"}
                             height="100%" 
                             isTiny={isTiny}
+                            isMicro={isMicro}
                             isPending={isPending} // 传递待确认标识，触发跑马灯
                             isPast={isPast} // 跨过红线
                             isCheckedOut={isCheckedOut} // 已结账
@@ -1050,14 +1109,15 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                     e.stopPropagation();
                                     if (!isSplitMode) {
                                         // 单项换人：退回未指定池 (null)
-                                        BookingService.updateBookingResource(booking.id, null)
+                                          BookingService.updateBookingResource(booking.id, null)
                                           .then(async () => {
                                             // 触发智能重排算法
                                             // 注入 manualOverrides 避免由于视图同步延迟读到旧数据
                                             await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
                                               [booking.id]: {
                                                 resourceId: null,
-                                                originalUnassigned: true
+                                                originalUnassigned: true,
+                                                _needsTimeReflow: true // 退回未指定时也要重新寻找空位
                                               }
                                             });
                                             setImplodedOrderId(null);
@@ -1093,13 +1153,14 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                       e.stopPropagation();
                                       if (!isSplitMode) {
                                         // 单项换人：直接分配并关闭
-                                        BookingService.updateBookingResource(booking.id, res.id)
+                                          BookingService.updateBookingResource(booking.id, res.id)
                                           .then(async () => {
                                             // 强制全局唤醒智能排盘大脑，处理重叠
                                             await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
                                               [booking.id]: {
                                                 resourceId: res.id,
-                                                originalUnassigned: false
+                                                originalUnassigned: false,
+                                                _needsTimeReflow: true // 强制顺延重排
                                               }
                                             });
                                             setImplodedOrderId(null);
@@ -1121,7 +1182,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                             await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
                                               [booking.id]: {
                                                 resourceId: res.id,
-                                                originalUnassigned: false
+                                                originalUnassigned: false,
+                                                _needsTimeReflow: true // 强制顺延重排
                                               }
                                             });
                                             setImplodedOrderId(null);

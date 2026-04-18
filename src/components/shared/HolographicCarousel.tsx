@@ -110,7 +110,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
   );
 };
 
-export const HolographicCarousel = ({ shops = [], onShopClick }: CarouselProps) => {
+export const HolographicCarousel = ({ shops = [], onShopClick, isActive = true }: CarouselProps & { isActive?: boolean }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const dragX = useMotionValue(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -173,7 +173,7 @@ export const HolographicCarousel = ({ shops = [], onShopClick }: CarouselProps) 
         })}
 
         <motion.div
-          drag="x"
+          drag={isActive ? "x" : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={1}
           style={{ x: dragX }}

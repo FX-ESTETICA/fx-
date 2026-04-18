@@ -624,7 +624,8 @@ export const BookingService = {
           serviceName: splitName,
           // 继承主单号，维持连单关系
           masterOrderId: bData.data.masterOrderId || bookingId,
-          order_no: `BKG-${Date.now()}-${Math.floor(Math.random() * 1000)}` // 赋予全新单号避免碰撞
+          order_no: `BKG-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // 赋予全新单号避免碰撞
+          _needsTimeReflow: true // 【连单拆解顺延标记】：刚拆分出来的新单必须强制参与时间顺延
         };
         
         if (isAssignedToPerson) {

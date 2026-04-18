@@ -2,11 +2,11 @@ import { BookingService } from "../api/booking";
 
 /**
  * BookingScheduler - 智能寻位调度大脑
- * 封装从左到右寻找空闲列的核心重排算法
+ * 封装从左到右寻找空闲列与时间顺延的核心重排算法
  */
 export const BookingScheduler = {
   /**
-   * 重新计算指定日期下所有“未指定”订单的落位
+   * 重新计算指定日期下订单的落位（包含无指定寻位、冲突顺延、连单自愈合并）
    */
   async reflowDayBookings(dateStr: string, shopId: string, staffs: any[], manualOverrides?: Record<string, any>) {
     if (!shopId || shopId === 'default') return;
@@ -36,72 +36,218 @@ export const BookingScheduler = {
         return h * 60 + m;
       };
 
-      const assignedBookings: any[] = [];
-      const unassignedBookings: any[] = [];
+      const minutesToTime = (mins: number) => {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      };
 
-      // 2. 剥离并分类：指定预约（含NO）、无指定预约
+      const absoluteBookings: any[] = [];
+      const pushdownBookings: any[] = [];
+      const floatingBookings: any[] = [];
+
+      // 2. 剥离并分类
       todayBookings.forEach((b) => {
-        if (b.originalUnassigned && b.resourceId !== 'NO') {
-          b.resourceId = undefined; // 清空它之前的坑位记忆，让它变成纯粹的“无家可归”状态
-          unassignedBookings.push(b);
+        if (b.resourceId === 'NO') {
+          absoluteBookings.push(b);
+        } else if (b._needsTimeReflow && b.resourceId && !b.originalUnassigned) {
+          // 明确指定了员工，且被标记需要重新排盘（例如弹窗分配给 ALEXA）
+          pushdownBookings.push(b);
+        } else if (b.originalUnassigned) {
+          // 真正的未指定订单，清空记忆重新寻位
+          b.resourceId = undefined;
+          floatingBookings.push(b);
+        } else if (b._needsTimeReflow && b.resourceId) {
+          // 原本无指定但刚刚被分配了目标，且需要顺延检测
+          pushdownBookings.push(b);
         } else {
-          assignedBookings.push(b);
+          // 正常已固定订单
+          absoluteBookings.push(b);
         }
       });
 
-      if (unassignedBookings.length === 0) return; // 没啥可排的，收工
+      // 排序函数，优先按开始时间排
+      const sortByTime = (a: any, b: any) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+      pushdownBookings.sort(sortByTime);
+      floatingBookings.sort(sortByTime);
 
-      // 3. 对无指定预约进行时间排序（先到先得），保证寻位稳定性
-      unassignedBookings.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+      const placedBookings = [...absoluteBookings];
 
-      // 4. 核心重排：从左到右依次为无指定预约寻找第一个无冲突的列
-      const placedBookings = [...assignedBookings];
-
-      unassignedBookings.forEach(unassignedBkg => {
-        const newStartMin = timeToMinutes(unassignedBkg.startTime);
-        const newEndMin = newStartMin + (unassignedBkg.duration || 60);
-        let foundStaffId = null;
-
-        // 严格从左到右扫描实体员工列
-        for (const staff of staffs) {
-          if (staff.id === 'NEXUS' || staff.id === 'NO') continue; // 过滤特殊幽灵列
-
-          const hasConflict = placedBookings.some(placed => {
-            if (placed.resourceId !== staff.id) return false;
-            if (placed.shopId && unassignedBkg.shopId && placed.shopId !== unassignedBkg.shopId) return false;
-
+      // 辅助函数：在一个员工列上寻找/顺延空位 (Time Pushdown)
+      const findSlotOnStaff = (booking: any, staffId: string, startMin: number) => {
+        let currentStart = startMin;
+        const duration = booking.duration || 60;
+        
+        while (true) {
+          const currentEnd = currentStart + duration;
+          // 检查该员工的所有已放置订单是否与 [currentStart, currentEnd] 碰撞
+          const conflict = placedBookings.find(placed => {
+            if (placed.resourceId !== staffId) return false;
+            if (placed.shopId && booking.shopId && placed.shopId !== booking.shopId) return false;
+            
             const pStartMin = timeToMinutes(placed.startTime);
             const pEndMin = pStartMin + (placed.duration || 60);
-            return Math.max(newStartMin, pStartMin) < Math.min(newEndMin, pEndMin);
+            
+            // 碰撞检测：两个时间段有重叠
+            return Math.max(currentStart, pStartMin) < Math.min(currentEnd, pEndMin);
           });
+          
+          if (!conflict) {
+            return currentStart; // 找到空位
+          } else {
+            // 发生碰撞，直接顺延到碰撞订单的结束时间
+            const conflictEndMin = timeToMinutes(conflict.startTime) + (conflict.duration || 60);
+            currentStart = conflictEndMin;
+          }
+        }
+      };
 
-          if (!hasConflict) {
+      // 3. 处理指定了员工，但需要顺延检测的订单 (Pushdown)
+      pushdownBookings.forEach(bkg => {
+        const targetStaffId = bkg.resourceId;
+        const originalStartMin = timeToMinutes(bkg.startTime);
+        
+        const newStartMin = findSlotOnStaff(bkg, targetStaffId, originalStartMin);
+        bkg.startTime = minutesToTime(newStartMin);
+        
+        placedBookings.push(bkg);
+      });
+
+      // 4. 处理未指定员工的订单 (Floating)
+      floatingBookings.forEach(bkg => {
+        const originalStartMin = timeToMinutes(bkg.startTime);
+        let foundStaffId = null;
+        let bestStartMin = originalStartMin;
+
+        // 从左到右扫描员工，看能不能在原始时间塞下
+        for (const staff of staffs) {
+          if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
+          
+          const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin);
+          if (newStartMin === originalStartMin) {
             foundStaffId = staff.id;
-            break; // 找到即落位
+            bestStartMin = newStartMin;
+            break;
           }
         }
 
-        // 如果找到空位则落位，否则兜底放到第一个员工（允许视觉挤压）
-        const fallbackId = staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO')?.id;
-        unassignedBkg.resourceId = foundStaffId || fallbackId;
-        
-        // 落位后，加入 placedBookings 参与后续无指定预约的碰撞检测
-        placedBookings.push(unassignedBkg);
+        if (!foundStaffId) {
+          // 如果所有人都放不下（都会顺延），那就选第一个员工强制顺延
+          const fallbackStaff = staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO');
+          if (fallbackStaff) {
+            foundStaffId = fallbackStaff.id;
+            bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin);
+          }
+        }
+
+        bkg.resourceId = foundStaffId;
+        bkg.startTime = minutesToTime(bestStartMin);
+        placedBookings.push(bkg);
       });
 
-      // 5. 仅将重新分配过的无指定订单存盘，避免误伤和多余写入
-      const finalUpdatedBookings = unassignedBookings.filter(b => {
-        const originalState = originalStateMap.get(b.id);
-        if (!originalState) return true;
+      // ==========================================
+      // 5. 【核心修复：连单同化/自愈 (Super Booking Assimilation)】
+      // ==========================================
+      const finalUpdatedBookings: any[] = [];
+      const idsToDelete: string[] = [];
 
-        const resourceChanged = b.resourceId !== originalState.resourceId;
-        const timeChanged = b.startTime !== originalState.startTime;
+      // 按 masterOrderId + resourceId 分组
+      const mergeGroups: Record<string, any[]> = {};
+      
+      placedBookings.forEach(b => {
+        if (!b.masterOrderId) {
+           // 非连单，直接判断是否需要更新
+           const originalState = originalStateMap.get(b.id);
+           if (!originalState || b.resourceId !== originalState.resourceId || b.startTime !== originalState.startTime) {
+             finalUpdatedBookings.push(b);
+           }
+           return;
+        }
 
-        return resourceChanged || timeChanged;
+        const groupKey = `${b.masterOrderId}_${b.resourceId}`;
+        if (!mergeGroups[groupKey]) mergeGroups[groupKey] = [];
+        mergeGroups[groupKey].push(b);
       });
 
+      Object.values(mergeGroups).forEach(group => {
+        if (group.length === 1) {
+           const b = group[0];
+           const originalState = originalStateMap.get(b.id);
+           if (!originalState || b.resourceId !== originalState.resourceId || b.startTime !== originalState.startTime) {
+             finalUpdatedBookings.push(b);
+           }
+        } else {
+           // 有多个同根兄弟分配到了同一个员工，必须进行物理缝合 (Merge)
+           // 1. 找出基准订单（按时间排序）
+           group.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+           
+           // 2. 将它们划分为连续的时间块 (Contiguous Sub-groups)
+           // 如果两个服务之间被别的客人的预约切断了，我们不应该把它们强行合并成一个超长订单，否则会发生重叠
+           const subGroups: any[][] = [[group[0]]];
+           
+           for (let i = 1; i < group.length; i++) {
+             const prev = subGroups[subGroups.length - 1];
+             const lastInPrev = prev[prev.length - 1];
+             
+             const lastEnd = timeToMinutes(lastInPrev.startTime) + (lastInPrev.duration || 60);
+             const currentStart = timeToMinutes(group[i].startTime);
+             
+             // 如果它们是相连的（或者重叠的），归为同一组
+             if (currentStart <= lastEnd) {
+               prev.push(group[i]);
+             } else {
+               subGroups.push([group[i]]); // 出现断层，开启新的一组
+             }
+           }
+           
+           // 3. 分别合并每一个连续的子组
+           subGroups.forEach(subGroup => {
+             if (subGroup.length === 1) {
+               const b = subGroup[0];
+               const originalState = originalStateMap.get(b.id);
+               if (!originalState || b.resourceId !== originalState.resourceId || b.startTime !== originalState.startTime) {
+                 finalUpdatedBookings.push(b);
+               }
+             } else {
+               const baseBooking = subGroup[0];
+               let totalDuration = 0;
+               const mergedServices: any[] = [];
+               const serviceNames: string[] = [];
+               
+               subGroup.forEach(b => {
+                 totalDuration += (b.duration || 60);
+                 if (Array.isArray(b.services)) {
+                    mergedServices.push(...b.services);
+                 }
+                 if (b.serviceName) {
+                    serviceNames.push(b.serviceName);
+                 }
+                 
+                 // 将多余的兄弟躯壳送入销毁队列
+                 if (b.id !== baseBooking.id) {
+                   idsToDelete.push(b.id);
+                 }
+               });
+
+               // 去重并拼接服务名
+               const uniqueServiceNames = Array.from(new Set(serviceNames.join(' + ').split(' + '))).filter(Boolean);
+               
+               baseBooking.duration = totalDuration;
+               baseBooking.services = mergedServices;
+               baseBooking.serviceName = uniqueServiceNames.join(' + ');
+               
+               finalUpdatedBookings.push(baseBooking);
+             }
+           });
+        }
+      });
+
+      // 6. 并发存盘：更新状态并销毁多余躯壳
       if (finalUpdatedBookings.length > 0) {
         await BookingService.upsertBookings(finalUpdatedBookings);
+      }
+      if (idsToDelete.length > 0) {
+        await BookingService.deleteBookings(idsToDelete);
       }
 
     } catch (error) {
