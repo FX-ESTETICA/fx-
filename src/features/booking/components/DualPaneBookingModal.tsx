@@ -720,7 +720,21 @@ export function DualPaneBookingModal({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] font-sans text-white">
+        <div 
+          className="fixed inset-0 z-[100] font-sans text-white animate-in fade-in duration-300"
+          style={{
+            // 【幽灵点击终极防弹衣】：在弹窗刚挂载的 350ms 内，使其处于绝对物理真空状态 (pointer-events-none)
+            // 等待浏览器底层 300ms 的延迟 Click 事件发射完毕并打空后，再恢复 pointer-events-auto
+            animation: "ghost-click-shield 350ms forwards"
+          }}
+        >
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes ghost-click-shield {
+              0% { pointer-events: none; }
+              99% { pointer-events: none; }
+              100% { pointer-events: auto; }
+            }
+          `}} />
           {/* 背景暗场遮罩 (固定在底层，不随滚动条滚动) */}
           {/* 【硬派商业系统法则】：彻底移除 onClick={handleClose} 属性，防止幽灵点击闪退及防止店长误触导致填单数据丢失 */}
           <div 

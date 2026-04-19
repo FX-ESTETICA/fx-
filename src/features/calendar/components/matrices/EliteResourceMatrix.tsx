@@ -883,28 +883,33 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                   return b.resourceId === resource.id;
                 });
                 
-                // 【时间流水印与延误计算】：在当前列对所有卡片按 startTime 排序
+                // 【时间流水印与延误计算】：在当前列对所有卡片按 date 和 startTime 排序，实现物理天数隔离
                 colBookings.sort((a, b) => {
+                  if (a.date !== b.date) {
+                    return a.date.localeCompare(b.date || "");
+                  }
                   const aMin = parseInt(a.startTime.split(':')[0]) * 60 + parseInt(a.startTime.split(':')[1]);
                   const bMin = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
                   return aMin - bMin;
                 });
                 
-                let runningWatermark = 0;
+                const watermarks: Record<string, number> = {};
                 colBookings = colBookings.map(booking => {
                   const startMin = parseInt(booking.startTime.split(':')[0]) * 60 + parseInt(booking.startTime.split(':')[1]);
                   const duration = booking.duration || 60;
+                  const dateKey = booking.date || "unknown";
                   
+                  const currentWatermark = watermarks[dateKey] || 0;
                   let delayMins = 0;
-                  // 如果当前订单的起点小于水线（被前面的挤压了）
-                  if (runningWatermark > startMin) {
-                    delayMins = runningWatermark - startMin;
+                  // 如果当前订单的起点小于当天的水线（被前面的挤压了）
+                  if (currentWatermark > startMin) {
+                    delayMins = currentWatermark - startMin;
                   }
                   
-                  // 更新水线到这个订单真正的结束时间
+                  // 更新当天的水线到这个订单真正的结束时间
                   const actualEndMin = startMin + delayMins + duration;
-                  if (actualEndMin > runningWatermark) {
-                    runningWatermark = actualEndMin;
+                  if (actualEndMin > currentWatermark) {
+                    watermarks[dateKey] = actualEndMin;
                   }
                   
                   return { ...booking, _delayMins: delayMins };
