@@ -69,14 +69,11 @@ export function NativeBridgeProvider() {
         console.warn("GoogleAuth init warning (often ignored on mobile):", e);
       }
 
-      // 1. 初始化原生状态栏（彻底隐藏，实现极致全屏无字沉浸）
+      // 1. 废弃前端主动隐藏状态栏的行为（交由原生层接管），仅通知 Capacitor 放弃安全区遮挡
       const initNative = async () => {
         try {
-          // 隐藏系统状态栏（电池、时间全部消失）
-          await StatusBar.hide();
-          // 如果某些机型或弹窗导致状态栏重新出现，确保它依然是沉浸透明的作为 fallback
+          // 告诉 Capacitor：让网页内容钻到状态栏和底部导航栏底下，实现全屏渗透
           await StatusBar.setOverlaysWebView({ overlay: true });
-          await StatusBar.setStyle({ style: Style.Dark });
         } catch (e) {
           console.warn("Status bar initialization failed:", e);
         }
