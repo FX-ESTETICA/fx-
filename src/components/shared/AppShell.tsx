@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AppPlatformGuard } from "./AppPlatformGuard";
 import { CyberOnboardingModal } from "./CyberOnboardingModal";
@@ -9,6 +10,7 @@ import { GlobalWormholeCapsule } from "./GlobalWormholeCapsule";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 import { useShop } from "@/features/shop/ShopContext";
 import { useViewStack } from "@/hooks/useViewStack";
+import { supabase } from "@/lib/supabase";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
@@ -16,6 +18,35 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const { activeTab, overlays } = useViewStack();
   const { user } = useAuth();
   const isMockUser = user && 'gxId' in user && (user as any).gxId?.startsWith('GX_');
+
+  // 【赛博朋克：幽灵会话踢出机制】
+  // 主动实时监听 profiles 表中当前用户的数据。如果管理员在后台手动删除了该用户，
+  // 前端将瞬间收到 DELETE 广播，并直接触发自爆程序（强制登出并弹回登录页）
+  useEffect(() => {
+    if (!user || isMockUser) return;
+
+    const ghostKickerChannel = supabase
+      .channel(`ghost_kicker_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        async () => {
+          console.warn("💀 [Ghost Kicker] 侦测到中央档案已被销毁，前端即将强制自爆并清除缓存...");
+          await supabase.auth.signOut();
+          window.location.href = '/login';
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ghostKickerChannel);
+    };
+  }, [user, isMockUser]);
 
   const isStandalonePage = pathname === "/login" || pathname === "/vision";
   // 白名单路由：绝对放行，防止回调死锁
