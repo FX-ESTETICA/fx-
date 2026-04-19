@@ -83,11 +83,43 @@ export const AppPlatformGuard = () => {
         }
       }
     } else {
-      // 安卓终极唤醒/下载逻辑 (最强兼容方案：使用 Intent S.browser_fallback_url 拦截报错)
-      
-      // 当安卓系统找不到 com.gx.core 时，会自动拦截报错，并无缝重定向到 S.browser_fallback_url 指定的下载链接。
+      // 安卓终极唤醒/下载逻辑 (世界顶级：双轨竞速协议 Double-Track Racing)
+      const start = Date.now();
+      let hasResponded = false;
+
+      // 监听手机屏幕是否失去焦点（如果 APP 成功拉起，网页必定被系统挂起进入 hidden 状态）
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          hasResponded = true;
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      // 第 1 轨 (0ms)：发射隐形 Intent（带 fallback 兜底防报错）
       const fallbackUrl = encodeURIComponent("https://fx-rapallo.vercel.app/gx-core.apk");
-      window.location.href = `intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;S.browser_fallback_url=${fallbackUrl};end`;
+      const intentUrl = `intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;S.browser_fallback_url=${fallbackUrl};end`;
+      
+      const a = document.createElement("a");
+      a.href = intentUrl;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click(); // 瞬间开枪！
+
+      // 第 2 轨 (800ms)：生死时速裁判长
+      setTimeout(() => {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        if (document.body.contains(a)) document.body.removeChild(a);
+
+        // 如果 800ms 后，网页既没有被挂起，也没有隐藏，说明系统根本没去找 APP！
+        if (!hasResponded && !document.hidden) {
+          const elapsed = Date.now() - start;
+          // 容错判断：如果时间流逝在 1200ms 以内（说明系统并没有因为打开 APP 导致 JS 线程严重阻塞），判定为“未安装”
+          if (elapsed < 1200) {
+            // 裁判宣判：强行拉起下载，不再干等系统的 2-3 秒！
+            window.location.href = "https://fx-rapallo.vercel.app/gx-core.apk";
+          }
+        }
+      }, 800);
     }
   };
 
