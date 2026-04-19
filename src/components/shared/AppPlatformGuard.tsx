@@ -42,10 +42,18 @@ export const AppPlatformGuard = () => {
       return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     }
 
-    // 4. 精准嗅探设备类型（世界顶级修复：彻底解除 isMobile 霸王条款）
+    // 4. 精准嗅探设备类型（世界顶级修复：击穿三星平板/DeX 的桌面端伪装）
     const ua = window.navigator.userAgent.toLowerCase();
     const isIOS = /ipad|iphone|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isAndroid = /android/.test(ua);
+    
+    // 终极 Android 嗅探：
+    // 1. UA 自带 android（常规手机）
+    // 2. Client Hints API 明确告知底层是 Android（无视 UA 伪装）
+    // 3. UA 伪装成了 Linux 电脑，但带有物理多点触控屏幕（完美涵盖三星平板“请求桌面网站”和 DeX 模式）
+    const isAndroid = 
+      /android/.test(ua) || 
+      ((navigator as any).userAgentData?.platform === 'Android') ||
+      (/linux/.test(ua) && navigator.maxTouchPoints > 1);
 
     if (isIOS) {
       setPlatform("ios"); // 苹果全系（iPhone + iPad）
