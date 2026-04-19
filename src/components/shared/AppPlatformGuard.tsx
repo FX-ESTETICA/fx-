@@ -83,15 +83,22 @@ export const AppPlatformGuard = () => {
         }
       }
     } else {
-      // 安卓终极唤醒/下载逻辑
-      // 1. 盲发 Scheme 尝试拉起已安装的 APP
-      window.location.href = "intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;end";
+      // 安卓终极唤醒/下载逻辑 (世界顶级：幽灵 iframe 唤端协议，防止浏览器跳转报错)
       
-      // 2. 挂载 2 秒计时器。如果 2 秒后页面没有被挂起，直接下载 APK
+      // 1. 铸造隐形结界 (创建大小为 0 的幽灵 iframe)
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "display:none;width:0px;height:0px;";
+      // 将唤醒指令发射到隐形结界中。即使失败报错，也只会死在结界里，不污染当前屏幕
+      iframe.src = "intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;end";
+      document.body.appendChild(iframe);
+      
+      // 2. 挂载 2 秒计时器。如果 2 秒后页面没有被挂起，直接销毁结界并触发下载
       setTimeout(() => {
         if (document.hasFocus()) {
           window.location.href = "https://fx-rapallo.vercel.app/gx-core.apk";
         }
+        // 清理战场
+        document.body.removeChild(iframe);
       }, 2000);
     }
   };
