@@ -159,6 +159,14 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
           });
 
         if (bindError) throw bindError;
+
+        // c. 【核心修复】：同步将用户的 profile role 更新为 merchant，解决底层 RLS 拦截问题
+        const { error: roleError } = await supabase
+          .from('profiles')
+          .update({ role: 'merchant' })
+          .eq('id', user?.id);
+
+        if (roleError) console.error("Failed to update user role to merchant:", roleError);
       }
       
       // 成功后，立刻触发全局引擎同步
@@ -170,7 +178,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
       setApplicationStatus("success");
       setTimeout(() => {
         setShowMerchantPortal(false);
-        window.location.reload();
+        // 【移除幽灵刷新】：废弃硬重载，完全依赖 React 状态机和 refreshUserData 触发路由切换
       }, 1500);
 
     } catch (e) {

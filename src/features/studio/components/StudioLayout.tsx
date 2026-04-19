@@ -145,7 +145,15 @@ export function StudioLayout() {
     
     setIsDeploying(true);
     try {
-      const configPayload = { 
+      // 0. 获取当前完整 config，实现深度合并，防止覆写日历数据
+      let currentConfig = {};
+      if (storeId) {
+        const { data: currentShop } = await supabase.from('shops').select('config').eq('id', storeId).single();
+        currentConfig = currentShop?.config || {};
+      }
+
+      const mergedConfig = { 
+        ...currentConfig,
         slogan: slogan,
         coverImages: coverImages,
         capsules: capsules,
@@ -159,7 +167,7 @@ export function StudioLayout() {
           .update({
             name: storeName,
             maps_link: `https://www.google.com/maps/search/?api=1&query=${selectedLocation.lat},${selectedLocation.lng}`,
-            config: configPayload
+            config: mergedConfig
           })
           .eq('id', storeId)
           .eq('version_id', currentVersionId) // 绝对防线：版本号必须匹配
@@ -180,7 +188,7 @@ export function StudioLayout() {
             name: storeName,
             industry: 'beauty', // 默认或者从某个地方获取，这里可以暂时写死或留空
             maps_link: `https://www.google.com/maps/search/?api=1&query=${selectedLocation.lat},${selectedLocation.lng}`,
-            config: configPayload,
+            config: mergedConfig,
             owner_principal_id: user.id
           })
           .select()

@@ -5,7 +5,6 @@ import { Button } from "@/components/shared/Button";
 import { 
   Calendar, 
   Sparkles,
-  ArrowRight,
   Play,
   Eye,
   MonitorSmartphone,
@@ -17,7 +16,6 @@ import { BookingDetails } from "@/features/booking/types";
 import { ShopOperatingConfig, DailyOverride } from "@/features/calendar/components/IndustryCalendar";
 import { TodayOverrideController } from "@/features/calendar/components/TodayOverrideController";
 import { cn } from "@/utils/cn";
-import Link from "next/link";
 import { PhoneAuthBar } from "./PhoneAuthBar";
 import { IndustryType } from "@/features/calendar/types";
 import { UserProfile } from "../types";
@@ -66,7 +64,7 @@ import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboardProps) => {
   const t = useTranslations('MerchantDashboard');
   // const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const { activeShopId, setActiveShopId, availableShops, subscription, shopConfig, isShopConfigLoaded, updateShopConfig, refreshBookings, trackAction, globalBookings } = useShop();
   const { setActiveTab, pushOverlay } = useViewStack();
   const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
@@ -94,11 +92,31 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
   }, [isDropdownOpen, registerBack, unregisterBack]);
 
   // 从 ShopContext 提取需要的数据
-  const activeShopName = availableShops?.find(s => s.shopId === activeShopId)?.shopName || "GX 高新旗舰店";
+  const activeShopName = availableShops?.find(s => s.shopId === activeShopId)?.shopName || "等待物理坐标接入...";
   
   const filteredShops = availableShops?.filter(shop => 
     (shop.shopName || "未知门店").toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
+
+  // 强制状态降维与路由踢回 (Auto-Downgrade Routing)
+  useEffect(() => {
+    if (availableShops && availableShops.length === 0) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('gx_view_role');
+      }
+      // 为了安全和 0 报错，触发一次全局 reload 来让 AppShell 重新根据数据库的真实 role 渲染
+      window.location.reload();
+    }
+  }, [availableShops]);
+
+  if (!availableShops || availableShops.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in duration-700">
+        <div className="w-10 h-10 border-2 border-gx-cyan border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm text-white/40 tracking-widest uppercase font-mono">RECALIBRATING MATRIX...</p>
+      </div>
+    );
+  }
 
   // 从 ShopContext 全局中枢获取配置，并做防御性降维
   const fullConfig = useMemo(() => {
@@ -168,51 +186,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
     }
   };
 
-  const [isStoreConfigured, setIsStoreConfigured] = useState(false); 
-  const [isCheckingStore, setIsCheckingStore] = useState(true);
 
-  useEffect(() => {
-    // 真实的物理校验：检查用户绑定的那家店是否已经有了 config 数据
-    const checkStoreConfigured = async () => {
-      if (!user?.id) {
-        setIsCheckingStore(false);
-        return;
-      }
-      try {
-        const { data: bindings } = await supabase
-          .from('shop_bindings')
-          .select('shop_id')
-          .eq('user_id', user.id)
-          .eq('role', 'OWNER')
-          .limit(1)
-          .maybeSingle();
-
-        if (bindings?.shop_id) {
-          const { data: shop } = await supabase
-            .from('shops')
-            .select('config')
-            .eq('id', bindings.shop_id)
-            .single();
-
-          // 如果 config 里有 coverImages，我们认为它已经被配置过了
-          if (shop?.config && (shop.config as any).coverImages?.length > 0) {
-            setIsStoreConfigured(true);
-          } else {
-            setIsStoreConfigured(false);
-          }
-        } else {
-          setIsStoreConfigured(false);
-        }
-      } catch (error) {
-        console.error("Failed to check store configuration:", error);
-        setIsStoreConfigured(false);
-      } finally {
-        setIsCheckingStore(false);
-      }
-    };
-
-    checkStoreConfigured();
-  }, [user]);
 
   // MOCK 数据：数字印记 (Digital Footprints) 视频缩略图
   const mockFootprints = [
@@ -271,30 +245,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
         gracePeriodActionsLeft={gracePeriodActionsLeft || 0}
       />
       
-      {/* 待配置的数字门店横幅 - 核心 B 端流程闭环 */}
-      {!isCheckingStore && !isStoreConfigured && (
-        <Link href="/studio">
-          <GlassCard glowColor="cyan" className="p-4 group cursor-pointer hover:bg-white/5 transition-all overflow-hidden relative mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-gx-cyan/10 via-transparent to-transparent pointer-events-none" />
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.3)]">
-                  <MonitorSmartphone className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">
-                    {t('txt_0dcaa5')}</h3>
-                  <p className="text-white/40 text-[10px] uppercase tracking-widest font-mono mt-0.5">
-                    {t('txt_f6e889')}</p>
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 group-hover:text-gx-cyan group-hover:bg-gx-cyan/10 transition-all">
-                <ArrowRight className="w-5 h-5" />
-              </div>
-            </div>
-          </GlassCard>
-        </Link>
-      )}
+
 
       {/* 顶部统计卡片与联邦集结舱 (连体数据舱) */}
       <GlassCard className="p-0 overflow-hidden relative">

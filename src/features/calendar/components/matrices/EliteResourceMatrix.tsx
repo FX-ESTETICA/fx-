@@ -885,8 +885,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                 
                 // 【时间流水印与延误计算】：在当前列对所有卡片按 date 和 startTime 排序，实现物理天数隔离
                 colBookings.sort((a, b) => {
-                  if (a.date !== b.date) {
-                    return a.date.localeCompare(b.date || "");
+                  const dateA = a.date || "";
+                  const dateB = b.date || "";
+                  if (dateA !== dateB) {
+                    return dateA.localeCompare(dateB);
                   }
                   const aMin = parseInt(a.startTime.split(':')[0]) * 60 + parseInt(a.startTime.split(':')[1]);
                   const bMin = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);

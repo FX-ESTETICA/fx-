@@ -364,9 +364,16 @@ function useNebulaData(bossId: string | undefined, openSubscriptionModal: (mode:
   // 终极清洗 (慎用) - 连根拔起
   const purgeNode = async (shopId: string) => {
     try {
-      // 彻底抹除物理节点：直接删除 shops 表中的该记录
-      // Supabase 配置了级联删除(Cascade)的话，相关的 shop_bindings 也会自动消失
-      // 为了安全，我们还是显式地先删 binding 再删 shop
+      // 1. 物理寻址：先查出这个店铺真正的 owner 是谁，防止 boss 代删时的身份错位
+      const { data: shopData } = await supabase
+        .from('shops')
+        .select('owner_principal_id')
+        .eq('id', shopId)
+        .single();
+
+      const targetOwnerId = shopData?.owner_principal_id;
+
+      // 2. 彻底抹除物理节点：先删 binding 再删 shop，保证数据不留残渣
       await supabase.from('shop_bindings').delete().eq('shop_id', shopId);
       
       const { error } = await supabase
@@ -376,8 +383,41 @@ function useNebulaData(bossId: string | undefined, openSubscriptionModal: (mode:
         
       if (error) throw error;
       
+      // 3. 追踪歼灭与降级 (The Phoenix Protocol)
+      if (targetOwnerId) {
+        // 检查该主人是否还有其他存活的店铺
+        const { data: remainingShops } = await supabase
+          .from('shops')
+          .select('id')
+          .eq('owner_principal_id', targetOwnerId)
+          .limit(1);
+
+        if (!remainingShops || remainingShops.length === 0) {
+          // 如果他名下已经没有店了，执行彻底的物理抹除和降级
+          
+          // a. 烧毁商户入驻档案，防止幽灵资格阻挡二次创业
+          // 使用 match 或精确的 eq 来确保删除，某些 RLS policy 可能限制了根据 user_id 删除，或者可能由于 null 值导致失败
+          const { error: appDelError } = await supabase
+            .from('merchant_applications')
+            .delete()
+            .match({ user_id: targetOwnerId });
+            
+          if (appDelError) console.warn("Failed to delete merchant applications:", appDelError);
+
+          // b. 降级真实身份为 user，踢出商户维度
+          console.log("[Nebula] No remaining shops found, downgrading role to user...");
+          await supabase
+            .from('profiles')
+            .update({ role: 'user' })
+            .eq('id', targetOwnerId);
+        }
+      }
+
       // 重新拉取数据，被删除的节点会被我们前端的虚拟插槽自动填补，名字自然恢复为"筹备中"
       await fetchNodes();
+      
+      // 强制刷新页面以重置全局的 Context 和 UI 状态
+      window.location.reload();
       return true;
     } catch (err) {
       console.error("Failed to purge node:", err);
@@ -835,7 +875,6 @@ function NodeManagementHUD({
                         {onObliterate && (
                           <button
                             onClick={async () => {
-                              const t = useTranslations('nebula');
                               if (confirm(t('txt_491f90'))) {
                                 setIsSubmitting(true);
                                 await onObliterate();

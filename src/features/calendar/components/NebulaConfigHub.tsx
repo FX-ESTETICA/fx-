@@ -46,6 +46,7 @@ export interface NebulaConfigHubProps {
   isCloudDataLoaded?: boolean; // 新增：防反杀物理锁
   businessName?: string;       // 新增：业务名称（用于全息雷达显示）
   businessAvatar?: string;     // 新增：业务头像（用于全息雷达显示）
+  initialTab?: "staff" | "services" | "hours" | "visual"; // 新增：允许外部指定初始打开的选项卡
 }
 
 /**
@@ -64,12 +65,20 @@ export const NebulaConfigHub = ({
   onGlobalSave,
   isCloudDataLoaded = true, // 默认为true兼容旧代码
   businessName,
-  businessAvatar
+  businessAvatar,
+  initialTab = "hours"
 }: NebulaConfigHubProps) => {
   const t = useTranslations('NebulaConfigHub');
 
   type MainTab = "staff" | "services" | "hours" | "visual";
-  const [activeTab, setActiveTab] = useState<MainTab>("hours");
+  const [activeTab, setActiveTab] = useState<MainTab>(initialTab);
+  
+  // 当弹窗打开时，如果外部传入了 initialTab，强制同步（针对同一页面多次打开不同 Tab 的场景）
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   
   const { user } = useAuth();
   

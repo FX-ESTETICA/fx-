@@ -119,6 +119,40 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
     }
   };
 
+  // 内测专属：手动一键延长试用期 360 天
+  const handleBetaExtension = async () => {
+    if (!subscription.empireId) return;
+    
+    // 强制将试用期重置为当前时间，以便重新开始计算
+    // 注意：当前系统的免费试用时长是由全局变量（如 5 分钟）决定的，
+    // 为了真正获得 360 天，最完美的方法是直接把他的订阅强行升为 'PRO'，并给一个 360 天后的到期时间
+    const nextYear = new Date();
+    nextYear.setDate(nextYear.getDate() + 360);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        subscription_tier: 'PRO', // 赠送 PRO 连锁版
+        current_period_end: nextYear.toISOString(),
+        trial_started_at: new Date().toISOString(), // 重置试用期起算点，防止旧倒计时逻辑卡死
+        grace_period_actions_left: null // 抹除紧急额度限制
+      })
+      .eq('id', subscription.empireId);
+
+    if (!error) {
+      console.log("Beta extension applied: PRO for 360 days");
+      
+      // 同步清理本地的试用期缓存，防止双轨制干扰
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`gx_trial_empire_${subscription.empireId}`);
+      }
+      
+      window.location.reload();
+    } else {
+      console.error("Failed to apply beta extension", error);
+    }
+  };
+
   if (!isOpen) return null;
 
   const maxNodes = TIER_LIMITS[currentTier] || 1;
@@ -174,6 +208,14 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             <p className="mt-2 md:mt-4 text-xs md:text-sm text-white/40 tracking-wider text-center">
               {isExpiredWarning ? '您的全功能体验时间已耗尽，日历已进入只读模式。' : '如需扩张新的公司，请升级订阅。'}
             </p>
+
+            {/* 内测专属后门按钮：一键延期 360 天 */}
+            <button 
+              onClick={handleBetaExtension}
+              className="mt-6 px-4 py-1.5 rounded-full bg-gx-purple/20 border border-gx-purple/50 text-gx-purple text-[10px] font-mono tracking-widest hover:bg-gx-purple hover:text-white transition-all shadow-[0_0_15px_rgba(188,19,254,0.3)] animate-pulse"
+            >
+              [内测专属] 一键延长 360 天 PRO 版体验
+            </button>
           </div>
 
           {/* Pricing Matrix 算力矩阵 */}

@@ -203,6 +203,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 新增：幻象投影日期，专门用于顶部标题显示，与底层逻辑脱钩
   const [phantomDate, setPhantomDate] = useState<Date>(new Date());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [configInitialTab, setConfigInitialTab] = useState<"hours" | "staff" | "services" | "visual">("hours");
   const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
   const [isFinanceDashboardOpen, setIsFinanceDashboardOpen] = useState(false); 
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -366,8 +367,35 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     } else {
       setOperatingHours(DEFAULT_OPERATING_CONFIG);
     }
-    if (shopConfig.categories) setCategories(shopConfig.categories as CategoryItem[]);
-    if (shopConfig.services) setServices(shopConfig.services as ServiceItem[]);
+    
+    // 【强制拦截幽灵覆盖】：
+    // 当 ShopContext 发生微小变动推送过来时，如果它携带了有效的 categories 和 services，我们才覆盖本地。
+    // 如果它传过来的是空，且本地已经有数据（说明店长刚在 NebulaConfigHub 里建好），【绝对拒绝覆盖为空】！
+    // 修复：删除服务时，合法的空数组也会被当成“幽灵空数据”拦截掉。
+    // 我们必须区分“初始化未加载”的空，和“用户主动删除后”的空。
+    // 如果 isCloudDataLoaded 为 true，说明已经过了初始加载阶段，此时推过来的 [] 就是真实的删除动作！
+    if (shopConfig.categories !== undefined) {
+      setCategories(prev => {
+        if (!isCloudDataLoaded) {
+          // 初始阶段：如果云端是空，且本地有数据，拒绝覆盖
+          return (shopConfig.categories?.length || 0) > 0 ? (shopConfig.categories as CategoryItem[]) : prev;
+        }
+        // 已加载阶段：绝对信任云端推送，哪怕是空数组（代表删除了最后一个分类）
+        return (shopConfig.categories as CategoryItem[]) || [];
+      });
+    }
+    
+    if (shopConfig.services !== undefined) {
+      setServices(prev => {
+        if (!isCloudDataLoaded) {
+          // 初始阶段：如果云端是空，且本地有数据，拒绝覆盖
+          return (shopConfig.services?.length || 0) > 0 ? (shopConfig.services as ServiceItem[]) : prev;
+        }
+        // 已加载阶段：绝对信任云端推送，哪怕是空数组（代表删除了最后一个服务）
+        return (shopConfig.services as ServiceItem[]) || [];
+      });
+    }
+    
     if (shopConfig.storeStatus) {
       setStoreStatus(shopConfig.storeStatus as any);
     } else {
@@ -572,6 +600,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal]);
 
   const handleCreateBookingClick = useCallback(async () => {
+    // --- 新增：空状态防御机制（结界） ---
+    // 根据最新法则：只要没有配置项目(services)，就触发拦截；员工(staffs)不再是强制前置条件
+    if (services.length === 0) {
+      setConfigInitialTab('services');
+      setIsConfigOpen(true);
+      return;
+    }
+
     // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
     if (!subscription.isLoaded) return;
 
@@ -596,9 +632,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
     // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
     openBookingModal();
-  }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId]);
+  }, [services.length, subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
   const handleGridClick = useCallback(async (resourceId?: string, time?: string, dateStr?: string) => {
+    // --- 新增：空状态防御机制（结界） ---
+    // 根据最新法则：只要没有配置项目(services)，就触发拦截；员工(staffs)不再是强制前置条件
+    if (services.length === 0) {
+      setConfigInitialTab('services');
+      setIsConfigOpen(true);
+      return;
+    }
+
     // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
     if (!subscription.isLoaded) return;
 
@@ -642,7 +686,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     }
     
     openBookingModal();
-  }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId]);
+  }, [services.length, subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
   // 用于同步表头与矩阵的横向滚动
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -1576,6 +1620,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
             isCloudDataLoaded={isCloudDataLoaded}
             businessName={userName || 'BOSS'}
             businessAvatar={trueBusinessAvatar}
+            initialTab={configInitialTab}
           />
 
           <AiFinanceDashboardModal

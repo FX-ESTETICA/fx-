@@ -190,10 +190,18 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
         const { data, error } = await supabase
           .from('shops')
           .select('*')
-          .not('config', 'is', null)
+          .eq('nebula_status', 'active') // 1. 必须是 active 状态
+          .not('config', 'is', null) // 2. config 不能为 null
+          .not('maps_link', 'is', null) // 3. 必须配置了物理地址（这通常是在“装修门店”中填写的）
           .order('created_at', { ascending: false });
+        
         if (!error && data) {
-          setRealShops(data);
+          // 4. 进一步过滤：必须要有封面图才能上大厅
+          const validShops = data.filter(shop => {
+            const config = shop.config as any;
+            return config && config.coverImages && config.coverImages.length > 0;
+          });
+          setRealShops(validShops);
         }
       } catch (err) {
         console.error("Failed to fetch real shops", err);

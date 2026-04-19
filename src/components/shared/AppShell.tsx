@@ -12,13 +12,13 @@ import { useViewStack } from "@/hooks/useViewStack";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
-  const { user, isLoading, isProfileLoading } = useAuth();
   const { subscriptionModalMode, closeSubscriptionModal, subscription } = useShop();
   const { activeTab, overlays } = useViewStack();
+  const { user } = useAuth();
+  const isMockUser = user && 'gxId' in user && (user as any).gxId?.startsWith('GX_');
 
   const isStandalonePage = pathname === "/login" || pathname === "/vision";
   // 白名单路由：绝对放行，防止回调死锁
-  const isPublicRoute = isStandalonePage || pathname === "/auth/callback";
   
   if (isStandalonePage) return <>{children}</>;
 
@@ -43,9 +43,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
 
       {/* 2. 全息档案舱：0冲突悬浮拦截层 */}
       {/* 拦截逻辑升级：增加 isProfileLoading 锁，只有当 Auth 认证完毕 且 档案数据彻底拉取完毕后，才进行拦截判断，彻底消除闪烁 */}
-      {!isLoading && !isProfileLoading && user && (!(user as any).name || (user as any).gender === "unknown" || !(user as any).birthday) && !isPublicRoute && (
-        <CyberOnboardingModal />
-      )}
+      {/* 强制拦截：核心资料未填写的用户必须完成引导 (仅对真实登录用户生效) */}
+      {user && !isMockUser && !(user as any).name && <CyberOnboardingModal />}
 
       {showBottomTabs && (
         <BottomNavBar className="fixed bottom-0 left-0 right-0" />
