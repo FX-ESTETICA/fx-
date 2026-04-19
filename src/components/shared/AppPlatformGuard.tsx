@@ -7,16 +7,24 @@ import { Share, X, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export const AppPlatformGuard = () => {
-    const t = useTranslations('AppPlatformGuard');
-  const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
+  const t = useTranslations('AppPlatformGuard');
+  const [platform, setPlatform] = useState<"ios" | "android" | "pc" | "other">("other");
   const [dismissed, setDismissed] = useState(false);
   const [isNative, setIsNative] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
+    // 拦截 PC 端的系统级 PWA 安装事件
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
     // 1. 检查是否在原生 App 壳子内
     if (Capacitor.isNativePlatform()) {
       setIsNative(true);
-      return;
+      return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     }
 
     // 2. 检查是否在 PWA 独立模式 (Standalone)
@@ -25,28 +33,29 @@ export const AppPlatformGuard = () => {
       (window.navigator as any).standalone === true;
     if (isStandalone) {
       setIsNative(true); // 当作原生对待，不显示
-      return;
+      return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     }
 
     // 3. 检查是否已经关闭过提示
     if (sessionStorage.getItem("gx_app_guard_dismissed")) {
       setDismissed(true);
-      return;
+      return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     }
 
-    // 4. 精准嗅探设备类型
+    // 4. 精准嗅探设备类型（世界顶级修复：彻底解除 isMobile 霸王条款）
     const ua = window.navigator.userAgent.toLowerCase();
     const isIOS = /ipad|iphone|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isAndroid = /android/.test(ua);
-    const isMobile = /mobile/.test(ua);
 
-    if (isIOS && isMobile) {
-      setPlatform("ios");
-    } else if (isAndroid && isMobile) {
-      setPlatform("android");
+    if (isIOS) {
+      setPlatform("ios"); // 苹果全系（iPhone + iPad）
+    } else if (isAndroid) {
+      setPlatform("android"); // 安卓全系（手机 + 平板）
     } else {
-      setPlatform("other"); // PC 或其他，什么都不显示
+      setPlatform("pc"); // 电脑端
     }
+
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
 
   const handleDismiss = () => {
@@ -54,21 +63,33 @@ export const AppPlatformGuard = () => {
     sessionStorage.setItem("gx_app_guard_dismissed", "true");
   };
 
-  const handleAndroidAction = () => {
-    // 安卓终极唤醒逻辑
-    // 1. 盲发 Scheme 尝试拉起已安装的 APP
-    window.location.href = "intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;end";
-    
-    // 2. 挂载 2 秒计时器。如果 2 秒后页面没有被挂起，直接下载 APK
-    setTimeout(() => {
-      if (document.hasFocus()) {
-        window.location.href = "https://fx-rapallo.vercel.app/gx-core.apk";
+  const handleAndroidAction = async () => {
+    if (platform === "pc") {
+      // PC 端 PWA 系统级降临逻辑
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setDeferredPrompt(null);
+          handleDismiss();
+        }
       }
-    }, 2000);
+    } else {
+      // 安卓终极唤醒/下载逻辑
+      // 1. 盲发 Scheme 尝试拉起已安装的 APP
+      window.location.href = "intent://fx-rapallo.vercel.app/#Intent;scheme=https;package=com.gx.core;end";
+      
+      // 2. 挂载 2 秒计时器。如果 2 秒后页面没有被挂起，直接下载 APK
+      setTimeout(() => {
+        if (document.hasFocus()) {
+          window.location.href = "https://fx-rapallo.vercel.app/gx-core.apk";
+        }
+      }, 2000);
+    }
   };
 
-  // 如果是原生、PC 或者已关闭，空气般消失
-  if (isNative || platform === "other" || dismissed) return null;
+  // 如果是原生、已关闭，或者 (是PC但不支持/已安装PWA)，空气般消失
+  if (isNative || dismissed || (platform === "pc" && !deferredPrompt) || platform === "other") return null;
 
   return (
     <AnimatePresence>
@@ -105,8 +126,8 @@ export const AppPlatformGuard = () => {
         </motion.div>
       )}
 
-      {/* Android 极简赛博唤醒/下载按钮 */}
-      {platform === "android" && (
+      {/* Android / PC 极简赛博唤醒/下载按钮 */}
+      {(platform === "android" || platform === "pc") && (
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
