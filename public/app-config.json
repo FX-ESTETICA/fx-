@@ -1,8 +1,8 @@
 {
   "android": {
-    "min_version": "1.0.2",
-    "latest_version": "1.0.2",
+    "min_version": "1.0.3",
+    "latest_version": "1.0.3",
     "download_url": "https://fx-rapallo.vercel.app/gx-core.apk",
-    "release_notes": "沉浸式引擎世界级重构（v1.0.2）：\n1. 修复了切换应用后状态栏复现的闪烁问题\n2. 实现了 0 妥协的游戏级绝对全屏（防刘海遮挡）\n\n请立即下载覆盖安装，体验真正的顶级无边框世界。"
+    "release_notes": "沉浸式引擎手势防误触修复（v1.0.3）：\n1. 修复了侧边返回手势需要滑动两次的 BUG\n2. 实现了状态栏隐藏与全面屏手势的完美共存\n\n请立即下载覆盖安装，体验极致丝滑手势。"
   }
 }

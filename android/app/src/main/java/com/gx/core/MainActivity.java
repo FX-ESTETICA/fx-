@@ -49,12 +49,13 @@ public class MainActivity extends BridgeActivity {
             WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
             
         if (controller != null) {
-            // 设置行为：下拉会半透明悬浮出现，几秒后自动滚回去消失
+            // 设置行为：下拉顶部状态栏会半透明悬浮出现，几秒后自动消失
             controller.setSystemBarsBehavior(
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             );
-            // 物理抹杀：状态栏和底部导航小白条全部干掉
-            controller.hide(WindowInsetsCompat.Type.systemBars());
+            // 精准切割：物理抹杀顶部状态栏 (statusBars)，但绝对保留底/侧边导航栏 (navigationBars) 的控制权！
+            // 这行代码是消灭“侧边手势返回需要滑动两次”防误触 BUG 的唯一解法
+            controller.hide(WindowInsetsCompat.Type.statusBars());
         }
     }
 }
