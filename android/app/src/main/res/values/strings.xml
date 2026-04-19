@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">GX Core</string>
-    <string name="title_activity_main">GX Core</string>
+    <string name="app_name">GX</string>
+    <string name="title_activity_main">GX</string>
     <string name="package_name">com.gx.core</string>
     <string name="custom_url_scheme">com.gx.core</string>
     <string name="server_client_id">759484201665-h43394q58q16bv83veij84mmbbautl0g.apps.googleusercontent.com</string>

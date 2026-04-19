@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.gx.core',
-  appName: 'GX Core',
+  appName: 'GX',
   webDir: 'public',
   server: {
     url: 'https://fx-rapallo.vercel.app',
