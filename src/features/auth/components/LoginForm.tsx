@@ -30,7 +30,7 @@ const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "";
  * 采用极致赛博极简风格
  */
 export const LoginForm = () => {
-  const { setGuestMode, sandboxLogin } = useAuth();
+  const { injectMockUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next") || undefined;
@@ -96,12 +96,12 @@ export const LoginForm = () => {
     
     try {
       if (isMockMode && email === ADMIN_EMAIL && ADMIN_PASSWORD && password === ADMIN_PASSWORD) {
-        sandboxLogin({ id: "gx-admin", gxId: "GX_ADM_ROOT", email: ADMIN_EMAIL, role: "boss", name: "GX Admin", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" });
+        injectMockUser({ id: "gx-admin", gxId: "GX_ADM_ROOT", email: ADMIN_EMAIL, role: "boss", name: "GX Admin", app_metadata: {}, user_metadata: {}, aud: "", created_at: "" });
         router.replace(nextParam || "/home");
         return;
       }
       if (isMockMode && password === "123456" && MOCK_ACCOUNTS[email]) {
-        sandboxLogin(MOCK_ACCOUNTS[email]);
+        injectMockUser(MOCK_ACCOUNTS[email]);
         router.replace(nextParam || "/home");
         return;
       }

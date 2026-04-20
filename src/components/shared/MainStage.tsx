@@ -55,18 +55,9 @@ export const MainStage = () => {
     if (mainPath === 'home' || mainPath === 'discovery' || mainPath === 'calendar' || mainPath === 'chat' || mainPath === 'me' || mainPath === 'dashboard') {
       initialTab = mainPath === 'dashboard' ? 'me' : mainPath;
       
-      // 核心修复：深层入口防坠落 (Entry Fallback)
-      // 如果用户直接进入非 home 页面，我们在底层强行垫一个 home，保证左上角返回能回到主页
+      // 净化路由劫持：仅做状态补全，坚决不进行暴力的 pushState 垫底操作，避免与 Zustand 竞态冲突
       if (typeof window !== 'undefined' && !window.history.state?.tab) {
-        const currentState = window.history.state || {};
-        if (initialTab !== 'home') {
-          // 垫底操作：把当前历史栈的底部换成 /home，然后再把真实的深层路径推上去
-          window.history.replaceState({ ...currentState, tab: 'home' }, '', '/');
-          window.history.pushState({ ...currentState, tab: initialTab }, '', pathname);
-        } else {
-          // 如果本来就是 home，正常设置即可，把状态补全
-          window.history.replaceState({ ...currentState, tab: 'home' }, '', '/');
-        }
+        window.history.replaceState({ ...window.history.state, tab: initialTab }, '', pathname);
       }
       
       // 直接使用 setState 修改 Zustand 内部状态，而不是调用 setActiveTab

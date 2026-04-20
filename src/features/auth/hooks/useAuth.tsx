@@ -48,14 +48,11 @@ const mapShopBindings = (bindings?: ShopBindingRow[] | null): SandboxUser["bindi
 interface AuthContextType {
   user: SandboxUser | User | null;
   session: Session | null;
-  isGuest: boolean;
   isLoading: boolean;
-  isProfileLoading: boolean;
   activeRole: UserRole;
   signOut: () => Promise<void>;
-  setGuestMode: () => void;
   setActiveRole: (role: UserRole) => void;
-  sandboxLogin: (user?: SandboxUser) => void;
+  injectMockUser: (user: SandboxUser) => void;
   refreshUserData: () => Promise<void>;
 }
 
@@ -68,10 +65,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SandboxUser | User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(true);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [hasConfirmedSession, setHasConfirmedSession] = useState(false);
   const [localViewRole, setLocalViewRole] = useState<UserRole | null>(() => {
     if (typeof window === "undefined") return null;
@@ -122,10 +117,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       return;
     }
-    setIsProfileLoading(true);
     setSession(nextSession);
     if (nextSession?.user) {
-      setIsGuest(false);
       localStorage.removeItem("gx_guest_mode");
       try {
         const { data: profile } = await supabase
@@ -251,24 +244,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("[AuthProvider] Hydrate Error:", error);
         setUser(nextSession.user);
-      } finally {
-        setIsProfileLoading(false);
       }
     } else {
       setUser(null);
       localStorage.removeItem("gx_cached_user");
-      setIsProfileLoading(false);
     }
   }, [localViewRole, syncDeviceSession]);
 
   const initLock = useRef(false);
 
   useEffect(() => {
-    // 检查本地存储的游客状态
-    const guestStatus = localStorage.getItem("gx_guest_mode") === "true";
-    if (guestStatus) {
-      setIsGuest(true);
-    }
+    // 兼容历史版本残留，直接清除
+    localStorage.removeItem("gx_guest_mode");
   }, []);
 
   useEffect(() => {
@@ -597,11 +584,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 
-  const setGuestMode = () => {
-    setIsGuest(true);
-    localStorage.setItem("gx_guest_mode", "true");
-  };
-
   const setActiveRole = (role: UserRole) => {
     setActiveRoleState(role);
     setLocalViewRole(role);
@@ -610,12 +592,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const sandboxLogin = (user?: SandboxUser) => {
-    if (user) {
-      setUser(user);
-    }
-    // 已经废弃：不再使用沙盒登录，避免干扰真实状态
-    console.warn("sandboxLogin is deprecated. Using real Supabase auth now.");
+  const injectMockUser = (user: SandboxUser) => {
+    setUser(user);
+    localStorage.setItem("gx_cached_user", JSON.stringify(user));
   };
 
   const handleSignOut = async () => {
@@ -623,11 +602,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("gx_sandbox_session");
     localStorage.removeItem("gx_active_shop_id"); // 强制销毁店铺缓存
     localStorage.removeItem("gx_cached_user"); // 清理幽灵缓存
+    localStorage.removeItem("gx_guest_mode"); // 清理历史遗留
     
     if (isMockMode) {
       setUser(null);
-      setIsGuest(false);
-      localStorage.removeItem("gx_guest_mode");
       localStorage.removeItem("gx_view_role");
       window.location.href = '/login'; // 无状态重载
       return;
@@ -641,8 +619,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     await supabase.auth.signOut();
     setUser(null);
-    setIsGuest(false);
-    localStorage.removeItem("gx_guest_mode");
     localStorage.removeItem("gx_view_role");
     window.location.href = '/login'; // 无状态重载
   };
@@ -650,14 +626,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     user,
     session,
-    isGuest,
     isLoading,
-    isProfileLoading,
     activeRole,
     signOut: handleSignOut,
-    setGuestMode,
     setActiveRole,
-    sandboxLogin,
+    injectMockUser,
     refreshUserData
   };
 
