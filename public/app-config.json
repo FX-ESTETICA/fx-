@@ -1,8 +1,8 @@
 {
   "android": {
     "min_version": "1.0.3",
-    "latest_version": "1.0.3",
+    "latest_version": "1.0.4",
     "download_url": "https://fx-rapallo.vercel.app/gx-core.apk",
-    "release_notes": "沉浸式引擎手势防误触修复（v1.0.3）：\n1. 修复了侧边返回手势需要滑动两次的 BUG\n2. 实现了状态栏隐藏与全面屏手势的完美共存\n\n请立即下载覆盖安装，体验极致丝滑手势。"
+    "release_notes": "全媒体语音引擎升级（v1.0.4）：\n1. 新增底层麦克风录音权限\n2. 彻底修复点击语音录制瞬间闪退的问题\n\n请立即下载覆盖安装，体验世界顶级的原生降噪语音及转文字功能。"
   }
 }
