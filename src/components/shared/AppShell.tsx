@@ -73,7 +73,6 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       </div>
 
       {/* 2. 全息档案舱：0冲突悬浮拦截层 */}
-      {/* 拦截逻辑升级：增加 isProfileLoading 锁，只有当 Auth 认证完毕 且 档案数据彻底拉取完毕后，才进行拦截判断，彻底消除闪烁 */}
       {/* 强制拦截：核心资料未填写的用户必须完成引导 (仅对真实登录用户生效) */}
       {user && !isMockUser && !(user as any).name && <CyberOnboardingModal />}
 
