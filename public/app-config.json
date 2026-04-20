@@ -1,8 +1,8 @@
 {
   "android": {
-    "min_version": "1.0.3",
-    "latest_version": "1.0.4",
+    "min_version": "1.0.6",
+    "latest_version": "1.0.6",
     "download_url": "https://fx-rapallo.vercel.app/gx-core.apk",
-    "release_notes": "全媒体语音引擎升级（v1.0.4）：\n1. 新增底层麦克风录音权限\n2. 彻底修复点击语音录制瞬间闪退的问题\n\n请立即下载覆盖安装，体验世界顶级的原生降噪语音及转文字功能。"
+    "release_notes": "系统核心体验升级（v1.0.6）：\n1. 优化系统底层性能与稳定性\n2. 修复已知问题，提升交互流畅度\n\n请立即下载覆盖安装，体验最新版本。"
   }
 }
