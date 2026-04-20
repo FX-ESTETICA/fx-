@@ -87,6 +87,53 @@ export default async function RootLayout({
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
+      <head>
+        {/* 终极防线：0毫秒瞬间拦截 PWA 白屏/资源丢失的死锁状态 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  // 陷阱1：拦截所有核心资源(JS/CSS) 加载失败的瞬间
+                  window.addEventListener('error', function(e) {
+                    if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+                      var isChunk = e.target.src && e.target.src.indexOf('_next/static') !== -1;
+                      if (isChunk) {
+                        console.error('[GX Auto-Heal] 核心资源加载失败，可能为版本更新缓存冲突。0毫秒瞬间强制重载...');
+                        // 种下自愈印记，防止无限刷新死循环
+                        if (!sessionStorage.getItem('gx_auto_healed')) {
+                          sessionStorage.setItem('gx_auto_healed', 'true');
+                          window.location.reload(true);
+                        }
+                      }
+                    }
+                  }, true);
+
+                  // 陷阱2：拦截 React 引擎内部的动态模块加载失败 (ChunkLoadError)
+                  window.addEventListener('unhandledrejection', function(e) {
+                    if (e.reason && e.reason.name === 'ChunkLoadError') {
+                      console.error('[GX Auto-Heal] 动态模块读取失败。0毫秒瞬间强制重载...');
+                      if (!sessionStorage.getItem('gx_auto_healed')) {
+                        sessionStorage.setItem('gx_auto_healed', 'true');
+                        window.location.reload(true);
+                      }
+                    }
+                  });
+
+                  // 如果应用成功加载，清除自愈印记
+                  window.addEventListener('load', function() {
+                    setTimeout(function() {
+                      sessionStorage.removeItem('gx_auto_healed');
+                    }, 5000);
+                  });
+                } catch(err) {
+                  // 防御自身报错
+                }
+              })();
+            `
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
         <NextIntlClientProvider messages={messages}>
           <WeChatBrowserGuard />
