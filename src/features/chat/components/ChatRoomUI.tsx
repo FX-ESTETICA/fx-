@@ -69,6 +69,18 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   };
   // ---------------------------------------------------------
 
+  // 构建 100% 成功率的 WhatsApp 原生拉起协议
+  const getWhatsAppLockedUrl = () => {
+    const phone = receiverId?.replace('wa_', '');
+    if (!phone) return '#';
+    
+    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
+    const inviteUrl = `${domain}/chat/wa_${phone}?shopId=${currentUserId}`;
+    const rawMessage = `✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`;
+    
+    return `whatsapp://send?phone=${phone}&text=${encodeURIComponent(rawMessage)}`;
+  };
+
   // 自动滚动到最新消息
   const scrollToBottom = (isInitial = false) => {
     messagesEndRef.current?.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth' });
@@ -248,42 +260,26 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                 : 'border-white/15 group-focus-within:border-cyan-400/50 group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]'
               }`} 
             />
+            {/* 核心修改：如果是被锁死状态，用一个绝对定位的原生 <a> 标签覆盖整个输入框，拦截物理点击 */}
+            {isLocked && isWhatsApp && (
+              <a 
+                href={getWhatsAppLockedUrl()}
+                className="absolute inset-0 z-10 rounded-2xl"
+                title="点击拉起 WhatsApp 唤醒客户"
+              />
+            )}
             <textarea
               value={inputText}
               onChange={(e) => setTextInput(e.target.value)}
               placeholder={isLocked ? "信号已断开，点击重新连接..." : t('txt_0bbdcf')}
               disabled={isLocked}
               rows={1}
-              className={`w-full backdrop-blur-sm rounded-2xl border-none focus:ring-0 text-[15px] py-3 px-4 resize-none min-h-[44px] max-h-[120px] no-scrollbar
+              className={`w-full backdrop-blur-sm rounded-2xl border-none focus:ring-0 text-[15px] py-3 px-4 resize-none min-h-[44px] max-h-[120px] no-scrollbar relative z-0
                 ${isLocked 
-                  ? 'bg-transparent text-red-300/50 placeholder:text-red-400/50 cursor-not-allowed' 
+                  ? 'bg-transparent text-red-300/50 placeholder:text-red-400/50 cursor-pointer' 
                   : 'bg-black/40 text-white placeholder:text-white/30'
                 }
               `}
-              onClick={async () => {
-                if (isLocked && isWhatsApp) {
-                   const phone = receiverId?.replace('wa_', '');
-                   if (phone) {
-                     // 锁死唤醒时，也带上引流话术
-                     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
-                     const inviteUrl = `${domain}/chat/wa_${phone}`;
-                     const rawMessage = `✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`;
-                     
-                     // 物理防呆双保险：静默将话术写入剪贴板
-                     try {
-                       if (navigator.clipboard && window.isSecureContext) {
-                         await navigator.clipboard.writeText(rawMessage);
-                       }
-                     } catch (err) {
-                       console.warn("剪贴板写入失败", err);
-                     }
-
-                     const encodedMessage = encodeURIComponent(rawMessage);
-                     // 采用更稳健的 api.whatsapp.com 协议
-                     window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, '_blank');
-                   }
-                }
-              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();

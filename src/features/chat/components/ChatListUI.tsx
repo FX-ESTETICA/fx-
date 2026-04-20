@@ -25,15 +25,12 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const { recentChats, isLoading } = useRecentChats(currentUserId);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 处理拉起原生 WhatsApp (带引流话术与洗流魔法)
-  const handleOpenWhatsApp = async (phone: string) => {
-    // 1. 清洗号码，只保留数字和 +
-    const cleanPhone = phone.replace(/[^\d+]/g, '');
-    const finalPhone = cleanPhone.replace('+', '');
-    
-    // 2. 构建极其优雅的高转化率引流话术 (The Conversion Spell)
+  // 构建 100% 成功率的原生 WhatsApp URL 协议
+  const getWhatsAppNativeUrl = (phone: string) => {
+    if (!phone) return '#';
+    const finalPhone = phone.replace(/[^\d+]/g, '').replace('+', '');
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
-    const inviteUrl = `${domain}/chat/wa_${finalPhone}`;
+    const inviteUrl = `${domain}/chat/wa_${finalPhone}?shopId=${currentUserId}`;
     
     const message = `✨ 欢迎连接 GX 专属全息客服！
 
@@ -43,20 +40,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 👉 点击进入专属服务舱:
 ${inviteUrl}`;
 
-    // 3. 物理防呆双保险：静默将话术写入剪贴板（防部分 iOS/PC 丢弃 URL 参数）
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(message);
-      }
-    } catch (err) {
-      console.warn("剪贴板写入失败，降级依赖 URL 路由", err);
-    }
-
-    // 4. 对话术进行 URL 编码
-    const encodedMessage = encodeURIComponent(message);
-    
-    // 5. 采用更稳健的底层协议拉起原生 WhatsApp，并尝试自动填入输入框
-    window.open(`https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodedMessage}`, '_blank');
+    return `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -171,8 +155,7 @@ ${inviteUrl}`;
           <div className="flex flex-col items-center justify-center pt-10">
             {/* 模拟探测未注册用户：弹出冷峻灰色卡片 */}
             <div 
-              onClick={() => handleOpenWhatsApp(searchQuery)}
-              className="relative w-full max-w-[320px] bg-gray-900/40 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-800/60 transition-colors group"
+              className="relative w-full max-w-[320px] bg-gray-900/40 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-gray-800/60 transition-colors group"
             >
               {/* WhatsApp 绿色光晕 */}
               <div className="absolute inset-0 rounded-2xl shadow-[0_0_15px_rgba(37,211,102,0)] group-hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] transition-all pointer-events-none" />
@@ -187,9 +170,13 @@ ${inviteUrl}`;
               <span className="text-gray-300 font-mono text-sm mb-1">{searchQuery}</span>
               <span className="text-xs text-gray-500 mb-4 text-center">未检测到内部信号<br/>是否通过 WhatsApp 发起强制连接？</span>
               
-              <button className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase group-hover:bg-[#25D366]/20 transition-colors">
+              {/* 核心修正：绝对不用 onClick/window.open，必须用原生 <a> 标签击穿拦截 */}
+              <a 
+                href={getWhatsAppNativeUrl(searchQuery)}
+                className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase hover:bg-[#25D366]/20 transition-colors cursor-pointer z-10"
+              >
                 拉起原生 WhatsApp (免费)
-              </button>
+              </a>
             </div>
           </div>
         ) : (
