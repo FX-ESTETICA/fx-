@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Blurhash } from 'react-blurhash';
-import { ArrowLeft, X, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useTranslations } from "next-intl";
 
@@ -21,6 +21,53 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ---------------- WhatsApp 24小时结界逻辑 ----------------
+  const isWhatsApp = receiverId?.startsWith('wa_') || roomName.includes('WHATSAPP');
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    if (!isWhatsApp) return;
+
+    // 计算倒计时 (假设最后一条客户消息决定倒计时)
+    // 这里简单模拟：找到最后一条由对方发送的消息时间
+    const lastCustomerMsg = [...messages].reverse().find(m => m.sender_id !== currentUserId);
+    
+    let targetTime = Date.now();
+    if (lastCustomerMsg) {
+      // 真实逻辑：最后一条客户消息时间 + 24小时
+      targetTime = new Date(lastCustomerMsg.created_at).getTime() + 24 * 60 * 60 * 1000;
+    } else {
+      // 如果没有客户消息（比如我们刚点进去），这里为了演示给一个虚拟时间：当前时间 + 23小时59分
+      targetTime = Date.now() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000;
+    }
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = targetTime - now;
+      if (diff <= 0) {
+        setTimeLeft(0);
+        setIsLocked(true);
+        clearInterval(timer);
+      } else {
+        setTimeLeft(diff);
+        setIsLocked(false);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [messages, isWhatsApp, currentUserId]);
+
+  // 格式化倒计时
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+  // ---------------------------------------------------------
 
   // 自动滚动到最新消息
   const scrollToBottom = (isInitial = false) => {
@@ -57,7 +104,10 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         </button>
         
         <div className="flex flex-col items-center flex-1">
-          <span className="text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] uppercase">{roomName}</span>
+          <span className="text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] uppercase flex items-center gap-2">
+            {roomName}
+            {isWhatsApp && <span className="w-2 h-2 rounded-full bg-[#25D366] shadow-[0_0_5px_rgba(37,211,102,0.8)] animate-pulse" />}
+          </span>
         </div>
 
         <button className="p-2 -mr-2 text-white/50 hover:text-white transition-colors">
@@ -143,6 +193,26 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
       {/* 3. 底部：量子指令台 (Quantum Input Bar) */}
       <div className="px-4 pb-safe-bottom pt-2 shrink-0 z-20 bg-gradient-to-t from-black via-black/80 to-transparent">
+        
+        {/* WhatsApp 能量条结界 (24小时计时器) */}
+        {isWhatsApp && (
+          <div className="w-full flex flex-col items-center mb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle className={`w-3.5 h-3.5 ${isLocked ? 'text-red-500' : 'text-[#25D366]'}`} />
+              <span className={`text-xs font-mono tracking-widest ${isLocked ? 'text-red-400' : 'text-[#25D366]'}`}>
+                {isLocked ? 'SIGNAL LOST' : `免费窗口: ${formatTime(timeLeft)}`}
+              </span>
+            </div>
+            {/* 物理级能量条 */}
+            <div className="w-full max-w-[80%] h-[2px] bg-white/10 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-1000 ease-linear ${isLocked ? 'bg-red-500' : 'bg-[#25D366] shadow-[0_0_8px_rgba(37,211,102,0.8)]'}`}
+                style={{ width: `${isLocked ? 0 : Math.min(100, (timeLeft / (24 * 60 * 60 * 1000)) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* 图片预览与撤销 */}
         {selectedFile && (
           <div className="flex items-center justify-between mb-3 p-2 bg-gray-900/60 backdrop-blur-md rounded-xl border border-cyan-500/30 w-fit max-w-[80%]">
@@ -172,42 +242,76 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
           {/* 悬浮输入舱 */}
           <div className="flex-1 relative group">
-            <div className="absolute inset-0 rounded-2xl border border-white/15 group-focus-within:border-cyan-400/50 group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)] transition-all pointer-events-none" />
+            <div className={`absolute inset-0 rounded-2xl border transition-all pointer-events-none
+              ${isLocked 
+                ? 'border-red-500/30 bg-red-900/10' 
+                : 'border-white/15 group-focus-within:border-cyan-400/50 group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]'
+              }`} 
+            />
             <textarea
               value={inputText}
               onChange={(e) => setTextInput(e.target.value)}
-              placeholder={t('txt_0bbdcf')}
+              placeholder={isLocked ? "信号已断开，点击重新连接..." : t('txt_0bbdcf')}
+              disabled={isLocked}
               rows={1}
-              className="w-full bg-black/40 backdrop-blur-sm rounded-2xl border-none focus:ring-0 text-[15px] text-white placeholder:text-white/30 py-3 px-4 resize-none min-h-[44px] max-h-[120px] no-scrollbar"
+              className={`w-full backdrop-blur-sm rounded-2xl border-none focus:ring-0 text-[15px] py-3 px-4 resize-none min-h-[44px] max-h-[120px] no-scrollbar
+                ${isLocked 
+                  ? 'bg-transparent text-red-300/50 placeholder:text-red-400/50 cursor-not-allowed' 
+                  : 'bg-black/40 text-white placeholder:text-white/30'
+                }
+              `}
+              onClick={() => {
+                if (isLocked && isWhatsApp) {
+                   const phone = receiverId?.replace('wa_', '');
+                   if (phone) window.open(`https://wa.me/${phone}`, '_blank');
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSend();
+                  if (!isLocked) handleSend();
                 }
               }}
             />
           </div>
 
-          {/* 引擎点火发送键 */}
-          <button 
-            onClick={handleSend}
-            disabled={isSending || (!inputText.trim() && !selectedFile)}
-            className={`
-              shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300
-              ${isSending 
-                ? 'bg-transparent border border-cyan-500' 
-                : (inputText.trim() || selectedFile)
-                  ? 'bg-cyan-500 shadow-[0_0_20px_rgba(34,211,238,0.6)] text-black scale-100' 
-                  : 'bg-white/10 text-white/30 scale-90'
-              }
-            `}
-          >
-            {isSending ? (
-              <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-            ) : (
-              <SendHorizontal className={`w-5 h-5 ${(inputText.trim() || selectedFile) ? 'ml-0.5' : ''}`} />
+          {/* 引擎点火发送键 & 全息通行证按钮 */}
+          <div className="flex flex-col gap-2 shrink-0">
+            {/* 一键引流魔法 (仅 WhatsApp 且未超时显示) */}
+            {isWhatsApp && !isLocked && (
+              <button 
+                onClick={() => {
+                   // 自动发送通行证链接
+                   sendMessage("欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：https://app.gx.com/invite/123", undefined);
+                }}
+                className="w-11 h-8 rounded-xl flex items-center justify-center border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/30 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all group relative"
+                title="发送全息通行证"
+              >
+                <Sparkles className="w-4 h-4 text-purple-300" />
+                <span className="absolute -top-6 right-0 text-[9px] whitespace-nowrap text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded border border-purple-500/30">一键引流</span>
+              </button>
             )}
-          </button>
+
+            <button 
+              onClick={handleSend}
+              disabled={isLocked || isSending || (!inputText.trim() && !selectedFile)}
+              className={`
+                w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300
+                ${isSending 
+                  ? 'bg-transparent border border-cyan-500' 
+                  : (inputText.trim() || selectedFile) && !isLocked
+                    ? 'bg-cyan-500 shadow-[0_0_20px_rgba(34,211,238,0.6)] text-black scale-100' 
+                    : 'bg-white/10 text-white/30 scale-90'
+                }
+              `}
+            >
+              {isSending ? (
+                <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+              ) : (
+                <SendHorizontal className={`w-5 h-5 ${(inputText.trim() || selectedFile) ? 'ml-0.5' : ''}`} />
+              )}
+            </button>
+          </div>
 
         </div>
       </div>

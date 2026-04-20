@@ -6,12 +6,17 @@ import { useShop } from "@/features/shop/ShopContext";
 import { Zap, Store } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useViewStack } from "@/hooks/useViewStack";
+import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
 export const GlobalWormholeCapsule = () => {
   const { availableShops, setActiveShopId, activeShopId, subscription } = useShop();
+  const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
   const { setActiveTab } = useViewStack();
   const [isOpen, setIsOpen] = useState(false);
   const capsuleRef = useRef<HTMLDivElement>(null);
+  
+  // 拖拽防误触系统
+  const isDragging = useRef(false);
 
   // Click outside to close
   useEffect(() => {
@@ -28,8 +33,8 @@ export const GlobalWormholeCapsule = () => {
 
   // 新增逻辑：如果订阅即将到期（< 5分钟）或者已过期，则强制显示红色警告胶囊
   const isEmergency = subscription.subscriptionTier !== 'FREE' && 
-    (subscription.remainingTime === "MEMBERSHIP_EXPIRED" || 
-     (subscription.remainingMilliseconds !== null && subscription.remainingMilliseconds < 5 * 60 * 1000));
+    (remainingTime === "MEMBERSHIP_EXPIRED" || 
+     (remainingMilliseconds !== null && remainingMilliseconds < 5 * 60 * 1000));
 
   // Determine glow colors based on the highest role (boss > merchant)
   const isBoss = availableShops.some(s => s.role === 'boss');
@@ -47,7 +52,24 @@ export const GlobalWormholeCapsule = () => {
   };
 
   return (
-    <div ref={capsuleRef} className="fixed right-4 bottom-24 z-[9999] flex flex-col items-end">
+    <motion.div 
+      ref={capsuleRef} 
+      className="fixed right-4 bottom-24 z-[9999] flex flex-col items-end"
+      drag
+      dragConstraints={{ left: -window.innerWidth + 60, right: 0, top: -window.innerHeight + 100, bottom: 0 }}
+      dragElastic={0.1}
+      dragMomentum={false}
+      onDragStart={() => {
+        isDragging.current = true;
+      }}
+      onDragEnd={() => {
+        // 给一个微小的延迟，确保 onClick 能读到 true，然后再重置
+        setTimeout(() => {
+          isDragging.current = false;
+        }, 100);
+      }}
+      whileDrag={{ scale: 1.05, opacity: 0.9 }}
+    >
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -101,7 +123,18 @@ export const GlobalWormholeCapsule = () => {
       </AnimatePresence>
 
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onPointerDown={() => {
+          // 记录按下时刻
+          isDragging.current = false;
+        }}
+        onClick={(e) => {
+          // 极简防误触：如果在拖拽则丢弃点击事件
+          if (isDragging.current) {
+            e.stopPropagation();
+            return;
+          }
+          setIsOpen(!isOpen);
+        }}
         className={cn(
           "w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-500 relative",
           borderColorClass,
@@ -132,11 +165,11 @@ export const GlobalWormholeCapsule = () => {
           >
             <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
             <span className="text-xs font-bold tracking-widest text-red-100">
-              {subscription.remainingTime === "MEMBERSHIP_EXPIRED" ? "会员已到期" : `即将到期 ${subscription.remainingTime}`}
+              {remainingTime === "MEMBERSHIP_EXPIRED" ? "会员已到期" : `即将到期 ${remainingTime}`}
             </span>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };

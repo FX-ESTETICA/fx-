@@ -21,7 +21,6 @@ import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 // import { useRouter } from "next/navigation";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 

@@ -1,6 +1,7 @@
-import { Search, ScanLine, Plus, CheckCheck } from 'lucide-react';
+import { Search, ScanLine, Plus, CheckCheck, MessageCircle } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useTranslations } from "next-intl";
+import { useState } from 'react';
 
 // 模拟雷达星轨数据 (同城频道永远霸占第一)
 const mockContacts = [
@@ -22,6 +23,14 @@ export interface ChatListUIProps {
 export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIProps) {
     const t = useTranslations('ChatListUI');
   const { recentChats, isLoading } = useRecentChats(currentUserId);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 处理拉起原生 WhatsApp
+  const handleOpenWhatsApp = (phone: string) => {
+    // 清洗号码，只保留数字和 +
+    const cleanPhone = phone.replace(/[^\d+]/g, '');
+    window.open(`https://wa.me/${cleanPhone.replace('+', '')}`, '_blank');
+  };
 
   return (
     // 最外层容器，这里假设父级页面会有一个宇宙/星空大背景，所以这里绝对透明
@@ -38,6 +47,8 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             <Search className="w-5 h-5 text-white/50" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('txt_8a6e8e')}
               className="flex-1 bg-transparent border-none text-white placeholder:text-white/30 focus:ring-0 text-[15px]"
             />
@@ -128,110 +139,143 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 
       {/* 3. 沉浸式信号瀑布流 (绝对清透) */}
       <div className="flex-1 overflow-y-auto px-5 pt-2 pb-20 space-y-4 z-20">
-        {isLoading && recentChats.length === 0 && (
-          <div className="flex justify-center items-center h-20 text-white/40 text-sm tracking-widest">
-            {t('txt_8fc78c')}</div>
-        )}
-        
-
-
-        {recentChats.map((chat) => (
-          <div
-            key={chat.id}
-            onClick={() => onChatSelect({
-              id: chat.id,
-              name: chat.name,
-              isGroup: chat.isGroup,
-            })}
-            className={`
-              relative flex items-center p-4 rounded-3xl cursor-pointer transition-all duration-300
-              ${chat.unread 
-                ? 'shadow-[0_0_20px_rgba(188,19,254,0.15)]' // 未读：底部光晕
-                : 'border border-white/10' // 已读：极度安静的冷线框
-              }
-              bg-transparent /* 绝对禁用背景色 */
-            `}
-          >
-            {/* 未读状态的七彩流光边框 (绝对定位覆盖) */}
-            {chat.unread && (
-              <div 
-                className="absolute inset-0 rounded-3xl pointer-events-none p-[1px] overflow-hidden"
-                style={{
-                  background: 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 3s linear infinite',
-                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                  WebkitMaskComposite: 'xor',
-                  maskComposite: 'exclude',
-                }}
-              />
-            )}
-
-            {/* 头像 (左) */}
-            <div className="relative shrink-0 mr-4">
-              <img
-                src={chat.avatar}
-                alt={chat.name}
-                className="w-14 h-14 rounded-full object-cover border border-white/20"
-              />
-              {/* 群聊的小标签 */}
-              {chat.isGroup && (
-                <div className="absolute -bottom-1 -right-1 bg-black border border-cyan-500 rounded-full p-0.5">
-                  <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+        {searchQuery ? (
+          /* 搜索结果面板 (探测与降维打击) */
+          <div className="flex flex-col items-center justify-center pt-10">
+            {/* 模拟探测未注册用户：弹出冷峻灰色卡片 */}
+            <div 
+              onClick={() => handleOpenWhatsApp(searchQuery)}
+              className="relative w-full max-w-[320px] bg-gray-900/40 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-800/60 transition-colors group"
+            >
+              {/* WhatsApp 绿色光晕 */}
+              <div className="absolute inset-0 rounded-2xl shadow-[0_0_15px_rgba(37,211,102,0)] group-hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] transition-all pointer-events-none" />
+              
+              <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center mb-3 relative">
+                <span className="text-gray-400 text-sm">?</span>
+                <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5">
+                  <MessageCircle className="w-4 h-4 text-[#25D366] drop-shadow-[0_0_3px_rgba(37,211,102,0.8)]" />
                 </div>
-              )}
-            </div>
-
-            {/* 文字信息区 (中) */}
-            <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
-              <div className="flex items-center justify-between">
-                <span
-                  className={`
-                    truncate text-lg font-medium tracking-wide
-                    ${chat.unread 
-                      ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]' // 未读：高亮白字+发光
-                      : 'text-gray-300' // 已读：沉寂的灰白
-                    }
-                  `}
-                >
-                  {chat.name}
-                </span>
-                
-                {/* 时间 (右) */}
-                <span
-                  className={`
-                    shrink-0 text-xs ml-2
-                    ${chat.unread 
-                      ? 'text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]' // 未读：电光紫/青色
-                      : 'text-gray-500' // 已读：暗灰
-                    }
-                  `}
-                >
-                  {chat.time}
-                </span>
               </div>
-
-              <div className="flex items-center space-x-1.5">
-                {/* 已读状态标记 (双蓝勾/灰勾) */}
-                {!chat.unread && (
-                  <CheckCheck className="w-4 h-4 text-cyan-500/50 shrink-0" />
-                )}
-                
-                <p
-                  className={`
-                    truncate text-[14px]
-                    ${chat.unread 
-                      ? 'text-white/90 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] font-medium' // 未读：高亮白字
-                      : 'text-gray-500' // 已读：暗灰
-                    }
-                  `}
-                >
-                  {chat.lastMessage}
-                </p>
-              </div>
+              
+              <span className="text-gray-300 font-mono text-sm mb-1">{searchQuery}</span>
+              <span className="text-xs text-gray-500 mb-4 text-center">未检测到内部信号<br/>是否通过 WhatsApp 发起强制连接？</span>
+              
+              <button className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase group-hover:bg-[#25D366]/20 transition-colors">
+                拉起原生 WhatsApp (免费)
+              </button>
             </div>
           </div>
-        ))}
+        ) : (
+          /* 正常历史聊天记录 */
+          <>
+            {isLoading && recentChats.length === 0 && (
+              <div className="flex justify-center items-center h-20 text-white/40 text-sm tracking-widest">
+                {t('txt_8fc78c')}</div>
+            )}
+            
+            {recentChats.map((chat) => (
+              <div
+                key={chat.id}
+                onClick={() => onChatSelect({
+                  id: chat.id,
+                  name: chat.name,
+                  isGroup: chat.isGroup,
+                })}
+                className={`
+                  relative flex items-center p-4 rounded-3xl cursor-pointer transition-all duration-300
+                  ${chat.unread 
+                    ? 'shadow-[0_0_20px_rgba(188,19,254,0.15)]' // 未读：底部光晕
+                    : 'border border-white/10' // 已读：极度安静的冷线框
+                  }
+                  bg-transparent /* 绝对禁用背景色 */
+                `}
+              >
+                {/* 未读状态的七彩流光边框 (绝对定位覆盖) */}
+                {chat.unread && (
+                  <div 
+                    className="absolute inset-0 rounded-3xl pointer-events-none p-[1px] overflow-hidden"
+                    style={{
+                      background: 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 3s linear infinite',
+                      WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                      WebkitMaskComposite: 'xor',
+                      maskComposite: 'exclude',
+                    }}
+                  />
+                )}
+
+                {/* 头像 (左) */}
+                <div className="relative shrink-0 mr-4">
+                  <img
+                    src={chat.avatar}
+                    alt={chat.name}
+                    className="w-14 h-14 rounded-full object-cover border border-white/20"
+                  />
+                  {/* WhatsApp 卫星节点标识 / 或群聊小标签 */}
+                  {chat.id.startsWith('wa_') ? (
+                    <div className="absolute -bottom-1 -right-1 bg-black border border-gray-700 rounded-full p-0.5">
+                      <MessageCircle className="w-3.5 h-3.5 text-[#25D366] drop-shadow-[0_0_5px_rgba(37,211,102,0.8)]" />
+                    </div>
+                  ) : chat.isGroup && (
+                    <div className="absolute -bottom-1 -right-1 bg-black border border-cyan-500 rounded-full p-0.5">
+                      <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                    </div>
+                  )}
+                </div>
+
+                {/* 文字信息区 (中) */}
+                <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`
+                        truncate text-lg font-medium tracking-wide
+                        ${chat.unread 
+                          ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]' // 未读：高亮白字+发光
+                          : 'text-gray-300' // 已读：沉寂的灰白
+                        }
+                      `}
+                    >
+                      {chat.name}
+                    </span>
+                    
+                    {/* 时间 (右) */}
+                    <span
+                      className={`
+                        shrink-0 text-xs ml-2
+                        ${chat.unread 
+                          ? 'text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]' // 未读：电光紫/青色
+                          : 'text-gray-500' // 已读：暗灰
+                        }
+                      `}
+                    >
+                      {chat.time}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-1.5">
+                    {/* 已读状态标记 (双蓝勾/灰勾) */}
+                    {!chat.unread && (
+                      <CheckCheck className="w-4 h-4 text-cyan-500/50 shrink-0" />
+                    )}
+                    
+                    <p
+                      className={`
+                        truncate text-[14px]
+                        ${chat.unread 
+                          ? 'text-white/90 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] font-medium' // 未读：高亮白字
+                          : 'text-gray-500' // 已读：暗灰
+                        }
+                      `}
+                    >
+                      {chat.lastMessage}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
