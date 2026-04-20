@@ -10,10 +10,11 @@ export interface RecentChat {
   unread: boolean;
   isGroup: boolean;
   isCityChannel?: boolean;
+  isPhantom?: boolean; // 标记是否为量子幻影（还没有真实聊天记录）
 }
 
-// 这个 Hook 用于拉取当前用户所有参与过的最新聊天记录
-export function useRecentChats(currentUserId: string) {
+// 升级版：接入真实 Profile 反查与全息量子幻影注入
+export function useRecentChats(currentUserId: string, activeChatId?: string) {
   const [recentChats, setRecentChats] = useState<RecentChat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -23,7 +24,7 @@ export function useRecentChats(currentUserId: string) {
     const fetchRecentChats = async () => {
       setIsLoading(true);
       // 拉取最近 100 条与自己相关的消息
-      const { data, error } = await supabase
+      const { data: messages, error } = await supabase
         .from('messages')
         .select('*')
         .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
@@ -36,11 +37,11 @@ export function useRecentChats(currentUserId: string) {
         return;
       }
 
-      if (data) {
-        // 在前端进行归类（按对象或房间去重，只保留最新一条）
-        const chatMap = new Map<string, RecentChat>();
+      const chatMap = new Map<string, RecentChat>();
+      const userIdsToFetch = new Set<string>();
 
-        data.forEach((msg) => {
+      if (messages) {
+        messages.forEach((msg) => {
           let targetId = '';
           let isGroup = false;
           let name = '';
@@ -59,23 +60,17 @@ export function useRecentChats(currentUserId: string) {
           } else {
             targetId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id;
             isGroup = false;
-            // 因为没有关联 users 表，这里做个假名字
-            name = `信号源 ${targetId?.substring(0, 4) || '未知'}`;
-            avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${targetId}`;
+            name = `信号源 ${targetId?.substring(0, 4) || '未知'}`; // 临时假名字，后面会被覆盖
+            avatar = ''; // 移除 Dicebear，使用空字符串触发首字母渲染
+            userIdsToFetch.add(targetId); // 记录下真实的 targetId，准备去 profiles 表里反查
           }
 
           // 如果 Map 里还没有这个 targetId，说明这是最新的一条（因为数据已经是倒序的了）
           if (!chatMap.has(targetId) && targetId) {
-            
-            // 格式化时间
             const msgDate = new Date(msg.created_at);
             const timeStr = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            // 提取消息内容
             let lastMessageStr = msg.content || '';
-            if (msg.image_url) {
-              lastMessageStr = '[图片流]';
-            }
+            if (msg.image_url) lastMessageStr = '[图片流]';
 
             chatMap.set(targetId, {
               id: targetId,
@@ -89,15 +84,90 @@ export function useRecentChats(currentUserId: string) {
             });
           }
         });
-
-        setRecentChats(Array.from(chatMap.values()));
       }
+
+      // ==========================================
+      // 【量子态幻影注入】
+      // 如果当前有一个 activeChatId (例如从 URL 进来的)，但它不在历史记录里
+      // 我们强行在内存里捏造一个它的实体，并塞进待查询列表！
+      // ==========================================
+      if (activeChatId && !chatMap.has(activeChatId)) {
+        const isGroup = activeChatId === 'city_current' || activeChatId.startsWith('group_');
+        chatMap.set(activeChatId, {
+          id: activeChatId,
+          name: '正在连接...',
+          lastMessage: '[系统] 正在建立全息加密通道...',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          avatar: '', // 移除 Dicebear
+          unread: false,
+          isGroup,
+          isCityChannel: activeChatId === 'city_current',
+          isPhantom: true // 打上幻影烙印
+        });
+        
+        if (!isGroup) {
+          userIdsToFetch.add(activeChatId);
+        }
+      }
+
+      // ==========================================
+      // 【全真数据反查引擎】
+      // 批量查询所有单聊对象的真实姓名和真实头像
+      // ==========================================
+      const profilesMap = new Map<string, { name: string, avatar: string }>();
+      if (userIdsToFetch.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .in('id', Array.from(userIdsToFetch));
+
+        if (profiles) {
+          profiles.forEach(p => {
+            profilesMap.set(p.id, { 
+              name: p.name || `用户 ${p.id.substring(0,4)}`, 
+              avatar: p.avatar_url || '' // 使用空字符串，交由 UI 渲染首字母
+            });
+          });
+        }
+      }
+
+      // 组装最终数据并合并真实 Profile
+      let finalChats = Array.from(chatMap.values()).map(chat => {
+        if (!chat.isGroup) {
+          const realProfile = profilesMap.get(chat.id);
+          if (realProfile) {
+            chat.name = realProfile.name;
+            chat.avatar = realProfile.avatar;
+          }
+        }
+        return chat;
+      });
+
+      // ==========================================
+      // 【动态置顶法则】
+      // 无论 activeChatId 是历史遗留还是幻影注入，都强行把它抽离并塞到数组的最前面（仅次于同城大群）
+      // ==========================================
+      if (activeChatId) {
+        const activeIndex = finalChats.findIndex(c => c.id === activeChatId);
+        if (activeIndex > 0) {
+          const activeItem = finalChats.splice(activeIndex, 1)[0];
+          // 找找有没有同城大群 (RAPALLO)，如果有，把它插在第二位；如果没有，插在第一位
+          const cityIndex = finalChats.findIndex(c => c.isCityChannel);
+          if (cityIndex !== -1 && cityIndex === 0) {
+            finalChats.splice(1, 0, activeItem);
+          } else {
+            finalChats.unshift(activeItem);
+          }
+        }
+      }
+
+      setRecentChats(finalChats);
       setIsLoading(false);
     };
 
     fetchRecentChats();
 
-    // 监听新消息到达，更新列表
+    // 监听新消息到达，更新列表 (化假为真的关键)
     const channel = supabase
       .channel('public:messages_list')
       .on(
@@ -113,7 +183,7 @@ export function useRecentChats(currentUserId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId]);
+  }, [currentUserId, activeChatId]);
 
   return { recentChats, isLoading };
 }

@@ -8,18 +8,37 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useChatStore } from '@/store/useChatStore';
 import { useTranslations } from "next-intl";
 import { BottomNavBar } from '@/components/shared/BottomNavBar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
+import { useSearchParams } from 'next/navigation';
 
 export default function ChatListPage() {
   const t = useTranslations('chat');
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   
-  // 避免报错：如果用户没登录，给个占位符或者让他去登录
-  const currentUserId = user?.id || 'guest_123';
+  const targetParam = searchParams.get('target');
+  const shopIdParam = searchParams.get('shopId');
+  
+  // 核心逻辑 1：无感身份赋予。没登录时优先使用 URL 里的 target (wa_xxx) 作为游客身份
+  const currentUserId = user?.id || targetParam || 'guest_123';
 
   // 状态机：控制当前显示的视图和选中的聊天对象 (通过 Zustand 同步给全局)
   const { activeChat, setActiveChat } = useChatStore();
+  const hasAutoOpened = useRef(false);
+
+  // 核心逻辑 2：自动开门。如果有 shopIdParam，自动弹开聊天窗
+  useEffect(() => {
+    // 只有在没有 activeChat 的时候才自动打开，防止覆盖用户的后续操作
+    if (shopIdParam && !activeChat && !hasAutoOpened.current) {
+      hasAutoOpened.current = true;
+      setActiveChat({
+        id: shopIdParam,
+        name: '连接中...',
+        isGroup: false,
+      });
+    }
+  }, [shopIdParam, activeChat, setActiveChat]);
 
   // 注册物理返回键拦截（顶端架构：仅收起聊天室，不后退页面）
   const registerBack = useHardwareBack(state => state.register);

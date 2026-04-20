@@ -54,6 +54,27 @@ if (typeof console !== 'undefined') {
 export const metadata: Metadata = {
   title: "GX Core - Galaxy Experience Access System",
   description: "极致简洁的赛博风格局部生活服务平台",
+  openGraph: {
+    title: "✨ 欢迎连接 GX 专属全息客服",
+    description: "点击此处激活您的专属 VIP 通道，进入沉浸式服务舱。",
+    type: "website",
+    url: "https://fx-rapallo.vercel.app",
+    siteName: "GX Core",
+    images: [
+      {
+        url: "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1200&h=630&fit=crop", // 高清赛博朋克城市图
+        width: 1200,
+        height: 630,
+        alt: "GX Core VIP 通道",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "✨ 欢迎连接 GX 专属全息客服",
+    description: "点击此处激活您的专属 VIP 通道，进入沉浸式服务舱。",
+    images: ["https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1200&h=630&fit=crop"],
+  },
   appleWebApp: {
     title: "GX Core",
     statusBarStyle: "black-translucent", // 虽然无法物理隐藏iOS网页顶栏，但保持沉浸透明

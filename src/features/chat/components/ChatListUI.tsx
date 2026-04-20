@@ -1,19 +1,8 @@
 import { Search, ScanLine, Plus, CheckCheck, MessageCircle } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useTranslations } from "next-intl";
-import { useState } from 'react';
-
-// 模拟雷达星轨数据 (同城频道永远霸占第一)
-const mockContacts = [
-  // isCityChannel 标识这是同城大群，享有最高级视觉特权
-  { id: 'city_current', name: 'RAPALLO', avatar: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=150&h=150&fit=crop', isOnline: true, isCityChannel: true },
-  { id: 'c1', name: '李总', avatar: 'https://i.pravatar.cc/150?img=11', isOnline: true },
-  { id: 'c2', name: '王设计', avatar: 'https://i.pravatar.cc/150?img=33', isOnline: true },
-  { id: 'c3', name: 'Tony老师', avatar: 'https://i.pravatar.cc/150?img=15', isOnline: true },
-  { id: 'city_old', name: 'MILANO', avatar: 'https://images.unsplash.com/photo-1548509925-0e543666d911?w=150&h=150&fit=crop', isOnline: true, isOldCityChannel: true }, // 曾经加入但已离开的城市
-  { id: 'c5', name: '张三', avatar: 'https://i.pravatar.cc/150?img=8', isOnline: false },
-  { id: 'c6', name: 'Lily', avatar: 'https://i.pravatar.cc/150?img=5', isOnline: false },
-];
+import { useState, useMemo } from 'react';
+import { useChatStore } from '@/store/useChatStore';
 
 export interface ChatListUIProps {
   currentUserId: string;
@@ -21,9 +10,41 @@ export interface ChatListUIProps {
 }
 
 export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIProps) {
-    const t = useTranslations('ChatListUI');
-  const { recentChats, isLoading } = useRecentChats(currentUserId);
+  const t = useTranslations('ChatListUI');
+  const { activeChat } = useChatStore();
+  const { recentChats, isLoading } = useRecentChats(currentUserId, activeChat?.id);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 动态构建横向星轨 (Star Track)
+  const starTrackContacts = useMemo(() => {
+    const tracks = [];
+    
+    // 1. 同城频道 (硬编码保障常驻)
+    tracks.push({
+      id: 'city_current',
+      name: 'RAPALLO',
+      avatar: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=150&h=150&fit=crop',
+      isOnline: true,
+      isCityChannel: true,
+      isGroup: true
+    });
+
+    // 2. 从 recentChats 里提取前几个联系人
+    recentChats.forEach(chat => {
+      if (chat.id !== 'city_current' && tracks.length < 6) {
+        tracks.push({
+          id: chat.id,
+          name: chat.name,
+          avatar: chat.avatar,
+          isOnline: true, // 假设近期的都活跃
+          isGroup: chat.isGroup,
+          isCityChannel: false
+        });
+      }
+    });
+
+    return tracks;
+  }, [recentChats]);
 
   // 构建 100% 多端兼容的 WhatsApp URL 协议 (解决套壳App/PC无反应，解决 404 路由丢失)
   const getWhatsAppNativeUrl = (phone: string) => {
@@ -89,20 +110,20 @@ ${inviteUrl}`;
             WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
           }}
         >
-          {mockContacts.map((contact) => (
+          {starTrackContacts.map((contact) => (
             <div 
               key={contact.id} 
               className="flex flex-col items-center space-y-2 cursor-pointer shrink-0"
               onClick={() => onChatSelect({
                 id: contact.id,
                 name: contact.name,
-                isGroup: contact.isCityChannel || contact.isOldCityChannel || false,
+                isGroup: contact.isGroup || false,
                 isCityChannel: contact.isCityChannel
               })}
             >
               <div className="relative w-[52px] h-[52px] rounded-full p-[2px]">
                 {/* 在线流光边框 / 同城频道特殊边框 */}
-                {contact.isOnline && !contact.isOldCityChannel && (
+                {contact.isOnline && (
                   <div 
                     className="absolute inset-0 rounded-full pointer-events-none"
                     style={{
@@ -118,21 +139,31 @@ ${inviteUrl}`;
                     }}
                   />
                 )}
-                {/* 头像本体 */}
-                <img 
-                  src={contact.avatar} 
-                  alt={contact.name}
-                  className={`w-full h-full rounded-full object-cover border-[1.5px] border-black 
-                    ${contact.isCityChannel ? 'shadow-[0_0_15px_rgba(188,19,254,0.6)]' : ''}
-                    ${contact.isOnline && !contact.isOldCityChannel ? '' : 'grayscale opacity-40 border-white/20'}
-                  `}
-                />
+                {/* 头像本体 (降级显示首字母) */}
+                {contact.avatar ? (
+                  <img 
+                    src={contact.avatar} 
+                    alt={contact.name}
+                    className={`w-full h-full rounded-full object-cover border-[1.5px] border-black 
+                      ${contact.isCityChannel ? 'shadow-[0_0_15px_rgba(188,19,254,0.6)]' : ''}
+                      ${contact.isOnline ? '' : 'grayscale opacity-40 border-white/20'}
+                    `}
+                  />
+                ) : (
+                  <div 
+                    className={`w-full h-full rounded-full flex items-center justify-center border-[1.5px] border-black bg-gradient-to-br from-gray-800 to-gray-900 text-white font-bold text-xl
+                      ${contact.isOnline ? '' : 'opacity-40 border-white/20'}
+                    `}
+                  >
+                    {contact.name ? contact.name.charAt(0).toUpperCase() : '?'}
+                  </div>
+                )}
                 {/* 在线绿点 / 同城雷达点 */}
                 {contact.isCityChannel ? (
                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-500 border-2 border-black rounded-full shadow-[0_0_8px_rgba(188,19,254,0.9)] flex items-center justify-center animate-pulse">
                      <div className="w-1.5 h-1.5 bg-white rounded-full" />
                    </div>
-                ) : contact.isOnline && !contact.isOldCityChannel ? (
+                ) : contact.isOnline ? (
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-black rounded-full shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
                 ) : null}
               </div>
@@ -140,8 +171,8 @@ ${inviteUrl}`;
               <span 
                 className={`text-[10px] truncate w-14 text-center tracking-wider uppercase
                   ${contact.isCityChannel ? 'text-purple-300 drop-shadow-[0_0_5px_rgba(188,19,254,0.8)] font-bold' : ''}
-                  ${contact.isOnline && !contact.isCityChannel && !contact.isOldCityChannel ? 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]' : ''}
-                  ${contact.isOldCityChannel || !contact.isOnline ? 'text-gray-500' : ''}
+                  ${contact.isOnline && !contact.isCityChannel ? 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]' : ''}
+                  ${!contact.isOnline ? 'text-gray-500' : ''}
                 `}
               >
                 {contact.name}
@@ -226,11 +257,17 @@ ${inviteUrl}`;
 
                 {/* 头像 (左) */}
                 <div className="relative shrink-0 mr-4">
-                  <img
-                    src={chat.avatar}
-                    alt={chat.name}
-                    className="w-14 h-14 rounded-full object-cover border border-white/20"
-                  />
+                  {chat.avatar ? (
+                    <img
+                      src={chat.avatar}
+                      alt={chat.name}
+                      className="w-14 h-14 rounded-full object-cover border border-white/20"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center border border-white/20 bg-gradient-to-br from-gray-800 to-gray-900 text-white font-bold text-xl">
+                      {chat.name ? chat.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                  )}
                   {/* WhatsApp 卫星节点标识 / 或群聊小标签 */}
                   {chat.id.startsWith('wa_') ? (
                     <div className="absolute -bottom-1 -right-1 bg-black border border-gray-700 rounded-full p-0.5">
@@ -248,7 +285,7 @@ ${inviteUrl}`;
                   <div className="flex items-center justify-between">
                     <span
                       className={`
-                        truncate text-lg font-medium tracking-wide
+                        truncate text-lg font-medium tracking-wide flex items-center gap-2
                         ${chat.unread 
                           ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]' // 未读：高亮白字+发光
                           : 'text-gray-300' // 已读：沉寂的灰白
@@ -256,6 +293,11 @@ ${inviteUrl}`;
                       `}
                     >
                       {chat.name}
+                      {chat.isPhantom && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded border border-cyan-500/50 bg-cyan-500/10 text-cyan-400 font-mono tracking-widest whitespace-nowrap">
+                          CONNECTING
+                        </span>
+                      )}
                     </span>
                     
                     {/* 时间 (右) */}

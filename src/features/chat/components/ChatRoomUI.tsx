@@ -5,6 +5,7 @@ import { Blurhash } from 'react-blurhash';
 import { ArrowLeft, X, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useTranslations } from "next-intl";
+import { supabase } from '@/lib/supabase';
 
 interface ChatRoomUIProps {
   currentUserId: string;
@@ -21,6 +22,30 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ---------------- 真实身份反查逻辑 ----------------
+  const [trueRoomName, setTrueRoomName] = useState(roomName);
+  const [trueAvatar, setTrueAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 如果是单聊且有 receiverId，去查对方的真实档案
+    if (receiverId && !roomId) {
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('name, avatar_url')
+          .eq('id', receiverId)
+          .maybeSingle();
+        if (data) {
+          if (data.name) setTrueRoomName(data.name);
+          if (data.avatar_url) setTrueAvatar(data.avatar_url);
+        }
+      };
+      fetchProfile();
+    } else {
+      setTrueRoomName(roomName);
+    }
+  }, [receiverId, roomId, roomName]);
 
   // ---------------- WhatsApp 24小时结界逻辑 ----------------
   const isWhatsApp = receiverId?.startsWith('wa_') || roomName.includes('WHATSAPP');
@@ -116,10 +141,19 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         </button>
         
         <div className="flex flex-col items-center flex-1">
-          <span className="text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] uppercase flex items-center gap-2">
-            {roomName}
-            {isWhatsApp && <span className="w-2 h-2 rounded-full bg-[#25D366] shadow-[0_0_5px_rgba(37,211,102,0.8)] animate-pulse" />}
-          </span>
+          <div className="flex items-center gap-2">
+            {trueAvatar ? (
+              <img src={trueAvatar} alt="avatar" className="w-6 h-6 rounded-full border border-white/20 object-cover shadow-[0_0_8px_rgba(255,255,255,0.3)]" />
+            ) : (
+              <div className="w-6 h-6 rounded-full border border-white/20 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                {trueRoomName ? trueRoomName.charAt(0).toUpperCase() : '?'}
+              </div>
+            )}
+            <span className="text-white font-bold tracking-widest drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] uppercase flex items-center gap-2">
+              {trueRoomName}
+              {isWhatsApp && <span className="w-2 h-2 rounded-full bg-[#25D366] shadow-[0_0_5px_rgba(37,211,102,0.8)] animate-pulse" />}
+            </span>
+          </div>
         </div>
 
         <button className="p-2 -mr-2 text-white/50 hover:text-white transition-colors">
