@@ -5,6 +5,8 @@ import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft } from 'lucide-reac
 import Image from "next/image";
 import { cn } from "@/utils/cn";
 import { BookingService, BookingUpsertInput } from "@/features/booking/api/booking";
+import { supabase } from "@/lib/supabase";
+import { motion, AnimatePresence } from "framer-motion";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
@@ -142,6 +144,17 @@ export function DualPaneBookingModal({
   // --- C端匹配状态 (Cross-Domain Match) ---
   const [matchedProfile, setMatchedProfile] = useState<MatchedProfile | null>(null);
 
+  // --- 历史老客匹配状态 (Historical B-End Match) ---
+  const [matchedHistoryCustomer, setMatchedHistoryCustomer] = useState<{name?: string, phone: string, gx_id: string} | null>(null);
+
+  // --- 会员真实历史消费流 (Real History Data Stream) ---
+  const [realHistoryStream, setRealHistoryStream] = useState<any[]>([]);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+
+  // --- 模糊搜索下拉状态 ---
+  const [fuzzyResults, setFuzzyResults] = useState<any[]>([]);
+  const [isFuzzySearching, setIsFuzzySearching] = useState(false);
+
   // --- 动态日历状态 ---
   const [calendarViewDate, setCalendarViewDate] = useState(() => {
     const targetDate = editingBooking?.date 
@@ -251,31 +264,64 @@ export function DualPaneBookingModal({
     if (phoneMatchTimerRef.current) {
       clearTimeout(phoneMatchTimerRef.current);
     }
-    if (!phone || phone.length < 6) {
+    
+    // 如果输入的字符少于3个，清空搜索状态
+    if (!phone || phone.length < 3) {
       setMatchedProfile(null);
+      setMatchedHistoryCustomer(null);
+      setFuzzyResults([]);
+      setIsFuzzySearching(false);
       return;
     }
+    
+    // 开启搜索动画
+    setIsFuzzySearching(true);
+    
     phoneMatchTimerRef.current = setTimeout(async () => {
-      const { data } = await BookingService.getProfileByPhone(phone);
-      setMatchedProfile(data);
+      try {
+        // 1. 获取模糊搜索历史预约记录 (仅作为模糊搜索的下拉选项来源，同时用于检测老客)
+        const { data: historyData } = await BookingService.searchProfilesByPhoneFuzzy(activeShopId || 'default', phone);
+        setFuzzyResults(historyData || []);
+        
+        // 2. 如果输入足够长，且历史记录中唯一匹配上，或者有C端账号，执行精确匹配
+        if (phone.length >= 6) {
+          // A. 尝试 C 端精确匹配联动 (保持软件设计的原样)
+          const { data: exactCData } = await BookingService.getProfileByPhone(phone);
+          setMatchedProfile(exactCData);
+
+          // B. 尝试 B 端老客匹配联动
+          const exactHistoryMatch = historyData?.find((r: any) => r.phone === phone);
+          if (exactHistoryMatch) {
+             setMatchedHistoryCustomer({
+               name: exactHistoryMatch.name,
+               phone: exactHistoryMatch.phone,
+               gx_id: exactHistoryMatch.gx_id
+             });
+          } else {
+             setMatchedHistoryCustomer(null);
+          }
+        } else {
+          setMatchedProfile(null);
+          setMatchedHistoryCustomer(null);
+        }
+      } finally {
+        setIsFuzzySearching(false);
+      }
     }, 500);
   };
 
-  const updatePhoneTracks = (nextTracks: string[]) => {
+  const updatePhoneTracks = (nextTracks: string[], skipAutoMatch = false) => {
     setPhoneTracks(nextTracks);
-    scheduleProfileMatch(nextTracks[0]?.trim() || "");
+    if (!skipAutoMatch) {
+      scheduleProfileMatch(nextTracks[0]?.trim() || "");
+    }
   };
 
   const customerId = useMemo(() => {
     if (editingBooking?.customerId) return editingBooking.customerId;
-    const primaryPhone = phoneTracks[0]?.trim();
-    if (primaryPhone && primaryPhone.length >= 6) {
-      if (primaryPhone === "6667767" || primaryPhone === "3758376") {
-        return "GV 0015";
-      }
-    }
+    if (matchedHistoryCustomer?.gx_id) return matchedHistoryCustomer.gx_id; // 【核心修复】优先使用历史记录的编号
     return allocatedId || `${newCustomerType || 'CO'} --`;
-  }, [editingBooking?.customerId, phoneTracks, allocatedId, newCustomerType]);
+  }, [editingBooking?.customerId, allocatedId, newCustomerType, matchedHistoryCustomer?.gx_id]);
 
   const autoCheckoutMode = useMemo(() => {
     if (!isOpen || !editingBooking || !editingBooking.date) return false;
@@ -300,6 +346,11 @@ export function DualPaneBookingModal({
       return (editingBooking?.status as string | undefined)?.toUpperCase() === 'COMPLETED' ? 100 : 0;
     });
 
+    // 【结账舱独立价格状态】记录每个服务最终选定的结账价格，格式: { serviceId: price }
+    const [checkoutPrices, setCheckoutPrices] = useState<Record<string, number>>({});
+    const [editingCustomPriceId, setEditingCustomPriceId] = useState<string | null>(null);
+    const [customPriceInput, setCustomPriceInput] = useState("");
+
     // 检查当前订单是否已经是已结账状态
     const isAlreadyCompleted = useMemo(() => {
       const statusStr = (editingBooking?.status as string | undefined)?.toUpperCase();
@@ -307,6 +358,106 @@ export function DualPaneBookingModal({
     }, [editingBooking]);
 
   const isCheckoutReady = selectedPaymentMethod !== null || isAlreadyCompleted;
+
+  // --- 获取真实历史消费数据 (History Data Stream Probe) ---
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchHistory = async () => {
+      // 只有在右侧处于 'member' 模式，且有有效标识（C端/B端老客/输入的电话/非散客编号）时才触发
+      const hasValidIdentity = matchedProfile || matchedHistoryCustomer || (phoneTracks[0] && phoneTracks[0].length >= 3) || (customerId && !customerId.startsWith('CO'));
+      
+      if (!hasValidIdentity || activePaneMode !== 'member') {
+        if (isMounted) setRealHistoryStream([]);
+        return;
+      }
+
+      setIsFetchingHistory(true);
+      try {
+        let query = supabase
+          .from('bookings')
+          .select('*')
+          .eq('shop_id', activeShopId || 'default')
+          .neq('status', 'VOID')
+          .order('created_at', { ascending: false });
+
+        // 优先使用确定的 customerId 进行查询，其次使用电话号码
+        if (customerId && !customerId.startsWith('CO')) {
+           query = query.eq('data->>customerId', customerId);
+        } else if (phoneTracks[0]) {
+           query = query.ilike('data->>customerName', `%${phoneTracks[0]}%`);
+        } else {
+           if (isMounted) setRealHistoryStream([]);
+           return;
+        }
+
+        const { data, error } = await query.limit(20); // 取最近 20 条
+
+        if (error) throw error;
+        
+        if (isMounted && data) {
+           // 我们不再简单粗暴地排除当前订单
+           // 而是按照“时空法则”过滤：只有当订单状态是“已结账(COMPLETED)”、“已退房(CHECKED_OUT)” 或 “爽约(NO_SHOW)” 或者是过去日期的订单，才算作“历史”
+           // 为了绝对严谨，我们直接在这里进行内存过滤，或者直接在 supabase query 里过滤。
+           // 这里我们在前端进行逻辑判断，这样能保留当天的未结账草稿状态用于展示你说的“当天跑马灯”。
+           
+           // 但我们需要排除那些“尚未真正创建(正在编辑中且未保存)”或者是完全未来且未结账的订单。
+           // 这里我们干脆展示所有（因为查出来的都是数据库里的），然后在渲染时根据日期和状态来区分！
+           // 为了避免显示太多未来的未完成订单，我们过滤掉“日期大于今天，且未结账”的订单
+           const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+           
+           // 砸碎物理结界：不要过滤未来的未结账订单，直接吸入所有查询到的数据
+           const filteredData = data;
+           
+           // 时空排序法则：按照日期从未来到过去排列（降序），日期相同则按时间降序
+           filteredData.sort((a, b) => {
+              if (a.date !== b.date) {
+                return a.date > b.date ? -1 : 1;
+              }
+              const timeA = a.start_time || '00:00';
+              const timeB = b.start_time || '00:00';
+              return timeA > timeB ? -1 : 1;
+           });
+
+           setRealHistoryStream(filteredData);
+        }
+      } catch (err) {
+        console.error("Failed to fetch real history stream:", err);
+      } finally {
+        if (isMounted) setIsFetchingHistory(false);
+      }
+    };
+
+    fetchHistory();
+
+    return () => { isMounted = false; };
+  }, [customerId, phoneTracks, matchedProfile, matchedHistoryCustomer, activePaneMode, activeShopId, editingBooking?.id]);
+
+  // 计算真实总消费金额 (Total Spent)
+  const realTotalSpent = useMemo(() => {
+    return realHistoryStream.reduce((sum, booking) => {
+      // 只有已结账的订单才计入总金额
+      const isCompleted = ['COMPLETED', 'CHECKED_OUT'].includes(booking.status?.toUpperCase());
+      if (!isCompleted) return sum;
+
+      // 这里简化处理，取 data.services 里面的 prices 数组
+      const services = booking.data?.services || [];
+      const bookingTotal = services.reduce((sSum: number, s: any) => {
+         const price = (s.prices && s.prices.length > 0) ? s.prices[0] : 0;
+         return sSum + price;
+      }, 0);
+      
+      return sum + bookingTotal;
+    }, 0);
+  }, [realHistoryStream]);
+
+  // 获取某个服务在结账舱里的当前生效价格
+  const getCheckoutPrice = useCallback((serviceId: string, defaultPrices: number[] | number | undefined) => {
+    if (checkoutPrices[serviceId] !== undefined) {
+      return checkoutPrices[serviceId];
+    }
+    return Array.isArray(defaultPrices) && defaultPrices.length > 0 ? defaultPrices[0] : (typeof defaultPrices === 'number' ? defaultPrices : 0);
+  }, [checkoutPrices]);
 
   const resetFormState = useCallback(() => {
     setSelectedServices([]);
@@ -322,6 +473,8 @@ export function DualPaneBookingModal({
     setCheckoutOverride(null);
     setSelectedPaymentMethod(null);
     setCheckoutSlideProgress(0);
+    setCheckoutPrices({});
+    setEditingCustomPriceId(null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -438,21 +591,40 @@ export function DualPaneBookingModal({
   const handleMarkAsNoShow = async () => {
     if (!editingBooking) return;
     
-    // 去真实数据库请求一个新的 NO 编号（自带断层扫描与锁定）
-    const newNoId = await BookingService.getAvailableCustomerId(activeShopId || 'default', 'NO');
-    
     try {
+      // 植入“历史消费探针”
+      const { data: historyBookings, error } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('shop_id', activeShopId || 'default')
+        .eq('data->>customerId', editingBooking.customerId)
+        .neq('status', 'VOID');
+        
+      if (error) throw error;
+
+      // 判断是否是老客（大于 1 单，或者不等于当前订单的唯一一单）
+      const isOldCustomer = historyBookings && historyBookings.length > 1;
+
+      let targetCustomerId = editingBooking.customerId;
+      
+      if (!isOldCustomer) {
+        // 0 消费新客，执行降维打击：换上 NO 编号，释放原会员号退回可用池
+        targetCustomerId = await BookingService.getAvailableCustomerId(activeShopId || 'default', 'NO');
+      }
+
       const updatedBookings = [{
         ...editingBooking,
         date: editingBooking.date || selectedDate.replace(/\//g, '-'),
         startTime: editingBooking.startTime || "00:00",
         duration: editingBooking.duration || 60,
-        customerId: newNoId, // 临时替换为 NO 显示
+        customerId: targetCustomerId, 
         status: 'no_show',
         resourceId: 'NO', // 可以将其移动到“爽约”列，如果存在的话
       }];
       
       await BookingService.upsertBookings(updatedBookings);
+      refreshBookings();
+      trackAction();
       handleClose();
     } catch (error) {
       console.error("Failed to mark as No Show:", error);
@@ -493,6 +665,8 @@ export function DualPaneBookingModal({
     // --- 消耗/更新客户编号 (Consume Customer ID) ---
     // 真正的计数器和 ID 生成交由 Supabase 后端序列处理，本地无需再手动管理
     // 断层扫描分配器已保证 `customerId` 完美填坑
+    // 【重要修复】：优先使用已匹配的历史会员编号（matchedHistoryCustomer.gx_id），否则使用新生成的 allocatedId 或 CO 散客编号
+    const finalCustomerId = editingBooking?.customerId || matchedHistoryCustomer?.gx_id || allocatedId || `${newCustomerType || 'CO'} --`;
 
 
     // 废弃串行连单推演，改为“绝对并发创建 (Parallel Time Pipeline)”：
@@ -535,7 +709,7 @@ export function DualPaneBookingModal({
         id: editingBooking && Object.keys(groupedByEmployee).length === 1 ? editingBooking.id : `BKG-${Date.now()}-${empId}-${groupIndex}`, // 重拆分时，加入 index 防止 React Key 重复
         masterOrderId: editingBooking ? editingBooking.masterOrderId : masterOrderId,
         resourceId: empId === 'unassigned' ? undefined : empId, // 临时设为 undefined，后面由前置派发逻辑处理
-        customerId: customerId, // 【核心】：注入智能编号
+        customerId: finalCustomerId, // 【核心修复】：注入使用 matchedProfile.gx_id 纠正后的智能编号
         customerName: customerName,
         serviceName: customServiceText ? `${groupServiceNames} (${customServiceText})` : groupServiceNames,
         customServiceText: customServiceText, // 存入自定义文本以便下次编辑回显
@@ -791,11 +965,6 @@ export function DualPaneBookingModal({
                   return (
                     <div key={empId} className="flex flex-col gap-4">
                       {services.map((service, idx: number) => {
-                        // 修复价格累加 bug：由于我们之前改成了按组遍历，这里的 idx 是组内索引！
-                        // 而在旧版本（或者计算总价时），idx 是全局索引。
-                        // 为了让沙盒模拟价格和总价对得上，我们需要在 `selectedServices` 中找到它的全局真实索引，或者干脆统一价格逻辑。
-                        const mockPrice = (Array.isArray(service.prices) && service.prices.length > 0 ? service.prices[0] : 0) as number;
-                        
                         return (
                           <div key={service.id || idx} className="flex items-center w-full gap-6">
                             {/* 员工签名栏：仅在该员工的第一个项目显示，后续项目留白以维持网格对齐 */}
@@ -819,10 +988,73 @@ export function DualPaneBookingModal({
                             {/* 动态赛博引线 (Leader) */}
                             <div className="flex-1 h-px border-b border-dashed border-white/20 opacity-60 mx-2" />
                             
-                            {/* 价格 */}
-                            <span className="text-white font-bold text-lg tracking-wider shrink-0">
-                              ¥ {mockPrice}
-                            </span>
+                            {/* 价格与备用胶囊阵列 */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-white font-bold text-lg tracking-wider">
+                                ¥ {getCheckoutPrice(service.id, service.prices)}
+                              </span>
+                              
+                              {/* 只有在未结账时才显示修改价格的胶囊 */}
+                              {!isAlreadyCompleted && (
+                                <div className="flex items-center gap-1.5 ml-2">
+                                  {/* 渲染所有数据库里的预设价格胶囊 */}
+                                  {Array.isArray(service.prices) && service.prices.map((p, pIdx) => {
+                                    const currentActive = getCheckoutPrice(service.id, service.prices) === p;
+                                    return (
+                                      <button
+                                        key={pIdx}
+                                        onClick={() => setCheckoutPrices(prev => ({ ...prev, [service.id]: p }))}
+                                        className={cn(
+                                          "text-[10px] font-mono px-2 py-0.5 rounded-full border transition-all",
+                                          currentActive 
+                                            ? "bg-[#39FF14]/20 text-[#39FF14] border-[#39FF14]/50 shadow-[0_0_10px_rgba(57,255,20,0.2)]" 
+                                            : "bg-white/5 text-white/50 border-white/10 hover:border-white/30 hover:text-white"
+                                        )}
+                                      >
+                                        {p}
+                                      </button>
+                                    );
+                                  })}
+
+                                  {/* 自定义价格输入胶囊 */}
+                                  {editingCustomPriceId === service.id ? (
+                                    <input 
+                                      type="number"
+                                      autoFocus
+                                      value={customPriceInput}
+                                      onChange={e => setCustomPriceInput(e.target.value)}
+                                      onBlur={() => {
+                                        const val = parseInt(customPriceInput, 10);
+                                        if (!isNaN(val)) {
+                                          setCheckoutPrices(prev => ({ ...prev, [service.id]: val }));
+                                        }
+                                        setEditingCustomPriceId(null);
+                                      }}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          e.currentTarget.blur();
+                                        } else if (e.key === 'Escape') {
+                                          setEditingCustomPriceId(null);
+                                        }
+                                      }}
+                                      className="w-12 text-[10px] bg-black/60 border border-[#39FF14]/50 rounded-full px-2 py-0.5 text-[#39FF14] font-mono outline-none text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    />
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setCustomPriceInput("");
+                                        setEditingCustomPriceId(service.id);
+                                      }}
+                                      className="w-6 h-5 flex items-center justify-center rounded-full border border-dashed border-white/20 text-white/40 hover:text-[#39FF14] hover:border-[#39FF14]/50 transition-colors"
+                                      title="自定义价格"
+                                    >
+                                      <span className="text-xs leading-none -mt-0.5">+</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -892,10 +1124,7 @@ export function DualPaneBookingModal({
                       ? "text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] scale-110" 
                       : "text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)]"
                 )}>
-                  ¥ {checkoutAllServices.reduce((sum, s) => {
-                    const unit = Array.isArray(s.prices) && s.prices.length > 0 ? s.prices[0] : 0;
-                    return sum + unit;
-                  }, 0)}.00
+                  ¥ {checkoutAllServices.reduce((sum, s) => sum + getCheckoutPrice(s.id, s.prices), 0)}.00
                 </div>
 
                 {/* 赛博光轨滑动锁 (Cyber-Slider) */}
@@ -970,16 +1199,29 @@ export function DualPaneBookingModal({
                                   ? editingBooking.relatedBookings 
                                   : [editingBooking];
   
-                                const updatedBookings = bookingsToCheckout.map(b => ({
-                                ...b,
-                                status: 'COMPLETED', // 核心：状态必须大写 COMPLETED 以触发底层矩阵透明化
-                                paymentMethod: selectedPaymentMethod || '现金', // 物理打通：写入支付印记
-                                // 注意：我们不能随意修改 b.date 和 b.startTime，因为那是其他子订单的时间。
-                                // 所以只更新 status。
-                                date: b.date || selectedDate.replace(/\//g, '-'), // 必须提供默认值以满足类型
-                                  startTime: b.startTime || "00:00", // 必须提供默认值以满足类型
-                                  resourceId: b.resourceId === null ? undefined : b.resourceId, // 修复 TS 类型：null 转换为 undefined
-                                }));
+                                const updatedBookings = bookingsToCheckout.map(b => {
+                                  // 【价格覆盖法则】：将前端临时 checkoutPrices 的价格物理写入数据库
+                                  const updatedServices = Array.isArray(b.services) 
+                                    ? b.services.map((svc: any) => {
+                                        if (checkoutPrices[svc.id] !== undefined) {
+                                          return { ...svc, prices: [checkoutPrices[svc.id]] };
+                                        }
+                                        return svc;
+                                      })
+                                    : b.services;
+
+                                  return {
+                                    ...b,
+                                    services: updatedServices,
+                                    status: 'COMPLETED', // 核心：状态必须大写 COMPLETED 以触发底层矩阵透明化
+                                    paymentMethod: selectedPaymentMethod || '现金', // 物理打通：写入支付印记
+                                    // 注意：我们不能随意修改 b.date 和 b.startTime，因为那是其他子订单的时间。
+                                    // 所以只更新 status。
+                                    date: b.date || selectedDate.replace(/\//g, '-'), // 必须提供默认值以满足类型
+                                    startTime: b.startTime || "00:00", // 必须提供默认值以满足类型
+                                    resourceId: b.resourceId === null ? undefined : b.resourceId, // 修复 TS 类型：null 转换为 undefined
+                                  };
+                                });
                                 
                                 await BookingService.upsertBookings(updatedBookings);
                                 
@@ -1178,18 +1420,18 @@ export function DualPaneBookingModal({
                         <div className="flex-1 truncate flex items-center justify-start pl-2">
                           <span className={cn(
                             "text-[11px] font-bold font-mono tracking-widest leading-none -translate-y-[1px]",
-                            phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" || matchedProfile ? "text-gx-cyan" : "text-white/80"
+                            matchedProfile || matchedHistoryCustomer || (customerId && !customerId.startsWith('CO')) ? "text-gx-cyan" : "text-white/80"
                           )}>
                             {matchedProfile?.name || phoneTracks[0]}
                           </span>
                         </div>
                       ) : (
                         /* 输入模式或无输入记录时显示输入框 */
-                        <div className="flex-1 w-full h-full flex items-center justify-start pl-2">
+                        <div className="flex-1 w-full h-full flex flex-col justify-center pl-2 relative">
                           <input 
                             type="text" 
                             placeholder={t('txt_9be070')} 
-                            className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none -translate-y-[1px] text-left"
+                            className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none text-left"
                             value={phoneTracks[0] || ""}
                             onChange={(e) => {
                               const newTracks = [...phoneTracks];
@@ -1197,9 +1439,88 @@ export function DualPaneBookingModal({
                               updatePhoneTracks(newTracks);
                               if (activePaneMode !== 'member') setActivePaneMode('member');
                             }}
-                            onBlur={() => setIsMemberInputFocused(false)} // 失去焦点瞬间坍缩
+                            onBlur={() => {
+                              // 延迟坍缩，避免点击下拉菜单时直接关闭
+                              setTimeout(() => setIsMemberInputFocused(false), 200);
+                            }}
                             autoFocus={isMemberInputFocused} // 被唤醒时自动聚焦
                           />
+                          
+                          {/* 极简下拉推荐菜单 (Fuzzy Search Dropdown) */}
+                          <AnimatePresence>
+                            {isMemberInputFocused && phoneTracks[0] && phoneTracks[0].length >= 3 && (fuzzyResults.length > 0 || isFuzzySearching) && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -5, height: 0 }}
+                                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                exit={{ opacity: 0, y: -5, height: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="absolute top-[120%] left-0 w-[120%] bg-black/90 border border-gx-cyan/30 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8),0_0_15px_rgba(0,240,255,0.1)] backdrop-blur-2xl z-[100] overflow-hidden flex flex-col"
+                              >
+                                {/* 顶部光线 */}
+                                <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-gx-cyan to-transparent opacity-50" />
+                                
+                                {isFuzzySearching ? (
+                                  <div className="p-4 flex items-center justify-center gap-2 text-white/40">
+                                    <span className="w-1 h-1 bg-gx-cyan rounded-full animate-ping" />
+                                    <span className="w-1 h-1 bg-gx-cyan rounded-full animate-ping delay-150" />
+                                    <span className="w-1 h-1 bg-gx-cyan rounded-full animate-ping delay-300" />
+                                  </div>
+                                ) : (
+                                  <div className="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col py-1">
+                                    {fuzzyResults.map((result, idx) => (
+                                      <div 
+                                        key={idx}
+                                        className="px-3 py-2.5 hover:bg-gx-cyan/10 cursor-pointer flex items-center justify-between group transition-colors"
+                                        onClick={() => {
+                                          const newTracks = [...phoneTracks];
+                                          newTracks[0] = result.phone;
+                                          // 【核心修复】：点击下拉列表后，调用更新电话，并禁止自动探针再次发起搜索，以免冲刷掉我们手动设置的值
+                                          updatePhoneTracks(newTracks, true);
+                                          
+                                          // 立即填充历史老客信息
+                                          setMatchedHistoryCustomer({
+                                            name: result.name,
+                                            phone: result.phone,
+                                            gx_id: result.gx_id
+                                          });
+                                          
+                                          // 触发 C 端精确匹配联动
+                                          BookingService.getProfileByPhone(result.phone).then(({data}) => {
+                                            setMatchedProfile(data);
+                                          });
+
+                                          // 【核心修复】：如果匹配到了老客，必须清空下面的“新客选定分类(GV/AD等)”状态，防止计算 ID 冲突
+                                          setNewCustomerType(null);
+                                          setIsMemberInputFocused(false);
+                                        }}
+                                      >
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="text-[11px] font-mono text-white group-hover:text-gx-cyan transition-colors">
+                                            {/* 高亮匹配的数字 */}
+                                            {result.phone.split(new RegExp(`(${phoneTracks[0]})`, 'gi')).map((part: string, i: number) => 
+                                              part.toLowerCase() === phoneTracks[0].toLowerCase() 
+                                                ? <span key={i} className="text-gx-cyan font-black bg-gx-cyan/20 px-0.5 rounded">{part}</span>
+                                                : <span key={i}>{part}</span>
+                                            )}
+                                          </span>
+                                          {result.name && (
+                                            <span className="text-[9px] font-mono text-white/40 group-hover:text-white/70 truncate max-w-[120px]">
+                                              {result.name}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {result.gx_id && !result.gx_id.startsWith('CO') && (
+                                          <div className="shrink-0 px-1.5 py-0.5 rounded border border-gx-pink/30 bg-gx-pink/10 text-gx-pink text-[9px] font-mono tracking-widest uppercase">
+                                            {result.gx_id.replace(/^[a-zA-Z]+\s*/, '')}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       )}
                     </div>
@@ -1443,9 +1764,11 @@ export function DualPaneBookingModal({
                             "w-14 h-14 rounded-full flex items-center justify-center backdrop-blur-xl transition-transform duration-500 relative border-2",
                             matchedProfile 
                               ? "bg-gradient-to-br from-gx-pink/20 to-gx-purple/20 border-gx-pink/60 shadow-[0_0_20px_rgba(255,0,234,0.3)]" // 已匹配 C 端用户
-                              : (phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376")
-                                ? "bg-gradient-to-br from-gx-pink/20 to-gx-purple/20 border-gx-pink/60 shadow-[0_0_20px_rgba(255,0,234,0.3)]"
-                                : "bg-white/5 border-white/10" // 游离态散客
+                              : matchedHistoryCustomer
+                                ? "bg-gradient-to-br from-gx-cyan/20 to-gx-blue/20 border-gx-cyan/60 shadow-[0_0_20px_rgba(0,240,255,0.3)]" // 已匹配 B 端老客
+                                : (phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO')))
+                                  ? "bg-gradient-to-br from-gx-pink/20 to-gx-purple/20 border-gx-pink/60 shadow-[0_0_20px_rgba(255,0,234,0.3)]"
+                                  : "bg-white/5 border-white/10" // 游离态散客
                           )}>
                             {matchedProfile?.avatar_url ? (
                               <Image
@@ -1455,7 +1778,7 @@ export function DualPaneBookingModal({
                                 height={56}
                                 className="w-full h-full rounded-full object-cover"
                               />
-                            ) : (phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") ? (
+                            ) : (matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) ? (
                               <Image
                                 src="https://api.dicebear.com/7.x/avataaars/svg?seed=gx-vip"
                                 alt="avatar"
@@ -1468,7 +1791,7 @@ export function DualPaneBookingModal({
                             )}
                             
                             {/* 匹配成功的光晕特效 */}
-                            {(matchedProfile || phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") && (
+                            {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
                               <div 
                                 className="absolute inset-[-4px] rounded-full border border-dashed border-gx-pink/40 pointer-events-none animate-[spin_15s_linear_infinite]"
                               />
@@ -1490,18 +1813,30 @@ export function DualPaneBookingModal({
                             </div>
                             {/* 客人名字/昵称 */}
                             <span className="text-sm font-bold text-white/80 truncate">
-                              {matchedProfile?.name ? matchedProfile.name : (phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") ? "赛博浪客 (备注: 王总)" : ""}
+                              {matchedProfile?.name ? matchedProfile.name : (matchedHistoryCustomer?.name ? matchedHistoryCustomer.name : ((phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) ? "赛博浪客 (备注: 王总)" : ""))}
                             </span>
                           </div>
 
-                          {/* 中层：平台社交信标与徽章 */}
-                          {(matchedProfile || phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376") && (
+                          {/* 中层：历史信标与徽章 */}
+                          {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
                             <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                              <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-gx-pink/10 border border-gx-pink/30 text-gx-pink">
-                                {matchedProfile ? "已匹配 C 端" : "LV.4 先驱"}
-                              </span>
+                              {matchedProfile && (
+                                <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-gx-pink/10 border border-gx-pink/30 text-gx-pink">
+                                  已联动 C端
+                                </span>
+                              )}
+                              {!matchedProfile && matchedHistoryCustomer && (
+                                <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-gx-cyan/10 border border-gx-cyan/30 text-gx-cyan">
+                                  已留存档案
+                                </span>
+                              )}
+                              {!matchedProfile && !matchedHistoryCustomer && (
+                                <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/40">
+                                  LV.4 先驱
+                                </span>
+                              )}
                               <span className="text-[9px] font-mono uppercase tracking-widest text-white/40">
-                                ID: {matchedProfile?.gx_id || "GX-1024"}
+                                ID: {matchedProfile?.gx_id || matchedHistoryCustomer?.gx_id || customerId || "GX-1024"}
                               </span>
                             </div>
                           )}
@@ -1570,82 +1905,185 @@ export function DualPaneBookingModal({
                       <div className="flex flex-col items-end shrink-0 pt-1">
                         <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest mb-1">Total Spent</span>
                         <span className="text-xl font-black text-white tracking-wider font-mono">
-                          {phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" ? "¥ 12,800" : "¥ 0"}
+                          {phoneTracks[0] || newCustomerType || matchedHistoryCustomer || matchedProfile || (customerId && !customerId.startsWith('CO')) 
+                            ? (isFetchingHistory ? "..." : `¥ ${realTotalSpent.toLocaleString()}`)
+                            : "¥ 0"}
                         </span>
                       </div>
                     </div>
 
-                    {/* 2. 中间：过往消费记录卡片 (可滚动区) / 散客游离态联系方式 */}
+                    {/* 2. 中间：过往消费记录卡片 (可滚动区) / 散客极简显示 */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 mb-4 px-2 pb-2">
-                      {phoneTracks[0] === "6667767" || phoneTracks[0] === "3758376" ? (
+                      {phoneTracks[0] || newCustomerType || matchedHistoryCustomer || matchedProfile || (customerId && !customerId.startsWith('CO')) ? (
                         <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] block mb-3 sticky top-0 bg-black/80 backdrop-blur-sm z-10 py-1">History Data Stream</span>
+                          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] block mb-3 sticky top-0 bg-black/80 backdrop-blur-sm z-10 py-1">LIFECYCLE TIME STREAM</span>
                           
-                          {/* 历史卡片 1 (最新，带间隔天数) */}
-                          <div className="relative group cursor-pointer">
-                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-gx-cyan rounded-r-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-gx-cyan/30 rounded-xl p-4 transition-all">
-                              <div className="flex items-center gap-6 w-[60%]">
-                                <span className="text-sm font-mono text-white/60 group-hover:text-white transition-colors">02.28</span>
-                                <span className="text-sm font-bold text-white truncate">{t('txt_3c767c')}</span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <span className="text-xs font-mono text-gx-cyan font-bold">¥ 880</span>
-                                {/* 间隔天数提醒 */}
-                                <span className="text-[10px] font-mono bg-gx-cyan/10 text-gx-cyan px-2 py-1 rounded border border-gx-cyan/20 whitespace-nowrap">
-                                  {t('txt_0a7538')}</span>
-                              </div>
-                            </div>
-                          </div>
+                          {isFetchingHistory ? (
+                             <div className="text-center text-white/30 text-xs font-mono py-8 animate-pulse">Scanning Neural Network...</div>
+                          ) : realHistoryStream.length === 0 ? (
+                             <div className="text-center text-white/30 text-xs font-mono py-8">NO HISTORICAL RECORDS FOUND</div>
+                          ) : (
+                            realHistoryStream.map((record, index) => {
+                              const dateObj = new Date(record.date);
+                              const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}.${dateObj.getDate().toString().padStart(2, '0')}`;
+                              const isNoShow = record.status?.toUpperCase() === 'NO_SHOW';
+                              const isCompleted = ['COMPLETED', 'CHECKED_OUT'].includes(record.status?.toUpperCase());
+                              const services = record.data?.services || [];
+                              const serviceName = services.map((s: any) => s.name).join(' + ') || record.data?.serviceName || "未知项目";
+                              const price = services.reduce((sum: number, s: any) => sum + (s.prices?.[0] || 0), 0);
+                              
+                              // 获取员工信息 (Staff Info)
+                              const staffId = record.resourceId;
+                              const staff = staffs.find(s => s.id === staffId);
+                              const staffName = staff?.name || (staffId !== 'unassigned' && staffId !== 'null' ? staffId : 'UN');
+                              const staffColor = staff?.color || 'rgba(255,255,255,0.2)';
+                              
+                              // 判断时空状态法则
+                              const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+                              const isToday = record.date === todayStr;
+                              const isFuture = record.date > todayStr;
+                              const isPast = record.date < todayStr;
+                              
+                              // 计算时空差值
+                              const todayTime = new Date(todayStr.replace(/-/g, '/')).getTime();
+                              const recordTime = new Date(record.date.replace(/-/g, '/')).getTime();
+                              const diffTime = recordTime - todayTime;
+                              const diffDays = Math.ceil(Math.abs(diffTime) / (1000 * 60 * 60 * 24));
+                              
+                              // 渲染 T 纪元标识
+                              let epochLabel = "";
+                              let epochSubLabel = "";
+                              if (isToday) {
+                                epochLabel = "TODAY";
+                              } else if (isFuture) {
+                                epochLabel = `T+${diffDays}`;
+                                epochSubLabel = formattedDate;
+                              } else {
+                                epochLabel = `T-${diffDays}`;
+                                epochSubLabel = formattedDate;
+                              }
+                              
+                              // 判断是否是当前正在查看的这笔连单中的一员
+                              const relatedIds = editingBooking?.isSuperBooking && editingBooking?.relatedBookings 
+                                ? editingBooking.relatedBookings.map(b => b.id) 
+                                : [];
+                              const isCurrentViewing = record.id === editingBooking?.id || relatedIds.includes(record.id);
 
-                          {/* 历史卡片 2 (爽约记录) */}
-                          <div className="relative group cursor-pointer">
-                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-red-500 rounded-r-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-red-500/30 rounded-xl p-4 transition-all opacity-70 hover:opacity-100">
-                              <div className="flex items-center gap-6 w-[60%]">
-                                <span className="text-sm font-mono text-white/40">01.15</span>
-                                <span className="text-sm font-bold text-white/40 line-through">{t('txt_93efd5')}</span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <span className="text-xs font-mono text-white/20">--</span>
-                                {/* 爽约印记 */}
-                                <span className="text-[10px] font-black bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/30 whitespace-nowrap uppercase tracking-widest">
-                                  {t('txt_e49d53')}</span>
-                              </div>
-                            </div>
-                          </div>
+                              return (
+                                <div key={record.id} className="relative group cursor-pointer flex">
+                                  {/* 左侧能量轴 (Time Axis) */}
+                                  <div className="w-6 shrink-0 flex flex-col items-center relative mr-2">
+                                    <div className="absolute top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
+                                    <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-center">
+                                      {isToday ? (
+                                        <div className="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse border-2 border-black z-10" />
+                                      ) : isFuture ? (
+                                        <div className="w-2.5 h-2.5 rounded-full border border-gx-cyan/50 bg-black shadow-[0_0_8px_rgba(0,240,255,0.2)] z-10 flex items-center justify-center">
+                                          <div className="w-0.5 h-0.5 bg-gx-cyan rounded-full" />
+                                        </div>
+                                      ) : (
+                                        <div className="w-2 h-2 rounded-full bg-white/20 border-2 border-black z-10" />
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className={cn(
+                                    "flex-1 flex items-center justify-between bg-white/[0.02] p-4 transition-all relative overflow-hidden",
+                                    isFuture ? "border border-dashed border-white/20 hover:border-gx-cyan/50 rounded-xl" : "border border-white/5 hover:border-white/20 rounded-xl",
+                                    isNoShow && "border-white/5 hover:border-red-500/30 opacity-70 hover:opacity-100 border-solid",
+                                    isCurrentViewing && "border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] border-solid"
+                                  )}>
+                                    
+                                    {/* 当天正在查看的订单跑马灯特效 */}
+                                    {isCurrentViewing && !isCompleted && !isNoShow && (
+                                       <div className="absolute inset-0 pointer-events-none">
+                                          <div className="absolute inset-0 rounded-xl border border-transparent [background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)_border-box] [mask-composite:exclude] [mask:linear-gradient(#fff_0_0)_padding-box,linear-gradient(#fff_0_0)] animate-[shimmer_2s_linear_infinite] bg-[length:200%_auto]" />
+                                       </div>
+                                    )}
 
-                          {/* 历史卡片 3 */}
-                          <div className="relative group cursor-pointer">
-                            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/20 rounded-r-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 hover:border-white/20 rounded-xl p-4 transition-all">
-                              <div className="flex items-center gap-6 w-[60%]">
-                                <span className="text-sm font-mono text-white/60">12.01</span>
-                                <span className="text-sm font-bold text-white">{t('txt_93efd5')}</span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <span className="text-xs font-mono text-white/80">¥ 120</span>
-                                <span className="text-[10px] opacity-0 px-2 py-1">{t('txt_d4f32e')}</span> {/* 保持对齐 */}
-                              </div>
-                            </div>
-                          </div>
+                                    <div className="flex items-center gap-4 w-[70%] z-10 overflow-hidden">
+                                        <div className="flex flex-col items-center justify-center w-12 shrink-0">
+                                          <span className={cn(
+                                            "text-sm font-black font-mono transition-colors text-center tracking-tighter", 
+                                            isNoShow ? "text-white/30" : (isToday ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : isFuture ? "text-gx-cyan" : "text-white/50")
+                                          )}>
+                                            {epochLabel}
+                                          </span>
+                                          {epochSubLabel && !isNoShow && (
+                                            <span className={cn("text-[9px] font-mono mt-0.5", isFuture ? "text-gx-cyan/60" : "text-white/30")}>
+                                              {epochSubLabel}
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+                                          <span className="w-3 h-[1px] bg-white/20 shrink-0 rounded-full hidden sm:block"></span>
+                                          {/* 渲染多服务多员工胶囊 */}
+                                          <div className="flex items-center gap-1.5 flex-1 overflow-x-auto no-scrollbar pr-4">
+                                            {services.length > 0 ? (
+                                              services.map((svc: any, idx: number) => {
+                                                const assignedId = svc.assignedEmployeeId || record.resourceId;
+                                                const svcStaff = staffs.find(s => s.id === assignedId);
+                                                const svcStaffName = svcStaff?.name || (assignedId !== 'unassigned' && assignedId !== 'null' ? assignedId : 'UN');
+                                                const svcCx = svcStaff?.color || 'rgba(255,255,255,0.2)';
+                                                
+                                                return (
+                                                  <div 
+                                                    key={idx} 
+                                                    className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border shrink-0 transition-all"
+                                                    style={{ 
+                                                      backgroundColor: isNoShow ? 'rgba(255,255,255,0.02)' : `${svcCx}15`,
+                                                      borderColor: isNoShow ? 'rgba(255,255,255,0.05)' : `${svcCx}30`,
+                                                    }}
+                                                  >
+                                                    <span className="font-bold tracking-widest uppercase" style={{ color: isNoShow ? 'rgba(255,255,255,0.3)' : svcCx }}>{svcStaffName}</span>
+                                                    {!isNoShow && <span className="w-[1px] h-2.5 opacity-30" style={{ backgroundColor: svcCx }}></span>}
+                                                    <span className={cn("truncate max-w-[100px]", isNoShow ? "text-white/30" : "text-white/80")}>{svc.name || '未知项目'}</span>
+                                                  </div>
+                                                );
+                                              })
+                                            ) : (
+                                              <div 
+                                                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border shrink-0"
+                                                style={{ 
+                                                  backgroundColor: isNoShow ? 'rgba(255,255,255,0.02)' : `${staffColor}15`,
+                                                  borderColor: isNoShow ? 'rgba(255,255,255,0.05)' : `${staffColor}30`,
+                                                }}
+                                              >
+                                                <span className="font-bold tracking-widest uppercase" style={{ color: isNoShow ? 'rgba(255,255,255,0.3)' : staffColor }}>{staffName}</span>
+                                                {!isNoShow && <span className="w-[1px] h-2.5 opacity-30" style={{ backgroundColor: staffColor }}></span>}
+                                                <span className={cn("truncate max-w-[100px]", isNoShow ? "text-white/30" : "text-white/80")}>{serviceName}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    
+                                    <div className="flex items-center gap-4 z-10">
+                                      {/* 金额：未结账时不显示金额（无论过去、今天还是未来） */}
+                                      <span className={cn("text-xs font-mono", isNoShow ? "text-white/20" : "text-white/80")}>
+                                        {isNoShow ? "--" : (!isCompleted ? "--" : `¥ ${price}`)}
+                                      </span>
+                                      
+                                      {isNoShow ? (
+                                        <span className="text-[10px] font-black bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/30 whitespace-nowrap uppercase tracking-widest">
+                                          {t('txt_e49d53')}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] opacity-0 px-2 py-1">占位符</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
                         </div>
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center relative">
-                          {/* 散客游离态 (输入了内容但未分配分类) */}
-                          {phoneTracks[0] && !newCustomerType ? (
-                            <div className="flex flex-col items-center gap-2">
-                              <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] mb-2">Temporary Contact</span>
-                              <div className="px-6 py-3 rounded-2xl border border-white/10 bg-white/[0.02] text-white/80 font-mono text-lg tracking-widest shadow-[0_0_20px_rgba(255,255,255,0.02)]">
-                                {phoneTracks[0]}
-                              </div>
-                              <span className="text-[9px] font-mono text-white/20 mt-2 max-w-[200px] text-center leading-relaxed">
-                                Unregistered walk-in guest. Select a category below to archive as member.
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs font-mono text-white/20 uppercase tracking-widest">{t('txt_6700c4')}</span>
-                          )}
+                          <span className="text-5xl font-black font-mono text-white/10 uppercase tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.05)]">
+                            {formatDisplayId(customerId)}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1653,7 +2091,7 @@ export function DualPaneBookingModal({
                     {/* 3. 底部：新客分类按钮 & 单行备注 */}
                     <div className="shrink-0 space-y-4 px-2">
                       {/* 分类选项 (仅在新客且未匹配到会员时显示) */}
-                      {!matchedProfile && phoneTracks[0] !== "6667767" && phoneTracks[0] !== "3758376" && (
+                      {!matchedProfile && !matchedHistoryCustomer && (!editingBooking?.customerId || editingBooking.customerId.startsWith('CO')) && (
                         <div className="flex gap-3">
                           {['GV', 'AD', 'AN', 'UM'].map(type => (
                             <button 

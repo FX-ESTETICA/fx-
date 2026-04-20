@@ -90,6 +90,78 @@ export const BookingService = {
   },
 
   /**
+   * 模糊搜索历史预约人 (只查本门店 bookings，彻底切断 C 端注册表污染)
+   */
+  async searchProfilesByPhoneFuzzy(shopId: string, phoneSearch: string) {
+    if (isMockMode) {
+      if (phoneSearch === '666' || phoneSearch === '375') {
+        return {
+          data: [{
+            phone: "3758376251",
+            name: "赛博浪客 (Mock)",
+            gx_id: "GV 0015",
+            avatar_url: ""
+          }]
+        };
+      }
+      return { data: [] };
+    }
+
+    if (!phoneSearch || phoneSearch.length < 3) return { data: [] };
+
+    try {
+      const results: any[] = [];
+
+      // 物理级纠偏：根据用户提供的 SQL 截图，电话实际上被存在了 customerName 字段里，而 customerPhone 是 NULL
+      const { data: bookingData } = await supabase
+        .from('bookings')
+        .select('data, created_at')
+        .eq('shop_id', shopId || 'default')
+        .neq('status', 'VOID')
+        .ilike('data->>customerName', `%${phoneSearch}%`) // 彻底改用 customerName 搜索
+        .order('created_at', { ascending: false }) // 倒序，确保拿到最新的一条
+        .limit(30); // 多查几个用来去重
+        
+      if (bookingData && bookingData.length > 0) {
+        const bookingProfiles = bookingData.map((b: any) => {
+          const rawName = b.data?.customerName || "";
+          const rawPhone = b.data?.customerPhone || "";
+          // 物理级纠偏：如果 phone 是空，说明电话被存在了 name 字段里
+          const actualPhone = rawPhone || rawName;
+          // 如果 name 和 phone 一模一样（纯散客只留电话），则名字留空，否则保留真实名字
+          const actualName = rawName === actualPhone ? "" : rawName;
+
+          return {
+            phone: actualPhone,
+            name: actualName,
+            gx_id: b.data?.customerId,
+            avatar_url: ""
+          };
+        }).filter(p => p.phone && p.phone.includes(phoneSearch)); // 确保真的包含了搜索词
+        
+        // 按照电话去重，保留最新的一条
+        for (const bp of bookingProfiles) {
+          if (results.length >= 8) break;
+          const existing = results.find(r => r.phone === bp.phone);
+          if (!existing) {
+            results.push(bp);
+          } else {
+            // 如果之前存的没有会员号 (比如是 CO 开头)，而当前这条有高级会员号，则覆盖升级
+            if (existing.gx_id?.startsWith('CO') && bp.gx_id && !bp.gx_id.startsWith('CO')) {
+               existing.gx_id = bp.gx_id;
+               existing.name = bp.name || existing.name;
+            }
+          }
+        }
+      }
+      return { data: results };
+    } catch (error) {
+      console.error("[BookingService] searchProfilesByPhoneFuzzy Error:", error);
+      return { data: [] };
+    }
+  },
+
+  /**
    * 提交新预约
    */
   async createBooking(details: BookingDetails): Promise<BookingDetails> {
@@ -894,14 +966,14 @@ export const BookingService = {
   /**
    * 恢复为原生闭环：移除联邦计费的拦截逻辑，回归原生 API
    */
-  async checkShopSubscription(shopId: string): Promise<{ allowed: boolean; reason?: 'GRACE_PENDING' | 'FROZEN' | 'LIMIT_EXCEEDED' | 'TRIAL_ACTIVATED' }> {
+  async checkShopSubscription(_shopId: string): Promise<{ allowed: boolean; reason?: 'GRACE_PENDING' | 'FROZEN' | 'LIMIT_EXCEEDED' | 'TRIAL_ACTIVATED' }> {
     return { allowed: true };
   },
 
   /**
    * 恢复为原生闭环：移除联邦计费的续命逻辑
    */
-  async activateEmergencyGrace(shopId: string): Promise<boolean> {
+  async activateEmergencyGrace(_shopId: string): Promise<boolean> {
     return true;
   }
 };

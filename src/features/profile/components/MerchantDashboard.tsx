@@ -109,15 +109,6 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
     }
   }, [availableShops]);
 
-  if (!availableShops || availableShops.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in duration-700">
-        <div className="w-10 h-10 border-2 border-gx-cyan border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm text-white/40 tracking-widest uppercase font-mono">RECALIBRATING MATRIX...</p>
-      </div>
-    );
-  }
-
   // 从 ShopContext 全局中枢获取配置，并做防御性降维
   const fullConfig = useMemo(() => {
     if (!shopConfig || !shopConfig.hours) return null;
@@ -234,6 +225,15 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
     }));
     setBookings(uiBookings);
   }, [globalBookings, industry]);
+
+  if (!availableShops || availableShops.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in duration-700">
+        <div className="w-10 h-10 border-2 border-gx-cyan border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm text-white/40 tracking-widest uppercase font-mono">RECALIBRATING MATRIX...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 relative">
