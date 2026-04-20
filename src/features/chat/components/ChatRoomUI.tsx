@@ -263,7 +263,13 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               onClick={() => {
                 if (isLocked && isWhatsApp) {
                    const phone = receiverId?.replace('wa_', '');
-                   if (phone) window.open(`https://wa.me/${phone}`, '_blank');
+                   if (phone) {
+                     // 锁死唤醒时，也带上引流话术
+                     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
+                     const inviteUrl = `${domain}/chat/wa_${phone}`;
+                     const message = encodeURIComponent(`✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`);
+                     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+                   }
                 }
               }}
               onKeyDown={(e) => {

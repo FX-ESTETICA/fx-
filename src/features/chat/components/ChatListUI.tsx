@@ -25,11 +25,29 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const { recentChats, isLoading } = useRecentChats(currentUserId);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 处理拉起原生 WhatsApp
+  // 处理拉起原生 WhatsApp (带引流话术与洗流魔法)
   const handleOpenWhatsApp = (phone: string) => {
-    // 清洗号码，只保留数字和 +
+    // 1. 清洗号码，只保留数字和 +
     const cleanPhone = phone.replace(/[^\d+]/g, '');
-    window.open(`https://wa.me/${cleanPhone.replace('+', '')}`, '_blank');
+    const finalPhone = cleanPhone.replace('+', '');
+    
+    // 2. 构建极其优雅的高转化率引流话术 (The Conversion Spell)
+    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
+    const inviteUrl = `${domain}/chat/wa_${finalPhone}`;
+    
+    const message = `✨ 欢迎连接 GX 专属全息客服！
+
+为提供更极速的响应与沉浸式体验，请点击下方链接进入您的专属 VIP 通道。
+(若此处长时间无响应，请务必点击链接以确保您的信息被系统接收)
+
+👉 点击进入专属服务舱:
+${inviteUrl}`;
+
+    // 3. 对话术进行 URL 编码
+    const encodedMessage = encodeURIComponent(message);
+    
+    // 4. 拉起原生 WhatsApp，并自动填入输入框
+    window.open(`https://wa.me/${finalPhone}?text=${encodedMessage}`, '_blank');
   };
 
   return (
