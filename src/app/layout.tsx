@@ -99,6 +99,11 @@ export default async function RootLayout({
                     if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
                       var isChunk = e.target.src && e.target.src.indexOf('_next/static') !== -1;
                       if (isChunk) {
+                        if (!navigator.onLine) {
+                          console.warn('[GX Offline] 网络断开，阻止资源重载自杀，触发离线降级');
+                          window.dispatchEvent(new Event('gx_offline_mode_activated'));
+                          return;
+                        }
                         console.error('[GX Auto-Heal] 核心资源加载失败，可能为版本更新缓存冲突。0毫秒瞬间强制重载...');
                         // 种下自愈印记，防止无限刷新死循环
                         if (!sessionStorage.getItem('gx_auto_healed')) {
@@ -112,6 +117,11 @@ export default async function RootLayout({
                   // 陷阱2：拦截 React 引擎内部的动态模块加载失败 (ChunkLoadError)
                   window.addEventListener('unhandledrejection', function(e) {
                     if (e.reason && e.reason.name === 'ChunkLoadError') {
+                      if (!navigator.onLine) {
+                        console.warn('[GX Offline] 网络断开，阻止 ChunkLoadError 重载自杀，触发离线降级');
+                        window.dispatchEvent(new Event('gx_offline_mode_activated'));
+                        return;
+                      }
                       console.error('[GX Auto-Heal] 动态模块读取失败。0毫秒瞬间强制重载...');
                       if (!sessionStorage.getItem('gx_auto_healed')) {
                         sessionStorage.setItem('gx_auto_healed', 'true');

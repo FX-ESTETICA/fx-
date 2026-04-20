@@ -782,12 +782,12 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
             className="flex items-center gap-3 p-2 md:p-3 bg-white/5 rounded-xl border border-white/10 group overflow-hidden"
           >
             <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 items-center">
                 <span className="text-[8px] font-mono text-white/40 uppercase">Start</span>
                 <select 
                   value={hour.start} 
                   onChange={(e) => onUpdate(hour.id, 'start', e.target.value)}
-                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none text-center w-full" 
                 >
                   {HOUR_OPTIONS.map(h => (
                     <option key={`start-${h}`} value={h} className="bg-black text-white">
@@ -796,12 +796,12 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
                   ))}
                 </select>
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 items-center">
                 <span className="text-[8px] font-mono text-white/40 uppercase">End</span>
                 <select 
                   value={hour.end}
                   onChange={(e) => onUpdate(hour.id, 'end', e.target.value)}
-                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none text-center w-full" 
                 >
                   {HOUR_OPTIONS.map(h => (
                     <option key={`end-${h}`} value={h} className="bg-black text-white">
@@ -811,9 +811,11 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
                 </select>
               </div>
             </div>
-            <button onClick={() => onRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors p-1">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {hoursList.length > 1 && (
+              <button onClick={() => onRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors p-1">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </motion.div>
         ))}
       </AnimatePresence>
@@ -1746,23 +1748,6 @@ const ServicesConfig = ({
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState("");
-
-  const handleCreateCategoryFromDropdown = () => {
-    if (!newCategoryInput.trim()) return;
-    const targetName = newCategoryInput.trim();
-    
-    const existingCat = categories.find(c => c.name === targetName);
-    if (existingCat) {
-      setActiveCategoryId(existingCat.id);
-    } else {
-      categoryIdSeed.current += 1;
-      const newCatId = `cat_${Date.now()}_${categoryIdSeed.current}`;
-      onCategoriesChange([...categories, { id: newCatId, name: targetName }]);
-      setActiveCategoryId(newCatId);
-    }
-    setNewCategoryInput("");
-    setIsDropdownOpen(false);
-  };
 
   const activeCategoryName = categories.find(c => c.id === activeCategoryId)?.name || "未选择";
 

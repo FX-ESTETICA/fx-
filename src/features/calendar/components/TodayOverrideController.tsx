@@ -6,8 +6,6 @@ import { OperatingHour, DailyOverride, ShopOperatingConfig, resolveOperatingHour
 interface TodayOverrideControllerProps {
   todayOverride: DailyOverride | null;
   onChange: (newOverride: DailyOverride | null) => void;
-  title?: string;
-  subtitle?: string;
   variant?: "glass" | "minimal";
   fullConfig?: ShopOperatingConfig | null; // 传入完整的引擎配置，用于推算“今天的默认真实时间”
 }
@@ -17,8 +15,6 @@ const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i);
 export const TodayOverrideController = ({ 
   todayOverride, 
   onChange,
-  title = "今日临时覆盖 (Today's Override)",
-  subtitle = "最高优先级控制舱。此处的修改将瞬间同步至智控页，并仅对【今天】生效。",
   variant = "glass",
   fullConfig
 }: TodayOverrideControllerProps) => {
@@ -82,10 +78,6 @@ export const TodayOverrideController = ({
     onChange(newOverride);
   };
 
-  const handleClearTodayOverride = () => {
-    onChange(null);
-  };
-
   // 内部通用时间段渲染组件
   const renderTimeBlocks = (
     hoursList: OperatingHour[], 
@@ -103,12 +95,12 @@ export const TodayOverrideController = ({
             className="flex items-center gap-3 p-2 md:p-3 bg-white/5 rounded-xl border border-white/10 group overflow-hidden"
           >
             <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 items-center">
                 <span className="text-[8px] font-mono text-white/40 uppercase">Start</span>
                 <select 
                   value={hour.start} 
                   onChange={(e) => onUpdate(hour.id, 'start', e.target.value)}
-                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none text-center w-full" 
                 >
                   {HOUR_OPTIONS.map(h => (
                     <option key={`start-${h}`} value={h} className="bg-black text-white">
@@ -117,12 +109,12 @@ export const TodayOverrideController = ({
                   ))}
                 </select>
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 items-center">
                 <span className="text-[8px] font-mono text-white/40 uppercase">End</span>
                 <select 
                   value={hour.end}
                   onChange={(e) => onUpdate(hour.id, 'end', e.target.value)}
-                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none" 
+                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none text-center w-full" 
                 >
                   {HOUR_OPTIONS.map(h => (
                     <option key={`end-${h}`} value={h} className="bg-black text-white">
@@ -132,9 +124,11 @@ export const TodayOverrideController = ({
                 </select>
               </div>
             </div>
-            <button type="button" onClick={() => onRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors p-1">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {hoursList.length > 1 && (
+              <button type="button" onClick={() => onRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors p-1">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </motion.div>
         ))}
       </AnimatePresence>
@@ -146,25 +140,6 @@ export const TodayOverrideController = ({
       "w-full space-y-4",
       variant === "glass" ? "p-4 rounded-2xl bg-black/40 border border-white/5 shadow-inner" : ""
     )}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-black text-gx-cyan flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gx-cyan opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-gx-cyan"></span>
-          </span>
-          {title}
-        </span>
-        {todayOverride && (
-          <button type="button" onClick={handleClearTodayOverride} className="text-[10px] font-bold text-white/40 hover:text-white transition-colors">
-            清除覆盖 (恢复常规)
-          </button>
-        )}
-      </div>
-      {subtitle && (
-        <p className="text-[10px] font-mono text-gx-cyan/60">
-          {subtitle}
-        </p>
-      )}
       
       <div className={cn(
         "flex flex-col rounded-xl relative overflow-hidden",
@@ -173,7 +148,6 @@ export const TodayOverrideController = ({
         <div className="absolute top-0 left-0 w-1 h-full bg-gx-cyan" />
         <div className="flex items-center justify-between pl-2">
           <div className="flex items-center gap-3">
-            <div className="text-xs font-mono font-bold text-white tracking-widest">{todayDateStr} (今天)</div>
             <button 
               type="button"
               onClick={() => handleToggleClosedToday(isEffectiveClosed)}
@@ -186,7 +160,11 @@ export const TodayOverrideController = ({
           </div>
           <div className="flex items-center gap-2">
             {!isEffectiveClosed && (
-              <button type="button" onClick={handleAddEffectiveHour} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
+              <button 
+                type="button" 
+                onClick={handleAddEffectiveHour} 
+                className="px-2 py-1 text-[9px] font-bold tracking-widest rounded-md transition-colors border bg-gx-cyan/10 text-gx-cyan border-gx-cyan/30 hover:bg-gx-cyan/20 hover:text-white flex items-center gap-1"
+              >
                 <Plus className="w-3 h-3" /> 时段
               </button>
             )}

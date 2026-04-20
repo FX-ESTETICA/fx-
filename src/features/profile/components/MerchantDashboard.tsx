@@ -1,14 +1,11 @@
 "use client";
 
-import { GlassCard } from "@/components/shared/GlassCard";
-import { Button } from "@/components/shared/Button";
 import { 
   Calendar, 
   Sparkles,
   Play,
   Eye,
   MonitorSmartphone,
-  LogOut,
   Search
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
@@ -36,12 +33,6 @@ interface MerchantDashboardProps {
   profile?: UserProfile;
 }
 
-type StatsCardProps = {
-  label: string;
-  value: number | string;
-  color: "red" | "cyan" | "gold";
-};
-
 const resolveIndustry = (value?: string | null): IndustryType => {
   const allowed: IndustryType[] = ["beauty", "dining", "hotel", "medical", "expert", "fitness", "other"];
   return allowed.includes(value as IndustryType) ? (value as IndustryType) : "beauty";
@@ -54,6 +45,20 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
     : "pending";
 };
 
+const StatsCard = ({ label, value, color }: { label: string; value: number | string; color: "red" | "cyan" | "gold" }) => {
+  const colors = {
+    red: "text-red-500",
+    cyan: "text-gx-cyan",
+    gold: "text-gx-gold"
+  };
+  return (
+    <div className="flex flex-col items-center justify-center p-4 md:p-6 transition-colors hover:bg-white/[0.02] text-center">
+      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1">{label}</span>
+      <span className={cn("text-2xl md:text-3xl font-black font-mono tracking-tight", colors[color])}>{value}</span>
+    </div>
+  );
+};
+
 /**
  * MerchantDashboard - 商家端管理看板
  * 采用 Admin Red (#FF2D55) 视觉规范
@@ -64,7 +69,6 @@ import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboardProps) => {
   const t = useTranslations('MerchantDashboard');
   // const router = useRouter();
-  const { signOut } = useAuth();
   const { activeShopId, setActiveShopId, availableShops, subscription, shopConfig, isShopConfigLoaded, updateShopConfig, refreshBookings, trackAction, globalBookings } = useShop();
   const { setActiveTab, pushOverlay } = useViewStack();
   const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
@@ -236,7 +240,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 relative">
+    <div className="flex flex-col w-full animate-in fade-in duration-700 relative">
       <GracePeriodBanner 
         remainingTime={remainingTime} 
         remainingMilliseconds={remainingMilliseconds}
@@ -245,41 +249,45 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
         gracePeriodActionsLeft={gracePeriodActionsLeft || 0}
       />
       
-
-
-      {/* 顶部统计卡片与联邦集结舱 (连体数据舱) */}
-      <GlassCard className="p-0 overflow-hidden relative">
-        <div className="grid grid-cols-3 divide-x divide-white/5">
-          <StatsCard 
-            label={t('txt_f49d92')} 
-            value={bookings.filter(b => b.status === "pending").length} 
-            color="red"
-          />
-          <StatsCard 
-            label={t('txt_733f4a')} 
-            value={bookings.filter(b => b.status === "confirmed").length} 
-            color="cyan"
-          />
-          <StatsCard 
-            label={t('txt_5af2c6')} 
-            value={0} 
-            color="gold"
-          />
+      {/* 统一的连体全息结界 (Unified Holographic Canvas) */}
+      <div className="w-full relative z-10 flex flex-col">
+        {/* 背景光效：全局弥漫的极弱光晕 */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-64 h-64 bg-gx-cyan/5 blur-[80px] rounded-full" />
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gx-purple/5 blur-[80px] rounded-full" />
         </div>
-      </GlassCard>
 
-      {/* 核心控制台 (全息驾驶舱风格) - 贯穿全宽连体控制舱 */}
-      <div className="relative group">
-        <GlassCard className="p-6 overflow-visible relative z-40 transition-all duration-500">
-        <div className="absolute inset-0 bg-gradient-to-r from-white/[0.02] via-transparent to-white/[0.02] pointer-events-none rounded-2xl" />
-        <div className="absolute top-1/2 left-20 -translate-y-1/2 w-40 h-40 bg-gx-cyan/5 blur-[60px] rounded-full group-hover:bg-gx-cyan/10 transition-all duration-500 pointer-events-none" />
-        <div className="absolute top-1/2 right-20 -translate-y-1/2 w-40 h-40 bg-gx-purple/5 blur-[60px] rounded-full group-hover:bg-gx-purple/10 transition-all duration-500 pointer-events-none" />
+        {/* 第一层：数据统计区 */}
+        <div className="w-full py-4 relative z-10">
+          <div className="grid grid-cols-3 divide-x divide-white/5">
+            <StatsCard 
+              label={t('txt_f49d92')} 
+              value={bookings.filter(b => b.status === "pending").length} 
+              color="red"
+            />
+            <StatsCard 
+              label={t('txt_733f4a')} 
+              value={bookings.filter(b => b.status === "confirmed").length} 
+              color="cyan"
+            />
+            <StatsCard 
+              label={t('txt_5af2c6')} 
+              value={0} 
+              color="gold"
+            />
+          </div>
+        </div>
 
-        <div className="relative z-10 flex flex-row items-stretch w-full gap-4 md:gap-8">
-          
-          {/* 左侧控制中枢：店铺选择与状态开关 */}
-          <div className="flex flex-col items-center shrink-0 w-[140px] md:w-64 border-r border-white/5 pr-4 md:pr-6 justify-center">
-            {/* 门店统御区 (全局多店切换锚点) */}
+        {/* 分割线：极细的光线 */}
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        {/* 第二层：核心控制台 */}
+        <div className="w-full py-6 md:py-8 relative z-40 group">
+          <div className="flex flex-row items-stretch w-full gap-4 md:gap-8">
+            
+            {/* 左侧控制中枢：店铺选择与状态开关 */}
+            <div className="flex flex-col items-center shrink-0 w-[140px] md:w-64 border-r border-white/5 pr-4 md:pr-6 justify-center">
+              {/* 门店统御区 */}
             <div className="flex flex-col relative items-center w-full">
               <h3 
                 className="text-sm md:text-lg font-bold tracking-tight text-white/80 hover:text-white transition-colors flex items-center justify-center gap-2 cursor-pointer w-full"
@@ -296,7 +304,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                 )}>▼</div>
               </h3>
               <div className="text-white/40 text-[8px] md:text-[10px] uppercase tracking-widest font-mono group-hover:text-gx-cyan/60 transition-colors mt-0.5 text-center w-full truncate">
-                <div>多门店切换引擎</div>
+                <div>多门店切换</div>
               </div>
 
               {/* 悬浮下拉菜单 (Glassmorphism 赛博空间) */}
@@ -371,29 +379,22 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
             <TodayOverrideController 
               todayOverride={todayOverride}
               onChange={handleTodayOverrideChange}
-              title="今日营业时间控制舱"
-              subtitle=""
               variant="minimal"
               fullConfig={fullConfig}
             />
           </div>
         </div>
-      </GlassCard>
-    </div>
+      </div>
 
-      {/* 功能入口区 - 横向连体数据舱 */}
-      <GlassCard className="p-0 overflow-hidden relative">
-        {/* 背景光效：左青右紫 */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-32 h-32 bg-gx-cyan/5 blur-[50px] rounded-full" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gx-purple/5 blur-[50px] rounded-full" />
-        </div>
+      {/* 分割线：极细的光线 */}
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-        <div className="relative z-10 grid grid-cols-2 divide-x divide-white/5">
+        {/* 第三层：功能入口区 (日历/星云) */}
+        <div className="w-full py-4 relative z-10 grid grid-cols-2 divide-x divide-white/5">
           {/* 左侧：日历后台 */}
           {industry !== 'none' ? (
             <div onClick={handleNavigateToCalendar} className="block group">
-              <div className="p-4 sm:p-6 flex flex-col items-center justify-center gap-3 hover:bg-white/[0.02] transition-colors h-full cursor-pointer">
+              <div className="py-2 flex flex-col items-center justify-center gap-3 transition-colors h-full cursor-pointer">
                 <div className="w-10 h-10 rounded-xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(0,240,255,0.1)]">
                   <Calendar className="w-5 h-5" />
                 </div>
@@ -404,7 +405,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
               </div>
             </div>
           ) : (
-            <div className="p-4 sm:p-6 flex flex-col items-center justify-center gap-3 opacity-50 cursor-not-allowed">
+            <div className="py-2 flex flex-col items-center justify-center gap-3 opacity-50 cursor-not-allowed">
               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40">
                 <Calendar className="w-5 h-5" />
               </div>
@@ -416,7 +417,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
 
           {/* 右侧：星云入口 */}
           <div onClick={handleNavigateToNebula} className="block group">
-            <div className="p-4 sm:p-6 flex flex-col items-center justify-center gap-3 hover:bg-white/[0.02] transition-colors h-full cursor-pointer">
+            <div className="py-2 flex flex-col items-center justify-center gap-3 transition-colors h-full cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(168,85,247,0.1)]">
                 <Sparkles className="w-5 h-5" />
               </div>
@@ -427,7 +428,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
             </div>
           </div>
         </div>
-      </GlassCard>
+      </div>
 
       {/* 数字印记 (Digital Footprints) - 0成本动态横滑列表 */}
       <div className="w-full space-y-3">
@@ -486,44 +487,10 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
 
       {/* 系统底层锚点 (System Anchor) - 融合胶囊 */}
       <div className="pt-6 pb-6 w-full flex flex-col items-center justify-center px-2 gap-6">
-        <PhoneAuthBar initialPhone={profile?.phone || ""} className="max-w-none mx-0 w-auto" />
-        
-        {/* 退出账号按钮 */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-[10px] text-white/30 hover:text-white/70 uppercase tracking-widest transition-colors flex items-center gap-1.5"
-          onClick={async () => {
-            await signOut();
-            window.location.href = "/login";
-          }}
-        >
-          <LogOut className="w-3 h-3" />
-          {t('txt_4d90f0')}</Button>
+        <div className="flex flex-row items-center gap-4 w-full justify-center max-w-sm whitespace-nowrap">
+          <PhoneAuthBar initialPhone={profile?.phone || ""} className="max-w-none mx-0 w-auto" />
+        </div>
       </div>
     </div>
   );
 };
-
-// --- 子组件 ---
-
-const StatsCard = ({ label, value, color }: StatsCardProps) => (
-  <div 
-    className={cn(
-      "p-4 group hover:bg-white/5 transition-all relative overflow-hidden",
-      color === "red" ? "hover:shadow-[inset_0_0_20px_rgba(255,45,85,0.1)]" :
-      color === "cyan" ? "hover:shadow-[inset_0_0_20px_rgba(0,240,255,0.1)]" :
-      "hover:shadow-[inset_0_0_20px_rgba(255,215,0,0.1)]"
-    )}
-  >
-    <div className="flex flex-col space-y-1">
-      <p className="text-white/40 text-[10px] md:text-xs uppercase tracking-widest font-mono truncate">{label}</p>
-      <p className={cn(
-        "text-2xl md:text-3xl font-bold tracking-tighter transition-colors duration-500",
-        color === "red" ? "group-hover:text-gx-admin-red" :
-        color === "cyan" ? "group-hover:text-gx-cyan" :
-        "group-hover:text-gx-gold"
-      )}>{value}</p>
-    </div>
-  </div>
-);
