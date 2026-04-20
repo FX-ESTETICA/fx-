@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { useState, useEffect } from "react";
-import { UserCircle } from "lucide-react";
 import { AuthService } from "../api/auth";
 import { useAuth, SandboxUser } from "../hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -142,12 +141,6 @@ export const LoginForm = () => {
     }
   };
 
-
-  const handleGuestLogin = () => {
-    setGuestMode();
-    router.replace("/home");
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -253,20 +246,6 @@ export const LoginForm = () => {
           <span className="relative px-4 text-[10px] text-white/40 font-mono uppercase tracking-widest backdrop-blur-md rounded-full">
             {t("or")}
           </span>
-        </div>
-
-        <div className="space-y-3">
-          <Button 
-            variant="ghost" 
-            glow={false}
-            type="button"
-            className="w-full h-12 space-x-3 text-xs uppercase tracking-widest text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 bg-transparent"
-            onClick={handleGuestLogin}
-            disabled={isLoading}
-          >
-            <UserCircle className="w-4 h-4 text-white/40" />
-            <span>{t("guest")}</span>
-          </Button>
         </div>
       </div>
     </motion.div>
