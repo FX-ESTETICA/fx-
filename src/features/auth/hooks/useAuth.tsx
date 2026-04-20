@@ -210,38 +210,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
 
           const extendedUser = {
-            ...nextSession.user,
-            gxId: actualId,
-            role: actualRole,
-            avatar: actualAvatar,
-            phone: profile.phone,
-            name: actualName,
-            gender: profile.gender || nextSession.user.user_metadata?.gender || "unknown",
-            birthday: profile.birthday || nextSession.user.user_metadata?.birthday || null,
-            bindings: shopBindings,
-            applicationStatus: appStatus
-          } as SandboxUser; 
-          
-          setUser(extendedUser);
-          setActiveRoleState(effectiveRole as UserRole);
-          await syncDeviceSession(nextSession);
+          ...nextSession.user,
+          gxId: actualId,
+          role: actualRole,
+          avatar: actualAvatar,
+          phone: profile.phone,
+          name: actualName,
+          gender: profile.gender || nextSession.user.user_metadata?.gender || "unknown",
+          birthday: profile.birthday || nextSession.user.user_metadata?.birthday || null,
+          bindings: shopBindings,
+          applicationStatus: appStatus
+        } as SandboxUser; 
+        
+        setUser(extendedUser);
+        // 【Local-First 缓存锚点】：物理固化身份到本地，供下次秒开使用
+        localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
+        
+        setActiveRoleState(effectiveRole as UserRole);
+        await syncDeviceSession(nextSession);
         } else {
           // 【终极防爆兜底】：如果底层 profile 触发器失效导致记录为空，从 Metadata 提取降级档案
           const fallbackRole = isBoss ? "boss" : "user";
           const fallbackUser = {
-            ...nextSession.user,
-            gxId: "PENDING",
-            role: fallbackRole,
-            avatar: nextSession.user.user_metadata?.avatar_url,
-            name: nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name,
-            gender: nextSession.user.user_metadata?.gender || "unknown",
-            birthday: nextSession.user.user_metadata?.birthday || null,
-            bindings: [],
-            applicationStatus: 'idle'
-          } as SandboxUser;
-          
-          setUser(fallbackUser);
-          if (isBoss) setActiveRoleState("boss");
+          ...nextSession.user,
+          gxId: "PENDING",
+          role: fallbackRole,
+          avatar: nextSession.user.user_metadata?.avatar_url,
+          name: nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name,
+          gender: nextSession.user.user_metadata?.gender || "unknown",
+          birthday: nextSession.user.user_metadata?.birthday || null,
+          bindings: [],
+          applicationStatus: 'idle'
+        } as SandboxUser;
+        
+        setUser(fallbackUser);
+        localStorage.setItem("gx_cached_user", JSON.stringify(fallbackUser));
+        
+        if (isBoss) setActiveRoleState("boss");
         }
       } catch (error) {
         console.error("[AuthProvider] Hydrate Error:", error);
@@ -251,6 +256,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       setUser(null);
+      localStorage.removeItem("gx_cached_user");
       setIsProfileLoading(false);
     }
   }, [localViewRole, syncDeviceSession]);
@@ -276,6 +282,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsLoading(false);
           return;
         }
+
+        // 【Local-First 秒开引擎】：优先尝试从本地缓存恢复身份并直接放行
+        const cachedUserStr = localStorage.getItem("gx_cached_user");
+        let hasCachedUser = false;
+        if (cachedUserStr) {
+          try {
+            const cachedUser = JSON.parse(cachedUserStr);
+            if (cachedUser && cachedUser.id && cachedUser.gxId) {
+              setUser(cachedUser);
+              hasCachedUser = true;
+              setIsLoading(false); // 瞬间砸碎加载结界，实现秒开！
+            }
+          } catch (e) {
+            console.error("Failed to parse cached user", e);
+          }
+        }
+
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -283,6 +306,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await supabase.auth.signOut(); // 自动清除损坏的 token
           setSession(null);
           setUser(null);
+          localStorage.removeItem("gx_cached_user"); // 清除脏缓存
           setIsLoading(false);
           return;
         }
@@ -291,13 +315,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setHasConfirmedSession(true);
         } else {
           setHasConfirmedSession(false);
+          if (hasCachedUser) {
+            // 如果底层没登录，但上面放行了幽灵，现在必须拉回来
+            setUser(null);
+            localStorage.removeItem("gx_cached_user");
+          }
         }
+        
+        // 无论如何，在后台静默同步真实数据 (SWR 机制)
         await hydrateSession(initialSession);
       } catch (error) {
         console.error("[AuthProvider] Init Error:", error);
       } finally {
-        // 【世界顶端单轨锁定】：不论成功与否，必须等上方的 hydrateSession (包括所有网络请求) 彻底 await 完成后，
-        // 才允许解开 isLoading 的锁。绝不漏出半成品的 UI！
+        // 兜底解锁
         setIsLoading(false);
       }
     };
@@ -440,6 +470,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } as SandboxUser;
         
         setUser(extendedUser);
+        localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
         setActiveRoleState(effectiveRole as UserRole);
       } else {
         // 【终极防爆兜底：refreshUserData 同样支持 Metadata 降级提取】
@@ -456,6 +487,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           applicationStatus: 'idle'
         } as SandboxUser;
         setUser(fallbackUser);
+        localStorage.setItem("gx_cached_user", JSON.stringify(fallbackUser));
       }
     } catch (error) {
       console.error("[AuthProvider] Refresh User Data Error:", error);
@@ -590,6 +622,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 彻底清除所有历史遗留的沙盒缓存
     localStorage.removeItem("gx_sandbox_session");
     localStorage.removeItem("gx_active_shop_id"); // 强制销毁店铺缓存
+    localStorage.removeItem("gx_cached_user"); // 清理幽灵缓存
     
     if (isMockMode) {
       setUser(null);

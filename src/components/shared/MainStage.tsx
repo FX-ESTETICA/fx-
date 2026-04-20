@@ -110,10 +110,11 @@ export const MainStage = () => {
 
   if (!mounted) return null;
 
-  // 1. 绝对拟真骨架屏障 (Skeleton Shell Barrier)
-  // 告别弱网下的黑屏或透明真空感，直接提供世界级的无缝“赛博占位符”。数据下发瞬间完美拼接，0布局抖动。
-  // 世界顶端防漏防线：如果 isLoading 是 false，但是 user 存在且未被完全组装（缺少 gxId），继续强锁！
-  const isHydrating = isLoading || (user && !('gxId' in user));
+  // 1. 本地优先 (Local-First) 架构重构：彻底砸碎 Hydration 渲染结界
+  // 废弃原有的严格组装检查 (user && !('gxId' in user))，只要不是底层的极度加载中，直接放行！
+  // 哪怕 user 还没从云端同步完 gxId，也允许先用缓存的 user 或空状态进场，实现真正的 0 延迟秒开。
+  // 后台的 refreshUserData 会像幽灵一样在网络恢复后自动替换状态。
+  const isHydrating = isLoading;
 
   if (isHydrating) {
     return (
@@ -128,7 +129,7 @@ export const MainStage = () => {
         
         {/* 底导栏物理轮廓呼吸灯锚定 (防止页面初载时下方太空) */}
         <div className="w-full h-[84px] border-t border-white/5 bg-black/40 backdrop-blur-md flex justify-around items-center px-6 pb-safe z-50">
-          {[1,2,3,4,5].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />)}
+          {[1,2,3,4].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />)}
         </div>
       </div>
     );
