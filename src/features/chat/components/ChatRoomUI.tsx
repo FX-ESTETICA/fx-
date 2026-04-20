@@ -69,16 +69,16 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   };
   // ---------------------------------------------------------
 
-  // 构建 100% 成功率的 WhatsApp 原生拉起协议
+  // 构建 100% 多端兼容的 WhatsApp URL 协议 (解决锁死唤醒的 404 和死机问题)
   const getWhatsAppLockedUrl = () => {
     const phone = receiverId?.replace('wa_', '');
     if (!phone) return '#';
     
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
-    const inviteUrl = `${domain}/chat/wa_${phone}?shopId=${currentUserId}`;
+    const inviteUrl = `${domain}/chat?target=wa_${phone}&shopId=${currentUserId}`;
     const rawMessage = `✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`;
     
-    return `whatsapp://send?phone=${phone}&text=${encodeURIComponent(rawMessage)}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(rawMessage)}`;
   };
 
   // 自动滚动到最新消息
@@ -264,6 +264,8 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
             {isLocked && isWhatsApp && (
               <a 
                 href={getWhatsAppLockedUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="absolute inset-0 z-10 rounded-2xl"
                 title="点击拉起 WhatsApp 唤醒客户"
               />

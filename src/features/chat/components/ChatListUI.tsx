@@ -25,12 +25,13 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const { recentChats, isLoading } = useRecentChats(currentUserId);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 构建 100% 成功率的原生 WhatsApp URL 协议
+  // 构建 100% 多端兼容的 WhatsApp URL 协议 (解决套壳App/PC无反应，解决 404 路由丢失)
   const getWhatsAppNativeUrl = (phone: string) => {
     if (!phone) return '#';
     const finalPhone = phone.replace(/[^\d+]/g, '').replace('+', '');
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
-    const inviteUrl = `${domain}/chat/wa_${finalPhone}?shopId=${currentUserId}`;
+    // 核心修正 1：解决 404 路由丢失问题。从 /chat/wa_xxx 改为 /chat?target=wa_xxx
+    const inviteUrl = `${domain}/chat?target=wa_${finalPhone}&shopId=${currentUserId}`;
     
     const message = `✨ 欢迎连接 GX 专属全息客服！
 
@@ -40,7 +41,9 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 👉 点击进入专属服务舱:
 ${inviteUrl}`;
 
-    return `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
+    // 核心修正 2：彻底放弃底层 `whatsapp://` 协议，回归官方最强中转站 `wa.me`
+    // 这是解决“套壳 APP WebView 拦截”和“PC 端无桌面软件点击没反应”的唯一真理。
+    return `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -170,9 +173,11 @@ ${inviteUrl}`;
               <span className="text-gray-300 font-mono text-sm mb-1">{searchQuery}</span>
               <span className="text-xs text-gray-500 mb-4 text-center">未检测到内部信号<br/>是否通过 WhatsApp 发起强制连接？</span>
               
-              {/* 核心修正：绝对不用 onClick/window.open，必须用原生 <a> 标签击穿拦截 */}
+              {/* 核心修正 3：由于改用了 HTTPS 链接，必须加上 target="_blank" 才能正确跳出，否则会在 WebView 内部直接发生重定向导致体验割裂 */}
               <a 
                 href={getWhatsAppNativeUrl(searchQuery)}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase hover:bg-[#25D366]/20 transition-colors cursor-pointer z-10"
               >
                 拉起原生 WhatsApp (免费)
