@@ -260,15 +260,27 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                   : 'bg-black/40 text-white placeholder:text-white/30'
                 }
               `}
-              onClick={() => {
+              onClick={async () => {
                 if (isLocked && isWhatsApp) {
                    const phone = receiverId?.replace('wa_', '');
                    if (phone) {
                      // 锁死唤醒时，也带上引流话术
                      const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
                      const inviteUrl = `${domain}/chat/wa_${phone}`;
-                     const message = encodeURIComponent(`✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`);
-                     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+                     const rawMessage = `✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`;
+                     
+                     // 物理防呆双保险：静默将话术写入剪贴板
+                     try {
+                       if (navigator.clipboard && window.isSecureContext) {
+                         await navigator.clipboard.writeText(rawMessage);
+                       }
+                     } catch (err) {
+                       console.warn("剪贴板写入失败", err);
+                     }
+
+                     const encodedMessage = encodeURIComponent(rawMessage);
+                     // 采用更稳健的 api.whatsapp.com 协议
+                     window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`, '_blank');
                    }
                 }
               }}

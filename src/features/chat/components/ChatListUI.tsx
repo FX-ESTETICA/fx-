@@ -26,7 +26,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const [searchQuery, setSearchQuery] = useState('');
 
   // 处理拉起原生 WhatsApp (带引流话术与洗流魔法)
-  const handleOpenWhatsApp = (phone: string) => {
+  const handleOpenWhatsApp = async (phone: string) => {
     // 1. 清洗号码，只保留数字和 +
     const cleanPhone = phone.replace(/[^\d+]/g, '');
     const finalPhone = cleanPhone.replace('+', '');
@@ -43,11 +43,20 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 👉 点击进入专属服务舱:
 ${inviteUrl}`;
 
-    // 3. 对话术进行 URL 编码
+    // 3. 物理防呆双保险：静默将话术写入剪贴板（防部分 iOS/PC 丢弃 URL 参数）
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(message);
+      }
+    } catch (err) {
+      console.warn("剪贴板写入失败，降级依赖 URL 路由", err);
+    }
+
+    // 4. 对话术进行 URL 编码
     const encodedMessage = encodeURIComponent(message);
     
-    // 4. 拉起原生 WhatsApp，并自动填入输入框
-    window.open(`https://wa.me/${finalPhone}?text=${encodedMessage}`, '_blank');
+    // 5. 采用更稳健的底层协议拉起原生 WhatsApp，并尝试自动填入输入框
+    window.open(`https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodedMessage}`, '_blank');
   };
 
   return (
