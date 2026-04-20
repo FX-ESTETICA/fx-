@@ -3,7 +3,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import ChatListUI from '@/features/chat/components/ChatListUI';
 import ChatRoomUI from '@/features/chat/components/ChatRoomUI';
-import { NebulaBackground } from '@/components/shared/NebulaBackground';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useChatStore } from '@/store/useChatStore';
 import { useTranslations } from "next-intl";
@@ -58,12 +57,8 @@ export default function ChatListPage() {
 
   return (
     // 修复高度塌陷：必须使用强制视口高度 h-[100dvh] 而不是 min-h-[100dvh]
-    <main className="relative w-full h-[100dvh] bg-black overflow-hidden">
-      {/* 模拟宇宙深空背景（底层常量） */}
-      <div className="absolute inset-0 z-0">
-         {/* 使用 NebulaBackground 产生星空流光效果 */}
-         <NebulaBackground />
-      </div>
+    // 终极修复：移除私有 bg-black，让全局 layout.tsx 中的 NebulaBackground 完美透射上来，彻底消灭“双重宇宙”导致的 WebGL 闪烁灾难。
+    <main className="relative w-full h-[100dvh] bg-transparent overflow-hidden">
       
       {/* 挂载极致清透的聊天枢纽（支持手机端单屏切换，平板/PC端分屏并列） */}
       <div className="relative z-10 w-full h-full overflow-hidden flex">

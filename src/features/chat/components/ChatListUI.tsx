@@ -1,19 +1,141 @@
-import { Search, ScanLine, Plus, CheckCheck, MessageCircle } from 'lucide-react';
+import { Search, ScanLine, Plus, CheckCheck, MessageCircle, Database, Signal, SearchX } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useTranslations } from "next-intl";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useChatStore } from '@/store/useChatStore';
+import { supabase } from '@/lib/supabase';
 
 export interface ChatListUIProps {
   currentUserId: string;
   onChatSelect: (chat: { id: string; name: string; isGroup: boolean; isCityChannel?: boolean }) => void;
 }
 
+// ------------------------------------------------------------------------
+// 多轨雷达搜索结果类型定义
+// ------------------------------------------------------------------------
+type SearchTrack = 'profiles' | 'bookings' | 'none';
+
+interface SearchResult {
+  track: SearchTrack;
+  id: string; // profile id 或 booking phone
+  name: string;
+  avatar: string;
+  gx_id: string;
+  phone: string;
+}
+
 export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIProps) {
   const t = useTranslations('ChatListUI');
   const { activeChat } = useChatStore();
   const { recentChats, isLoading } = useRecentChats(currentUserId, activeChat?.id);
+  
+  // 搜索状态机
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // =========================================================================
+  // 【世界级多轨探测雷达 (Multi-Track Radar)】
+  // =========================================================================
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const rawQuery = searchQuery.trim();
+        // 1. 去噪处理：剥离符号，用于打数据库
+        const cleanQuery = rawQuery.replace(/[^\w\d\u4e00-\u9fa5]/g, ''); 
+        
+        const results: SearchResult[] = [];
+
+        // 轨道一：【内网高维扫描】(查 profiles)
+        // 匹配规则：名字模糊匹配 OR ID包含 OR 手机号包含
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url, gx_id, phone')
+          .or(`name.ilike.%${cleanQuery}%,gx_id.ilike.%${cleanQuery}%,phone.ilike.%${cleanQuery}%`)
+          .limit(5);
+
+        if (profileData && profileData.length > 0) {
+          profileData.forEach(p => {
+            results.push({
+              track: 'profiles',
+              id: p.id,
+              name: p.name || '神秘信号',
+              avatar: p.avatar_url || '',
+              gx_id: p.gx_id || 'UNKNOWN',
+              phone: p.phone || ''
+            });
+          });
+        }
+
+        // 轨道二：【线下中维扫描】(查 bookings 历史订单)
+        // 只有当查询词看起来像电话号码或名字时，才去历史订单里挖人
+        if (cleanQuery.length >= 3 && results.length < 5) {
+          const shopId = new URLSearchParams(window.location.search).get('shopId') || 'default';
+          const { data: bookingData } = await supabase
+            .from('bookings')
+            .select('data')
+            .eq('shop_id', shopId)
+            .neq('status', 'VOID')
+            .or(`data->>customerName.ilike.%${cleanQuery}%,data->>customerPhone.ilike.%${cleanQuery}%`)
+            .order('created_at', { ascending: false })
+            .limit(10); // 多查几个用来去重
+
+          if (bookingData && bookingData.length > 0) {
+            const historyMap = new Map<string, any>();
+            bookingData.forEach((b: any) => {
+              const rawName = b.data?.customerName || "";
+              const rawPhone = b.data?.customerPhone || "";
+              const actualPhone = rawPhone || rawName;
+              const actualName = rawName === actualPhone ? "" : rawName;
+              
+              // 排除掉已经在第一轨找到的人 (基于手机号或名字)
+              const alreadyFound = results.some(r => r.phone === actualPhone || r.name === actualName);
+              
+              if (actualPhone && !alreadyFound && !historyMap.has(actualPhone)) {
+                historyMap.set(actualPhone, {
+                  name: actualName,
+                  gx_id: b.data?.customerId || 'CO 散客',
+                  phone: actualPhone
+                });
+              }
+            });
+
+            Array.from(historyMap.values()).slice(0, 5 - results.length).forEach(h => {
+              results.push({
+                track: 'bookings',
+                id: `guest_${h.phone}`, // 虚拟 ID，点击时会在 useRecentChats 里拦截生成幻影
+                name: h.name || h.phone,
+                avatar: '',
+                gx_id: h.gx_id,
+                phone: h.phone
+              });
+            });
+          }
+        }
+
+        setSearchResults(results);
+      } catch (err) {
+        console.error("Radar Scan Error:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500); // 500ms 物理级防抖
+
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [searchQuery]);
 
   // 动态构建横向星轨 (Star Track)
   const starTrackContacts = useMemo(() => {
@@ -69,7 +191,7 @@ ${inviteUrl}`;
 
   return (
     // 最外层容器，这里假设父级页面会有一个宇宙/星空大背景，所以这里绝对透明
-    <div className="w-full h-full min-h-[100dvh] bg-transparent flex flex-col pt-safe-top">
+    <div className="w-full h-full bg-transparent flex flex-col pt-safe-top">
       
       {/* 1. 顶部：全息搜索舱 (The Omni-Scanner) */}
       <div className="px-5 py-4 shrink-0 relative z-20">
@@ -85,7 +207,7 @@ ${inviteUrl}`;
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('txt_8a6e8e')}
-              className="flex-1 bg-transparent border-none text-white placeholder:text-white/30 focus:ring-0 text-[15px]"
+              className="flex-1 bg-transparent border-none outline-none focus:outline-none text-white placeholder:text-white/30 focus:ring-0 text-[15px]"
             />
             {/* 扫码与添加快捷指令 (同样去除分割线，保持极致清透) */}
             <div className="flex items-center space-x-3 pl-3">
@@ -186,34 +308,121 @@ ${inviteUrl}`;
       <div className="flex-1 overflow-y-auto px-5 pt-2 pb-20 space-y-4 z-20">
         {searchQuery ? (
           /* 搜索结果面板 (探测与降维打击) */
-          <div className="flex flex-col items-center justify-center pt-10">
-            {/* 模拟探测未注册用户：弹出冷峻灰色卡片 */}
-            <div 
-              className="relative w-full max-w-[320px] bg-gray-900/40 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-gray-800/60 transition-colors group"
-            >
-              {/* WhatsApp 绿色光晕 */}
-              <div className="absolute inset-0 rounded-2xl shadow-[0_0_15px_rgba(37,211,102,0)] group-hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] transition-all pointer-events-none" />
-              
-              <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center mb-3 relative">
-                <span className="text-gray-400 text-sm">?</span>
-                <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5">
-                  <MessageCircle className="w-4 h-4 text-[#25D366] drop-shadow-[0_0_3px_rgba(37,211,102,0.8)]" />
+          <div className="flex flex-col space-y-4 pt-4">
+            
+            {/* 加载状态 */}
+            {isSearching && (
+              <div className="flex justify-center items-center py-10">
+                <div className="w-16 h-16 rounded-full border border-cyan-500/20 flex items-center justify-center relative animate-pulse">
+                  <div className="absolute inset-0 rounded-full border-t border-cyan-400 animate-spin opacity-80" />
+                  <Signal className="w-5 h-5 text-cyan-500/50" />
                 </div>
               </div>
-              
-              <span className="text-gray-300 font-mono text-sm mb-1">{searchQuery}</span>
-              <span className="text-xs text-gray-500 mb-4 text-center">未检测到内部信号<br/>是否通过 WhatsApp 发起强制连接？</span>
-              
-              {/* 核心修正 3：由于改用了 HTTPS 链接，必须加上 target="_blank" 才能正确跳出，否则会在 WebView 内部直接发生重定向导致体验割裂 */}
-              <a 
-                href={getWhatsAppNativeUrl(searchQuery)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase hover:bg-[#25D366]/20 transition-colors cursor-pointer z-10"
+            )}
+
+            {/* 扫描结果列表 */}
+            {!isSearching && searchResults.map((res) => (
+              <div
+                key={res.id}
+                onClick={() => {
+                  onChatSelect({
+                    id: res.id,
+                    name: res.name,
+                    isGroup: false,
+                  });
+                  setSearchQuery(''); // 选中后清空搜索
+                }}
+                className="relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 border border-white/10 hover:bg-white/5 group"
               >
-                拉起原生 WhatsApp (免费)
-              </a>
-            </div>
+                {/* 内部用户发光效果 */}
+                {res.track === 'profiles' && (
+                  <div className="absolute inset-0 rounded-3xl pointer-events-none p-[1px] overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                     <div 
+                       className="w-full h-full"
+                       style={{
+                         background: 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)',
+                         backgroundSize: '200% 100%',
+                         animation: 'shimmer 3s linear infinite',
+                         WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                         WebkitMaskComposite: 'xor',
+                         maskComposite: 'exclude',
+                       }}
+                     />
+                  </div>
+                )}
+
+                <div className="relative shrink-0 mr-4">
+                  {res.avatar ? (
+                    <img src={res.avatar} alt={res.name} className="w-14 h-14 rounded-full object-cover border border-white/20" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center border border-white/20 bg-gradient-to-br from-gray-800 to-gray-900 text-white font-bold text-xl">
+                      {res.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {/* 身份角标 */}
+                  <div className="absolute -bottom-1 -right-1 bg-black border border-gray-700 rounded-full p-1 shadow-lg">
+                    {res.track === 'profiles' ? (
+                      <Database className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                    ) : (
+                      <SearchX className="w-3 h-3 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="truncate text-lg font-medium tracking-wide text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
+                      {res.name}
+                    </span>
+                    <span className="shrink-0 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/50">
+                      {res.track === 'profiles' ? '内网档案' : '历史客源'}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[12px] font-mono text-cyan-400 tracking-widest">{res.gx_id}</span>
+                    {res.phone && (
+                      <span className="text-[12px] font-mono text-gray-500 tracking-widest">
+                        {res.phone.substring(0, 3)}•••{res.phone.substring(res.phone.length - 4)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* 外部兜底：WhatsApp 降维打击卡片 */}
+            {!isSearching && (
+              <div className="flex flex-col items-center justify-center pt-6 pb-10">
+                <div className="relative w-full max-w-[320px] bg-gray-900/40 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-gray-800/60 transition-colors group">
+                  <div className="absolute inset-0 rounded-2xl shadow-[0_0_15px_rgba(37,211,102,0)] group-hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] transition-all pointer-events-none" />
+                  
+                  <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center mb-3 relative">
+                    <span className="text-gray-400 text-sm">?</span>
+                    <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5">
+                      <MessageCircle className="w-4 h-4 text-[#25D366] drop-shadow-[0_0_3px_rgba(37,211,102,0.8)]" />
+                    </div>
+                  </div>
+                  
+                  <span className="text-gray-300 font-mono text-sm mb-1">{searchQuery}</span>
+                  <span className="text-xs text-gray-500 mb-4 text-center">
+                    {searchResults.length > 0 
+                      ? "没找到你想找的人？\n试试通过 WhatsApp 发起强制连接"
+                      : "未检测到内部信号\n是否通过 WhatsApp 发起强制连接？"
+                    }
+                  </span>
+                  
+                  <a 
+                    href={getWhatsAppNativeUrl(searchQuery)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase hover:bg-[#25D366]/20 transition-colors cursor-pointer z-10"
+                  >
+                    拉起原生 WhatsApp (免费)
+                  </a>
+                </div>
+              </div>
+            )}
+
           </div>
         ) : (
           /* 正常历史聊天记录 */
@@ -232,9 +441,9 @@ ${inviteUrl}`;
                   isGroup: chat.isGroup,
                 })}
                 className={`
-                  relative flex items-center p-4 rounded-3xl cursor-pointer transition-all duration-300
+                  relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300
                   ${chat.unread 
-                    ? 'shadow-[0_0_20px_rgba(188,19,254,0.15)]' // 未读：底部光晕
+                    ? 'shadow-[0_0_20px_rgba(188,19,254,0.15)] border border-transparent' // 未读：底部光晕 + 透明占位边框(防止高度塌陷)
                     : 'border border-white/10' // 已读：极度安静的冷线框
                   }
                   bg-transparent /* 绝对禁用背景色 */

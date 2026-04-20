@@ -12,6 +12,7 @@ import { supabase, isMockMode } from "@/lib/supabase";
 import Image from "next/image";
 import { cn } from "@/utils/cn";
 import { useTranslations } from "next-intl";
+import { safeCopyToClipboard } from "@/utils/clipboard";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -70,7 +71,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(profile.name || "");
 
-  const handleCopyName = () => {
+  const handleCopyName = async () => {
     if (isEditingName) return;
     if (!profile.name) return;
     
@@ -82,16 +83,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
       }, 3000); // 延长到3秒，给用户充足时间点击改名
     };
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(profile.name)
-        .then(proceedWithUI)
-        .catch((err) => {
-          console.warn("Clipboard write failed:", err);
-          proceedWithUI(); // 即使复制失败，也继续展开 UI，让用户能点到“改名”
-        });
-    } else {
-      proceedWithUI(); // 降级处理
-    }
+    // 物理级降维防崩溃复制
+    await safeCopyToClipboard(profile.name);
+    proceedWithUI(); // 无论底层是用的哪种方案，都执行 UI 反馈
   };
 
   const handleEnterEditName = (e: React.MouseEvent) => {
@@ -127,16 +121,17 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
   // 复制 ID 状态机
   const [copyState, setCopyState] = useState<"idle" | "hover" | "copied">("idle");
-  const handleCopyId = () => {
+  const handleCopyId = async () => {
     const rawId = profileGxId || profile.id;
     if (rawId === "GX-GUEST-0000") return;
     
-    navigator.clipboard.writeText(rawId).then(() => {
-      setCopyState("copied");
-      setTimeout(() => {
-        setCopyState("idle");
-      }, 2000);
-    });
+    // 使用物理级降维防崩溃复制
+    await safeCopyToClipboard(rawId);
+    
+    setCopyState("copied");
+    setTimeout(() => {
+      setCopyState("idle");
+    }, 2000);
   };
 
   // 根据注册时间计算普通用户等级

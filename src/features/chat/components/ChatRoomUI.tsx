@@ -2,8 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Blurhash } from 'react-blurhash';
-import { ArrowLeft, X, MoreHorizontal, Image as ImageIcon, SendHorizontal, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { ArrowLeft, X, MoreHorizontal, Camera, SendHorizontal, Loader2, Sparkles, Mic, Keyboard, CornerUpLeft, Languages } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { useTranslations } from "next-intl";
 import { supabase } from '@/lib/supabase';
 
@@ -22,93 +25,60 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const isGroupChat = !!roomId;
 
   // ---------------- 真实身份反查逻辑 ----------------
   const [trueRoomName, setTrueRoomName] = useState(roomName);
   const [trueAvatar, setTrueAvatar] = useState<string | null>(null);
 
   useEffect(() => {
-    // 如果是单聊且有 receiverId，去查对方的真实档案
+    // 如果是单聊且有 receiverId，去查对方的真实档案 (加入 UUID 防御)
     if (receiverId && !roomId) {
-      const fetchProfile = async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('name, avatar_url')
-          .eq('id', receiverId)
-          .maybeSingle();
-        if (data) {
-          if (data.name) setTrueRoomName(data.name);
-          if (data.avatar_url) setTrueAvatar(data.avatar_url);
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      
+      if (UUID_REGEX.test(receiverId)) {
+        const fetchProfile = async () => {
+          const { data } = await supabase
+            .from('profiles')
+            .select('name, avatar_url')
+            .eq('id', receiverId)
+            .maybeSingle();
+          if (data) {
+            if (data.name) setTrueRoomName(data.name);
+            if (data.avatar_url) setTrueAvatar(data.avatar_url);
+          }
+        };
+        fetchProfile();
+      } else {
+        // 拦截 wa_ 或 guest_ 非法查询
+        if (receiverId.startsWith('wa_')) {
+          setTrueRoomName(`WA客户 ${receiverId.replace('wa_', '').substring(0, 4)}`);
+          setTrueAvatar(null);
+        } else if (receiverId.startsWith('guest_')) {
+          setTrueRoomName(`访客 ${receiverId.replace('guest_', '').substring(0, 4)}`);
+          setTrueAvatar(null);
+        } else {
+          setTrueRoomName(roomName);
         }
-      };
-      fetchProfile();
+      }
     } else {
       setTrueRoomName(roomName);
     }
   }, [receiverId, roomId, roomName]);
 
-  // ---------------- WhatsApp 24小时结界逻辑 ----------------
+  // ---------------- 身份判断 ----------------
   const isWhatsApp = receiverId?.startsWith('wa_') || roomName.includes('WHATSAPP');
-  const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [isLocked, setIsLocked] = useState(false);
-
-  useEffect(() => {
-    if (!isWhatsApp) return;
-
-    // 计算倒计时 (假设最后一条客户消息决定倒计时)
-    // 这里简单模拟：找到最后一条由对方发送的消息时间
-    const lastCustomerMsg = [...messages].reverse().find(m => m.sender_id !== currentUserId);
-    
-    let targetTime = Date.now();
-    if (lastCustomerMsg) {
-      // 真实逻辑：最后一条客户消息时间 + 24小时
-      targetTime = new Date(lastCustomerMsg.created_at).getTime() + 24 * 60 * 60 * 1000;
-    } else {
-      // 如果没有客户消息（比如我们刚点进去），这里为了演示给一个虚拟时间：当前时间 + 23小时59分
-      targetTime = Date.now() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000;
-    }
-
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const diff = targetTime - now;
-      if (diff <= 0) {
-        setTimeLeft(0);
-        setIsLocked(true);
-        clearInterval(timer);
-      } else {
-        setTimeLeft(diff);
-        setIsLocked(false);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [messages, isWhatsApp, currentUserId]);
-
-  // 格式化倒计时
-  const formatTime = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-  // ---------------------------------------------------------
-
-  // 构建 100% 多端兼容的 WhatsApp URL 协议 (解决锁死唤醒的 404 和死机问题)
-  const getWhatsAppLockedUrl = () => {
-    const phone = receiverId?.replace('wa_', '');
-    if (!phone) return '#';
-    
-    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
-    const inviteUrl = `${domain}/chat?target=wa_${phone}&shopId=${currentUserId}`;
-    const rawMessage = `✨ 我们的通讯可能已断开。\n为确保您的预约顺利进行，请点击下方链接进入我们的全息客服系统继续沟通：\n\n👉 ${inviteUrl}`;
-    
-    return `https://wa.me/${phone}?text=${encodeURIComponent(rawMessage)}`;
-  };
 
   // 自动滚动到最新消息
   const scrollToBottom = (isInitial = false) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: isInitial ? 'auto' : 'smooth'
+      });
+    }
   };
 
   const isInitialMount = useRef(true);
@@ -116,6 +86,142 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
     scrollToBottom(isInitialMount.current);
     isInitialMount.current = false;
   }, [messages]);
+
+  // ---------------- 终极语音状态机 (Voice State Machine) ----------------
+  const [inputMode, setInputMode] = useState<'text' | 'voice'>('text');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordStatus, setRecordStatus] = useState<'recording' | 'canceling' | 'converting'>('recording');
+  const [recordDuration, setRecordDuration] = useState(0);
+  
+  // 原生录音桥接状态 (真实录音引擎)
+  const { startRecording: startAudioRecord, stopRecording: stopAudioRecord, cancelRecording: cancelAudioRecord } = useAudioRecorder();
+  
+  // 本地降维翻译引擎 (Web Speech API)
+  const { isSupported: isSpeechSupported, transcript, interimTranscript, startListening, stopListening, abortListening } = useSpeechRecognition();
+
+  const recordTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // 核心防御结界与全屏扇形雷达结算 (WeChat Style - 局部容器坐标系)
+  const handleTouchMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isRecording) {
+      if (e.cancelable) e.preventDefault();
+      
+      if (!containerRef.current) return;
+      
+      const currentX = e.clientX;
+      const currentY = e.clientY;
+      
+      // 获取当前聊天窗口容器的物理坐标和尺寸
+      const rect = containerRef.current.getBoundingClientRect();
+      
+      // 计算手指在聊天容器内的相对位置
+      const relativeX = currentX - rect.left;
+      const relativeY = currentY - rect.top;
+      
+      const containerWidth = rect.width;
+      const containerHeight = rect.height;
+      
+      // 以聊天容器的绝对中心线为界
+      const isLeftSide = relativeX < containerWidth / 2;
+      
+      // 计算手指距离容器底部的高度
+      const distFromBottom = containerHeight - relativeY;
+      
+      // 触发结界的垂直高度阈值 (向上滑超过 100px 进入结算区)
+      const VERTICAL_THRESHOLD = 100;
+
+      if (distFromBottom > VERTICAL_THRESHOLD) {
+        if (isLeftSide) {
+          // 手指在容器左半边，且滑过高度阈值 -> 触发取消 (红色区域)
+          setRecordStatus('canceling');
+        } else {
+          // 手指在容器右半边，且滑过高度阈值 -> 触发转文字 (紫色区域)
+          setRecordStatus('converting');
+        }
+      } else {
+        // 在高度阈值以下的安全区内 -> 正常录音 (青色区域)
+        setRecordStatus('recording');
+      }
+    }
+  };
+
+  const handleStartRecord = async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.cancelable) e.preventDefault();
+    
+    if (buttonRef.current) {
+      buttonRef.current.setPointerCapture(e.pointerId);
+    }
+
+    touchStartPos.current = { x: e.clientX, y: e.clientY };
+    setIsRecording(true);
+    setRecordStatus('recording');
+    setRecordDuration(0);
+    
+    // 【双轨引擎启动】
+    // 轨道 A：启动本地语音转文字监听 (作为降维打击)
+    if (isSpeechSupported) {
+      startListening();
+    }
+    
+    // 轨道 B：启动真实的底层音频录制
+    await startAudioRecord();
+
+    recordTimerRef.current = setInterval(() => {
+      setRecordDuration(prev => prev + 1);
+    }, 1000);
+  };
+
+  const handleStopRecord = async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.cancelable) e.preventDefault();
+    
+    if (buttonRef.current && buttonRef.current.hasPointerCapture(e.pointerId)) {
+      buttonRef.current.releasePointerCapture(e.pointerId);
+    }
+
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    
+    if (isRecording) {
+      if (recordStatus === 'canceling') {
+        console.log("【动作结算】录音/识别已取消");
+        if (isSpeechSupported) abortListening(); 
+        cancelAudioRecord(); // 丢弃音频文件
+      } else if (recordStatus === 'converting') {
+        console.log("【动作结算】转文字处理");
+        cancelAudioRecord(); // 用户选择了转文字，就不需要保存音频文件了，直接废弃音频流
+        
+        if (isSpeechSupported) {
+          stopListening();
+          const finalText = (transcript + ' ' + interimTranscript).trim();
+          if (finalText) {
+            setTextInput(finalText);
+            setInputMode('text');
+          } else {
+            setInputMode('text');
+          }
+        }
+      } else {
+        console.log("【动作结算】发送真实录音，时长：", recordDuration);
+        
+        if (isSpeechSupported) stopListening();
+        
+        // 获取真实的音频 Blob
+        const audioBlob = await stopAudioRecord();
+        
+        if (audioBlob && recordDuration > 0) {
+          // 调用 sendMessage 上传音频
+          sendMessage(undefined, undefined, audioBlob, recordDuration);
+        }
+        
+        setInputMode('text'); 
+      }
+    }
+    
+    setIsRecording(false);
+    setRecordStatus('recording');
+  };
 
   const handleSend = async () => {
     if (!inputText.trim() && !selectedFile) return;
@@ -128,7 +234,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
   return (
     // 绝对透明容器，让底层星云透射上来
-    <div className="w-full h-full min-h-[100dvh] bg-transparent flex flex-col pt-safe-top">
+    <div ref={containerRef} className="w-full h-full bg-transparent flex flex-col pt-safe-top relative overflow-hidden">
       
       {/* 1. 顶部：导航与雷达仪 */}
       <div className="px-4 py-3 shrink-0 flex items-center justify-between z-20 border-b border-white/10 backdrop-blur-md bg-black/20">
@@ -161,8 +267,66 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         </button>
       </div>
 
+      {/* 【全屏录音结界 / 扇形雷达渲染区】 */}
+      {isRecording && (
+        <div className="absolute inset-0 z-[100] pointer-events-none flex flex-col justify-end pb-[120px] rounded-r-3xl overflow-hidden">
+          {/* 结界背景遮罩 (带微弱渐变) */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
+
+          {/* 雷达指示区 */}
+          <div className="relative w-full h-[300px] flex items-end justify-center px-8">
+            
+            {/* 左侧：取消结界 (红色) */}
+            <div className={`absolute left-0 bottom-0 w-1/2 h-full flex items-end justify-center pb-12 transition-all duration-300
+              ${recordStatus === 'canceling' ? 'scale-110' : 'scale-100 opacity-60'}
+            `}>
+              <div className={`flex flex-col items-center justify-center w-24 h-24 rounded-full transition-all
+                ${recordStatus === 'canceling' ? 'bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : 'bg-white/10 backdrop-blur-md'}
+              `}>
+                <CornerUpLeft className={`w-8 h-8 mb-1 ${recordStatus === 'canceling' ? 'text-white' : 'text-red-400'}`} />
+                <span className={`text-[10px] font-bold tracking-widest ${recordStatus === 'canceling' ? 'text-white' : 'text-red-400'}`}>
+                  取消
+                </span>
+              </div>
+            </div>
+
+            {/* 右侧：转文字结界 (紫色) */}
+            <div className={`absolute right-0 bottom-0 w-1/2 h-full flex items-end justify-center pb-12 transition-all duration-300
+              ${recordStatus === 'converting' ? 'scale-110' : 'scale-100 opacity-60'}
+            `}>
+              <div className={`flex flex-col items-center justify-center w-24 h-24 rounded-full transition-all
+                ${recordStatus === 'converting' ? 'bg-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.6)]' : 'bg-white/10 backdrop-blur-md'}
+              `}>
+                <Languages className={`w-8 h-8 mb-1 ${recordStatus === 'converting' ? 'text-white' : 'text-purple-400'}`} />
+                <span className={`text-[10px] font-bold tracking-widest ${recordStatus === 'converting' ? 'text-white' : 'text-purple-400'}`}>
+                  转文字
+                </span>
+              </div>
+            </div>
+
+            {/* 中心：雷达主波形 (仅在正常录音时显示) */}
+            <div className={`absolute bottom-0 w-full flex flex-col items-center justify-end pb-8 transition-all duration-300
+              ${recordStatus === 'recording' ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}
+            `}>
+              {/* 这里可以放一个更炫酷的大波形，目前先用文字和简易波形替代 */}
+              <div className="flex items-center gap-1 mb-4">
+                <div className="w-1.5 h-6 bg-cyan-400 rounded-full animate-pulse" />
+                <div className="w-1.5 h-10 bg-cyan-400 rounded-full animate-pulse delay-75" />
+                <div className="w-1.5 h-14 bg-cyan-400 rounded-full animate-pulse delay-150" />
+                <div className="w-1.5 h-8 bg-cyan-400 rounded-full animate-pulse delay-300" />
+                <div className="w-1.5 h-4 bg-cyan-400 rounded-full animate-pulse delay-[450ms]" />
+              </div>
+              <span className="text-cyan-400 font-bold tracking-widest text-lg drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+                上滑 取消/转文字
+              </span>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* 2. 战场核心：全息字幕气泡区 */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 z-10 no-scrollbar">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6 z-10 no-scrollbar">
 
 
         {messages.map((msg) => {
@@ -189,6 +353,11 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                   `}>
                     {msg.content}
                   </p>
+                )}
+
+                {/* 语音渲染 */}
+                {msg.audio_url && (
+                  <VoiceMessagePlayer audioUrl={msg.audio_url} duration={msg.audio_duration || 0} />
                 )}
 
                 {/* 图片渲染 (Blurhash 预加载与极速降解标签) */}
@@ -239,25 +408,6 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
       {/* 3. 底部：量子指令台 (Quantum Input Bar) */}
       <div className="px-4 pb-safe-bottom pt-2 shrink-0 z-20 bg-gradient-to-t from-black via-black/80 to-transparent">
-        
-        {/* WhatsApp 能量条结界 (24小时计时器) */}
-        {isWhatsApp && (
-          <div className="w-full flex flex-col items-center mb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle className={`w-3.5 h-3.5 ${isLocked ? 'text-red-500' : 'text-[#25D366]'}`} />
-              <span className={`text-xs font-mono tracking-widest ${isLocked ? 'text-red-400' : 'text-[#25D366]'}`}>
-                {isLocked ? 'SIGNAL LOST' : `免费窗口: ${formatTime(timeLeft)}`}
-              </span>
-            </div>
-            {/* 物理级能量条 */}
-            <div className="w-full max-w-[80%] h-[2px] bg-white/10 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-1000 ease-linear ${isLocked ? 'bg-red-500' : 'bg-[#25D366] shadow-[0_0_8px_rgba(37,211,102,0.8)]'}`}
-                style={{ width: `${isLocked ? 0 : Math.min(100, (timeLeft / (24 * 60 * 60 * 1000)) * 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
 
         {/* 图片预览与撤销 */}
         {selectedFile && (
@@ -267,6 +417,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
           </div>
         )}
 
+        {/* 最外层包裹容器 */}
         <div className="flex items-end space-x-3 mb-4 relative">
           
           {/* 媒体上传入口 (隐藏原生 Input) */}
@@ -279,56 +430,121 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
             }} 
           />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center border border-white/20 bg-black/40 hover:border-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all"
-          >
-            <ImageIcon className="w-5 h-5 text-white/70" />
-          </button>
-
-          {/* 悬浮输入舱 */}
-          <div className="flex-1 relative group">
-            <div className={`absolute inset-0 rounded-2xl border transition-all pointer-events-none
-              ${isLocked 
-                ? 'border-red-500/30 bg-red-900/10' 
-                : 'border-white/15 group-focus-within:border-cyan-400/50 group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]'
-              }`} 
+          {/* 悬浮输入舱 - 输入框容器 */}
+          <div className="flex-1 relative group h-11">
+            <div className={`absolute inset-0 rounded-full border transition-all pointer-events-none
+              border-white/15 group-focus-within:border-cyan-400/50 group-focus-within:shadow-[0_0_20px_rgba(34,211,238,0.15)]
+              `} 
             />
-            {/* 核心修改：如果是被锁死状态，用一个绝对定位的原生 <a> 标签覆盖整个输入框，拦截物理点击 */}
-            {isLocked && isWhatsApp && (
-              <a 
-                href={getWhatsAppLockedUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute inset-0 z-10 rounded-2xl"
-                title="点击拉起 WhatsApp 唤醒客户"
+            
+            {/* 三态量子离合器：根据模式切换渲染 */}
+            {inputMode === 'text' ? (
+              <textarea
+                value={inputText}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder={t('txt_0bbdcf')}
+                rows={1}
+                className={`w-full h-full bg-transparent outline-none focus:outline-none rounded-full border-none focus:ring-0 text-[15px] leading-[44px] py-0 pl-4 pr-12 resize-none no-scrollbar relative z-0
+                  text-white placeholder:text-white/30
+                `}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
               />
+            ) : (
+              // 录音按压舱 (Press-to-Talk Pod)
+              <div 
+                ref={buttonRef}
+                className={`
+                  w-full h-full flex items-center justify-center rounded-full select-none
+                  ${isRecording 
+                    ? recordStatus === 'canceling' 
+                      ? 'bg-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all'
+                      : recordStatus === 'converting'
+                        ? 'bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all'
+                        : 'bg-gx-cyan/20 shadow-[0_0_20px_rgba(0,242,255,0.4)] transition-all'
+                    : 'bg-white/5 hover:bg-white/10 transition-colors'
+                  }
+                `}
+                style={{
+                  touchAction: 'none', // 物理级结界：彻底禁止该区域的滚动与缩放
+                  WebkitTouchCallout: 'none', // 杀掉 iOS 默认长按菜单
+                }}
+                onPointerDown={handleStartRecord}
+                onPointerUp={handleStopRecord}
+                onPointerCancel={handleStopRecord}
+                onPointerLeave={handleStopRecord}
+                onPointerMove={handleTouchMove}
+              >
+                {isRecording ? (
+                  <div className="flex items-center gap-2">
+                    {/* 赛博波形指示器 (简易版) */}
+                    <div className="flex items-center gap-0.5">
+                      {recordStatus === 'canceling' ? (
+                        <div className="w-2 h-2 bg-red-500 rounded-full" />
+                      ) : recordStatus === 'converting' ? (
+                        <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                      ) : (
+                        <>
+                          <div className="w-1 h-3 bg-gx-cyan rounded-full animate-pulse" />
+                          <div className="w-1 h-5 bg-gx-cyan rounded-full animate-pulse delay-75" />
+                          <div className="w-1 h-2 bg-gx-cyan rounded-full animate-pulse delay-150" />
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* 实时语音转文字的显化区 */}
+                    <div className="flex flex-col items-center justify-center max-w-[60%] overflow-hidden">
+                      {isSpeechSupported && (transcript || interimTranscript) ? (
+                        <span className="text-white text-sm truncate w-full text-center tracking-wide">
+                          {transcript} <span className="text-white/60">{interimTranscript}</span>
+                        </span>
+                      ) : (
+                        <span className={`font-mono font-bold tracking-widest ${
+                          recordStatus === 'canceling' ? 'text-red-500' :
+                          recordStatus === 'converting' ? 'text-purple-500' :
+                          'text-gx-cyan'
+                        }`}>
+                          00:{recordDuration.toString().padStart(2, '0')}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <span className={`text-xs ml-2 tracking-widest uppercase ${
+                      recordStatus === 'canceling' ? 'text-red-500 animate-pulse font-bold' :
+                      recordStatus === 'converting' ? 'text-purple-500 animate-pulse font-bold' :
+                      'text-gx-cyan/60 animate-pulse'
+                    }`}>
+                      {recordStatus === 'canceling' ? '松开取消' :
+                       recordStatus === 'converting' ? '松开转文字' :
+                       '松开结束'}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-white/70 font-bold tracking-widest uppercase">按住 说话</span>
+                )}
+              </div>
             )}
-            <textarea
-              value={inputText}
-              onChange={(e) => setTextInput(e.target.value)}
-              placeholder={isLocked ? "信号已断开，点击重新连接..." : t('txt_0bbdcf')}
-              disabled={isLocked}
-              rows={1}
-              className={`w-full backdrop-blur-sm rounded-2xl border-none focus:ring-0 text-[15px] py-3 px-4 resize-none min-h-[44px] max-h-[120px] no-scrollbar relative z-0
-                ${isLocked 
-                  ? 'bg-transparent text-red-300/50 placeholder:text-red-400/50 cursor-pointer' 
-                  : 'bg-black/40 text-white placeholder:text-white/30'
-                }
-              `}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (!isLocked) handleSend();
-                }
-              }}
-            />
+
+            {/* 内嵌的相机/图片上传入口 (仅在文本模式显示) */}
+            {inputMode === 'text' && (
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-white/40 hover:text-cyan-400 transition-colors z-10 drop-shadow-[0_0_3px_rgba(255,255,255,0.2)]"
+                title="拍照或发送图片"
+              >
+                <Camera className="w-[22px] h-[22px]" />
+              </button>
+            )}
           </div>
 
-          {/* 引擎点火发送键 & 全息通行证按钮 */}
+          {/* 引擎点火发送键 & 语音切换键 */}
           <div className="flex flex-col gap-2 shrink-0">
             {/* 一键引流魔法 (仅 WhatsApp 且未超时显示) */}
-            {isWhatsApp && !isLocked && (
+            {isWhatsApp && (
               <button 
                 onClick={() => {
                    // 自动发送通行证链接
@@ -342,25 +558,40 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               </button>
             )}
 
-            <button 
-              onClick={handleSend}
-              disabled={isLocked || isSending || (!inputText.trim() && !selectedFile)}
-              className={`
-                w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300
-                ${isSending 
-                  ? 'bg-transparent border border-cyan-500' 
-                  : (inputText.trim() || selectedFile) && !isLocked
-                    ? 'bg-cyan-500 shadow-[0_0_20px_rgba(34,211,238,0.6)] text-black scale-100' 
-                    : 'bg-white/10 text-white/30 scale-90'
-                }
-              `}
-            >
-              {isSending ? (
-                <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-              ) : (
-                <SendHorizontal className={`w-5 h-5 ${(inputText.trim() || selectedFile) ? 'ml-0.5' : ''}`} />
-              )}
-            </button>
+            {/* 群聊禁用语音功能判断 */}
+            {!isGroupChat || (inputText.trim() || selectedFile) ? (
+              <button 
+                onClick={() => {
+                  // 如果有文字或图片，执行发送
+                  if (inputText.trim() || selectedFile) {
+                    handleSend();
+                  } else {
+                    // 否则执行模式切换 (Text <-> Voice)
+                    if (!isGroupChat) setInputMode(prev => prev === 'text' ? 'voice' : 'text');
+                  }
+                }}
+                disabled={isSending}
+                className={`
+                  w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300
+                  ${isSending 
+                    ? 'bg-transparent border border-cyan-500' 
+                    : (inputText.trim() || selectedFile)
+                      ? 'bg-cyan-500 shadow-[0_0_20px_rgba(34,211,238,0.6)] text-black scale-100' 
+                      : 'bg-white/10 hover:bg-white/20 text-white/50 hover:text-white scale-100' // 空状态下作为模式切换键
+                  }
+                `}
+              >
+                {isSending ? (
+                  <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                ) : (inputText.trim() || selectedFile) ? (
+                  <SendHorizontal className="w-5 h-5 ml-0.5" />
+                ) : inputMode === 'text' ? (
+                  <Mic className="w-5 h-5" />
+                ) : (
+                  <Keyboard className="w-5 h-5" />
+                )}
+              </button>
+            ) : null}
           </div>
 
         </div>

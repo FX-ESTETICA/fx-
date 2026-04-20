@@ -18,6 +18,7 @@ import { useBackground } from "@/hooks/useBackground";
 import { PhoneAuthBar } from "@/features/profile/components/PhoneAuthBar";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
+import { safeCopyToClipboard } from "@/utils/clipboard";
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
@@ -174,7 +175,7 @@ export default function DashboardPage() {
                     variant="ghost"
                     size="sm"
                     className="text-[10px] uppercase tracking-widest"
-                    onClick={() => navigator.clipboard?.writeText(currentProfile.email || "")}
+                    onClick={() => safeCopyToClipboard(currentProfile.email || "")}
                   >
                     {t('txt_79d3ab')}</Button>
                 </GlassCard>
@@ -205,7 +206,7 @@ export default function DashboardPage() {
                       variant="ghost"
                       size="sm"
                       className="text-[10px] uppercase tracking-widest"
-                      onClick={() => navigator.clipboard?.writeText(adminPassword || "")}
+                      onClick={() => safeCopyToClipboard(adminPassword || "")}
                       disabled={!adminPassword}
                     >
                       {t('txt_79d3ab')}</Button>

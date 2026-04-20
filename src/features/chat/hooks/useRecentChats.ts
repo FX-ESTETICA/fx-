@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export interface RecentChat {
@@ -87,39 +87,41 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
       }
 
       // ==========================================
-      // 【量子态幻影注入】
-      // 如果当前有一个 activeChatId (例如从 URL 进来的)，但它不在历史记录里
-      // 我们强行在内存里捏造一个它的实体，并塞进待查询列表！
-      // ==========================================
-      if (activeChatId && !chatMap.has(activeChatId)) {
-        const isGroup = activeChatId === 'city_current' || activeChatId.startsWith('group_');
-        chatMap.set(activeChatId, {
-          id: activeChatId,
-          name: '正在连接...',
-          lastMessage: '[系统] 正在建立全息加密通道...',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          avatar: '', // 移除 Dicebear
-          unread: false,
-          isGroup,
-          isCityChannel: activeChatId === 'city_current',
-          isPhantom: true // 打上幻影烙印
-        });
-        
-        if (!isGroup) {
-          userIdsToFetch.add(activeChatId);
-        }
-      }
-
-      // ==========================================
-      // 【全真数据反查引擎】
+      // 【全真数据反查引擎】(加入 UUID 防御与身份路由)
       // 批量查询所有单聊对象的真实姓名和真实头像
       // ==========================================
       const profilesMap = new Map<string, { name: string, avatar: string }>();
-      if (userIdsToFetch.size > 0) {
-        const { data: profiles } = await supabase
+      const validUuids: string[] = [];
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+      Array.from(userIdsToFetch).forEach(id => {
+        if (UUID_REGEX.test(id)) {
+          validUuids.push(id);
+        } else {
+          // 物理拦截非 UUID (如 wa_3, guest_123)，直接在内存赋予身份
+          if (id.startsWith('wa_')) {
+            profilesMap.set(id, {
+              name: `WA客户 ${id.replace('wa_', '').substring(0, 4)}`,
+              avatar: ''
+            });
+          } else if (id.startsWith('guest_')) {
+            profilesMap.set(id, {
+              name: `访客 ${id.replace('guest_', '').substring(0, 4)}`,
+              avatar: ''
+            });
+          }
+        }
+      });
+
+      if (validUuids.length > 0) {
+        const { data: profiles, error: profileErr } = await supabase
           .from('profiles')
           .select('id, name, avatar_url')
-          .in('id', Array.from(userIdsToFetch));
+          .in('id', validUuids);
+
+        if (profileErr) {
+          console.error('批量查询档案失败:', profileErr);
+        }
 
         if (profiles) {
           profiles.forEach(p => {
@@ -143,24 +145,6 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
         return chat;
       });
 
-      // ==========================================
-      // 【动态置顶法则】
-      // 无论 activeChatId 是历史遗留还是幻影注入，都强行把它抽离并塞到数组的最前面（仅次于同城大群）
-      // ==========================================
-      if (activeChatId) {
-        const activeIndex = finalChats.findIndex(c => c.id === activeChatId);
-        if (activeIndex > 0) {
-          const activeItem = finalChats.splice(activeIndex, 1)[0];
-          // 找找有没有同城大群 (RAPALLO)，如果有，把它插在第二位；如果没有，插在第一位
-          const cityIndex = finalChats.findIndex(c => c.isCityChannel);
-          if (cityIndex !== -1 && cityIndex === 0) {
-            finalChats.splice(1, 0, activeItem);
-          } else {
-            finalChats.unshift(activeItem);
-          }
-        }
-      }
-
       setRecentChats(finalChats);
       setIsLoading(false);
     };
@@ -183,7 +167,46 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, activeChatId]);
+  }, [currentUserId]); // 【核心修复】：移除 activeChatId 依赖，绝对禁止因为点击列表而重新拉取数据库！
 
-  return { recentChats, isLoading };
+  // ==========================================
+  // 【动态置顶与幻影注入】(仅在前端内存中进行，不触发网络请求)
+  // ==========================================
+  const finalProcessedChats = useMemo(() => {
+    let result = [...recentChats];
+
+    // 如果当前选中的聊天不在历史列表中（如从 URL 进来的 wa_ 客户），就在内存中伪造一个
+    if (activeChatId && !result.some(c => c.id === activeChatId)) {
+      const isGroup = activeChatId === 'city_current' || activeChatId.startsWith('group_');
+      let name = '正在连接...';
+      let avatar = '';
+      
+      if (activeChatId.startsWith('wa_')) {
+        name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
+      } else if (activeChatId.startsWith('guest_')) {
+        name = `访客 ${activeChatId.replace('guest_', '').substring(0, 4)}`;
+      }
+
+      result.push({
+        id: activeChatId,
+        name,
+        lastMessage: '[系统] 正在建立全息加密通道...',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        avatar,
+        unread: false,
+        isGroup,
+        isCityChannel: activeChatId === 'city_current',
+        isPhantom: true
+      });
+    }
+
+    // ==========================================
+    // 动态注入法则：只处理幻影注入，不再粗暴地因为 activeChatId 就把历史卡片置顶
+    // 微信/WhatsApp 只有在发消息或收消息(时间戳改变)时才重排。点击仅仅是改变UI已读状态。
+    // ==========================================
+
+    return result;
+  }, [recentChats, activeChatId]);
+
+  return { recentChats: finalProcessedChats, isLoading };
 }

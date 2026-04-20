@@ -11,6 +11,8 @@ export interface ChatMessage {
   content?: string;
   image_url?: string;
   blurhash?: string;
+  audio_url?: string;
+  audio_duration?: number;
   created_at: string;
 }
 
@@ -71,14 +73,15 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
     };
   }, [currentUserId, roomId, receiverId]);
 
-  // 2. 核心发送逻辑 (文本 + 极速图片降维)
-  const sendMessage = useCallback(async (content?: string, file?: File) => {
+  // 2. 核心发送逻辑 (文本 + 极速图片降维 + 音频支持)
+  const sendMessage = useCallback(async (content?: string, file?: File, audioBlob?: Blob, audioDuration?: number) => {
     if (!currentUserId) return;
     setIsSending(true);
 
     try {
       let imageUrl: string | undefined;
       let blurhashStr: string | undefined;
+      let audioUrl: string | undefined;
 
       // 图片降维打击流
       if (file) {
@@ -109,6 +112,25 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
         imageUrl = publicUrlData.publicUrl;
       }
 
+      // 音频文件上传流
+      if (audioBlob) {
+        const fileExt = 'webm'; // 目前 Web 端默认使用 webm 容器
+        const fileName = `audio_${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const filePath = `${currentUserId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('chat_media')
+          .upload(filePath, audioBlob, { contentType: 'audio/webm' });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('chat_media')
+          .getPublicUrl(filePath);
+        
+        audioUrl = publicUrlData.publicUrl;
+      }
+
       // 步骤 4：写入消息表，瞬间触发 Realtime 推送给对方
       const { error: insertError } = await supabase
         .from('messages')
@@ -119,12 +141,20 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
           content,
           image_url: imageUrl,
           blurhash: blurhashStr,
+          audio_url: audioUrl,
+          audio_duration: audioDuration,
         });
 
       if (insertError) throw insertError;
 
     } catch (error) {
       console.error('发送消息彻底失败:', error);
+      // 将错误详细信息抛出，方便定位问题 (比如表结构缺少字段)
+      if (error instanceof Error) {
+        console.error('Error Details:', error.message);
+      } else {
+        console.error('Error Object:', JSON.stringify(error, null, 2));
+      }
       // 这里应该抛给 UI 层提示错误
     } finally {
       setIsSending(false);
