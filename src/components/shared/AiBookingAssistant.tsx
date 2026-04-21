@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Send, Mic, CalendarCheck } from "lucide-react";
+import { X, Sparkles, Send, Mic, CalendarCheck, ArrowRight } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 import { BookingService } from "@/features/booking/api/booking";
@@ -267,8 +267,46 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
     await sendMessage(text);
   };
 
-  // 处理文本格式化 (简单的 markdown 粗体和换行)
+  // 处理文本格式化 (简单的 markdown 粗体和换行，并支持特殊邀请链接转化为卡片)
   const formatMessage = (content: string) => {
+    // 检查是否是特殊的系统引流通行证 (匹配固定前缀和链接)
+    if (content.includes("欢迎连接 GX 星云。您的专属体验舱已就绪") && content.includes("https://app.gx.com/invite/")) {
+      const urlMatch = content.match(/https:\/\/app\.gx\.com\/invite\/\w+/);
+      const inviteUrl = urlMatch ? urlMatch[0] : "https://app.gx.com";
+      
+      return (
+        <div className="flex flex-col gap-3">
+          <span className="text-sm">欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：</span>
+          <a 
+            href={inviteUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/60 to-black border border-purple-500/30 p-4 hover:border-purple-400/60 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all group no-underline"
+          >
+            <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
+            
+            <div className="relative z-10 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-black border border-purple-500/40 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-purple-100 font-bold text-[15px] mb-1 tracking-wide truncate">GX 专属全息通行证</h4>
+                <p className="text-purple-300/60 text-xs font-mono tracking-widest uppercase">Click to activate Nexus</p>
+              </div>
+            </div>
+            
+            <div className="relative z-10 mt-4 flex items-center justify-between border-t border-purple-500/20 pt-3">
+              <span className="text-[10px] text-purple-400/50 font-mono tracking-widest">SECURE LINK</span>
+              <div className="flex items-center gap-1 text-purple-400 text-xs font-bold uppercase tracking-widest group-hover:text-purple-300 transition-colors">
+                立即进入 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </a>
+        </div>
+      );
+    }
+
     return content.split('\n').map((line, i) => (
       <span key={i} className="block mb-1">
         {line.split(/(\*\*.*?\*\*)/g).map((part, j) => {

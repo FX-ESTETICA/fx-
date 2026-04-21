@@ -342,17 +342,52 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                   : 'border border-white/15 rounded-tl-sm'
                 }
               `}>
-                {/* 文本渲染 (高亮字幕悬浮) */}
-                {msg.content && (
-                  <p className={`
-                    text-[15px] leading-relaxed tracking-wide break-words
-                    ${isMe 
-                      ? 'text-cyan-50 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]' // 我的消息：带青色高光
-                      : 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]' // 对方消息：纯白高光
-                    }
-                  `}>
-                    {msg.content}
-                  </p>
+                {/* 特殊指令拦截：一键引流魔法卡片渲染 */}
+                {msg.content && msg.content.includes("欢迎连接 GX 星云。您的专属体验舱已就绪") && msg.content.includes("https://app.gx.com/invite/") ? (
+                  <div className="flex flex-col gap-3 w-full sm:w-[320px]">
+                    <span className={`text-[15px] leading-relaxed tracking-wide ${isMe ? 'text-cyan-50 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]' : 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]'}`}>
+                      欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：
+                    </span>
+                    <a 
+                      href={msg.content.match(/https:\/\/app\.gx\.com\/invite\/\w+/)?.[0] || "https://app.gx.com"} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/60 to-black border border-purple-500/30 p-4 hover:border-purple-400/60 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all group no-underline"
+                    >
+                      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
+                      
+                      <div className="relative z-10 flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-black border border-purple-500/40 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                          <Sparkles className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-purple-100 font-bold text-[15px] mb-1 tracking-wide truncate">GX 专属全息通行证</h4>
+                          <p className="text-purple-300/60 text-[10px] font-mono tracking-widest uppercase">Click to activate Nexus</p>
+                        </div>
+                      </div>
+                      
+                      <div className="relative z-10 mt-4 flex items-center justify-between border-t border-purple-500/20 pt-3">
+                        <span className="text-[10px] text-purple-400/50 font-mono tracking-widest">SECURE LINK</span>
+                        <div className="flex items-center gap-1 text-purple-400 text-xs font-bold uppercase tracking-widest group-hover:text-purple-300 transition-colors">
+                          立即进入 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </a>
+                  </div>
+                ) : (
+                  /* 文本渲染 (高亮字幕悬浮) */
+                  msg.content && (
+                    <p className={`
+                      text-[15px] leading-relaxed tracking-wide break-words
+                      ${isMe 
+                        ? 'text-cyan-50 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]' // 我的消息：带青色高光
+                        : 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]' // 对方消息：纯白高光
+                      }
+                    `}>
+                      {msg.content}
+                    </p>
+                  )
                 )}
 
                 {/* 语音渲染 */}
@@ -545,17 +580,19 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
           <div className="flex flex-col gap-2 shrink-0">
             {/* 一键引流魔法 (仅 WhatsApp 且未超时显示) */}
             {isWhatsApp && (
-              <button 
-                onClick={() => {
-                   // 自动发送通行证链接
-                   sendMessage("欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：https://app.gx.com/invite/123", undefined);
-                }}
-                className="w-11 h-8 rounded-xl flex items-center justify-center border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/30 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all group relative"
-                title="发送全息通行证"
-              >
-                <Sparkles className="w-4 h-4 text-purple-300" />
-                <span className="absolute -top-6 right-0 text-[9px] whitespace-nowrap text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded border border-purple-500/30">一键引流</span>
-              </button>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => {
+                     // 自动发送通行证链接
+                     sendMessage("欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：https://app.gx.com/invite/123", undefined);
+                  }}
+                  className="w-11 h-8 rounded-xl flex items-center justify-center border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/30 hover:shadow-[0_0_15px_rgba(168,85,247,0.5)] transition-all group relative shrink-0"
+                  title="发送全息通行证"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-300" />
+                  <span className="absolute -top-6 right-0 text-[9px] whitespace-nowrap text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded border border-purple-500/30">一键引流</span>
+                </button>
+              </div>
             )}
 
             {/* 群聊禁用语音功能判断 */}
