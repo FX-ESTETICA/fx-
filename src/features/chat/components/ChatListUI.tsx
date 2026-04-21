@@ -173,8 +173,11 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
     if (!phone) return '#';
     const finalPhone = phone.replace(/[^\d+]/g, '').replace('+', '');
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
+    
     // 核心修正 1：解决 404 路由丢失问题。从 /chat/wa_xxx 改为 /chat?target=wa_xxx
-    const inviteUrl = `${domain}/chat?target=wa_${finalPhone}&shopId=${currentUserId}`;
+    // 完美解决方案：加入 Date.now() 动态时间戳锁。
+    // 这将从物理层面强迫 WhatsApp 每次都去抓取最新的 OG 图片，彻底摧毁其长达几天的旧图片缓存机制。
+    const inviteUrl = `${domain}/chat?target=wa_${finalPhone}&shopId=${currentUserId}&t=${Date.now()}`;
     
     // 极致极简文案：只保留触发卡片的必要链接，和一句最短的引导语
     const message = `点击进入专属聊天室：\n${inviteUrl}`;
