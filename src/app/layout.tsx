@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     siteName: "GX Core",
     images: [
       {
-        url: "https://fx-rapallo.vercel.app/gx-car-cover.png", // 完美解决方案：指向 Vercel 生产环境下的本地静态图片绝对路径，彻底粉碎 Github Raw 防盗链拦截
+        url: "https://fx-rapallo.vercel.app/gx-car-cover-opt.jpg", // 完美解决方案：指向 Vercel 生产环境下的本地静态图片绝对路径，彻底粉碎 Github Raw 防盗链拦截
         width: 1200,
         height: 630,
         alt: "GX Core 专属服务通道",
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "✦ 欢迎使用 GX 专属服务",
     description: "点击进入专属聊天室，我们将即时为您服务。",
-    images: ["https://fx-rapallo.vercel.app/gx-car-cover.png"],
+    images: ["https://fx-rapallo.vercel.app/gx-car-cover-opt.jpg"],
   },
   appleWebApp: {
     title: "GX Core",
