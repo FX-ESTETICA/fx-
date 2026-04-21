@@ -176,13 +176,8 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
     // 核心修正 1：解决 404 路由丢失问题。从 /chat/wa_xxx 改为 /chat?target=wa_xxx
     const inviteUrl = `${domain}/chat?target=wa_${finalPhone}&shopId=${currentUserId}`;
     
-    const message = `✨ 欢迎连接 GX 专属全息客服！
-
-为提供更极速的响应与沉浸式体验，请点击下方链接进入您的专属 VIP 通道。
-(若此处长时间无响应，请务必点击链接以确保您的信息被系统接收)
-
-👉 点击进入专属服务舱:
-${inviteUrl}`;
+    // 极致极简文案：只保留触发卡片的必要链接，和一句最短的引导语
+    const message = `点击进入专属聊天室：\n${inviteUrl}`;
 
     // 核心修正 2：彻底放弃底层 `whatsapp://` 协议，回归官方最强中转站 `wa.me`
     // 这是解决“套壳 APP WebView 拦截”和“PC 端无桌面软件点击没反应”的唯一真理。

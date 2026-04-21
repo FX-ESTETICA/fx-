@@ -55,25 +55,25 @@ export const metadata: Metadata = {
   title: "GX Core - Galaxy Experience Access System",
   description: "极致简洁的赛博风格局部生活服务平台",
   openGraph: {
-    title: "✨ 欢迎连接 GX 专属全息客服",
-    description: "点击此处激活您的专属 VIP 通道，进入沉浸式服务舱。",
+    title: "✦ 欢迎使用 GX 专属服务",
+    description: "点击进入专属聊天室，我们将即时为您服务。",
     type: "website",
     url: "https://fx-rapallo.vercel.app",
     siteName: "GX Core",
     images: [
       {
-        url: "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1200&h=630&fit=crop", // 高清赛博朋克城市图
+        url: "https://raw.githubusercontent.com/FX-ESTETICA/fx-/main/public/gx-car-cover.png", // 这里暂时使用 GitHub 原始链接，稍后我们需要把图片传到仓库里
         width: 1200,
         height: 630,
-        alt: "GX Core VIP 通道",
+        alt: "GX Core 专属服务通道",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "✨ 欢迎连接 GX 专属全息客服",
-    description: "点击此处激活您的专属 VIP 通道，进入沉浸式服务舱。",
-    images: ["https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1200&h=630&fit=crop"],
+    title: "✦ 欢迎使用 GX 专属服务",
+    description: "点击进入专属聊天室，我们将即时为您服务。",
+    images: ["https://raw.githubusercontent.com/FX-ESTETICA/fx-/main/public/gx-car-cover.png"],
   },
   appleWebApp: {
     title: "GX Core",
