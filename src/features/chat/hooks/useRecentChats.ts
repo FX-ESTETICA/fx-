@@ -95,15 +95,24 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
     if (UUID_REGEX.test(id)) {
       validUuids.push(id);
     } else {
-      // 物理拦截非 UUID (如 wa_3, guest_123)，直接在内存赋予身份
+      // 物理拦截非 UUID (如 phone_3937, guest_001)，直接在内存赋予身份
       if (id.startsWith('wa_')) {
+        // 兼容历史老数据
         profilesMap.set(id, {
           name: `WA客户 ${id.replace('wa_', '').substring(0, 4)}`,
           avatar: ''
         });
-      } else if (id.startsWith('guest_')) {
+      } else if (id.startsWith('phone_')) {
+        // 全新降维呈现：直接显示真实号码
+        const rawPhone = id.replace('phone_', '');
         profilesMap.set(id, {
-          name: `访客 ${id.replace('guest_', '').substring(0, 4)}`,
+          name: `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`,
+          avatar: ''
+        });
+      } else if (id.startsWith('guest_')) {
+        // 游客编号直接透传 (如 guest_001 -> 游客 001)
+        profilesMap.set(id, {
+          name: `游客 ${id.replace('guest_', '')}`,
           avatar: ''
         });
       }
@@ -192,8 +201,11 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
       
       if (activeChatId.startsWith('wa_')) {
         name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
+      } else if (activeChatId.startsWith('phone_')) {
+        const rawPhone = activeChatId.replace('phone_', '');
+        name = `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`;
       } else if (activeChatId.startsWith('guest_')) {
-        name = `访客 ${activeChatId.replace('guest_', '').substring(0, 4)}`;
+        name = `游客 ${activeChatId.replace('guest_', '')}`;
       }
 
       result.push({

@@ -168,22 +168,25 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
     return tracks;
   }, [recentChats]);
 
-  // 构建 100% 多端兼容的 WhatsApp URL 协议 (解决套壳App/PC无反应，解决 404 路由丢失)
+  // 构建 100% 多端兼容的 WhatsApp URL 协议 (采用无感加密 Token 穿透，隐藏手机号)
   const getWhatsAppNativeUrl = (phone: string) => {
     if (!phone) return '#';
     const finalPhone = phone.replace(/[^\d+]/g, '').replace('+', '');
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://fx-rapallo.vercel.app';
     
-    // 核心修正 1：解决 404 路由丢失问题。从 /chat/wa_xxx 改为 /chat?target=wa_xxx
-    // 完美解决方案：加入 Date.now() 动态时间戳锁。
-    // 这将从物理层面强迫 WhatsApp 每次都去抓取最新的 OG 图片，彻底摧毁其长达几天的旧图片缓存机制。
-    const inviteUrl = `${domain}/chat?target=wa_${finalPhone}&shopId=${currentUserId}&t=${Date.now()}`;
+    // 核心改造：前端不再直接把 wa_3937 暴露在 URL 中。
+    // 我们在这里使用一种“前端伪加密/映射”的临时降维方案（如果将来有后端 API，这里换成调用 API 获取真实 Token）。
+    // 将手机号通过 Base64 编码变形，加上一个随机混淆前缀，生成一个表面上毫无意义的 Token。
+    // 例如：3937 -> 'gx_tk_' + btoa('3937_salt')
+    const token = `gx_tk_${btoa(finalPhone + '_nexus')}`;
+    
+    // 最终的邀请链接：干净、无明文手机号。带上时间戳彻底摧毁 WhatsApp 的旧图片缓存机制。
+    const inviteUrl = `${domain}/chat?t=${token}&shopId=${currentUserId}&ts=${Date.now()}`;
     
     // 极致极简文案：只保留触发卡片的必要链接，和一句最短的引导语
     const message = `点击进入专属聊天室：\n${inviteUrl}`;
 
-    // 核心修正 2：彻底放弃底层 `whatsapp://` 协议，回归官方最强中转站 `wa.me`
-    // 这是解决“套壳 APP WebView 拦截”和“PC 端无桌面软件点击没反应”的唯一真理。
+    // 彻底放弃底层 `whatsapp://` 协议，回归官方最强中转站 `wa.me`
     return `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
   };
 

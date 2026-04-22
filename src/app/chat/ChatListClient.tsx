@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useChatStore } from '@/store/useChatStore';
 import { useTranslations } from "next-intl";
 import { BottomNavBar } from '@/components/shared/BottomNavBar';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSearchParams } from 'next/navigation';
 
@@ -16,11 +16,45 @@ export default function ChatListPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   
-  const targetParam = searchParams.get('target');
+  const tokenParam = searchParams.get('t'); // 新增：监听加密 Token
   const shopIdParam = searchParams.get('shopId');
   
-  // 核心逻辑 1：无感身份赋予。没登录时优先使用 URL 里的 target (wa_xxx) 作为游客身份
-  const currentUserId = user?.id || targetParam || 'guest_123';
+  // 核心逻辑 1：设备钢印与无感身份赋予
+  // 我们利用闭包和 useState 确保只有在客户端渲染时才生成或读取 device_id，防止水合报错
+  const [deviceVisitorId, setDeviceVisitorId] = useState<string>('guest_001');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let deviceId = localStorage.getItem('gx_device_id');
+      if (!deviceId) {
+        deviceId = 'device_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('gx_device_id', deviceId);
+      }
+      
+      // 临时降维解密算法：如果 URL 带有 Token，我们解密出真实号码作为当前身份
+      if (tokenParam && tokenParam.startsWith('gx_tk_')) {
+        try {
+          const decoded = atob(tokenParam.replace('gx_tk_', ''));
+          const realPhone = decoded.replace('_nexus', '');
+          if (realPhone) {
+            // 将此号码与当前的 deviceId 死绑 (实际这里应该调后端接口验证)
+            setDeviceVisitorId(`phone_${realPhone}`);
+            return;
+          }
+        } catch (e) {
+          console.warn('Invalid token', e);
+        }
+      }
+      
+      // 如果没有 Token，或者没解密出来，则使用本地钢印生成游客号
+      // (这里暂时用前端生成短号模拟数据库的游客自增序列)
+      const visitorNum = parseInt(deviceId.substring(7, 10), 36) % 999 + 1;
+      setDeviceVisitorId(`guest_${visitorNum.toString().padStart(3, '0')}`);
+    }
+  }, [tokenParam]);
+
+  // 当前用户 ID：如果已登录用 user.id，否则使用我们上面算出来的访客/手机号
+  const currentUserId = user?.id || deviceVisitorId;
 
   // 状态机：控制当前显示的视图和选中的聊天对象 (通过 Zustand 同步给全局)
   const { activeChat, setActiveChat } = useChatStore();

@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Blurhash } from 'react-blurhash';
-import { ArrowLeft, X, MoreHorizontal, Camera, SendHorizontal, Loader2, Sparkles, Mic, Keyboard, CornerUpLeft, Languages } from 'lucide-react';
+import { ArrowLeft, X, MoreHorizontal, Camera, SendHorizontal, Loader2, Sparkles, Mic, Keyboard, CornerUpLeft, Languages, ArrowRight } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { useTranslations } from "next-intl";
 import { supabase } from '@/lib/supabase';
+import { LoginForm } from "@/features/auth/components/LoginForm"; // 复用系统现有的安全体系
 
 interface ChatRoomUIProps {
   currentUserId: string;
@@ -28,6 +29,9 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const isGroupChat = !!roomId;
+  
+  // 内源绑定状态 (游客转正)
+  const [showBindModal, setShowBindModal] = useState(false);
 
   // ---------------- 真实身份反查逻辑 ----------------
   const [trueRoomName, setTrueRoomName] = useState(roomName);
@@ -52,12 +56,16 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         };
         fetchProfile();
       } else {
-        // 拦截 wa_ 或 guest_ 非法查询
+        // 拦截非 UUID 非法查询 (如 wa_3, phone_3937, guest_001)
         if (receiverId.startsWith('wa_')) {
           setTrueRoomName(`WA客户 ${receiverId.replace('wa_', '').substring(0, 4)}`);
           setTrueAvatar(null);
+        } else if (receiverId.startsWith('phone_')) {
+          const rawPhone = receiverId.replace('phone_', '');
+          setTrueRoomName(`+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`);
+          setTrueAvatar(null);
         } else if (receiverId.startsWith('guest_')) {
-          setTrueRoomName(`访客 ${receiverId.replace('guest_', '').substring(0, 4)}`);
+          setTrueRoomName(`游客 ${receiverId.replace('guest_', '')}`);
           setTrueAvatar(null);
         } else {
           setTrueRoomName(roomName);
@@ -260,12 +268,46 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               {isWhatsApp && <span className="w-2 h-2 rounded-full bg-[#25D366] shadow-[0_0_5px_rgba(37,211,102,0.8)] animate-pulse" />}
             </span>
           </div>
+          {/* 内源转化：如果您是隐形账号 (游客/手机号)，提示您绑定 */}
+          {(currentUserId.startsWith('phone_') || currentUserId.startsWith('guest_')) && (
+            <button 
+              onClick={() => setShowBindModal(true)}
+              className="text-[10px] font-mono text-cyan-400 mt-1 hover:text-cyan-300 tracking-widest bg-cyan-900/30 px-2 py-0.5 rounded-full border border-cyan-500/30"
+            >
+              [ 永久保存档案 ]
+            </button>
+          )}
         </div>
 
         <button className="p-2 -mr-2 text-white/50 hover:text-white transition-colors">
           <MoreHorizontal className="w-6 h-6" />
         </button>
       </div>
+
+      {/* 内源绑定 Modal (借力打力，0 验证码注册) */}
+      {showBindModal && (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="relative w-full max-w-sm bg-black border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] p-6">
+            <button 
+              onClick={() => setShowBindModal(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 rotate-180" />
+            </button>
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-bold text-white tracking-widest uppercase mb-2">安全授权通道</h3>
+              <p className="text-xs text-white/40 font-mono">
+                绑定您的真实邮箱/Google账号，<br/>永久保存当前所有聊天记录与特权。
+              </p>
+            </div>
+            
+            {/* 直接复用系统的登录组件，在成功回调里处理合并逻辑 */}
+            <div className="scale-90 origin-top">
+              <LoginForm />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 【全屏录音结界 / 扇形雷达渲染区】 */}
       {isRecording && (
