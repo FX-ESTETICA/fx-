@@ -1,11 +1,12 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-export type CyberThemeColor = 'corelight';
+export type CyberThemeColor = 'coreblack' | 'purewhite' | 'whitegold' | 'blackgold';
 
 export interface VisualSettings {
   showNebula: boolean;
-  showWallpaper: boolean;
-  wallpaperOpacity: number; // 0 to 100
+  wallpaperOpacity: number; // 0 to 100 (保留为了向下兼容，但界面已移除)
+  calendarBgIndex: number; // 日历专属壁纸层
+  frontendBgIndex: number; // 前端首页专属壁纸层
   timelineColorTheme: CyberThemeColor;
   staffNameColorTheme: CyberThemeColor;
   headerTitleColorTheme: CyberThemeColor;
@@ -13,18 +14,34 @@ export interface VisualSettings {
 
 const DEFAULT_SETTINGS: VisualSettings = {
   showNebula: true,
-  showWallpaper: true,
-  wallpaperOpacity: 40,
-  timelineColorTheme: 'corelight',
-  staffNameColorTheme: 'corelight',
-  headerTitleColorTheme: 'corelight',
+  wallpaperOpacity: 100, // 强制100%不透明
+  calendarBgIndex: 1, // 默认浅色壁纸 B3
+  frontendBgIndex: 0, // 前端默认深色跑车 A1
+  timelineColorTheme: 'blackgold', // 默认跟随极简白主题的黑金线
+  staffNameColorTheme: 'coreblack',
+  headerTitleColorTheme: 'coreblack',
 };
 
 export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string; hex: string; label: string }> = {
-  corelight: {
-    className: "text-white drop-shadow-[0_0_2px_rgba(255,255,255,1)] drop-shadow-[0_0_5px_rgba(200,240,255,0.8)] mix-blend-screen",
+  coreblack: {
+    className: "text-black font-medium tracking-widest",
+    hex: "#000000",
+    label: "光源黑"
+  },
+  purewhite: {
+    className: "text-white font-medium tracking-widest",
     hex: "#ffffff",
-    label: "光源白"
+    label: "极简白"
+  },
+  whitegold: {
+    className: "text-[#FDF5E6] font-medium tracking-widest",
+    hex: "#FDF5E6",
+    label: "白金色"
+  },
+  blackgold: {
+    className: "text-[#8B7355] font-medium tracking-widest",
+    hex: "#8B7355",
+    label: "黑金色"
   }
 };
 
@@ -45,10 +62,17 @@ class VisualSettingsStore {
         if (saved) {
           const parsed = JSON.parse(saved);
           
-          // 兼容性/降级处理：如果 localStorage 中存了已经被废弃的颜色（如 cyan），强制重置为 corelight
-          if (!CYBER_COLOR_DICTIONARY[parsed.timelineColorTheme as CyberThemeColor]) parsed.timelineColorTheme = 'corelight';
-          if (!CYBER_COLOR_DICTIONARY[parsed.staffNameColorTheme as CyberThemeColor]) parsed.staffNameColorTheme = 'corelight';
-          if (!CYBER_COLOR_DICTIONARY[parsed.headerTitleColorTheme as CyberThemeColor]) parsed.headerTitleColorTheme = 'corelight';
+          // 兼容性/降级处理：如果 localStorage 中存了已经被废弃的颜色（如 cyan，corelight），强制重置为 purewhite
+          if (!CYBER_COLOR_DICTIONARY[parsed.timelineColorTheme as CyberThemeColor]) parsed.timelineColorTheme = 'whitegold';
+          if (!CYBER_COLOR_DICTIONARY[parsed.staffNameColorTheme as CyberThemeColor]) parsed.staffNameColorTheme = 'purewhite';
+          if (!CYBER_COLOR_DICTIONARY[parsed.headerTitleColorTheme as CyberThemeColor]) parsed.headerTitleColorTheme = 'purewhite';
+          
+          // 修正历史遗留问题：将主文本色与分界线色解绑映射
+          if (parsed.timelineColorTheme === 'purewhite') parsed.timelineColorTheme = 'whitegold';
+          if (parsed.timelineColorTheme === 'coreblack') parsed.timelineColorTheme = 'blackgold';
+          if (parsed.calendarBgIndex === undefined) parsed.calendarBgIndex = 1; // 补充日历壁纸缓存为默认的 B3 (1)
+          if (parsed.frontendBgIndex === undefined) parsed.frontendBgIndex = 0; // 补充前端壁纸缓存为默认的 A1 (0)
+          if (parsed.wallpaperOpacity !== undefined) parsed.wallpaperOpacity = 100; // 强制100%不透明
 
           this.settings = { ...DEFAULT_SETTINGS, ...parsed };
         }

@@ -8,28 +8,32 @@ import { UserRole, UserProfile } from "@/features/profile/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/shared/Button";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { LayoutDashboard, Mail, Key, Eye, EyeOff, Image as ImageIcon } from "lucide-react";
+import { LayoutDashboard, Mail, Key, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useAuth, SandboxUser } from "@/features/auth/hooks/useAuth";
 import { useShop } from "@/features/shop/ShopContext";
 import { BookingService } from "@/features/booking/api/booking";
 import { useRouter } from "next/navigation";
-import { useBackground } from "@/hooks/useBackground";
 import { PhoneAuthBar } from "@/features/profile/components/PhoneAuthBar";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { safeCopyToClipboard } from "@/utils/clipboard";
+import { FrontendThemeSwitcher } from "@/features/profile/components/FrontendThemeSwitcher";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
-export default function DashboardPage() {
+export default function DashboardClient() {
   const t = useTranslations('dashboard');
   const searchParams = useSearchParams();
   const { user, isLoading, activeRole, signOut } = useAuth();
   const { activeShopId } = useShop();
-  const { cycleBackground } = useBackground();
   const [boundShopId] = useState<string | null>(null);
   const [shopIndustry, setShopIndustry] = useState<string | null>(null);
   const [showAdminPwd, setShowAdminPwd] = useState(false);
   const router = useRouter();
+
+  // 主题与状态解耦
+  const { settings: visualSettings } = useVisualSettings();
+  const isLight = visualSettings.frontendBgIndex >= 1; // 1,2,3 是浅色主题
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -76,13 +80,12 @@ export default function DashboardPage() {
   }
 
   // 完美体验拦截：在认证状态完全就绪之前，渲染一个空底盘以防止视觉闪烁
-  const isHydrating = isLoading || (user && !('gxId' in user));
+  const isHydrating = isLoading;
   
   if (isHydrating) {
     return (
       <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
+        {/* 背景光效已清理 */}
       </main>
     );
   }
@@ -113,9 +116,7 @@ export default function DashboardPage() {
   return (
     <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden">
       
-      {/* 背景光效 */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
+      {/* 动态背景已清理 */}
 
       <div className="max-w-6xl mx-auto relative z-10 px-6 pb-6 md:px-12 md:pb-12 pt-0">
         {/* 动态角色切换器 (单点循环模式) */}
@@ -144,9 +145,9 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {/* Admin专属驾驶舱入口 */}
                  <Link href="/spatial" prefetch={false} className="md:col-span-2 lg:col-span-3">
-                  <GlassCard glowColor="purple" className="p-8 group cursor-pointer relative overflow-hidden transition-all duration-500 hover:scale-[1.01] h-full">
+                  <GlassCard className="p-8 group cursor-pointer relative overflow-hidden transition-all duration-500 hover:scale-[1.01] h-full">
                     <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 rounded-2xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isLight ? "bg-black/5 border border-black/10 text-black/60 group-hover:text-black" : "bg-white/5 border border-white/10 text-white/60 group-hover:text-white"} transition-colors`}>
                         <LayoutDashboard className="w-8 h-8" />
                       </div>
                       <div>
@@ -213,27 +214,22 @@ export default function DashboardPage() {
                   </div>
                 </GlassCard>
 
-                <div className="md:col-span-2 lg:col-span-3 flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-white/5 mt-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] uppercase tracking-widest flex items-center gap-1 text-gx-cyan hover:text-gx-cyan/80"
-                    onClick={cycleBackground}
-                  >
-                    <ImageIcon className="w-3 h-3" />
-                    {t('txt_09b3cd')}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    className="text-[10px] uppercase tracking-widest"
-                    onClick={async () => {
-                      await signOut();
-                      router.replace("/login");
-                    }}
-                  >
-                    {t('txt_732906')}
-                  </Button>
+                <div className="md:col-span-2 lg:col-span-3 flex flex-col items-center justify-center pt-4 border-t border-white/5 mt-4 space-y-6">
+                  <FrontendThemeSwitcher />
+                  
+                  <div className="flex w-full justify-end">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      className="text-[10px] uppercase tracking-widest"
+                      onClick={async () => {
+                        await signOut();
+                        window.location.href = "/login";
+                      }}
+                    >
+                      {t('txt_732906')}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

@@ -79,14 +79,14 @@ export default function VisionPage() {
       id: 0,
       title: "全息星云渲染与三轨合一矩阵",
       desc: "打破传统 SaaS 静态白底黑字。生活、智控、BOSS 三端在统一的沉浸式星空场域中无缝共振，0 延时身份流转。这不是网页，这是一个运行在浏览器里的高维空间。",
-      icon: <Sparkles className="w-5 h-5 text-fuchsia-400" />,
+      icon: <Sparkles className="w-5 h-5 " />,
       target: "tablet",
     },
     {
       id: 1,
       title: "高并发零冲突实时调度中枢",
       desc: "毫秒级内爆拆单、连单与防死锁。彻底消灭预约碰撞，压榨前沿计算性能，实现全真三维矩阵调度。",
-      icon: <ShieldCheck className="w-5 h-5 text-cyan-400" />,
+      icon: <ShieldCheck className="w-5 h-5 " />,
       target: "pc",
     },
     {
@@ -103,7 +103,7 @@ export default function VisionPage() {
       {/* 由于是在 /vision 独立路由，底层 layout.tsx 的 NebulaBackground 会自动作为最底层星空背景 */}
       
       {/* 沉浸式毛玻璃遮罩，为了突出路演舱的主体 */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-md pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-black/60  pointer-events-none z-0" />
 
       {/* ------------------------------------------------------------- */}
       {/* 左侧：文案与护城河 (1/3 区域) - 解除高度限制，允许自然滚动 */}
@@ -114,13 +114,13 @@ export default function VisionPage() {
         <div className="w-full flex justify-center pt-4 pb-8 xl:pt-8 xl:pb-0">
           <div className="flex items-center select-none mix-blend-screen">
             <div className="inline-flex items-baseline gap-1.5 md:gap-2 justify-center">
-              <span className="text-3xl md:text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-neutral-200 to-neutral-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+              <span className="text-3xl md:text-4xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white   ">
                 GX
               </span>
-              <span className="text-lg md:text-xl font-black text-cyan-400 tracking-tighter transform -translate-y-3 md:-translate-y-4 -translate-x-1.5 md:-translate-x-2 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+              <span className="text-lg md:text-xl font-bold  tracking-tighter transform -translate-y-3 md:-translate-y-4 -translate-x-1.5 md:-translate-x-2 ">
                 +
               </span>
-              <span className="text-xl md:text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neutral-400 to-neutral-600">
+              <span className="text-xl md:text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r  ">
                 {t('txt_b05e70')}</span>
             </div>
           </div>
@@ -153,7 +153,7 @@ export default function VisionPage() {
                 )}
 
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 rounded-xl bg-black border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                  <div className="p-3 rounded-xl bg-black border border-white/10 ">
                     {feat.icon}
                   </div>
                   <h3 className="text-2xl lg:text-3xl font-bold text-white/90">{feat.title}</h3>
@@ -170,7 +170,7 @@ export default function VisionPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
             onClick={handleEnterSandbox}
-            className="hidden md:flex group relative z-50 items-center justify-center gap-3 w-fit px-10 py-5 rounded-full bg-white text-black font-bold text-lg overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all"
+            className="hidden md:flex group relative z-50 items-center justify-center gap-3 w-fit px-10 py-5 rounded-full bg-white text-black font-bold text-lg overflow-hidden  transition-all"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
             <span>{t('txt_86ef01')}</span>
@@ -189,20 +189,20 @@ export default function VisionPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 + idx * 0.2 }}
-            className="flex flex-col bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+            className="flex flex-col bg-black/40  border border-white/10 rounded-3xl overflow-hidden "
           >
             {/* 移动端设备特写区 */}
             <div className="relative w-full h-[300px] flex items-center justify-center bg-gradient-to-b from-white/[0.05] to-transparent overflow-hidden">
                {feat.id === 0 && (
                  // Tablet 剪影
-                 <div className="w-[80%] h-[70%] rounded-xl border border-white/20 bg-black shadow-2xl relative overflow-hidden transform rotate-2">
+                 <div className="w-[80%] h-[70%] rounded-xl border border-white/20 bg-black  relative overflow-hidden transform rotate-2">
                    <div className="absolute left-0 top-0 bottom-0 w-2 bg-white/10 border-r border-white/10" />
                    <img src="https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=1969&auto=format&fit=crop" alt="Tablet Mockup" className="absolute inset-0 w-full h-full object-cover opacity-60 ml-2" />
                  </div>
                )}
                {feat.id === 1 && (
                  // PC 剪影
-                 <div className="w-[90%] h-[60%] rounded-t-xl border-t border-l border-r border-white/20 bg-black shadow-2xl relative overflow-hidden transform -translate-y-4">
+                 <div className="w-[90%] h-[60%] rounded-t-xl border-t border-l border-r border-white/20 bg-black  relative overflow-hidden transform -translate-y-4">
                    <div className="h-4 w-full bg-white/10 border-b border-white/10 flex items-center justify-center">
                      <div className="w-1 h-1 rounded-full bg-white/30" />
                    </div>
@@ -211,7 +211,7 @@ export default function VisionPage() {
                )}
                {feat.id === 2 && (
                  // Mobile 剪影
-                 <div className="w-[50%] h-[90%] rounded-[2rem] border-2 border-white/20 bg-black shadow-2xl relative overflow-hidden transform -rotate-2">
+                 <div className="w-[50%] h-[90%] rounded-[2rem] border-2 border-white/20 bg-black  relative overflow-hidden transform -rotate-2">
                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-black rounded-full z-10 border border-white/10" />
                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop" alt="Mobile Mockup" className="absolute inset-0 w-full h-full object-cover opacity-60" />
                  </div>
@@ -221,7 +221,7 @@ export default function VisionPage() {
             {/* 移动端文案区 */}
             <div className="p-6">
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-black border border-white/10 shadow-inner">
+                <div className="p-2 rounded-lg bg-black border border-white/10 ">
                   {feat.icon}
                 </div>
                 <h3 className="text-lg font-bold text-white/90">{feat.title}</h3>
@@ -238,7 +238,7 @@ export default function VisionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1 }}
           onClick={handleEnterSandbox}
-          className="mt-4 group relative flex items-center justify-center gap-3 w-full py-5 rounded-2xl bg-white text-black font-bold text-lg overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+          className="mt-4 group relative flex items-center justify-center gap-3 w-full py-5 rounded-2xl bg-white text-black font-bold text-lg overflow-hidden "
         >
           <span>{t('txt_86ef01')}</span>
           <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -267,7 +267,7 @@ export default function VisionPage() {
               z: 50,
             }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute z-10 rounded-[2rem] xl:rounded-[3rem] ring-1 ring-white/10 bg-black/80 backdrop-blur-3xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
+            className="absolute z-10 rounded-[2rem] xl:rounded-[3rem] ring-1 ring-white/10 bg-black/80   overflow-hidden flex flex-col"
             style={{
               width: "100%",        // 占满容器宽度
               height: "70%",        // 接近 iPad Pro 横屏比例 (如 1.43:1)

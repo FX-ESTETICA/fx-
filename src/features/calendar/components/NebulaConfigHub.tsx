@@ -7,9 +7,11 @@ import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { OperatingHour, ShopOperatingConfig, DEFAULT_OPERATING_CONFIG, DailyOverride } from "./IndustryCalendar";
 import { TodayOverrideController } from "./TodayOverrideController";
-import { useVisualSettings, CYBER_COLOR_DICTIONARY, CyberThemeColor } from "@/hooks/useVisualSettings";
+import { useVisualSettings } from '@/hooks/useVisualSettings';
+import { useBackground, GLOBAL_BACKGROUNDS, CALENDAR_BACKGROUNDS } from '@/hooks/useBackground';
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useShop } from "@/features/shop/ShopContext";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
 
 export interface CategoryItem { id: string; name: string }
@@ -69,6 +71,8 @@ export const NebulaConfigHub = ({
   initialTab = "hours"
 }: NebulaConfigHubProps) => {
   const t = useTranslations('NebulaConfigHub');
+  const { settings } = useVisualSettings(); // 获取全局视觉设置
+  const isLight = settings.headerTitleColorTheme === 'coreblack';
 
   type MainTab = "staff" | "services" | "hours" | "visual";
   const [activeTab, setActiveTab] = useState<MainTab>(initialTab);
@@ -87,7 +91,7 @@ export const NebulaConfigHub = ({
   const [localCategories, setLocalCategories] = useState<CategoryItem[]>(categories);
   const [localServices, setLocalServices] = useState<ServiceItem[]>(services);
 
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'saved' | 'error'>('idle');
+  const [, setSyncStatus] = useState<'idle' | 'syncing' | 'saved' | 'error'>('idle');
   const [activeEditors, setActiveEditors] = useState<Record<string, any>>({});
   const initialLoadRef = useRef(false);
   const prevDataRef = useRef("");
@@ -245,7 +249,10 @@ export const NebulaConfigHub = ({
         initial={false}
         animate={isOpen ? { x: 0, opacity: 1 } : { x: "100%", opacity: 0 }}
         transition={{ duration: 0 }} // 极速响应
-        className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-black/70 backdrop-blur-2xl md:border-l border-white/10 z-[100] shadow-[-20px_0_50px_rgba(0,0,0,0.3)] pointer-events-none"
+        className={cn(
+          "fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px]  md:border-l z-[100]  pointer-events-none",
+          isLight ? "bg-white/5 border-black/10" : "bg-black/5 border-white/10"
+        )}
         style={{ willChange: 'transform, opacity' }}
       />
 
@@ -272,19 +279,19 @@ export const NebulaConfigHub = ({
               className="fixed inset-0 md:inset-y-0 md:left-auto md:right-0 md:w-[480px] bg-transparent z-[102] flex flex-col pointer-events-auto"
             >
             {/* 头部 */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+            <div className={cn("p-6 border-b flex items-center justify-between shrink-0", isLight ? "border-black/5" : "border-white/5")}>
               {/* 左侧：标题与图标 */}
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gx-cyan/10 flex items-center justify-center border border-gx-cyan/30 relative">
-                  <Settings className="w-4 h-4 text-gx-cyan animate-spin-slow" />
+                <div className="w-8 h-8 rounded-full  flex items-center justify-center border  relative">
+                  <Settings className="w-4 h-4  animate-spin-slow" />
                   {/* Presence 脉冲动画 */}
-                  <div className="absolute inset-0 rounded-full border border-gx-cyan/50 animate-ping" />
+                  <div className="absolute inset-0 rounded-full border  animate-ping" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <h2 className={cn("text-sm font-bold uppercase tracking-widest flex items-center gap-2", isLight ? "text-black" : "text-white")}>
                     {t('txt_406bc4')}
                   </h2>
-                  <p className="text-[10px] font-mono text-white/40 uppercase mt-1 flex items-center gap-2">
+                  <p className={cn("text-[10px] font-mono uppercase mt-1 flex items-center gap-2", isLight ? "text-black/40" : "text-white/40")}>
                     {industryLabel}
                   </p>
                 </div>
@@ -296,7 +303,7 @@ export const NebulaConfigHub = ({
                   {Object.values(activeEditors).map((editor, i) => (
                     <div 
                       key={i} 
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border border-black z-10 overflow-hidden bg-white/10 transition-transform hover:scale-110"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border border-black z-10 overflow-hidden bg-white/10 transition-transform hover:scale-110"
                       style={{ 
                         backgroundColor: editor.avatar ? 'transparent' : (editor.color || '#00f0ff'), 
                         color: '#000', 
@@ -314,12 +321,12 @@ export const NebulaConfigHub = ({
                   
                   {/* Hover 时显示的统一 tooltip */}
                   {Object.values(activeEditors).length > 0 && (
-                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md border border-white/10 text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex flex-col gap-1 z-50">
+                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/90  border border-white/10 text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap  flex flex-col gap-1 z-50">
                       {/* 小三角形指示器 */}
                       <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-black/90 border-l border-t border-white/10 rotate-45" />
                       {Object.values(activeEditors).map((editor, i) => (
                         <div key={i} className="flex items-center justify-center gap-2 relative z-10">
-                          <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse" />
+                          <div className="w-1.5 h-1.5 rounded-full  animate-pulse" />
                           <span className="text-white/70 font-medium tracking-widest">{editor.name}</span>
                         </div>
                       ))}
@@ -327,15 +334,15 @@ export const NebulaConfigHub = ({
                   )}
 
                   {Object.keys(activeEditors).length > 1 && (
-                    <span className="text-[9px] font-mono text-gx-cyan/80 ml-4 font-bold tracking-widest absolute -bottom-4 right-0">
+                    <span className="text-[9px] font-mono  ml-4 font-bold tracking-widest absolute -bottom-4 right-0">
                       {Object.keys(activeEditors).length} SYNCED
                     </span>
                   )}
                 </div>
-                <div className="w-px h-6 bg-white/10 ml-2" />
+                <div className={cn("w-px h-6 ml-2", isLight ? "bg-black/10" : "bg-white/10")} />
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/60 hover:text-white"
+                  className={cn("p-2 rounded-full transition-colors hover:bg-black/5", isLight ? "text-black/60 hover:text-black" : "text-white/60 hover:text-white hover:bg-white/10")}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -343,7 +350,7 @@ export const NebulaConfigHub = ({
             </div>
 
             {/* 导航 Tabs */}
-            <div className="flex p-4 gap-2 border-b border-white/5 shrink-0 overflow-x-auto no-scrollbar">
+            <div className={cn("flex p-4 gap-2 border-b shrink-0 overflow-x-auto no-scrollbar", isLight ? "border-black/5" : "border-white/5")}>
               {[
                 { id: "hours", label: t('txt_cc3307'), icon: Clock },
                 { id: "staff", label: t('txt_bf9e5e'), icon: Users },
@@ -354,14 +361,14 @@ export const NebulaConfigHub = ({
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as MainTab)}
                   className={cn(
-                    "min-w-[80px] flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-2 transition-all",
+                    "min-w-[80px] flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-2 transition-all border",
                     activeTab === tab.id
-                      ? "bg-white/10 text-white border border-white/10 shadow-inner"
-                      : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                      ? (isLight ? "bg-black/5 text-black border-black/10 " : "bg-white/10 text-white border-white/10 ")
+                      : (isLight ? "text-black/40 hover:text-black/80 hover:bg-black/5 border-transparent" : "text-white/40 hover:text-white/80 hover:bg-white/5 border-transparent")
                   )}
                 >
-                  <tab.icon className={cn("w-4 h-4", activeTab === tab.id && "text-gx-cyan")} />
-                  <span className="text-[10px] font-black tracking-widest">{tab.label}</span>
+                  <tab.icon className={cn("w-4 h-4", activeTab === tab.id && "")} />
+                  <span className="text-[10px] font-bold tracking-widest">{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -389,6 +396,7 @@ export const NebulaConfigHub = ({
                       onChange={handleStaffsChange} 
                       onEditingStateChange={handleEditingStateChange}
                       services={localServices}
+                      isLight={isLight}
                     />
                   )}
                   {activeTab === "services" && (
@@ -397,6 +405,7 @@ export const NebulaConfigHub = ({
                       services={localServices}
                       onCategoriesChange={handleCategoriesChange}
                       onServicesChange={handleServicesChange}
+                      isLight={isLight}
                     />
                   )}
                   {activeTab === "visual" && (
@@ -406,31 +415,31 @@ export const NebulaConfigHub = ({
               </AnimatePresence>
             </div>
 
-            {/* 底部 Contextual 操作栏 */}
-            <div className="absolute bottom-0 left-0 w-full p-6 border-t border-white/5 bg-black/80 backdrop-blur-xl z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-              {editingContext.type ? (
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleContextualCancel}
-                    className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest hover:bg-white/10 transition-all text-xs"
-                  >
-                    {t('txt_625fb2')}</button>
-                  <button
-                    onClick={handleContextualSave}
-                    className="flex-[2] py-4 rounded-2xl bg-gx-cyan text-black font-black uppercase tracking-widest hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] transition-all text-xs"
-                  >
-                    {editingContext.type === 'staff' ? t('txt_dc8d03') : t('txt_49e56c')}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-4 w-full text-xs font-mono font-black tracking-widest border border-white/5 rounded-2xl bg-white/[0.02]">
-                  {syncStatus === 'syncing' && <span className="text-gx-cyan animate-pulse">☁ SYNCING MATRIX...</span>}
-                  {syncStatus === 'saved' && <span className="text-green-400">✓ ALL CHANGES SECURED</span>}
-                  {syncStatus === 'error' && <span className="text-red-500">⚠ SYNC FAILED</span>}
-                  {syncStatus === 'idle' && <span className="text-white/30">LIVE EDIT ACTIVE</span>}
-                </div>
+            {/* 底部 Contextual 操作栏 (仅在编辑时显示) */}
+            <AnimatePresence>
+              {editingContext.type && (
+                <motion.div 
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  className={cn("absolute bottom-0 left-0 w-full p-6 border-t  z-50 ", isLight ? "bg-white/80 border-black/10" : "bg-black/80 border-white/5")}
+                >
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleContextualCancel}
+                      className={cn("flex-1 py-4 rounded-2xl border font-bold uppercase tracking-widest transition-all text-xs", isLight ? "bg-black/5 border-black/10 text-black hover:bg-black/10" : "bg-white/5 border-white/10 text-white hover:bg-white/10")}
+                    >
+                      {t('txt_625fb2')}</button>
+                    <button
+                      onClick={handleContextualSave}
+                      className="flex-[2] py-4 rounded-2xl  text-black font-bold uppercase tracking-widest  transition-all text-xs"
+                    >
+                      {editingContext.type === 'staff' ? t('txt_dc8d03') : t('txt_49e56c')}
+                    </button>
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </motion.div>
         </>
         )}
@@ -486,6 +495,9 @@ const VisualSettingsConfig = () => {
   const t = useTranslations('NebulaConfigHub');
 
   const { settings, updateSettings, isLoaded } = useVisualSettings();
+  const { updateShopConfig } = useShop();
+  const { bgIndex, setSpecificBackground } = useBackground();
+  const isLight = settings.headerTitleColorTheme === 'coreblack';
 
   if (!isLoaded) return null;
 
@@ -493,146 +505,128 @@ const VisualSettingsConfig = () => {
     <div className="space-y-6">
       {/* 图层开关区 */}
       <div className="space-y-4">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">{t('txt_acbc2d')}</h3>
+        <h3 className={cn("text-xs font-bold uppercase tracking-widest", isLight ? "text-black/60" : "text-white/60")}>{t('txt_acbc2d')}</h3>
         
         {/* 星空开关 */}
         <div 
-          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.05] transition-colors"
-          onClick={() => updateSettings({ showNebula: !settings.showNebula })}
+          className={cn("flex items-center justify-between p-4 rounded-xl cursor-pointer transition-colors border", isLight ? "bg-black/5 border-black/5 hover:bg-black/10" : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05]")}
+          onClick={() => {
+            const newSettings = { showNebula: !settings.showNebula };
+            updateSettings(newSettings);
+            updateShopConfig('visualSettings', { ...settings, ...newSettings });
+          }}
         >
           <div className="space-y-1">
-            <span className="text-xs font-bold text-white block">{t('txt_ea97c1')}</span>
-            <span className="text-[10px] text-white/40 font-mono">{t('txt_203d7a')}</span>
+            <span className={cn("text-xs font-bold block", isLight ? "text-black" : "text-white")}>{t('txt_ea97c1')}</span>
+            <span className={cn("text-[10px] font-mono", isLight ? "text-black/40" : "text-white/40")}>{t('txt_203d7a')}</span>
           </div>
-          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showNebula ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
-            <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showNebula ? "bg-gx-cyan" : "bg-white/40")} />
+          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showNebula ? "  justify-end" : (isLight ? "bg-black/5 border-black/10 justify-start" : "bg-white/5 border-white/10 justify-start"))}>
+            <motion.div layout className={cn("w-4 h-4 rounded-full ", settings.showNebula ? "" : (isLight ? "bg-black/40" : "bg-white/40"))} />
           </div>
         </div>
 
-        {/* 壁纸开关 */}
-        <div 
-          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl cursor-pointer hover:bg-white/[0.05] transition-colors"
-          onClick={() => updateSettings({ showWallpaper: !settings.showWallpaper })}
-        >
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-white block">{t('txt_162afa')}</span>
-            <span className="text-[10px] text-white/40 font-mono">{t('txt_5e50ed')}</span>
-          </div>
-          <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", settings.showWallpaper ? "bg-gx-cyan/30 border-gx-cyan/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
-            <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", settings.showWallpaper ? "bg-gx-cyan" : "bg-white/40")} />
-          </div>
-        </div>
-
-        {/* 壁纸浓度滑块 (仅在壁纸开启时显示) */}
-        <AnimatePresence>
-          {settings.showWallpaper && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-6 p-4 bg-white/[0.01] rounded-xl border border-white/5 overflow-hidden"
-            >
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_wallpaper_opacity') || '壁纸层浓度'}</label>
-                  <span className="text-xs font-mono text-gx-cyan">{settings.wallpaperOpacity}%</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" max="100" step="5"
-                  value={settings.wallpaperOpacity}
-                  onChange={(e) => updateSettings({ wallpaperOpacity: parseInt(e.target.value) })}
-                  className="w-full accent-gx-cyan h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                />
+        {/* STATIC ASSETS 横向资产缩略图矩阵 (双轨制) */}
+        <div className={cn("space-y-6 p-4 rounded-xl border overflow-hidden", isLight ? "bg-black/[0.02] border-black/5" : "bg-white/[0.01] border-white/5")}>
+            {/* 全局壁纸控制区 */}
+            <div className="space-y-3">
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>GLOBAL ASSETS (全局壁纸)</label>
+              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+                {GLOBAL_BACKGROUNDS.map((src, index) => {
+                  const isActive = bgIndex === index;
+                  return (
+                    <div 
+                      key={`global-bg-${index}`}
+                      onClick={() => {
+                        setSpecificBackground(index);
+                        updateShopConfig('globalBgIndex', index);
+                        
+                        const bgPath = GLOBAL_BACKGROUNDS[index];
+                        const filename = bgPath.split('/').pop() || '';
+                        const updates: any = {};
+                        if (filename.startsWith('A') || filename.startsWith('a')) {
+                          updates.headerTitleColorTheme = 'purewhite';
+                          updates.staffNameColorTheme = 'purewhite';
+                          updates.timelineColorTheme = 'whitegold';
+                        } else if (filename.startsWith('B') || filename.startsWith('b')) {
+                          updates.headerTitleColorTheme = 'coreblack';
+                          updates.staffNameColorTheme = 'coreblack';
+                          updates.timelineColorTheme = 'blackgold';
+                        }
+                        if (Object.keys(updates).length > 0) {
+                          updateSettings(updates);
+                          updateShopConfig('visualSettings', { ...settings, ...updates });
+                        }
+                      }}
+                      className={cn(
+                        "relative shrink-0 w-28 h-16 rounded-lg cursor-pointer transition-all overflow-hidden border-2",
+                        isActive 
+                          ? " opacity-100 " 
+                          : "border-white/5 opacity-40 hover:opacity-80"
+                      )}
+                    >
+                      <img 
+                        src={src} 
+                        alt={`global-bg-${index}`} 
+                        className="w-full h-full object-cover"
+                      />
+                      {isActive && (
+                        <div className="absolute top-1 right-1  text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm z-10">
+                          ACTIVE
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </div>
 
-      {/* 赛博全息主题色控制区 */}
-      <div className="space-y-4 pt-4 border-t border-white/10">
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">{t('txt_aaa577')}</h3>
-        
-        {/* 顶部大标题颜色 */}
-        <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">{t('txt_c94255')}</label>
-            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.headerTitleColorTheme].className)}>
-              {CYBER_COLOR_DICTIONARY[settings.headerTitleColorTheme].label}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 overflow-x-visible no-scrollbar py-3 px-2">
-            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
-              <button
-                key={`header-${key}`}
-                onClick={() => updateSettings({ headerTitleColorTheme: key })}
-                className={cn(
-                  "w-8 h-8 rounded-full shrink-0 transition-all border-2 flex items-center justify-center",
-                  settings.headerTitleColorTheme === key 
-                    ? "border-white scale-110 shadow-[0_0_15px_currentColor]" 
-                    : "border-transparent hover:scale-105 opacity-50 hover:opacity-100"
-                )}
-                style={{ color: config.hex, backgroundColor: `${config.hex}33` }}
-              >
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: config.hex }} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 员工表头颜色 */}
-        <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">{t('txt_f4fb3b')}</label>
-            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].className)}>
-              {CYBER_COLOR_DICTIONARY[settings.staffNameColorTheme].label}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 overflow-x-visible no-scrollbar py-3 px-2">
-            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
-              <button
-                key={`staff-${key}`}
-                onClick={() => updateSettings({ staffNameColorTheme: key })}
-                className={cn(
-                  "w-8 h-8 rounded-full shrink-0 transition-all border-2 flex items-center justify-center",
-                  settings.staffNameColorTheme === key 
-                    ? "border-white scale-110 shadow-[0_0_15px_currentColor]" 
-                    : "border-transparent hover:scale-105 opacity-50 hover:opacity-100"
-                )}
-                style={{ color: config.hex, backgroundColor: `${config.hex}33` }}
-              >
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: config.hex }} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 时间轴颜色 */}
-        <div className="space-y-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-white/80 uppercase tracking-widest">{t('txt_893c8f')}</label>
-            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10", CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].className)}>
-              {CYBER_COLOR_DICTIONARY[settings.timelineColorTheme].label}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 overflow-x-visible no-scrollbar py-3 px-2">
-            {(Object.entries(CYBER_COLOR_DICTIONARY) as [CyberThemeColor, { className: string; hex: string; label: string }][]).map(([key, config]) => (
-              <button
-                key={`timeline-${key}`}
-                onClick={() => updateSettings({ timelineColorTheme: key })}
-                className={cn(
-                  "w-8 h-8 rounded-full shrink-0 transition-all border-2 flex items-center justify-center",
-                  settings.timelineColorTheme === key 
-                    ? "border-white scale-110 shadow-[0_0_15px_currentColor]" 
-                    : "border-transparent hover:scale-105 opacity-50 hover:opacity-100"
-                )}
-                style={{ color: config.hex, backgroundColor: `${config.hex}33` }}
-              >
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: config.hex }} />
-              </button>
-            ))}
-          </div>
+            {/* 日历专属壁纸控制区 */}
+            <div className={cn("space-y-3 pt-4 border-t", isLight ? "border-black/5" : "border-white/5")}>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>CALENDAR ASSETS (日历专属壁纸)</label>
+              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+                {CALENDAR_BACKGROUNDS.map((src, index) => {
+                  const isActive = settings.calendarBgIndex === index;
+                  return (
+                    <div 
+                      key={`calendar-bg-${index}`}
+                      onClick={() => {
+                        const bgPath = CALENDAR_BACKGROUNDS[index];
+                        const filename = bgPath.split('/').pop() || '';
+                        const updates: any = { calendarBgIndex: index };
+                        if (filename.startsWith('A') || filename.startsWith('a')) {
+                          updates.headerTitleColorTheme = 'purewhite';
+                          updates.staffNameColorTheme = 'purewhite';
+                          updates.timelineColorTheme = 'whitegold';
+                        } else if (filename.startsWith('B') || filename.startsWith('b')) {
+                          updates.headerTitleColorTheme = 'coreblack';
+                          updates.staffNameColorTheme = 'coreblack';
+                          updates.timelineColorTheme = 'blackgold';
+                        }
+                        updateSettings(updates);
+                        updateShopConfig('visualSettings', { ...settings, ...updates });
+                      }}
+                      className={cn(
+                        "relative shrink-0 w-28 h-16 rounded-lg cursor-pointer transition-all overflow-hidden border-2",
+                        isActive 
+                          ? " opacity-100 " 
+                          : "border-white/5 opacity-40 hover:opacity-80"
+                      )}
+                    >
+                      <img 
+                        src={src} 
+                        alt={`calendar-bg-${index}`} 
+                        className="w-full h-full object-cover"
+                      />
+                      {isActive && (
+                        <div className="absolute top-1 right-1  text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm z-10">
+                          ACTIVE
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
         </div>
       </div>
     </div>
@@ -641,6 +635,8 @@ const VisualSettingsConfig = () => {
 
 const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | OperatingHour[], onChange: (h: ShopOperatingConfig | OperatingHour[]) => void }) => {
   const idSeed = useRef(0);
+  const { settings } = useVisualSettings();
+  const isLight = settings.headerTitleColorTheme === 'coreblack';
   
   // 初始化/升级为完整的新版结构，防御数据残缺
   const fullConfig: ShopOperatingConfig = Array.isArray(hours) 
@@ -771,7 +767,7 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
     onUpdate: (id: string, field: 'start' | 'end', value: string) => void,
     onRemove: (id: string) => void
   ) => (
-    <div className="space-y-2 w-full mt-2">
+    <div className="space-y-1 w-full mt-2">
       <AnimatePresence>
         {hoursList.map((hour) => (
           <motion.div 
@@ -779,40 +775,35 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex items-center gap-3 p-2 md:p-3 bg-white/5 rounded-xl border border-white/10 group overflow-hidden"
+            className="flex items-center gap-3 py-1 group overflow-hidden"
           >
-            <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
-              <div className="flex flex-col gap-1 items-center">
-                <span className="text-[8px] font-mono text-white/40 uppercase">Start</span>
-                <select 
-                  value={hour.start} 
-                  onChange={(e) => onUpdate(hour.id, 'start', e.target.value)}
-                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none text-center w-full" 
-                >
-                  {HOUR_OPTIONS.map(h => (
-                    <option key={`start-${h}`} value={h} className="bg-black text-white">
-                      {h.toString().padStart(2, '0')}:00
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1 items-center">
-                <span className="text-[8px] font-mono text-white/40 uppercase">End</span>
-                <select 
-                  value={hour.end}
-                  onChange={(e) => onUpdate(hour.id, 'end', e.target.value)}
-                  className="bg-transparent text-white text-xs md:text-sm font-mono outline-none border-b border-white/10 pb-1 cursor-pointer appearance-none text-center w-full" 
-                >
-                  {HOUR_OPTIONS.map(h => (
-                    <option key={`end-${h}`} value={h} className="bg-black text-white">
-                      {h.toString().padStart(2, '0')}:00
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex-1 flex items-center justify-center gap-4">
+              <select 
+                value={hour.start} 
+                onChange={(e) => onUpdate(hour.id, 'start', e.target.value)}
+                className={cn("bg-transparent text-sm md:text-base font-mono font-bold outline-none cursor-pointer appearance-none text-right w-16", isLight ? "text-black" : "text-white")} 
+              >
+                {HOUR_OPTIONS.map(h => (
+                  <option key={`start-${h}`} value={h} className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>
+                    {h.toString().padStart(2, '0')}:00
+                  </option>
+                ))}
+              </select>
+              <span className={cn("text-xs font-light", isLight ? "text-black/30" : "text-white/30")}>—</span>
+              <select 
+                value={hour.end}
+                onChange={(e) => onUpdate(hour.id, 'end', e.target.value)}
+                className={cn("bg-transparent text-sm md:text-base font-mono font-bold outline-none cursor-pointer appearance-none text-left w-16", isLight ? "text-black" : "text-white")} 
+              >
+                {HOUR_OPTIONS.map(h => (
+                  <option key={`end-${h}`} value={h} className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>
+                    {h.toString().padStart(2, '0')}:00
+                  </option>
+                ))}
+              </select>
             </div>
             {hoursList.length > 1 && (
-              <button onClick={() => onRemove(hour.id)} className="text-white/20 hover:text-red-500 transition-colors p-1">
+              <button onClick={() => onRemove(hour.id)} className={cn("transition-colors p-1 opacity-0 group-hover:opacity-100", isLight ? "text-black/30 hover:text-red-500" : "text-white/30 hover:text-red-500")}>
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -832,36 +823,36 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
       />
 
       {/* 1. 常规星期几设置 */}
-      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+      <div className={cn("p-4 rounded-2xl space-y-4 border", isLight ? "bg-black/[0.02] border-black/5" : "bg-white/[0.02] border-white/5")}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-white">常规营业时间段 (Regular Hours)</span>
+          <span className={cn("text-xs font-bold", isLight ? "text-black" : "text-white")}>常规营业时间段 (Regular Hours)</span>
         </div>
-        <p className="text-[10px] font-mono text-white/40">
+        <p className={cn("text-[10px] font-mono", isLight ? "text-black/40" : "text-white/40")}>
           按照星期一到星期日设置基础营业时间。如果一天内有午休，请添加多个时间段。
         </p>
         
-        <div className="space-y-2">
+        <div className="space-y-0">
           {daysOfWeek.map(({ key, label }) => {
             const dayHours = fullConfig.regular?.[key] || [];
             const isClosed = dayHours.length === 0;
 
             return (
-              <div key={key} className="flex flex-col p-3 bg-black/40 border border-white/5 rounded-xl">
+              <div key={key} className={cn("flex flex-col py-3 border-b", isLight ? "border-black/5" : "border-white/5")}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 text-xs font-black text-white/80">{label}</div>
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-10 text-xs font-bold", isLight ? "text-black/80" : "text-white/80")}>{label}</div>
                     <button 
                       onClick={() => handleToggleClosedRegular(key, !isClosed)}
-                      className={cn("px-2 py-1 text-[9px] font-bold tracking-widest rounded-md transition-colors border", 
-                        isClosed ? "bg-red-500/10 text-red-400 border-red-500/30" : "bg-gx-cyan/10 text-gx-cyan border-gx-cyan/30"
+                      className={cn("px-2 py-0.5 text-[9px] font-bold tracking-widest rounded-sm transition-colors", 
+                        isClosed ? "bg-red-500/10 text-red-400" : " "
                       )}
                     >
-                      {isClosed ? '休息 CLOSED' : '营业 OPEN'}
+                      {isClosed ? '休息' : '营业'}
                     </button>
                   </div>
                   {!isClosed && (
-                    <button onClick={() => handleAddRegular(key)} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
-                      <Plus className="w-3 h-3" /> 添加时段
+                    <button onClick={() => handleAddRegular(key)} className={cn("text-[10px] font-bold flex items-center gap-1 transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}>
+                      <Plus className="w-3 h-3" /> 添加
                     </button>
                   )}
                 </div>
@@ -877,11 +868,11 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
       </div>
 
       {/* 2. 特殊节假日例外设置 */}
-      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+      <div className={cn("p-4 rounded-2xl space-y-4 border", isLight ? "bg-black/[0.02] border-black/5" : "bg-white/[0.02] border-white/5")}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-white">特殊日期与节假日 (Special Dates Override)</span>
+          <span className={cn("text-xs font-bold", isLight ? "text-black" : "text-white")}>特殊日期与节假日 (Special Dates Override)</span>
         </div>
-        <p className="text-[10px] font-mono text-white/40">
+        <p className={cn("text-[10px] font-mono", isLight ? "text-black/40" : "text-white/40")}>
           设置未来的店庆、节假日等例外时间。在日历渲染时，特殊日期的配置将强制覆盖常规星期的规律。
         </p>
 
@@ -891,19 +882,19 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
             type="date" 
             value={newSpecialDate}
             onChange={(e) => setNewSpecialDate(e.target.value)}
-            className="flex-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-gx-cyan/50"
+            className={cn("flex-1 border rounded-lg px-3 py-2 text-xs font-mono outline-none", isLight ? "bg-white text-black border-black/10 " : "bg-black text-white border-white/10 ")}
           />
           <button 
             onClick={handleAddSpecialDate}
             disabled={!newSpecialDate}
-            className="px-4 py-2 bg-gx-cyan/20 text-gx-cyan text-xs font-bold rounded-lg border border-gx-cyan/30 disabled:opacity-30"
+            className="px-4 py-2   text-xs font-bold rounded-lg border  disabled:opacity-30"
           >
             添加日期
           </button>
         </div>
 
         {/* 渲染已有的特殊日期列表 */}
-        <div className="space-y-2 mt-4">
+        <div className="space-y-0 mt-4">
           <AnimatePresence>
             {Object.entries(fullConfig.specialDates || {}).sort(([a], [b]) => a.localeCompare(b)).map(([dateStr, specialConfig]) => (
               <motion.div 
@@ -911,27 +902,27 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="flex flex-col p-3 bg-gx-cyan/5 border border-gx-cyan/20 rounded-xl"
+                className={cn("flex flex-col py-3 border-b", isLight ? "border-black/5" : "border-white/5")}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs font-mono font-bold text-white tracking-widest">{dateStr}</div>
+                  <div className="flex items-center gap-4">
+                    <div className={cn("text-xs font-mono font-bold tracking-widest", isLight ? "text-black" : "text-white")}>{dateStr}</div>
                     <button 
                       onClick={() => handleToggleClosedSpecial(dateStr, !specialConfig.isClosed)}
-                      className={cn("px-2 py-1 text-[9px] font-bold tracking-widest rounded-md transition-colors border", 
-                        specialConfig.isClosed ? "bg-red-500/10 text-red-400 border-red-500/30" : "bg-gx-cyan/10 text-gx-cyan border-gx-cyan/30"
+                      className={cn("px-2 py-0.5 text-[9px] font-bold tracking-widest rounded-sm transition-colors", 
+                        specialConfig.isClosed ? "bg-red-500/10 text-red-400" : " "
                       )}
                     >
-                      {specialConfig.isClosed ? '休息 CLOSED' : '营业 OPEN'}
+                      {specialConfig.isClosed ? '休息' : '营业'}
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
                     {!specialConfig.isClosed && (
-                      <button onClick={() => handleAddSpecialHour(dateStr)} className="text-[10px] font-bold text-gx-cyan flex items-center gap-1 hover:text-white transition-colors">
-                        <Plus className="w-3 h-3" /> 时段
+                      <button onClick={() => handleAddSpecialHour(dateStr)} className={cn("text-[10px] font-bold flex items-center gap-1 transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}>
+                        <Plus className="w-3 h-3" /> 添加
                       </button>
                     )}
-                    <button onClick={() => handleRemoveSpecialDate(dateStr)} className="text-white/20 hover:text-red-500 transition-colors p-1">
+                    <button onClick={() => handleRemoveSpecialDate(dateStr)} className={cn("transition-colors p-1", isLight ? "text-black/20 hover:text-red-500" : "text-white/20 hover:text-red-500")}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -953,7 +944,7 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
 
 import { useTranslations } from "next-intl";
 
-const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[] }) => {
+const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[], isLight: boolean }) => {
   const t = useTranslations('NebulaConfigHub');
   const [editingStaff, setEditingStaff] = useState<StaffItem | null>(null);
 
@@ -991,6 +982,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
         }} 
         registerActions={handleRegisterActions}
         availableServices={services}
+        isLight={isLight}
       />
     );
   }
@@ -999,17 +991,20 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
     <div className="space-y-4">
       <button 
         onClick={() => setEditingStaff({ id: "", name: "", role: "", status: "active", calendarView: "self", nebulaAccess: false, operationRights: "view", financialVisibility: "self", services: [] })}
-        className="w-full py-3 rounded-xl border border-dashed border-white/20 text-white/60 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all flex items-center justify-center gap-2 text-[11px] font-black tracking-widest"
+        className={cn(
+          "w-full py-3 rounded-xl border border-dashed text-[11px] font-bold tracking-widest transition-all flex items-center justify-center gap-2",
+          isLight ? "border-black/20 text-black/60 hover:text-black hover:border-black/40 hover:bg-black/5" : "border-white/20 text-white/60 hover:text-white hover:border-white/40 hover:bg-white/5"
+        )}
       >
         <Plus className="w-4 h-4" /> {t('txt_3fb42e')}</button>
       
       {staffs.map((staff) => (
-        <div key={staff.id} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-colors group cursor-pointer" onClick={() => setEditingStaff(staff)}>
+        <div key={staff.id} className={cn("flex items-center justify-between p-4 border-b transition-colors group cursor-pointer", isLight ? "border-black/5 hover:bg-black/5" : "border-white/5 hover:bg-white/5")} onClick={() => setEditingStaff(staff)}>
           <div className="flex items-center gap-4">
             {/* 头像背景微光 (Scheme C) */}
             <div 
               className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center relative overflow-hidden shadow-inner transition-all",
+                "w-10 h-10 rounded-full flex items-center justify-center relative overflow-hidden  transition-all",
                 staff.status === "resigned" ? "grayscale opacity-50" : ""
               )}
               style={{ backgroundColor: `${staff.color || '#666'}20`, border: `1px solid ${staff.color || '#666'}40` }}
@@ -1018,24 +1013,24 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services }: { sta
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className={cn("text-xs font-black", staff.status === "resigned" ? "text-white/40 line-through" : "text-white")}>{staff.name}</span>
+                <span className={cn("text-xs font-bold", staff.status === "resigned" ? (isLight ? "text-black/40 line-through" : "text-white/40 line-through") : (isLight ? "text-black" : "text-white"))}>{staff.name}</span>
                 {staff.status === "on_leave" && <span className="px-1.5 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 font-bold border border-yellow-500/30">{t('txt_62a8cf')}</span>}
                 {staff.status === "resigned" && <span className="px-1.5 py-0.5 rounded text-[8px] bg-red-500/20 text-red-500 font-bold border border-red-500/30">{t('txt_583e79')}</span>}
               </div>
-              <span className="text-[10px] font-mono text-white/40 mt-0.5 flex items-center gap-1">
+              <span className={cn("text-[10px] font-mono mt-0.5 flex items-center gap-1", isLight ? "text-black/40" : "text-white/40")}>
                 {staff.role} 
-                {staff.frontendId && <LinkIcon className="w-2.5 h-2.5 text-gx-cyan" />}
+                {staff.frontendId && <LinkIcon className="w-2.5 h-2.5 " />}
               </span>
             </div>
           </div>
-          <button className="text-[10px] font-bold text-white/40 group-hover:text-white underline underline-offset-4 transition-colors">{t('txt_224e2c')}</button>
+          <button className={cn("text-[10px] font-bold underline underline-offset-4 transition-colors", isLight ? "text-black/40 group-hover:text-black" : "text-white/40 group-hover:text-white")}>{t('txt_224e2c')}</button>
         </div>
       ))}
     </div>
   );
 };
 
-const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [] }: { staff: StaffItem, onBack: () => void, onSave: (data: StaffItem) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: ServiceItem[] }) => {
+const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [], isLight }: { staff: StaffItem, onBack: () => void, onSave: (data: StaffItem) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: ServiceItem[], isLight: boolean }) => {
     const t = useTranslations('NebulaConfigHub');
   type StaffTab = "basic" | "finance" | "access";
   const [activeTab, setActiveTab] = useState<StaffTab>("basic");
@@ -1120,16 +1115,16 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
   ];
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+    <div className={cn("space-y-4 animate-in fade-in slide-in-from-right-4 duration-300", isLight ? "text-black" : "text-white")}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/5">
-        <button onClick={onBack} className="flex items-center gap-1 text-[10px] font-bold text-white/40 hover:text-white transition-colors">
+      <div className={cn("flex items-center justify-between pb-4 border-b", isLight ? "border-black/5" : "border-white/5")}>
+        <button onClick={onBack} className={cn("flex items-center gap-1 text-[10px] font-bold transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}>
           <ChevronLeft className="w-4 h-4" /> {t('txt_adcd1d')}</button>
-        <span className="text-xs font-black text-white">{staff.id ? t('txt_d03a9c') : t('txt_3fb42e')}</span>
+        <span className={cn("text-xs font-bold", isLight ? "text-black" : "text-white")}>{staff.id ? t('txt_d03a9c') : t('txt_3fb42e')}</span>
       </div>
 
       {/* Internal Tabs */}
-      <div className="flex p-1 bg-white/5 rounded-lg border border-white/10">
+      <div className={cn("flex p-1 rounded-lg border", isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10")}>
         {[
           { id: "basic", label: t('txt_754801'), icon: User },
           { id: "finance", label: t('txt_03b5ea'), icon: CreditCard },
@@ -1140,7 +1135,9 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             onClick={() => setActiveTab(tab.id as StaffTab)}
             className={cn(
               "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-[10px] font-bold transition-all",
-              activeTab === tab.id ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80"
+              activeTab === tab.id 
+                ? (isLight ? "bg-black/10 text-black " : "bg-white/10 text-white ") 
+                : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
             )}
           >
             <tab.icon className="w-3 h-3" /> {tab.label}
@@ -1153,9 +1150,9 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
         {activeTab === "basic" && (
           <div className="space-y-5 animate-in fade-in">
             {/* Avatar & Basic Info */}
-            <div className="flex items-start gap-4 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+            <div className={cn("flex items-start gap-4 p-4 rounded-xl border-b", isLight ? "border-black/5" : "border-white/5")}>
               <div 
-                className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-inner shrink-0"
+                className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden  shrink-0"
                 style={{ backgroundColor: `${formData.color}20`, border: `1px solid ${formData.color}40` }}
               >
                 {formData.frontendId ? (
@@ -1175,12 +1172,12 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
               </div>
               <div className="flex-1 space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_a140c4')}</label>
-                  <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-transparent border-b border-white/10 text-white text-sm pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder={t('txt_a6a423')} />
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>{t('txt_a140c4')}</label>
+                  <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className={cn("w-full bg-transparent border-b text-sm pb-1 focus:outline-none  transition-colors", isLight ? "border-black/10 text-black" : "border-white/10 text-white")} placeholder={t('txt_a6a423')} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_60f114')}</label>
-                  <input type="text" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-transparent border-b border-white/10 text-white text-sm pb-1 focus:outline-none focus:border-gx-cyan transition-colors" placeholder={t('txt_480054')} />
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>{t('txt_60f114')}</label>
+                  <input type="text" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className={cn("w-full bg-transparent border-b text-sm pb-1 focus:outline-none  transition-colors", isLight ? "border-black/10 text-black" : "border-white/10 text-white")} placeholder={t('txt_480054')} />
                 </div>
               </div>
             </div>
@@ -1188,20 +1185,20 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             {/* Colors */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_d9f234')}</label>
+                <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>{t('txt_d9f234')}</label>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: formData.color }} />
-                  <span className="text-[10px] font-mono text-white/60">{formData.color}</span>
+                  <div className={cn("w-4 h-4 rounded-full border", isLight ? "border-black/20" : "border-white/20")} style={{ backgroundColor: formData.color }} />
+                  <span className={cn("text-[10px] font-mono", isLight ? "text-black/60" : "text-white/60")}>{formData.color}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-8 gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
+              <div className={cn("grid grid-cols-8 gap-2 p-3 rounded-xl border", isLight ? "bg-black/5 border-black/5" : "bg-white/[0.02] border-white/5")}>
                 {colors.map(color => (
                   <button 
                     key={color} 
                     onClick={() => setFormData({...formData, color})}
                     className={cn(
                       "w-6 h-6 rounded-full border-2 transition-all mx-auto",
-                      formData.color === color ? "border-white scale-125 shadow-[0_0_12px_currentColor] z-10 relative" : "border-transparent hover:scale-110 opacity-70 hover:opacity-100"
+                      formData.color === color ? (isLight ? "border-black scale-125  z-10 relative" : "border-white scale-125  z-10 relative") : "border-transparent hover:scale-110 opacity-70 hover:opacity-100"
                     )}
                     style={{ backgroundColor: color, color: color }}
                   />
@@ -1211,10 +1208,10 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
 
             {/* Status */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_70240b')}</label>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>{t('txt_70240b')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: "active", label: t('txt_238a27'), color: "text-green-400 border-green-400/20 bg-green-400/10" },
+                  { id: "active", label: t('txt_238a27'), color: "  " },
                   { id: "on_leave", label: t('txt_538024'), color: "text-yellow-400 border-yellow-400/20 bg-yellow-400/10" },
                   { id: "resigned", label: t('txt_151a99'), color: "text-red-400 border-red-400/20 bg-red-400/10" },
                 ].map(s => (
@@ -1223,7 +1220,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                     onClick={() => setFormData({...formData, status: s.id})}
                     className={cn(
                       "py-2 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1",
-                      formData.status === s.id ? s.color : "border-white/5 text-white/40 hover:bg-white/5"
+                      formData.status === s.id ? s.color : (isLight ? "border-black/5 text-black/40 hover:bg-black/5" : "border-white/5 text-white/40 hover:bg-white/5")
                     )}
                   >
                     {formData.status === s.id && <Check className="w-3 h-3" />}
@@ -1234,22 +1231,22 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             </div>
 
             {/* System Linking */}
-            <div className="space-y-4 p-4 rounded-xl border border-gx-cyan/20 bg-gx-cyan/5">
-              <div className="flex items-center gap-2 text-gx-cyan">
+            <div className="space-y-4 p-4 rounded-xl border  ">
+              <div className="flex items-center gap-2 ">
                 <LinkIcon className="w-4 h-4" />
-                <span className="text-xs font-black uppercase">{t('txt_dab60d')}</span>
+                <span className="text-xs font-bold uppercase">{t('txt_dab60d')}</span>
               </div>
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_ab459e')}</label>
-                  <input type="text" value={formData.frontendId} onChange={e => setFormData({...formData, frontendId: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-md text-white text-xs p-2 focus:outline-none focus:border-gx-cyan transition-colors font-mono placeholder:text-white/20" placeholder={t('txt_80c5c7')} />
-                  <p className="text-[8px] text-white/30 font-mono mt-1">{t('txt_1e10a4')}</p>
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>{t('txt_ab459e')}</label>
+                  <input type="text" value={formData.frontendId} onChange={e => setFormData({...formData, frontendId: e.target.value})} className={cn("w-full rounded-md text-xs p-2 focus:outline-none  transition-colors font-mono", isLight ? "bg-black/5 border border-black/10 text-black placeholder:text-black/20" : "bg-black/40 border border-white/10 text-white placeholder:text-white/20")} placeholder={t('txt_80c5c7')} />
+                  <p className={cn("text-[8px] font-mono mt-1", isLight ? "text-black/30" : "text-white/30")}>{t('txt_1e10a4')}</p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('txt_f6da71')}</label>
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>{t('txt_f6da71')}</label>
                   <div className="relative">
-                    <Smartphone className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40" />
-                    <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-md text-white text-xs py-2 pl-7 pr-2 focus:outline-none focus:border-gx-cyan transition-colors font-mono placeholder:text-white/20" placeholder={t('txt_5c0b15')} />
+                    <Smartphone className={cn("absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3", isLight ? "text-black/40" : "text-white/40")} />
+                    <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className={cn("w-full rounded-md text-xs py-2 pl-7 pr-2 focus:outline-none  transition-colors font-mono", isLight ? "bg-black/5 border border-black/10 text-black placeholder:text-black/20" : "bg-black/40 border border-white/10 text-white placeholder:text-white/20")} placeholder={t('txt_5c0b15')} />
                   </div>
                 </div>
               </div>
@@ -1261,7 +1258,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
           <div className="space-y-5 animate-in fade-in">
             {/* 新版动态表单：底薪类型选择器 */}
             <div className="space-y-3 mb-6">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><CreditCard className="w-3 h-3"/> 薪酬模型 (SALARY MODEL)</label>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1", isLight ? "text-black/40" : "text-white/40")}><CreditCard className="w-3 h-3"/> 薪酬模型 (SALARY MODEL)</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {[
                   { id: "guarantee", label: "保底提成制", desc: "设保底额度，赚回本后分润" },
@@ -1285,13 +1282,13 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                         if (opt.id === "fixed") setFormData({...formData, baseSalary: 3000, guarantee: 0, commissionRate: 0});
                         if (opt.id === "commission") setFormData({...formData, baseSalary: 0, guarantee: 0, commissionRate: 50});
                       }} 
-                      className={cn("p-3 rounded-xl border cursor-pointer transition-all", isSelected ? "bg-gx-cyan/10 border-gx-cyan/30" : "bg-white/[0.02] border-white/5 hover:border-white/20")}
+                      className={cn("p-3 rounded-xl border cursor-pointer transition-all", isSelected ? " " : (isLight ? "bg-black/5 border-black/5 hover:border-black/20" : "bg-white/[0.02] border-white/5 hover:border-white/20"))}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className={cn("text-xs font-bold", isSelected ? "text-gx-cyan" : "text-white")}>{opt.label}</span>
-                        {isSelected && <Check className="w-3 h-3 text-gx-cyan" />}
+                        <span className={cn("text-xs font-bold", isSelected ? "" : (isLight ? "text-black" : "text-white"))}>{opt.label}</span>
+                        {isSelected && <Check className="w-3 h-3 " />}
                       </div>
-                      <span className="text-[9px] text-white/40 leading-tight block">{opt.desc}</span>
+                      <span className={cn("text-[9px] leading-tight block", isLight ? "text-black/40" : "text-white/40")}>{opt.desc}</span>
                     </div>
                   );
                 })}
@@ -1299,12 +1296,12 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
             </div>
 
             {/* 动态显示的输入框阵列 */}
-            <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] space-y-4">
+            <div className={cn("p-4 rounded-xl border space-y-4", isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/[0.02]")}>
               
               {/* 仅在【纯底薪制】或【有底薪】时显示 */}
               {((formData.guarantee || 0) === 0 && (formData.commissionRate || 0) === 0) && (
                 <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">基础底薪 / BASE SALARY (€)</label>
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>基础底薪 / BASE SALARY (€)</label>
                   <input 
                     type="number" 
                     min="0"
@@ -1313,7 +1310,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                       const val = e.target.value;
                       setFormData({...formData, baseSalary: val === '' ? 0 : Math.max(0, Number(val))})
                     }} 
-                    className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" 
+                    className={cn("w-full bg-transparent border-b text-lg font-mono pb-1 focus:outline-none  transition-colors", isLight ? "border-black/10 text-black" : "border-white/10 text-white")} 
                     placeholder="0" 
                   />
                 </div>
@@ -1322,7 +1319,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
               {/* 仅在【保底提成制】显示 */}
               {((formData.guarantee || 0) > 0 || ((formData.baseSalary || 0) === 0 && (formData.commissionRate || 0) > 0 && (formData.guarantee || 0) > 0) || ((formData.guarantee || 0) !== 0)) && (
                 <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest text-gx-cyan/80">业绩保底 / GUARANTEE TARGET (€)</label>
+                  <label className="text-[10px] font-bold  uppercase tracking-widest">业绩保底 / GUARANTEE TARGET (€)</label>
                   <input 
                     type="number" 
                     min="0"
@@ -1331,7 +1328,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                       const val = e.target.value;
                       setFormData({...formData, guarantee: val === '' ? 0 : Math.max(0, Number(val))})
                     }} 
-                    className="w-full bg-transparent border-b border-gx-cyan/30 text-gx-cyan text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors" 
+                    className="w-full bg-transparent border-b   text-lg font-mono pb-1 focus:outline-none  transition-colors" 
                     placeholder="如：3200" 
                   />
                 </div>
@@ -1340,7 +1337,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
               {/* 仅在【保底提成制】和【纯提成制】显示 */}
               {((formData.commissionRate || 0) > 0 || (formData.guarantee || 0) > 0) && (
                 <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
+                  <label className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center justify-between", isLight ? "text-black/40" : "text-white/40")}>
                     <span>提成比例 / COMMISSION RATE</span>
                   </label>
                   <div className="relative">
@@ -1353,17 +1350,17 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                         const val = e.target.value;
                         setFormData({...formData, commissionRate: val === '' ? 0 : Math.max(0, Math.min(100, Number(val)))})
                       }} 
-                      className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors pr-8" 
+                      className={cn("w-full bg-transparent border-b text-lg font-mono pb-1 focus:outline-none  transition-colors pr-8", isLight ? "border-black/10 text-black" : "border-white/10 text-white")} 
                       placeholder="0" 
                     />
-                    <span className="absolute right-0 bottom-2 text-white/40 font-mono">%</span>
+                    <span className={cn("absolute right-0 bottom-2 font-mono", isLight ? "text-black/40" : "text-white/40")}>%</span>
                   </div>
                 </div>
               )}
 
               {/* 始终显示：每月休假天数 (用于推算日目标) */}
-              <div className="space-y-1 pt-2 border-t border-white/5 animate-in fade-in">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">每月休假 / MONTHLY DAYS OFF</label>
+              <div className={cn("space-y-1 pt-2 border-t animate-in fade-in", isLight ? "border-black/5" : "border-white/5")}>
+                <label className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-black/40" : "text-white/40")}>每月休假 / MONTHLY DAYS OFF</label>
                 <div className="relative">
                   <input 
                     type="number" 
@@ -1374,10 +1371,10 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
                       const val = e.target.value;
                       setFormData({...formData, daysOff: val === '' ? 0 : Math.max(0, Math.min(31, Number(val)))})
                     }} 
-                    className="w-full bg-transparent border-b border-white/10 text-white text-lg font-mono pb-1 focus:outline-none focus:border-gx-cyan transition-colors pr-12" 
+                    className={cn("w-full bg-transparent border-b text-lg font-mono pb-1 focus:outline-none  transition-colors pr-12", isLight ? "border-black/10 text-black" : "border-white/10 text-white")} 
                     placeholder="0" 
                   />
-                  <span className="absolute right-0 bottom-2 text-white/40 font-mono">天/月</span>
+                  <span className={cn("absolute right-0 bottom-2 font-mono", isLight ? "text-black/40" : "text-white/40")}>天/月</span>
                 </div>
               </div>
             </div>
@@ -1404,15 +1401,15 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
               if (isBossMode) {
                 return (
                   <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/30 flex gap-3 items-start relative overflow-hidden">
-                    <div className="absolute -right-4 -top-4 w-20 h-20 bg-amber-500/20 blur-2xl rounded-full"></div>
+                    <div className="absolute -right-4 -top-4 w-20 h-20 bg-amber-500/20  rounded-full"></div>
                     <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 shrink-0 relative z-10">
                       <Crown className="w-4 h-4" />
                     </div>
                     <div className="space-y-1 relative z-10">
-                      <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                      <h4 className={cn("text-xs font-bold flex items-center gap-2", isLight ? "text-black" : "text-white")}>
                         [ 老板模式 ] 顶级权限激活
                       </h4>
-                      <p className="text-[10px] text-white/60 leading-relaxed font-mono">
+                      <p className={cn("text-[10px] leading-relaxed font-mono", isLight ? "text-black/60" : "text-white/60")}>
                         无薪酬参数，自动豁免所有业绩考核。此账号产生的业绩将作为门店纯利润，不计入个人提成支出。
                       </p>
                     </div>
@@ -1431,17 +1428,17 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
               }
 
               return (
-                <div className="p-4 rounded-xl bg-gradient-to-br from-gx-cyan/10 to-transparent border border-gx-cyan/20 flex gap-3 items-start relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-gx-cyan/20 blur-2xl rounded-full"></div>
-                  <div className="p-2 rounded-lg bg-gx-cyan/20 text-gx-cyan shrink-0 relative z-10">
+                <div className="p-4 rounded-xl bg-gradient-to-br  to-transparent border  flex gap-3 items-start relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 w-20 h-20   rounded-full"></div>
+                  <div className="p-2 rounded-lg   shrink-0 relative z-10">
                     <TrendingUp className="w-4 h-4" />
                   </div>
                   <div className="space-y-1 relative z-10">
-                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                    <h4 className={cn("text-xs font-bold flex items-center gap-2", isLight ? "text-black" : "text-white")}>
                       AI 动态目标推演 
-                      {g > 0 && r > 0 && <span className="text-gx-cyan font-mono tracking-wider">€ {monthTarget} / 月</span>}
+                      {g > 0 && r > 0 && <span className=" font-mono tracking-wider">€ {monthTarget} / 月</span>}
                     </h4>
-                    <p className="text-[10px] text-white/60 leading-relaxed font-mono">
+                    <p className={cn("text-[10px] leading-relaxed font-mono", isLight ? "text-black/60" : "text-white/60")}>
                       {targetStr}
                     </p>
                   </div>
@@ -1455,18 +1452,18 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
           <div className="space-y-6 animate-in fade-in">
             {/* Calendar Access */}
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><CalendarIcon className="w-3 h-3"/> {t('txt_461577')}</label>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1", isLight ? "text-black/40" : "text-white/40")}><CalendarIcon className="w-3 h-3"/> {t('txt_461577')}</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: "self", label: t('txt_c71868'), desc: t('txt_cd5e70') },
                   { id: "all", label: t('txt_0467cc'), desc: t('txt_319cc2') }
                 ].map(opt => (
-                  <div key={opt.id} onClick={() => setFormData({...formData, calendarView: opt.id})} className={cn("p-3 rounded-xl border cursor-pointer transition-all", formData.calendarView === opt.id ? "bg-gx-cyan/10 border-gx-cyan/30" : "bg-white/[0.02] border-white/5 hover:border-white/20")}>
+                  <div key={opt.id} onClick={() => setFormData({...formData, calendarView: opt.id})} className={cn("p-3 rounded-xl border cursor-pointer transition-all", formData.calendarView === opt.id ? " " : (isLight ? "bg-black/5 border-black/5 hover:border-black/20" : "bg-white/[0.02] border-white/5 hover:border-white/20"))}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className={cn("text-xs font-bold", formData.calendarView === opt.id ? "text-gx-cyan" : "text-white")}>{opt.label}</span>
-                      {formData.calendarView === opt.id && <Check className="w-3 h-3 text-gx-cyan" />}
+                      <span className={cn("text-xs font-bold", formData.calendarView === opt.id ? "" : (isLight ? "text-black" : "text-white"))}>{opt.label}</span>
+                      {formData.calendarView === opt.id && <Check className="w-3 h-3 " />}
                     </div>
-                    <span className="text-[9px] text-white/40">{opt.desc}</span>
+                    <span className={cn("text-[9px]", isLight ? "text-black/40" : "text-white/40")}>{opt.desc}</span>
                   </div>
                 ))}
               </div>
@@ -1474,62 +1471,62 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
 
             {/* Operation Rights */}
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><Shield className="w-3 h-3"/> {t('txt_773712')}</label>
-              <select value={formData.operationRights} onChange={e => setFormData({...formData, operationRights: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg text-white text-xs p-3 focus:outline-none focus:border-gx-cyan transition-colors appearance-none cursor-pointer">
-                <option value="view">{t('txt_7781d9')}</option>
-                <option value="edit">{t('txt_2878a0')}</option>
-                <option value="edit_price">{t('txt_823d26')}</option>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1", isLight ? "text-black/40" : "text-white/40")}><Shield className="w-3 h-3"/> {t('txt_773712')}</label>
+              <select value={formData.operationRights} onChange={e => setFormData({...formData, operationRights: e.target.value})} className={cn("w-full border rounded-lg text-xs p-3 focus:outline-none  transition-colors appearance-none cursor-pointer", isLight ? "bg-black/5 border-black/10 text-black" : "bg-black/40 border-white/10 text-white")}>
+                <option value="view" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_7781d9')}</option>
+                <option value="edit" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_2878a0')}</option>
+                <option value="edit_price" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_823d26')}</option>
               </select>
             </div>
 
             {/* Financial Visibility */}
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1"><Eye className="w-3 h-3"/> {t('txt_db3e82')}</label>
-              <select value={formData.financialVisibility} onChange={e => setFormData({...formData, financialVisibility: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg text-white text-xs p-3 focus:outline-none focus:border-gx-cyan transition-colors appearance-none cursor-pointer">
-                <option value="self">{t('txt_2091de')}</option>
-                <option value="store">{t('txt_395559')}</option>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1", isLight ? "text-black/40" : "text-white/40")}><Eye className="w-3 h-3"/> {t('txt_db3e82')}</label>
+              <select value={formData.financialVisibility} onChange={e => setFormData({...formData, financialVisibility: e.target.value})} className={cn("w-full border rounded-lg text-xs p-3 focus:outline-none  transition-colors appearance-none cursor-pointer", isLight ? "bg-black/5 border-black/10 text-black" : "bg-black/40 border-white/10 text-white")}>
+                <option value="self" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_2091de')}</option>
+                <option value="store" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_395559')}</option>
               </select>
             </div>
 
             {/* Nebula Access */}
-            <div className="flex items-center justify-between p-4 rounded-xl border border-gx-purple/20 bg-gx-purple/5 cursor-pointer" onClick={() => setFormData({...formData, nebulaAccess: !formData.nebulaAccess})}>
+            <div className={cn("flex items-center justify-between p-4 rounded-xl border cursor-pointer", formData.nebulaAccess ? " " : (isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/5"))} onClick={() => setFormData({...formData, nebulaAccess: !formData.nebulaAccess})}>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white">{t('txt_c4b9ca')}</span>
-                  <span className="px-1.5 py-0.5 rounded text-[8px] bg-gx-purple/20 text-gx-purple border border-gx-purple/30 font-mono uppercase">Nebula</span>
+                  <span className={cn("text-xs font-bold", isLight ? "text-black" : "text-white")}>{t('txt_c4b9ca')}</span>
+                  <span className="px-1.5 py-0.5 rounded text-[8px]   border  font-mono uppercase">Nebula</span>
                 </div>
-                <p className="text-[9px] text-white/40">{t('txt_45b088')}</p>
+                <p className={cn("text-[9px]", isLight ? "text-black/40" : "text-white/40")}>{t('txt_45b088')}</p>
               </div>
-              <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", formData.nebulaAccess ? "bg-gx-purple/30 border-gx-purple/50 justify-end" : "bg-white/5 border-white/10 justify-start")}>
-                <motion.div layout className={cn("w-4 h-4 rounded-full shadow-sm", formData.nebulaAccess ? "bg-gx-purple" : "bg-white/40")} />
+              <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 transition-colors", formData.nebulaAccess ? "  justify-end" : (isLight ? "bg-black/10 border-black/20 justify-start" : "bg-white/5 border-white/10 justify-start"))}>
+                <motion.div layout className={cn("w-4 h-4 rounded-full ", formData.nebulaAccess ? "" : (isLight ? "bg-black/40" : "bg-white/40"))} />
               </div>
             </div>
 
             {/* Assigned Services (Capabilities Workflow) */}
-            <div className="pt-4 border-t border-white/10 space-y-3">
-              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center justify-between">
+            <div className={cn("pt-4 border-t space-y-3", isLight ? "border-black/10" : "border-white/10")}>
+              <label className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center justify-between", isLight ? "text-black/40" : "text-white/40")}>
                 <span className="flex items-center gap-1"><Briefcase className="w-3 h-3"/> {t('txt_149023')}</span>
-                <span className="text-gx-cyan cursor-pointer hover:text-white transition-colors" onClick={() => setIsServicesModalOpen(true)}>{t('txt_8347a9')}</span>
+                <span className={cn("cursor-pointer transition-colors", isLight ? " hover:text-black" : " hover:text-white")} onClick={() => setIsServicesModalOpen(true)}>{t('txt_8347a9')}</span>
               </label>
-              <div className="p-3 bg-white/5 rounded-xl border border-white/5 min-h-[60px] flex flex-wrap gap-2">
+              <div className={cn("p-3 rounded-xl border min-h-[60px] flex flex-wrap gap-2", isLight ? "bg-black/5 border-black/5" : "bg-white/5 border-white/5")}>
                 {formData.services.length > 0 ? (
                   formData.services.map((svcId: string) => {
                     const svc = availableServices.find(s => s.id === svcId);
                     if (!svc) return null;
                     return (
-                      <div key={svcId} className="px-2 py-1 rounded bg-white/10 border border-white/10 text-[10px] text-white flex items-center gap-1">
+                      <div key={svcId} className={cn("px-2 py-1 rounded border text-[10px] flex items-center gap-1", isLight ? "bg-black/10 border-black/10 text-black" : "bg-white/10 border-white/10 text-white")}>
                         {svc.name}
-                        <button className="text-white/40 hover:text-white" onClick={() => setFormData({...formData, services: formData.services.filter((id: string) => id !== svcId)})}>
+                        <button className={cn("transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")} onClick={() => setFormData({...formData, services: formData.services.filter((id: string) => id !== svcId)})}>
                           <X className="w-2.5 h-2.5" />
                         </button>
                       </div>
                     );
                   })
                 ) : (
-                  <span className="text-xs text-white/20 my-auto">{t('txt_fe642f')}</span>
+                  <span className={cn("text-xs my-auto", isLight ? "text-black/20" : "text-white/20")}>{t('txt_fe642f')}</span>
                 )}
               </div>
-              <p className="text-[9px] text-gx-cyan/60">{t('txt_c7f632')}</p>
+              <p className="text-[9px] ">{t('txt_c7f632')}</p>
             </div>
           </div>
         )}
@@ -1538,26 +1535,26 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
       {/* Services Modal Mock */}
       <AnimatePresence>
         {isServicesModalOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
-              <h3 className="text-sm font-black text-white">{t('txt_070091')}</h3>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80  z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={cn("border rounded-2xl p-6 w-full max-w-sm space-y-4 ", isLight ? "bg-white border-black/10" : "bg-[#111] border-white/10")}>
+              <h3 className={cn("text-sm font-bold", isLight ? "text-black" : "text-white")}>{t('txt_070091')}</h3>
               <div className="space-y-2 max-h-[40vh] overflow-y-auto no-scrollbar">
                 {availableServices.map(svc => (
-                  <div key={svc.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/5 cursor-pointer hover:bg-white/10" onClick={() => {
+                  <div key={svc.id} className={cn("flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors", isLight ? "border-black/5 bg-black/5 hover:bg-black/10" : "border-white/5 bg-white/5 hover:bg-white/10")} onClick={() => {
                     const newServices = formData.services.includes(svc.id) ? formData.services.filter((id: string) => id !== svc.id) : [...formData.services, svc.id];
                     setFormData({...formData, services: newServices});
                   }}>
-                    <div className={cn("w-4 h-4 rounded border flex items-center justify-center", formData.services.includes(svc.id) ? "bg-gx-cyan border-gx-cyan text-black" : "border-white/20")}>
+                    <div className={cn("w-4 h-4 rounded border flex items-center justify-center", formData.services.includes(svc.id) ? "  text-black" : (isLight ? "border-black/20" : "border-white/20"))}>
                       {formData.services.includes(svc.id) && <Check className="w-3 h-3" />}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-xs text-white font-bold">{svc.name}</span>
-                      <span className="text-[10px] text-white/40 font-mono">¥{svc.price} · {svc.duration}min</span>
+                      <span className={cn("text-xs font-bold", isLight ? "text-black" : "text-white")}>{svc.name}</span>
+                      <span className={cn("text-[10px] font-mono", isLight ? "text-black/40" : "text-white/40")}>¥{svc.price} · {svc.duration}min</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <button onClick={() => setIsServicesModalOpen(false)} className="w-full py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors">
+              <button onClick={() => setIsServicesModalOpen(false)} className={cn("w-full py-2.5 rounded-xl text-xs font-bold transition-colors", isLight ? "bg-black/5 text-black hover:bg-black/10" : "bg-white/10 text-white hover:bg-white/20")}>
                 {t('txt_3fdf2d')}</button>
             </motion.div>
           </motion.div>
@@ -1571,12 +1568,14 @@ const ServicesConfig = ({
   categories, 
   services, 
   onCategoriesChange, 
-  onServicesChange 
+  onServicesChange,
+  isLight
 }: { 
   categories: CategoryItem[], 
   services: ServiceItem[], 
   onCategoriesChange: (c: CategoryItem[]) => void, 
-  onServicesChange: (s: ServiceItem[]) => void 
+  onServicesChange: (s: ServiceItem[]) => void,
+  isLight: boolean
 }) => {
     const t = useTranslations('NebulaConfigHub');
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(categories.length > 0 ? categories[0].id : null);
@@ -1747,7 +1746,6 @@ const ServicesConfig = ({
   };
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [newCategoryInput, setNewCategoryInput] = useState("");
 
   const activeCategoryName = categories.find(c => c.id === activeCategoryId)?.name || "未选择";
 
@@ -1760,8 +1758,8 @@ const ServicesConfig = ({
         
         
         return (
-          <div key={cat.id} className={`space-y-3 p-4 rounded-xl transition-all border ${isActive ? 'bg-white/[0.02] border-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.05)]' : 'border-transparent'}`}>
-            <div className="flex items-center justify-between border-b border-white/10 pb-2 group/header">
+          <div key={cat.id} className={cn("space-y-3 p-4 rounded-xl transition-all border", isActive ? (isLight ? "bg-black/5  " : "bg-white/[0.02]  ") : "border-transparent")}>
+            <div className={cn("flex items-center justify-between border-b pb-2 group/header", isLight ? "border-black/10" : "border-white/10")}>
               {editingCategoryId === cat.id ? (
                 <input
                   type="text"
@@ -1773,11 +1771,11 @@ const ServicesConfig = ({
                   }}
                   autoFocus
                   onBlur={() => handleSaveCategoryEdit(cat.id)}
-                  className="flex-1 bg-black/60 border border-gx-cyan/50 rounded text-white text-xs font-black tracking-widest px-2 py-1 outline-none mr-2"
+                  className={cn("flex-1 border rounded text-xs font-bold tracking-widest px-2 py-1 outline-none mr-2", isLight ? "bg-white  text-black" : "bg-black/60  text-white")}
                 />
               ) : (
                 <h3 
-                  className={`text-xs font-black tracking-widest flex items-center gap-2 cursor-pointer ${isActive ? 'text-gx-cyan' : 'text-white/80'} hover:text-gx-cyan transition-colors`}
+                  className={cn("text-xs font-bold tracking-widest flex items-center gap-2 cursor-pointer transition-colors", isActive ? "" : (isLight ? "text-black/80 " : "text-white/80 "))}
                   onClick={() => {
                     if (isActive) {
                       handleStartCategoryEdit(cat);
@@ -1787,12 +1785,12 @@ const ServicesConfig = ({
                   }}
                   title={isActive ? t('txt_a0cb83') : t('txt_78345c')}
                 >
-                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse" />}
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full  animate-pulse" />}
                   {cat.name}
                   {catServices.length === 0 && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleRemoveCategory(cat.id); }}
-                      className="text-white/20 hover:text-red-500 opacity-0 group-hover/header:opacity-100 transition-opacity ml-2"
+                      className={cn("opacity-0 group-hover/header:opacity-100 transition-opacity ml-2", isLight ? "text-black/20 hover:text-red-500" : "text-white/20 hover:text-red-500")}
                       title={t('txt_1837b2')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1800,7 +1798,7 @@ const ServicesConfig = ({
                   )}
                 </h3>
               )}
-              <span className="text-[10px] font-mono text-white/30">{catServices.length} ITEMS</span>
+              <span className={cn("text-[10px] font-mono", isLight ? "text-black/30" : "text-white/30")}>{catServices.length} ITEMS</span>
             </div>
 
             <div className="space-y-2">
@@ -1811,7 +1809,7 @@ const ServicesConfig = ({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="flex flex-col gap-2 p-4 bg-black/40 border border-white/5 rounded-xl group hover:bg-white/[0.05] transition-all relative overflow-hidden"
+                    className={cn("flex flex-col gap-2 p-4 border rounded-xl group transition-all relative overflow-hidden", isLight ? "bg-black/5 border-black/5 hover:bg-black/10" : "bg-black/40 border-white/5 hover:bg-white/[0.05]")}
                   >
                     <div className="flex items-center justify-between gap-3">
                       {/* Name - 原地编辑 */}
@@ -1827,11 +1825,11 @@ const ServicesConfig = ({
                             }}
                             autoFocus
                             onBlur={handleSaveEditField}
-                            className="w-full bg-black/60 border border-gx-cyan/50 rounded text-white text-xs px-2 py-1 outline-none font-mono"
+                            className={cn("w-full border  rounded text-xs px-2 py-1 outline-none font-mono", isLight ? "bg-white text-black" : "bg-black/60 text-white")}
                           />
                         ) : (
                           <span 
-                              className="text-xs font-bold text-white flex items-center gap-2 group-hover:text-gx-cyan transition-colors cursor-pointer truncate"
+                              className={cn("text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer truncate", isLight ? "text-black " : "text-white ")}
                               onClick={() => handleStartEditField(service, 'name')}
                               title="点击修改名称"
                             >
@@ -1845,10 +1843,10 @@ const ServicesConfig = ({
                         <select
                           value={service.duration || 60}
                           onChange={(e) => handleDurationChange(service.id, parseInt(e.target.value, 10))}
-                          className="bg-transparent text-[10px] font-mono text-white/40 outline-none cursor-pointer hover:text-white transition-colors appearance-none text-center"
+                          className={cn("bg-transparent text-[10px] font-mono outline-none cursor-pointer transition-colors appearance-none text-center", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}
                         >
                           {Array.from({length: 16}, (_, i) => (i + 1) * 15).map(m => (
-                            <option key={m} value={m} className="bg-black text-white">{m} min</option>
+                            <option key={m} value={m} className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{m} min</option>
                           ))}
                         </select>
                       </div>
@@ -1867,11 +1865,11 @@ const ServicesConfig = ({
                               }}
                               autoFocus
                               onBlur={handleSaveEditField}
-                              className="w-12 bg-black/60 border border-gx-cyan/50 rounded text-white text-xs px-1 py-1 outline-none font-mono text-center"
+                              className={cn("w-12 border  rounded text-xs px-1 py-1 outline-none font-mono text-center", isLight ? "bg-white text-black" : "bg-black/60 text-white")}
                             />
                           ) : (
                             <span 
-                              className="text-xs font-bold text-gx-cyan font-mono cursor-pointer"
+                              className="text-xs font-bold  font-mono cursor-pointer"
                               onClick={() => handleStartEditField(service, 'price')}
                               title="点击修改价格"
                             >
@@ -1884,7 +1882,7 @@ const ServicesConfig = ({
                             <div className="flex items-center gap-1 ml-1">
                               {service.prices.slice(1).map((p: number, i: number) => (
                                 <div key={i} className="group/capsule relative">
-                                  <span className="text-[10px] text-white/80 font-mono bg-white/10 px-1.5 py-0.5 rounded-full border border-white/5">
+                                  <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded-full border", isLight ? "text-black/80 bg-black/5 border-black/5" : "text-white/80 bg-white/10 border-white/5")}>
                                     {p}
                                   </span>
                                   <button 
@@ -1910,13 +1908,13 @@ const ServicesConfig = ({
                               }}
                               onBlur={() => handleAddVariant(service.id)}
                               autoFocus
-                              className="w-10 text-[10px] bg-black/60 border border-gx-cyan/50 rounded px-1 py-0.5 text-white font-mono outline-none"
+                              className={cn("w-10 text-[10px] border  rounded px-1 py-0.5 font-mono outline-none", isLight ? "bg-white text-black" : "bg-black/60 text-white")}
                               placeholder={t('txt_0e9fd9')}
                             />
                           ) : (
                             <button 
                               onClick={(e) => { e.stopPropagation(); setAddingVariantId(service.id); }}
-                              className="text-[10px] text-white/40 hover:text-gx-cyan bg-white/5 hover:bg-gx-cyan/10 px-1.5 py-0.5 rounded-full transition-colors border border-dashed border-white/20 hover:border-gx-cyan/50 ml-1"
+                              className={cn("text-[10px] px-1.5 py-0.5 rounded-full transition-colors border border-dashed ml-1", isLight ? "text-black/40  bg-black/5  border-black/20 " : "text-white/40  bg-white/5  border-white/20 ")}
                             >
                               +
                             </button>
@@ -1926,7 +1924,7 @@ const ServicesConfig = ({
                         {/* 垃圾桶 */}
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleRemoveService(service.id); }} 
-                          className="text-white/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-20 ml-2"
+                          className={cn("opacity-0 group-hover:opacity-100 transition-opacity z-20 ml-2", isLight ? "text-black/20 hover:text-red-500" : "text-white/20 hover:text-red-500")}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1939,7 +1937,7 @@ const ServicesConfig = ({
                         onSave={(val) => {
                           onServicesChange(services.map(s => s.id === service.id ? { ...s, fullName: val } : s));
                         }}
-                        className="w-full bg-transparent border-b border-white/10 focus:border-gx-cyan/50 text-[10px] text-white/60 placeholder:text-white/20 py-1 outline-none transition-colors"
+                        className={cn("w-full bg-transparent border-b  text-[10px] py-1 outline-none transition-colors", isLight ? "border-black/10 text-black/60 placeholder:text-black/20" : "border-white/10 text-white/60 placeholder:text-white/20")}
                       />
                     </div>
                   </motion.div>
@@ -1951,7 +1949,7 @@ const ServicesConfig = ({
       })}
 
       {/* 底部全局指挥舱 (Omni-Input Core) */}
-      <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent z-30">
+      <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 z-30">
         
         {/* 透明遮罩：用于点击外部关闭下拉菜单 */}
         {isDropdownOpen && (
@@ -1961,26 +1959,20 @@ const ServicesConfig = ({
           />
         )}
 
-        <div className="relative group flex items-center bg-black/60 border border-white/10 group-focus-within:border-gx-cyan/50 rounded-2xl p-1.5 backdrop-blur-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] transition-all z-50">
+        <div className={cn("relative group flex items-center border  rounded-2xl p-1.5  transition-all z-50", isLight ? "bg-white/60 border-black/10 " : "bg-black/60 border-white/10 ")}>
           
           {/* 上下文 Badge (交互式 Dropdown) - 始终显示 */}
           <div className="relative">
             <div 
-              className={`flex items-center gap-1.5 px-3 py-2 shrink-0 cursor-pointer group/badge transition-colors rounded-xl ${
-                isDropdownOpen ? 'bg-gx-cyan/10' : 'hover:bg-white/5'
-              }`}
+              className={cn("flex items-center gap-1.5 px-3 py-2 shrink-0 cursor-pointer group/badge transition-colors rounded-xl", isDropdownOpen ? "" : (isLight ? "hover:bg-black/5" : "hover:bg-white/5"))}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               title={t('txt_236222')}
             >
-              <span className={`text-[10px] font-black uppercase tracking-wider max-w-[80px] truncate transition-colors ${
-                isDropdownOpen ? 'text-gx-cyan' : 'text-white/60 group-hover/badge:text-white'
-              }`}>
+              <span className={cn("text-[10px] font-bold uppercase tracking-wider max-w-[80px] truncate transition-colors", isDropdownOpen ? "" : (isLight ? "text-black/60 group-hover/badge:text-black" : "text-white/60 group-hover/badge:text-white"))}>
                 {isCreatingCategory ? "新建分类" : activeCategoryName}
               </span>
               <svg 
-                className={`w-2.5 h-2.5 transition-all duration-200 ${
-                  isDropdownOpen ? 'text-gx-cyan' : 'text-white/40 group-hover/badge:text-white'
-                }`} 
+                className={cn("w-2.5 h-2.5 transition-all duration-200", isDropdownOpen ? "" : (isLight ? "text-black/40 group-hover/badge:text-black" : "text-white/40 group-hover/badge:text-white"))} 
                 style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
               >
@@ -1996,20 +1988,16 @@ const ServicesConfig = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute bottom-full left-0 mb-2 w-48 bg-[#0f0f0f] border border-white/10 rounded-xl shadow-[0_-10px_40px_rgba(0,0,0,0.8)] backdrop-blur-2xl overflow-hidden flex flex-col z-50"
+                  className={cn("absolute bottom-full left-0 mb-2 w-48 border rounded-xl  overflow-hidden flex flex-col z-50", isLight ? "bg-white border-black/10 " : "bg-[#0f0f0f] border-white/10 ")}
                 >
                   <div className="max-h-40 overflow-y-auto no-scrollbar p-1.5 space-y-1">
                     {categories.length === 0 && (
-                      <div className="px-3 py-4 text-[10px] text-white/30 text-center font-mono">暂无分类</div>
+                      <div className={cn("px-3 py-4 text-[10px] text-center font-mono", isLight ? "text-black/30" : "text-white/30")}>暂无分类</div>
                     )}
                     {categories.map(cat => (
                       <div
                         key={cat.id}
-                        className={`px-3 py-2 text-xs font-black tracking-widest rounded-lg cursor-pointer transition-colors flex items-center justify-center ${
-                          cat.id === activeCategoryId && !isCreatingCategory 
-                            ? 'text-gx-cyan bg-gx-cyan/10 border border-gx-cyan/30' 
-                            : 'text-white/70 hover:text-white hover:bg-white/5 border border-white/5 hover:border-white/10'
-                        }`}
+                        className={cn("px-3 py-2 text-xs font-bold tracking-widest rounded-lg cursor-pointer transition-colors flex items-center justify-center border", cat.id === activeCategoryId && !isCreatingCategory ? "  " : (isLight ? "text-black/70 hover:text-black hover:bg-black/5 border-black/5 hover:border-black/10" : "text-white/70 hover:text-white hover:bg-white/5 border-white/5 hover:border-white/10"))}
                         onClick={() => {
                           setActiveCategoryId(cat.id);
                           setIsCreatingCategory(false);
@@ -2021,13 +2009,9 @@ const ServicesConfig = ({
                     ))}
                   </div>
                   
-                  <div className="border-t border-white/10 p-1.5 bg-black/40">
+                  <div className={cn("border-t p-1.5", isLight ? "border-black/10 bg-black/5" : "border-white/10 bg-black/40")}>
                     <div 
-                      className={`px-3 py-2 text-xs font-black rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
-                        isCreatingCategory 
-                          ? 'text-gx-cyan bg-gx-cyan/10 border border-gx-cyan/30' 
-                          : 'text-white/70 hover:text-white hover:bg-white/5 border border-white/5 hover:border-white/10'
-                      }`}
+                      className={cn("px-3 py-2 text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1.5 border", isCreatingCategory ? "  " : (isLight ? "text-black/70 hover:text-black hover:bg-black/5 border-black/5 hover:border-black/10" : "text-white/70 hover:text-white hover:bg-white/5 border-white/5 hover:border-white/10"))}
                       onClick={() => {
                         setIsCreatingCategory(true);
                         setIsDropdownOpen(false);
@@ -2050,7 +2034,7 @@ const ServicesConfig = ({
                 onChange={(e) => setNewCatName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } }}
                 placeholder="输入项目分类名称..."
-                className="w-full bg-transparent text-white text-sm px-3 py-2 outline-none placeholder:text-white/20 font-mono"
+                className={cn("w-full bg-transparent text-sm px-3 py-2 outline-none font-mono", isLight ? "text-black placeholder:text-black/20" : "text-white placeholder:text-white/20")}
                 autoFocus
               />
             ) : (
@@ -2062,9 +2046,9 @@ const ServicesConfig = ({
                   onChange={(e) => setNewSvcName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); priceInputRef.current?.focus(); } }}
                   placeholder="项目名称"
-                  className="flex-1 min-w-[80px] bg-transparent text-white text-sm py-2 outline-none placeholder:text-white/20 font-mono"
+                  className={cn("flex-1 min-w-[80px] bg-transparent text-sm py-2 outline-none font-mono", isLight ? "text-black placeholder:text-black/20" : "text-white placeholder:text-white/20")}
                 />
-                <div className="w-px h-4 bg-white/20 shrink-0" />
+                <div className={cn("w-px h-4 shrink-0", isLight ? "bg-black/20" : "bg-white/20")} />
                 <div className="flex items-center shrink-0 w-20 relative">
                   <input
                     ref={priceInputRef}
@@ -2073,7 +2057,7 @@ const ServicesConfig = ({
                     onChange={(e) => setNewSvcPrice(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateService(); } }}
                     placeholder="价格"
-                    className="w-full bg-transparent text-white text-sm py-2 outline-none placeholder:text-white/20 font-mono [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className={cn("w-full bg-transparent text-sm py-2 outline-none font-mono [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none", isLight ? "text-black placeholder:text-black/20" : "text-white placeholder:text-white/20")}
                   />
                 </div>
               </div>
@@ -2084,7 +2068,7 @@ const ServicesConfig = ({
           <div className="flex items-center gap-1 pr-1 shrink-0">
             <button
               onClick={isCreatingCategory ? handleCreateCategory : handleCreateService}
-              className="w-8 h-8 rounded-xl bg-gx-cyan flex items-center justify-center text-black hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all"
+              className="w-8 h-8 rounded-xl  flex items-center justify-center text-black  transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </button>

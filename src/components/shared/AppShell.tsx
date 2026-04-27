@@ -10,12 +10,14 @@ import { GlobalWormholeCapsule } from "./GlobalWormholeCapsule";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 import { useShop } from "@/features/shop/ShopContext";
 import { useViewStack } from "@/hooks/useViewStack";
+import { useActiveTab } from "@/hooks/useActiveTab";
 import { supabase } from "@/lib/supabase";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const { subscriptionModalMode, closeSubscriptionModal, subscription } = useShop();
-  const { activeTab, overlays } = useViewStack();
+  const { overlays } = useViewStack();
+  const activeTab = useActiveTab();
   const { user } = useAuth();
   const isMockUser = user && 'gxId' in user && (user as any).gxId?.startsWith('GX_');
 

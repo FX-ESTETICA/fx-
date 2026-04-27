@@ -117,6 +117,102 @@
   .bg-nebula {
     background: radial-gradient(circle at 50% 50%, rgba(10, 10, 15, 1) 0%, rgba(0, 0, 0, 1) 100%);
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* 日历全局极权黑白主题结界 (双子星绝对对称架构) */
+  /* ---------------------------------------------------------------------- */
+
+  /* === 1. 光源黑 (coreblack) 结界：针对白底黑字 === */
+  .theme-coreblack.calendar-full-area *,
+  .theme-coreblack .calendar-full-area * {
+    color: #000000 !important;
+    text-shadow: none !important; /* 彻底抹杀文字光晕 */
+  }
+  .theme-coreblack.calendar-full-area svg,
+  .theme-coreblack.calendar-full-area svg *,
+  .theme-coreblack.calendar-full-area path,
+  .theme-coreblack.calendar-full-area circle,
+  .theme-coreblack.calendar-full-area rect,
+  .theme-coreblack .calendar-full-area svg,
+  .theme-coreblack .calendar-full-area svg *,
+  .theme-coreblack .calendar-full-area path,
+  .theme-coreblack .calendar-full-area circle,
+  .theme-coreblack .calendar-full-area rect {
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
+  .theme-coreblack.calendar-full-area svg[fill="none"],
+  .theme-coreblack.calendar-full-area svg[fill="none"] *,
+  .theme-coreblack .calendar-full-area svg[fill="none"],
+  .theme-coreblack .calendar-full-area svg[fill="none"] * {
+    fill: none !important;
+  }
+  .theme-coreblack.calendar-full-area [class*="drop-shadow"],
+  .theme-coreblack .calendar-full-area [class*="drop-shadow"] {
+    --tw-drop-shadow: none !important; /* 彻底抹杀发光阴影 */
+  }
+  .theme-coreblack.calendar-full-area [class*="bg-gx-"],
+  .theme-coreblack.calendar-full-area [class*="bg-purple-"],
+  .theme-coreblack.calendar-full-area [class*="bg-cyan-"],
+  .theme-coreblack.calendar-full-area [class*="from-gx-"],
+  .theme-coreblack.calendar-full-area [class*="to-gx-"],
+  .theme-coreblack.calendar-full-area [class*="via-gx-"],
+  .theme-coreblack .calendar-full-area [class*="bg-gx-"],
+  .theme-coreblack .calendar-full-area [class*="bg-purple-"],
+  .theme-coreblack .calendar-full-area [class*="bg-cyan-"],
+  .theme-coreblack .calendar-full-area [class*="from-gx-"],
+  .theme-coreblack .calendar-full-area [class*="to-gx-"],
+  .theme-coreblack .calendar-full-area [class*="via-gx-"] {
+    background: rgba(255, 255, 255, 0.4) !important; /* 高亮半透明底，反衬黑字 */
+    background-color: rgba(255, 255, 255, 0.4) !important;
+    background-image: none !important;
+  }
+
+  /* === 2. 极简白 (purewhite) 结界：针对暗底白字 === */
+  .theme-purewhite.calendar-full-area *,
+  .theme-purewhite .calendar-full-area * {
+    color: #ffffff !important;
+    text-shadow: none !important; /* 彻底抹杀文字光晕 */
+  }
+  .theme-purewhite.calendar-full-area svg,
+  .theme-purewhite.calendar-full-area svg *,
+  .theme-purewhite.calendar-full-area path,
+  .theme-purewhite.calendar-full-area circle,
+  .theme-purewhite.calendar-full-area rect,
+  .theme-purewhite .calendar-full-area svg,
+  .theme-purewhite .calendar-full-area svg *,
+  .theme-purewhite .calendar-full-area path,
+  .theme-purewhite .calendar-full-area circle,
+  .theme-purewhite .calendar-full-area rect {
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
+  .theme-purewhite.calendar-full-area svg[fill="none"],
+  .theme-purewhite.calendar-full-area svg[fill="none"] *,
+  .theme-purewhite .calendar-full-area svg[fill="none"],
+  .theme-purewhite .calendar-full-area svg[fill="none"] * {
+    fill: none !important;
+  }
+  .theme-purewhite.calendar-full-area [class*="drop-shadow"],
+  .theme-purewhite .calendar-full-area [class*="drop-shadow"] {
+    --tw-drop-shadow: none !important; /* 彻底抹杀发光阴影 */
+  }
+  .theme-purewhite.calendar-full-area [class*="bg-gx-"],
+  .theme-purewhite.calendar-full-area [class*="bg-purple-"],
+  .theme-purewhite.calendar-full-area [class*="bg-cyan-"],
+  .theme-purewhite.calendar-full-area [class*="from-gx-"],
+  .theme-purewhite.calendar-full-area [class*="to-gx-"],
+  .theme-purewhite.calendar-full-area [class*="via-gx-"],
+  .theme-purewhite .calendar-full-area [class*="bg-gx-"],
+  .theme-purewhite .calendar-full-area [class*="bg-purple-"],
+  .theme-purewhite .calendar-full-area [class*="bg-cyan-"],
+  .theme-purewhite .calendar-full-area [class*="from-gx-"],
+  .theme-purewhite .calendar-full-area [class*="to-gx-"],
+  .theme-purewhite .calendar-full-area [class*="via-gx-"] {
+    background: rgba(0, 0, 0, 0.6) !important; /* 暗黑半透明底，反衬白字 */
+    background-color: rgba(0, 0, 0, 0.6) !important;
+    background-image: none !important;
+  }
 }
 
 @keyframes marquee {

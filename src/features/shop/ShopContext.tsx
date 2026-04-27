@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, R
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { BookingService, BookingRealtimePayload } from "@/features/booking/api/booking";
+import { useVisualSettings } from '@/hooks/useVisualSettings';
+import { useBackground } from '@/hooks/useBackground';
 
 interface SubscriptionState {
   subscriptionTier: string;
@@ -41,6 +43,9 @@ const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
 export const ShopProvider = ({ children }: { children: ReactNode }) => {
   const { user, activeRole } = useAuth() as any; // activeRole is exposed by useAuth
+  const { updateSettings } = useVisualSettings();
+  const { setSpecificBackground } = useBackground();
+  
   const [activeShopId, setActiveShopIdState] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("gx_active_shop_id");
@@ -124,6 +129,16 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   // ==========================================
   const [shopConfig, setShopConfig] = useState<any | null>(null);
   const [isShopConfigLoaded, setIsShopConfigLoaded] = useState(false);
+
+  // 同步云端视觉配置到本地状态
+  useEffect(() => {
+    if (shopConfig?.visualSettings) {
+      updateSettings(shopConfig.visualSettings);
+    }
+    if (shopConfig?.globalBgIndex !== undefined) {
+      setSpecificBackground(shopConfig.globalBgIndex);
+    }
+  }, [shopConfig?.visualSettings, shopConfig?.globalBgIndex, updateSettings, setSpecificBackground]);
 
   // ==========================================
   // 全局订单中枢 (Bookings Source of Truth)

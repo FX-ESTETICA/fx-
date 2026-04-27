@@ -106,7 +106,7 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
         {/* 悬浮关闭按钮 (位于独立滚动层之上，不受滚动影响) */}
         <button
           onClick={onClose}
-          className="absolute top-[var(--sat)] right-6 p-3 rounded-full bg-black/40 border border-white/10 text-white/80 hover:text-white hover:bg-black/60 transition-all z-50 backdrop-blur-xl"
+          className="absolute top-[var(--sat)] right-6 p-3 rounded-full bg-black/40 border border-white/10 text-white/80 hover:text-white hover:bg-black/60 transition-all z-50 "
         >
           <X className="w-6 h-6" />
         </button>
@@ -121,9 +121,9 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
             }}
             disabled={storeStatus !== 'open'}
             className={cn(
-              "w-full md:w-auto md:px-10 py-5 rounded-full font-black text-base tracking-[0.2em] flex items-center justify-center gap-3 transition-transform pointer-events-auto",
+              "w-full md:w-auto md:px-10 py-5 rounded-full font-bold text-base tracking-[0.2em] flex items-center justify-center gap-3 transition-transform pointer-events-auto",
               storeStatus === 'open' 
-                ? "bg-gradient-to-r from-gx-cyan to-blue-500 text-black hover:scale-[1.05] shadow-[0_0_30px_rgba(0,240,255,0.4)]"
+                ? "bg-gradient-to-r  to-blue-500 text-black hover:scale-[1.05] "
                 : "bg-white/10 text-white/40 cursor-not-allowed border border-white/10"
             )}
           >

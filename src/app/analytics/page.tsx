@@ -43,14 +43,14 @@ export default function AnalyticsPage() {
   return (
     <main className="min-h-[100dvh] bg-black text-white p-6 md:p-12 relative overflow-hidden">
       {/* 背景光效 */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-gx-purple/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%]   rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%]   rounded-full pointer-events-none" />
 
       <div className="max-w-[1400px] mx-auto space-y-12 relative z-10">
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-white/5">
           <div className="space-y-2">
-            <div className="flex items-center gap-3 text-gx-cyan">
+            <div className="flex items-center gap-3 ">
               <Sparkles className="w-6 h-6" />
               <span className="text-[10px] font-mono uppercase tracking-[0.4em]">{t('txt_268892')}</span>
             </div>
@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
 
         {/* 底部导航 */}
         <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
-          <Link href="/dashboard" className="hover:text-gx-cyan transition-colors flex items-center gap-2" prefetch={false}>
+          <Link href="/dashboard" className=" transition-colors flex items-center gap-2" prefetch={false}>
             <LayoutGrid className="w-3 h-3" />
             {t('txt_7468bb')}</Link>
           <div className="flex gap-4">

@@ -8,14 +8,14 @@ import { cn } from "@/utils/cn";
 import { useTranslations } from "next-intl";
 
 const NAVIGATION_LINKS = [
-  { id: "01", label: "核心矩阵", icon: <Database className="w-5 h-5" />, href: "/calendar", glow: "text-gx-cyan", status: "在线" },
-  { id: "02", label: "星云引擎", icon: <Network className="w-5 h-5" />, href: "/nebula", glow: "text-gx-purple", status: "同步中" },
+  { id: "01", label: "核心矩阵", icon: <Database className="w-5 h-5" />, href: "/calendar", glow: "", status: "在线" },
+  { id: "02", label: "星云引擎", icon: <Network className="w-5 h-5" />, href: "/nebula", glow: "", status: "同步中" },
   { id: "03", label: "入驻审批台", icon: <ShieldAlert className="w-5 h-5" />, href: "/boss/approvals", glow: "text-red-500", status: "需要操作" },
   { id: "04", label: "联邦权限署", icon: <Lock className="w-5 h-5" />, href: "/auth", glow: "text-yellow-500", status: "已锁定" },
   { id: "05", label: "物理节点", icon: <Box className="w-5 h-5" />, href: "/discovery", glow: "text-white", status: "待机" },
   { id: "06", label: "深渊协议", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white/40", status: "机密" },
-  { id: "07", label: "日历设计舱", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "text-emerald-400", status: "设计模式" },
-  { id: "08", label: "沙盒实验区", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "text-pink-500", status: "测试中" },
+  { id: "07", label: "日历设计舱", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "", status: "设计模式" },
+  { id: "08", label: "沙盒实验区", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "", status: "测试中" },
 ];
 
 type NavigationLink = typeof NAVIGATION_LINKS[number];
@@ -104,8 +104,8 @@ export default function Home() {
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-2"
           >
-            <div className="w-2 h-2 rounded-full bg-gx-cyan animate-pulse" />
-            <span className="text-gx-cyan font-mono tracking-widest text-[10px] md:text-xs uppercase">
+            <div className="w-2 h-2 rounded-full  animate-pulse" />
+            <span className=" font-mono tracking-widest text-[10px] md:text-xs uppercase">
               {t('txt_dbd94b')}</span>
           </motion.div>
 
@@ -115,7 +115,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-bold tracking-tighter"
             >
-              GX <span className="text-gradient-cyan">{t('txt_e18e82')}</span>
+              GX <span className="">{t('txt_e18e82')}</span>
             </motion.h1>
           </div>
         </header>
@@ -161,21 +161,21 @@ export default function Home() {
               <div className="w-12 h-[1px] bg-white/10" />
               <span>NAVIGATE →</span>
             </div>
-            <div className="text-gx-cyan/60 font-mono text-xs tracking-widest">
+            <div className=" font-mono text-xs tracking-widest">
               SYSTEM_INDEX: {activeId} / 08
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="w-full max-w-7xl z-10 py-6 flex justify-between items-center text-zinc-600 font-mono text-[9px] tracking-widest border-t border-white/5 pointer-events-auto">
+      <footer className="w-full max-w-7xl z-10 py-6 flex justify-between items-center  font-mono text-[9px] tracking-widest border-t border-white/5 pointer-events-auto">
         <div className="flex gap-8">
           <span>© 2026 GALAXY EXPERIENCE</span>
-          <span className="hidden lg:inline text-zinc-800">GX_V1_LEGACY_RESTORED</span>
+          <span className="hidden lg:inline ">GX_V1_LEGACY_RESTORED</span>
         </div>
         <div className="flex gap-6">
-          <span className="hover:text-gx-cyan cursor-pointer transition-colors uppercase">SYSTEM_LOG</span>
-          <span className="hover:text-gx-purple cursor-pointer transition-colors uppercase">SECURITY_VAULT</span>
+          <span className=" cursor-pointer transition-colors uppercase">SYSTEM_LOG</span>
+          <span className=" cursor-pointer transition-colors uppercase">SECURITY_VAULT</span>
         </div>
       </footer>
     </main>
@@ -222,10 +222,10 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
     return 0.1 + (cosVal + 1) * 0.45; // 0.1 到 1.0
   });
 
-  const blur = useTransform(cardRotation, (val: number) => {
+  const blurFilter = useTransform(cardRotation, (val: number) => {
     const rad = (val * Math.PI) / 180;
     const cosVal = Math.cos(rad);
-    return `${Math.max(0, (1 - cosVal) * 8)}px`;
+    return `blur(${Math.max(0, (1 - cosVal) * 8)}px)`;
   });
   
   const rotateY = useTransform(cardRotation, (val: number) => -val);
@@ -238,7 +238,7 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
         z: zTranslate,
         scale,
         opacity,
-        filter: blur,
+        filter: blurFilter,
         rotateY: rotateY // 让卡片始终面向观众
       } : {
         position: "absolute",
@@ -248,12 +248,12 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
         filter: "blur(8px)",
       }}
       className={cn(
-        "w-64 h-80 md:w-80 md:h-[400px] rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl flex flex-col p-8 transition-colors duration-500",
-        isActive ? "border-white/40 shadow-[0_0_50px_rgba(255,255,255,0.1)]" : "hover:border-white/20"
+        "w-64 h-80 md:w-80 md:h-[400px] rounded-3xl border border-white/10 bg-black/40  flex flex-col p-8 transition-colors duration-500",
+        isActive ? "border-white/40 " : "hover:border-white/20"
       )}
     >
       <div className="flex justify-between items-start mb-auto">
-        <span className="text-4xl font-black font-mono tracking-tighter text-white/20">{link.id}</span>
+        <span className="text-4xl font-bold font-mono tracking-tighter text-white/20">{link.id}</span>
         <div className={cn("px-2 py-1 rounded text-[10px] font-mono tracking-widest border bg-black/50", link.glow, link.glow.replace('text-', 'border-').replace('/40', '/20'))}>
           {link.status}
         </div>

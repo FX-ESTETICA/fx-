@@ -105,8 +105,8 @@ export const NebulaCore = () => {
             animate={{ y: 0 }}
             className="relative z-20 group"
           >
-            <div className="w-48 h-48 rounded-full bg-black border-2 border-gx-cyan/30 flex flex-col items-center justify-center gap-2 shadow-[0_0_50px_rgba(0,242,255,0.15)] group-hover:border-gx-cyan transition-all duration-500 cursor-default">
-              <Activity className="w-8 h-8 text-gx-cyan animate-pulse" />
+            <div className="w-48 h-48 rounded-full bg-black border-2  flex flex-col items-center justify-center gap-2  transition-all duration-500 cursor-default">
+              <Activity className="w-8 h-8  animate-pulse" />
               <div className="text-center">
                 <div className="text-sm font-mono text-white/40 uppercase">{t('txt_6ee5ac')}</div>
                 <div className="text-2xl font-bold text-white tracking-tighter">{currentLevel.value}</div>
@@ -135,14 +135,14 @@ export const NebulaCore = () => {
                 <div 
                   onClick={() => handleDrillDown(child)}
                   className={cn(
-                    "w-32 h-32 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center gap-2 transition-all duration-300",
-                    child.children && child.children.length > 0 ? "cursor-pointer hover:border-gx-purple hover:bg-gx-purple/5" : "cursor-default opacity-80"
+                    "w-32 h-32 rounded-2xl bg-black/40  border border-white/10 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                    child.children && child.children.length > 0 ? "cursor-pointer  " : "cursor-default opacity-80"
                   )}
                 >
                   {child.type === "branch" ? (
-                    <Users className="w-6 h-6 text-gx-purple" />
+                    <Users className="w-6 h-6 " />
                   ) : (
-                    <div className="w-2 h-2 rounded-full bg-gx-cyan" />
+                    <div className="w-2 h-2 rounded-full " />
                   )}
                   <div className="text-center px-2">
                     <div className="text-[10px] font-bold text-white/80 line-clamp-1">{child.name}</div>

@@ -27,9 +27,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             className={cn(
               "w-full px-4 py-3 text-white placeholder:text-white/20 outline-none transition-all duration-300 disabled:opacity-50",
-              variant === 'default' && "bg-white/5 border border-white/10 rounded-xl focus:border-gx-cyan/50 focus:bg-white/10 focus:shadow-[0_0_15px_rgba(0,242,255,0.1)]",
-              variant === 'ghost' && "bg-white/[0.02] border-b border-white/20 rounded-none px-2 focus:border-gx-cyan focus:bg-white/5 focus:shadow-[0_4px_15px_-3px_rgba(0,242,255,0.1)]",
-              error && "border-gx-red/50 focus:border-gx-red/50 focus:shadow-[0_0_15px_rgba(255,0,60,0.1)]",
+              variant === 'default' && "bg-white/5 border border-white/10 rounded-xl  focus:bg-white/10 ",
+              variant === 'ghost' && "bg-white/[0.02] border-b border-white/20 rounded-none px-2  focus:bg-white/5 ",
+              error && "border-gx-red/50 focus:border-gx-red/50 ",
               className
             )}
             {...props}

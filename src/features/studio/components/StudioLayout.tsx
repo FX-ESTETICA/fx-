@@ -12,8 +12,6 @@ import { useTranslations } from "next-intl";
 import { ShopDetailView } from "@/components/shared/ShopDetailView";
 import { useViewStack } from "@/hooks/useViewStack";
 
-import { useHardwareBack } from "@/hooks/useHardwareBack";
-
 export function StudioLayout() {
     const t = useTranslations('StudioLayout');
   // const router = useRouter();
@@ -330,7 +328,7 @@ export function StudioLayout() {
   if (isLoadingStore) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gx-cyan/30 border-t-gx-cyan rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2   rounded-full animate-spin" />
       </div>
     );
   }
@@ -348,11 +346,11 @@ export function StudioLayout() {
       </button>
 
       {/* 左侧：能量注入舱 (数据录入) */}
-      <div className="w-full md:w-[50%] lg:w-[45%] xl:w-[40%] h-full overflow-y-auto custom-scrollbar relative border-r border-white/5 bg-gradient-to-br from-black via-gx-cyan/5 to-black flex justify-center">
+      <div className="w-full md:w-[50%] lg:w-[45%] xl:w-[40%] h-full overflow-y-auto custom-scrollbar relative border-r border-white/5 bg-gradient-to-br from-black  to-black flex justify-center">
         <div className="w-full max-w-[700px] min-h-full px-8 md:px-12 lg:px-16 pt-32 pb-24">
           <div className="space-y-2 mb-12">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              {t('txt_55d479')}<span className="text-gradient-cyan">{t('txt_a7da92')}</span>
+              {t('txt_55d479')}<span className="">{t('txt_a7da92')}</span>
             </h1>
           </div>
 
@@ -374,7 +372,7 @@ export function StudioLayout() {
                     placeholder={t('txt_5d7e2c')}
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
+                    className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none  focus:ring-1  transition-all font-mono"
                   />
                 </div>
 
@@ -393,16 +391,16 @@ export function StudioLayout() {
                           setSelectedLocation(null);
                         }
                       }}
-                      className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
+                      className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-sm text-white outline-none  focus:ring-1  transition-all font-mono"
                     />
                   </div>
 
                   {/* Autocomplete Dropdown */}
                   {!selectedLocation && searchQuery.length > 2 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-white/10 rounded-lg overflow-hidden z-50 shadow-2xl">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-white/10 rounded-lg overflow-hidden z-50 ">
                       {isSearching ? (
                         <div className="p-4 text-center text-xs text-white/40 font-mono flex items-center justify-center gap-2">
-                          <div className="w-3 h-3 border-2 border-gx-cyan border-t-transparent rounded-full animate-spin" />
+                          <div className="w-3 h-3 border-2  border-t-transparent rounded-full animate-spin" />
                           {t('txt_a63e13')}</div>
                       ) : autocompleteResults.length > 0 ? (
                         autocompleteResults.map((res, i) => (
@@ -449,7 +447,7 @@ export function StudioLayout() {
                     placeholder={t('txt_96941d')}
                     value={slogan}
                     onChange={(e) => setSlogan(e.target.value)}
-                    className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
+                    className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none  focus:ring-1  transition-all font-mono"
                   />
                 </div>
 
@@ -489,10 +487,10 @@ export function StudioLayout() {
                           handleUploadClick();
                         }}
                         disabled={isUploading}
-                        className="w-32 h-18 rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10 hover:border-gx-cyan/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed aspect-[16/9]"
+                        className="w-32 h-18 rounded-xl border border-dashed border-white/20 bg-white/5 hover:bg-white/10  transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed aspect-[16/9]"
                       >
                         {isUploading ? (
-                          <div className="w-5 h-5 border-2 border-gx-cyan/30 border-t-gx-cyan rounded-full animate-spin" />
+                          <div className="w-5 h-5 border-2   rounded-full animate-spin" />
                         ) : (
                           <>
                             <ImagePlus className="w-5 h-5 text-white/40" />
@@ -527,9 +525,9 @@ export function StudioLayout() {
                   {capsules.length > 0 && (
                     <div className="space-y-2">
                       {capsules.map(cap => (
-                        <div key={cap.id} className="flex items-center justify-between p-3 rounded-lg border border-gx-cyan/20 bg-gx-cyan/5 group">
+                        <div key={cap.id} className="flex items-center justify-between p-3 rounded-lg border   group">
                           <div>
-                            <div className="text-sm font-bold text-white">{cap.name} <span className="text-gx-cyan ml-2 font-mono">{cap.price}</span></div>
+                            <div className="text-sm font-bold text-white">{cap.name} <span className=" ml-2 font-mono">{cap.price}</span></div>
                             <div className="text-[10px] text-white/40 font-mono mt-0.5 flex items-center gap-1">
                               <Clock className="w-3 h-3" /> {cap.duration} {t('txt_399619')}</div>
                           </div>
@@ -552,7 +550,7 @@ export function StudioLayout() {
                         placeholder={t('txt_8f3747')}
                         value={newCapsuleName}
                         onChange={(e) => setNewCapsuleName(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none  focus:ring-1  transition-all"
                       />
                       <div className="flex gap-2">
                         <div className="relative flex-1">
@@ -561,7 +559,7 @@ export function StudioLayout() {
                             placeholder={t('txt_0e9fd9')}
                             value={newCapsulePrice}
                             onChange={(e) => setNewCapsulePrice(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none  focus:ring-1  transition-all font-mono"
                           />
                         </div>
                         <div className="relative flex-1">
@@ -571,14 +569,14 @@ export function StudioLayout() {
                             placeholder={t('txt_39f137')}
                             value={newCapsuleDuration}
                             onChange={(e) => setNewCapsuleDuration(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-9 py-2 text-sm text-white outline-none focus:border-gx-cyan/50 focus:ring-1 focus:ring-gx-cyan/50 transition-all font-mono"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-9 py-2 text-sm text-white outline-none  focus:ring-1  transition-all font-mono"
                           />
                         </div>
                       </div>
                       <button 
                         onClick={addCapsule}
                         disabled={!newCapsuleName || !newCapsulePrice || !newCapsuleDuration}
-                        className="w-full py-2 rounded-lg bg-white/10 text-white font-bold text-xs hover:bg-gx-cyan hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-full py-2 rounded-lg bg-white/10 text-white font-bold text-xs  hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-3 h-3" /> {t('txt_5c555b')}</button>
                     </div>
@@ -593,7 +591,7 @@ export function StudioLayout() {
             <button 
               disabled={!storeName || !selectedLocation || !slogan || coverImages.length === 0 || isDeploying}
               onClick={handleDeploy}
-              className="w-full py-5 rounded-2xl bg-gx-cyan text-black font-bold tracking-widest hover:shadow-[0_0_30px_rgba(0,240,255,0.4)] transition-all disabled:bg-white/5 disabled:text-white/20 disabled:shadow-none disabled:cursor-not-allowed border border-white/5 flex items-center justify-center gap-2"
+              className="w-full py-5 rounded-2xl  text-black font-bold tracking-widest  transition-all disabled:bg-white/5 disabled:text-white/20  disabled:cursor-not-allowed border border-white/5 flex items-center justify-center gap-2"
             >
               {isDeploying ? (
                 <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> {t('txt_ce59cd')}</>
@@ -608,14 +606,14 @@ export function StudioLayout() {
       {/* 右侧：全息沙盒 (1:1 物理级预览) */}
       <div className="hidden md:flex flex-1 relative items-center justify-center bg-black/90 p-4 md:p-8 lg:p-12 overflow-hidden">
         {/* 背景光效 */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gx-cyan/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px]   rounded-full pointer-events-none" />
         
         {/* 悬浮手机沙盒 */}
         <motion.div 
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative rounded-[2.5rem] md:rounded-[3rem] border-[6px] md:border-[8px] border-[#1a1a1a] shadow-[0_0_80px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(255,255,255,0.05)] overflow-hidden bg-black ring-1 ring-white/10 flex flex-col shrink-0"
+          className="relative rounded-[2.5rem] md:rounded-[3rem] border-[6px] md:border-[8px] border-[#1a1a1a]  overflow-hidden bg-black ring-1 ring-white/10 flex flex-col shrink-0"
           style={{
             height: "100%",
             maxHeight: "812px",
@@ -623,7 +621,7 @@ export function StudioLayout() {
           }}
         >
           {/* 刘海屏缺口 mock */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[40%] h-[30px] bg-black rounded-b-[1.2rem] z-50 flex items-end justify-center pb-2 shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[40%] h-[30px] bg-black rounded-b-[1.2rem] z-50 flex items-end justify-center pb-2 ">
             <div className="w-12 h-1 rounded-full bg-white/10" />
           </div>
 
@@ -647,12 +645,12 @@ export function StudioLayout() {
             </div>
 
             {/* 模拟底部 Home Indicator */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/3 h-[5px] rounded-full bg-white/40 z-50 shadow-[0_0_10px_rgba(0,0,0,0.5)]" />
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/3 h-[5px] rounded-full bg-white/40 z-50 " />
           </div>
         </motion.div>
         
         {/* 物理设备底部反光 */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[300px] h-[20px] bg-white/5 blur-[30px] rounded-full" />
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[300px] h-[20px] bg-white/5  rounded-full" />
       </div>
 
       <StudioImageCropModal

@@ -21,8 +21,10 @@ import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 // import { useRouter } from "next/navigation";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
+import { FrontendThemeSwitcher } from "./FrontendThemeSwitcher";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -44,16 +46,11 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
     : "pending";
 };
 
-const StatsCard = ({ label, value, color }: { label: string; value: number | string; color: "red" | "cyan" | "gold" }) => {
-  const colors = {
-    red: "text-red-500",
-    cyan: "text-gx-cyan",
-    gold: "text-gx-gold"
-  };
+const StatsCard = ({ label, value, isLight }: { label: string; value: number | string; isLight?: boolean }) => {
   return (
     <div className="flex flex-col items-center justify-center p-4 md:p-6 transition-colors hover:bg-white/[0.02] text-center">
-      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1">{label}</span>
-      <span className={cn("text-2xl md:text-3xl font-black font-mono tracking-tight", colors[color])}>{value}</span>
+      <span className={`text-[10px] font-mono ${isLight ? "text-black/40" : "text-white/40"} uppercase tracking-widest mb-1`}>{label}</span>
+      <span className={cn("text-2xl md:text-3xl font-black font-mono tracking-tight", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>{value}</span>
     </div>
   );
 };
@@ -67,6 +64,8 @@ import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
 export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboardProps) => {
   const t = useTranslations('MerchantDashboard');
+  const { settings } = useVisualSettings();
+  const isLight = settings.frontendBgIndex !== 0;
   // const router = useRouter();
   const { activeShopId, setActiveShopId, availableShops, subscription, shopConfig, isShopConfigLoaded, updateShopConfig, refreshBookings, trackAction, globalBookings } = useShop();
   const { setActiveTab, pushOverlay } = useViewStack();
@@ -232,8 +231,8 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
   if (!availableShops || availableShops.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in duration-700">
-        <div className="w-10 h-10 border-2 border-gx-cyan border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm text-white/40 tracking-widest uppercase font-mono">RECALIBRATING MATRIX...</p>
+        <div className={`w-10 h-10 border-2 ${isLight ? "border-black" : "border-white"} border-t-transparent rounded-full animate-spin`}></div>
+        <p className={`text-sm ${isLight ? "text-black/40" : "text-white/40"} tracking-widest uppercase font-mono`}>RECALIBRATING MATRIX...</p>
       </div>
     );
   }
@@ -250,10 +249,8 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
       
       {/* 统一的连体全息结界 (Unified Holographic Canvas) */}
       <div className="w-full relative z-10 flex flex-col">
-        {/* 背景光效：全局弥漫的极弱光晕 */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-0 left-1/4 w-64 h-64 bg-gx-cyan/5 blur-[80px] rounded-full" />
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gx-purple/5 blur-[80px] rounded-full" />
+        {/* 动态背景特效 - 已清理光晕 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
         </div>
 
         {/* 第一层：数据统计区 */}
@@ -262,17 +259,17 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
             <StatsCard 
               label={t('txt_f49d92')} 
               value={bookings.filter(b => b.status === "pending").length} 
-              color="red"
+              isLight={isLight}
             />
             <StatsCard 
               label={t('txt_733f4a')} 
               value={bookings.filter(b => b.status === "confirmed").length} 
-              color="cyan"
+              isLight={isLight}
             />
             <StatsCard 
               label={t('txt_5af2c6')} 
               value={0} 
-              color="gold"
+              isLight={isLight}
             />
           </div>
         </div>
@@ -285,11 +282,11 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
           <div className="flex flex-row items-stretch w-full gap-4 md:gap-8">
             
             {/* 左侧控制中枢：店铺选择与状态开关 */}
-            <div className="flex flex-col items-center shrink-0 w-[140px] md:w-64 border-r border-white/5 pr-4 md:pr-6 justify-center">
+            <div className={`flex flex-col items-center shrink-0 w-[140px] md:w-64 border-r ${isLight ? "border-black/5" : "border-white/5"} pr-4 md:pr-6 justify-center`}>
               {/* 门店统御区 */}
             <div className="flex flex-col relative items-center w-full">
               <h3 
-                className="text-sm md:text-lg font-bold tracking-tight text-white/80 hover:text-white transition-colors flex items-center justify-center gap-2 cursor-pointer w-full"
+                className={`text-sm md:text-lg font-bold tracking-tight ${isLight ? "text-black/80" : "text-white/80"} ${isLight ? "hover:text-black" : "hover:text-white"} transition-colors flex items-center justify-center gap-2 cursor-pointer w-full`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -298,30 +295,30 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
               >
                 <div className="truncate max-w-[100px] md:max-w-[150px] text-center">{activeShopName}</div>
                 <div className={cn(
-                  "text-[8px] md:text-[10px] text-white/30 flex items-center justify-center w-4 h-4 rounded-full hover:bg-white/10 hover:text-white transition-all shrink-0",
-                  isDropdownOpen && "rotate-180 bg-white/10 text-white"
+                  "text-[8px] md:text-[10px] flex items-center justify-center w-4 h-4 rounded-full transition-all shrink-0", isLight ? "text-black/30 hover:bg-black/10 hover:text-black" : isLight ? "text-black/30" : "text-white/30", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "hover:text-black" : "hover:text-white",
+                  isDropdownOpen && "rotate-180", isLight ? "bg-black/10 text-black" : isLight ? "bg-black/10" : "bg-white/10", isLight ? "text-black" : "text-white"
                 )}>▼</div>
               </h3>
-              <div className="text-white/40 text-[8px] md:text-[10px] uppercase tracking-widest font-mono group-hover:text-gx-cyan/60 transition-colors mt-0.5 text-center w-full truncate">
+              <div className={`${isLight ? "text-black/40" : "text-white/40"} text-[8px] md:text-[10px] uppercase tracking-widest font-mono ${isLight ? "group-hover:text-black/60" : "group-hover:text-white/60"} transition-colors mt-0.5 text-center w-full truncate`}>
                 <div>多门店切换</div>
               </div>
 
               {/* 悬浮下拉菜单 (Glassmorphism 赛博空间) */}
               {isDropdownOpen && (
                 <div 
-                  className="absolute top-full left-1/2 xl:left-0 -translate-x-1/2 xl:translate-x-0 mt-3 w-64 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 overflow-hidden"
+                  className={`absolute top-full left-1/2 xl:left-0 -translate-x-1/2 xl:translate-x-0 mt-3 w-64 bg-black/80  border ${isLight ? "border-black/10" : "border-white/10"} rounded-xl z-50 overflow-hidden`}
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 >
                   {/* 模糊搜索框 (门店大于3家时自动浮现) */}
                   {availableShops.length > 3 && (
-                    <div className="p-3 border-b border-white/5 relative">
-                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                    <div className={`p-3 border-b ${isLight ? "border-black/5" : "border-white/5"} relative`}>
+                      <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? "text-black/30" : "text-white/30"}`} />
                       <input 
                         type="text" 
                         placeholder={t('txt_096cda')} 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white/5 border border-white/5 rounded-lg py-1.5 pl-8 pr-3 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-gx-cyan/50 transition-colors"
+                        className={`w-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/5" : "border-white/5"} rounded-lg py-1.5 pl-8 pr-3 text-xs ${isLight ? "text-black" : "text-white"} placeholder:text-white/30 focus:outline-none ${isLight ? "focus:border-black/50" : "focus:border-white/50"} transition-colors`}
                       />
                     </div>
                   )}
@@ -340,18 +337,18 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                           className={cn(
                             "px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between",
                             shop.shopId === activeShopId 
-                              ? "bg-gx-cyan/10 text-gx-cyan font-bold" 
-                              : "text-white/60 hover:bg-white/5 hover:text-white"
+                              ? (isLight ? "bg-black/10 text-black font-bold" : "font-bold", isLight ? "bg-black/10" : "bg-white/10", isLight ? "text-black" : "text-white")
+                              : (isLight ? "text-black/60 hover:bg-black/5 hover:text-black" : "text-white/60 hover:bg-white/5 hover:text-white")
                           )}
                         >
                           <span className="truncate">{shop.shopName || "未知门店"}</span>
                           {shop.shopId === activeShopId && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan shadow-[0_0_5px_#00F0FF]" />
+                            <div className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-black" : "bg-white"}`} />
                           )}
                         </div>
                       ))
                     ) : (
-                      <div className="px-4 py-3 text-xs text-white/30 text-center">
+                      <div className={`px-4 py-3 text-xs ${isLight ? "text-black/30" : "text-white/30"} text-center`}>
                         {t('txt_386390')}
                       </div>
                     )}
@@ -366,7 +363,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
             <div className="flex justify-center w-full mt-4">
               <button 
                 onClick={handleNavigateToStudio}
-                className="flex items-center justify-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-full bg-white/5 border border-white/10 hover:bg-gx-cyan/10 hover:border-gx-cyan/30 hover:text-gx-cyan transition-all text-[9px] md:text-[11px] font-mono tracking-widest text-white/60 w-full max-w-[120px]"
+                className={`flex items-center justify-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} ${isLight ? "hover:bg-black/10 hover:border-black/30 hover:text-black" : "hover:bg-white/10 hover:border-white/30 hover:text-white"} transition-all text-[9px] md:text-[11px] font-mono tracking-widest ${isLight ? "text-black/60" : "text-white/60"} w-full max-w-[120px]`}
               >
                 <MonitorSmartphone className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
                 <span className="truncate">装修门店</span>
@@ -394,22 +391,22 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
           {industry !== 'none' ? (
             <div onClick={handleNavigateToCalendar} className="block group">
               <div className="py-2 flex flex-col items-center justify-center gap-3 transition-colors h-full cursor-pointer">
-                <div className="w-10 h-10 rounded-xl bg-gx-cyan/10 border border-gx-cyan/20 flex items-center justify-center text-gx-cyan group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(0,240,255,0.1)]">
+                <div className={`w-10 h-10 rounded-xl ${isLight ? "bg-black/10 border-black/20 text-black" : "bg-white/10 border-white/20 text-white"} border flex items-center justify-center group-hover:scale-110 transition-transform duration-500`}>
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-sm font-bold tracking-tight text-white/90 group-hover:text-white transition-colors">{t('txt_b170b6')}</h3>
-                  <p className="text-white/40 text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block">{t('txt_a75625')}</p>
+                  <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black/90" : "text-white/90"} group-hover:text-white transition-colors`}>{t('txt_b170b6')}</h3>
+                  <p className={`${isLight ? "text-black/40" : "text-white/40"} text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block`}>{t('txt_a75625')}</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="py-2 flex flex-col items-center justify-center gap-3 opacity-50 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40">
+              <div className={`w-10 h-10 rounded-xl ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} flex items-center justify-center ${isLight ? "text-black/40" : "text-white/40"}`}>
                 <Calendar className="w-5 h-5" />
               </div>
               <div className="text-center">
-                <h3 className="text-sm font-bold tracking-tight text-white/50">{t('txt_b170b6')}</h3>
+                <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black/50" : "text-white/50"}`}>{t('txt_b170b6')}</h3>
               </div>
             </div>
           )}
@@ -417,12 +414,12 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
           {/* 右侧：星云入口 */}
           <div onClick={handleNavigateToNebula} className="block group">
             <div className="py-2 flex flex-col items-center justify-center gap-3 transition-colors h-full cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-gx-purple/10 border border-gx-purple/20 flex items-center justify-center text-gx-purple group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+              <div className={`w-10 h-10 rounded-xl ${isLight ? "bg-black/10 border-black/20 text-black" : "bg-white/10 border-white/20 text-white"} border flex items-center justify-center group-hover:scale-110 transition-transform duration-500`}>
                 <Sparkles className="w-5 h-5" />
               </div>
               <div className="text-center">
-                <h3 className="text-sm font-bold tracking-tight text-white/90 group-hover:text-white transition-colors">{t('txt_9f7256')}</h3>
-                <p className="text-white/40 text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block">{t('txt_66cf43')}</p>
+                <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black/90" : "text-white/90"} group-hover:text-white transition-colors`}>{t('txt_9f7256')}</h3>
+                <p className={`${isLight ? "text-black/40" : "text-white/40"} text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block`}>{t('txt_66cf43')}</p>
               </div>
             </div>
           </div>
@@ -432,11 +429,11 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
       {/* 数字印记 (Digital Footprints) - 0成本动态横滑列表 */}
       <div className="w-full space-y-3">
         <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-white/50">
-            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+          <div className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest ${isLight ? "text-black/50" : "text-white/50"}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-black/20" : "bg-white/20"}`} />
             <span>{t('txt_999d5c')}</span>
           </div>
-          <button className="text-[9px] font-mono text-gx-cyan uppercase tracking-widest hover:text-white transition-colors">
+          <button className={`text-[9px] font-mono uppercase tracking-widest ${isLight ? "text-black/70 hover:text-black" : "text-white/70 hover:text-white"} transition-colors`}>
             {t('txt_0467cc')}</button>
         </div>
 
@@ -446,7 +443,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
             {mockFootprints.map((video) => (
               <div 
                 key={video.id}
-                className="relative w-28 md:w-32 aspect-[9/16] shrink-0 snap-center rounded-xl overflow-hidden cursor-pointer group bg-black/20 border border-white/5 hover:border-white/20 transition-all duration-500 shadow-[0_4px_15px_rgba(0,0,0,0.5)]"
+                className={`relative w-28 md:w-32 aspect-[9/16] shrink-0 snap-center rounded-xl overflow-hidden cursor-pointer group bg-black/20 border ${isLight ? "border-black/5 hover:border-black/20" : "border-white/5 hover:border-white/20"} transition-all duration-500`}
               >
                 {/* 背景封面层：使用 img 标签模拟极低成本的 WebP 缩略图 */}
                 <img 
@@ -459,21 +456,21 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
 
                 {/* 中央播放诱导元件 */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-110 group-hover:bg-gx-cyan/20 group-hover:border-gx-cyan/50 transition-all duration-300">
-                  <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" />
+                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40  flex items-center justify-center border ${isLight ? "border-black/20" : "border-white/20"} group-hover:scale-110 ${isLight ? "group-hover:bg-black/20 group-hover:border-black/50" : "group-hover:bg-white/20 group-hover:border-white/50"} transition-all duration-300`}>
+                  <Play className={`w-3.5 h-3.5 ${isLight ? "text-black" : "text-white"} ml-0.5`} fill="currentColor" />
                 </div>
 
                 {/* 数据锚点挂载区 */}
                 <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1.5 pointer-events-none">
-                  <span className="text-[10px] font-bold text-white leading-tight line-clamp-1 drop-shadow-md">
+                  <span className={`text-[10px] font-bold ${isLight ? "text-black" : "text-white"} leading-tight line-clamp-1`}>
                     {video.title}
                   </span>
-                  <div className="flex items-center justify-between text-[9px] font-mono text-white/70">
+                  <div className={`flex items-center justify-between text-[9px] font-mono ${isLight ? "text-black/70" : "text-white/70"}`}>
                     <div className="flex items-center gap-1">
                       <Eye className="w-2.5 h-2.5" />
                       <span>{video.views}</span>
                     </div>
-                    <span className="bg-black/50 px-1 rounded backdrop-blur-sm border border-white/10">
+                    <span className={`bg-black/50 px-1 rounded  border ${isLight ? "border-black/10" : "border-white/10"}`}>
                       {video.duration}
                     </span>
                   </div>
@@ -486,6 +483,9 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
 
       {/* 系统底层锚点 (System Anchor) - 融合胶囊 */}
       <div className="pt-6 pb-6 w-full flex flex-col items-center justify-center px-2 gap-6">
+        {/* 前端专属壁纸切换器 */}
+        <FrontendThemeSwitcher />
+
         <div className="flex flex-row items-center gap-4 w-full justify-center max-w-sm whitespace-nowrap">
           <PhoneAuthBar initialPhone={profile?.phone || ""} className="max-w-none mx-0 w-auto" />
         </div>

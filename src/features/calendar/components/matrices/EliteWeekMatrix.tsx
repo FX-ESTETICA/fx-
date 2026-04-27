@@ -157,11 +157,11 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                 className="flex flex-col items-center justify-center relative group cursor-pointer hover:bg-white/[0.02] transition-colors"
                 onClick={() => onDateClick?.(date)}
               >
-                {isToday && <div className="absolute top-0 left-0 right-0 h-1 bg-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.5)]" />}
-                <span className={cn("text-[10px] font-black uppercase tracking-widest transition-colors", isToday ? "text-gx-cyan" : "text-white group-hover:text-gx-cyan")}>
+                {isToday && <div className={`absolute top-0 left-0 right-0 h-1 ${visualSettings.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />}
+                <span className={cn("text-[10px] font-bold uppercase tracking-widest transition-colors", isToday ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : `text-white ${visualSettings.timelineColorTheme === 'blackgold' ? "group-hover:text-[#8B7355]" : "group-hover:text-[#FDF5E6]"}`)}>
                   {DAYS_OF_WEEK[idx]}
                 </span>
-                <span className={cn("text-[20px] font-mono font-bold mt-1 transition-colors", isToday ? "text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" : "text-white group-hover:text-white/80")}>
+                <span className={cn("text-[20px] font-mono font-bold mt-1 transition-colors", isToday ? "text-white " : "text-white group-hover:text-white/80")}>
                   {date.getDate().toString().padStart(2, '0')}
                 </span>
               </div>
@@ -180,25 +180,26 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
               {timeSlots.map((slot, idx) => (
               <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
                 <div className={cn(
-                  "transition-all duration-500 text-[15px] mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums",
+                  "transition-all duration-500 text-[15px] flex items-center justify-center font-normal tracking-normal tabular-nums",
+                  visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'blackgold' && "mix-blend-screen",
                   slot.hour === currentHour && "scale-110",
                   slot.hour !== currentHour && "hover:scale-110"
-                )} style={slot.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
-                  <span className={cn(slot.hour === currentHour ? "text-gx-cyan" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                )} style={slot.hour !== currentHour ? { textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'blackgold' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` } : {}}>
+                  <span className={cn(slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                     {slot.hour.toString().padStart(2, '0')}
                   </span>
-                  <span className={cn("text-[11px] mx-[3px] animate-pulse", slot.hour === currentHour ? "text-gx-cyan opacity-40" : `opacity-40 ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour ? CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex : undefined }}>:</span>
-                  <span className={cn("opacity-80", slot.hour === currentHour ? "text-gx-cyan" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                  <span className={cn("text-[11px] mx-[3px] animate-pulse", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"} opacity-40` : visualSettings.timelineColorTheme === 'blackgold' ? "text-black/40" : `opacity-40 ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && visualSettings.timelineColorTheme !== 'blackgold' ? (CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex : undefined }}>:</span>
+                  <span className={cn("opacity-80", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                     00
                   </span>
                 </div>
                 {idx < timeSlots.length - 1 && timeSlots[idx + 1].hour - slot.hour > 1 && (
-                  <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent via-gx-cyan/40 to-transparent flex items-center justify-center z-10">
-                    <div className="w-1 h-1 rounded-full bg-gx-cyan shadow-[0_0_5px_rgba(0,240,255,0.8)]" />
+                  <div className={`absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent ${visualSettings.timelineColorTheme === 'blackgold' ? "via-[#8B7355]/40" : "via-[#FDF5E6]/40"} to-transparent flex items-center justify-center z-10`}>
+                    <div className={`w-1 h-1 rounded-full ${visualSettings.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />
                   </div>
                 )}
                 {slot.hour === currentHour && (
-                  <div className="absolute left-0 right-0 top-3 h-px bg-gx-cyan/30 shadow-[0_0_15px_rgba(0,240,255,0.5)] z-10" />
+                  <div className={`absolute left-0 right-0 top-3 h-px ${visualSettings.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]/30" : "bg-[#FDF5E6]/30"} z-10`} />
                 )}
               </div>
             ))}

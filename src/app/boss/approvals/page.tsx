@@ -170,7 +170,7 @@ export default function BossApprovalsPage() {
 
   return (
     <main className="min-h-[100dvh] bg-transparent text-white px-6 pt-[var(--sat)] pb-6 md:px-12 md:pt-[calc(var(--sat)+8px)] md:pb-12 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full bg-black/40 backdrop-blur-sm pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-full bg-black/40  pointer-events-none" />
 
       <div className="max-w-6xl mx-auto relative z-10 space-y-8">
         <header className="flex items-center justify-between border-b border-white/10 pb-6">
@@ -205,13 +205,13 @@ export default function BossApprovalsPage() {
                 key={app.id} 
                 className={cn(
                   "p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all",
-                  app.status === 'pending' ? "border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.1)]" : "border-white/5 opacity-50"
+                  app.status === 'pending' ? "border-red-500/30 " : "border-white/5 opacity-50"
                 )}
               >
                 <div className="flex items-start gap-4">
                   <div className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border",
-                    app.industry === 'enterprise' ? "bg-gx-purple/10 border-gx-purple/30 text-gx-purple" : "bg-white/5 border-white/10 text-white/60"
+                    app.industry === 'enterprise' ? "  " : "bg-white/5 border-white/10 text-white/60"
                   )}>
                     {app.industry === 'enterprise' ? <Building2 className="w-6 h-6" /> : <Store className="w-6 h-6" />}
                   </div>
@@ -220,7 +220,7 @@ export default function BossApprovalsPage() {
                       <h3 className="text-xl font-bold tracking-tight">{app.brand_name}</h3>
                       <span className={cn(
                         "px-2 py-0.5 rounded text-[9px] font-mono tracking-widest uppercase border",
-                        app.industry === 'enterprise' ? "bg-gx-purple/20 text-gx-purple border-gx-purple/30" : "bg-white/10 text-white/60 border-white/20"
+                        app.industry === 'enterprise' ? "  " : "bg-white/10 text-white/60 border-white/20"
                       )}>
                         {app.industry === 'enterprise' ? '企业联邦' : `独立节点 - ${app.industry}`}
                       </span>
@@ -238,7 +238,7 @@ export default function BossApprovalsPage() {
                       {app.maps_link && (
                         <p className="text-xs text-white/60 font-mono">
                           <span className="text-white/30 mr-2">COORDINATES:</span> 
-                          <a href={app.maps_link} target="_blank" className="text-gx-cyan hover:underline">View Map</a>
+                          <a href={app.maps_link} target="_blank" className=" hover:underline">View Map</a>
                         </p>
                       )}
                       {app.nexus_code && (
@@ -263,7 +263,7 @@ export default function BossApprovalsPage() {
                       <button 
                         onClick={() => handleApprove(app)}
                         disabled={processingId === app.id}
-                        className="px-6 py-2 rounded-lg bg-red-500/20 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all text-xs font-bold tracking-widest uppercase disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-2 rounded-lg bg-red-500/20 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white  transition-all text-xs font-bold tracking-widest uppercase disabled:opacity-50 flex items-center gap-2"
                       >
                         {processingId === app.id ? <Clock className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                         {t('txt_b20cc6')}</button>

@@ -27,7 +27,7 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          className="inline-flex p-5 rounded-full bg-gx-cyan/10 border border-gx-cyan/30 text-gx-cyan shadow-[0_0_40px_rgba(34,211,238,0.2)]"
+          className="inline-flex p-5 rounded-full  border   "
         >
           <CheckCircle className="w-16 h-16" />
         </motion.div>
@@ -38,7 +38,7 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
         </div>
       </div>
 
-      <GlassCard className="p-8 border-gx-cyan/20 bg-gx-cyan/[0.03] shadow-[0_0_50px_rgba(34,211,238,0.05)]" glowColor="cyan">
+      <GlassCard className="p-8  /[0.03] " >
         <div className="space-y-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-white/5">
             <div className="space-y-1 text-left">

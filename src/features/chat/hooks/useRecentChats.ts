@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
 
@@ -61,21 +61,57 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
 
       // 如果 Map 里还没有这个 targetId，说明这是最新的一条（因为数据已经是倒序的了）
       if (!chatMap.has(targetId) && targetId) {
-        const msgDate = new Date(msg.created_at);
-        const timeStr = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        let lastMessageStr = msg.content || '';
-        if (msg.image_url) lastMessageStr = '[图片流]';
+        // 获取此对话的本地清空时间戳 (降维打击：物理拦截被清空的历史)
+        let clearedAt = 0;
+        let deletedIds: string[] = [];
+        if (typeof window !== 'undefined') {
+          const key = `gx_cleared_${currentUserId}_${targetId}`;
+          const stored = localStorage.getItem(key);
+          if (stored) clearedAt = parseInt(stored, 10);
 
-        chatMap.set(targetId, {
-          id: targetId,
-          name,
-          lastMessage: lastMessageStr,
-          time: timeStr,
-          avatar,
-          unread: msg.sender_id !== currentUserId, // 简单模拟：如果最新一条不是自己发的，就是未读
-          isGroup,
-          isCityChannel,
-        });
+          const delKey = `gx_deleted_msgs_${currentUserId}`;
+          try {
+            const delStored = localStorage.getItem(delKey);
+            if (delStored) deletedIds = JSON.parse(delStored);
+          } catch(e) {}
+        }
+        
+        const msgDate = new Date(msg.created_at);
+        // 跳过单向删除的消息
+        if (deletedIds.includes(msg.id)) {
+          return; // 继续找下一条未删除的消息作为 lastMessage
+        }
+
+        // 如果最新消息的时间早于清空时间，保留会话但清空预览内容
+        if (msgDate.getTime() > clearedAt) {
+          const timeStr = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let lastMessageStr = msg.content || '';
+          if (msg.image_url) lastMessageStr = '[图片流]';
+          if (msg.audio_url) lastMessageStr = '[语音流]';
+  
+          chatMap.set(targetId, {
+            id: targetId,
+            name,
+            lastMessage: lastMessageStr,
+            time: timeStr,
+            avatar,
+            unread: msg.sender_id !== currentUserId, // 简单模拟：如果最新一条不是自己发的，就是未读
+            isGroup,
+            isCityChannel,
+          });
+        } else {
+          // 被清空的会话：依然留在列表中，但显示空状态，不再往回找更老的消息
+          chatMap.set(targetId, {
+            id: targetId,
+            name,
+            lastMessage: '', // 留空
+            time: '',
+            avatar,
+            unread: false,
+            isGroup,
+            isCityChannel,
+          });
+        }
       }
     });
   }
@@ -103,10 +139,24 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
           avatar: ''
         });
       } else if (id.startsWith('phone_')) {
-        // 全新降维呈现：直接显示真实号码
+        // 全新降维呈现：直接显示真实号码 (加入跨国智能解析)
         const rawPhone = id.replace('phone_', '');
+        let displayPhone = `+${rawPhone}`;
+        
+        if (rawPhone.startsWith('86') && rawPhone.length === 13) {
+          displayPhone = `+86 ${rawPhone.substring(2,5)} ${rawPhone.substring(5,9)} ${rawPhone.substring(9)}`;
+        } else if (rawPhone.startsWith('39') && rawPhone.length >= 11) {
+          displayPhone = `+39 ${rawPhone.substring(2,5)} ${rawPhone.substring(5,8)} ${rawPhone.substring(8)}`;
+        } else if (rawPhone.length === 11 && rawPhone.startsWith('1')) {
+          // 纯11位国内手机号兜底
+          displayPhone = `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`;
+        } else if (rawPhone.length === 10 || rawPhone.length === 9) {
+          // 纯10位或9位意大利手机号兜底
+          displayPhone = `+39 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,6)} ${rawPhone.substring(6)}`;
+        }
+        
         profilesMap.set(id, {
-          name: `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`,
+          name: displayPhone,
           avatar: ''
         });
       } else if (id.startsWith('guest_')) {
@@ -168,6 +218,13 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
   useEffect(() => {
     if (!currentUserId) return;
 
+    // 监听全局清空和删除事件以刷新列表
+    const handleUpdate = () => {
+      mutate(); // 触发 SWR 重新请求
+    };
+    window.addEventListener('gx_chat_cleared', handleUpdate);
+    window.addEventListener('gx_chat_message_deleted', handleUpdate);
+
     // 监听新消息到达，更新列表 (化假为真的关键)
     // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state
     const channel = supabase
@@ -183,6 +240,8 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
       .subscribe();
 
     return () => {
+      window.removeEventListener('gx_chat_cleared', handleUpdate);
+      window.removeEventListener('gx_chat_message_deleted', handleUpdate);
       supabase.removeChannel(channel);
     };
   }, [currentUserId, mutate]); // 依赖 mutate，移除 activeChatId 依赖

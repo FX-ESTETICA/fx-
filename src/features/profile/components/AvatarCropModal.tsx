@@ -45,7 +45,7 @@ export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: Avata
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-xl">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 ">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}

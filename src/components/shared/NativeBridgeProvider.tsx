@@ -154,18 +154,18 @@ export function NativeBridgeProvider() {
   // 如果检测到需要强制更新，渲染全屏锁死遮罩层
   if (updateInfo?.needsUpdate) {
     return (
-      <div className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-white overflow-hidden">
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
+      <div className="fixed inset-0 z-[99999] bg-black/95  flex flex-col items-center justify-center p-6 text-white overflow-hidden">
+        <div className=" border  rounded-[2rem] p-8 max-w-sm w-full  flex flex-col items-center text-center relative overflow-hidden">
           {/* 赛博朋克光晕背景 */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-32 bg-cyan-500/20 blur-[60px] pointer-events-none"></div>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-32   pointer-events-none"></div>
           
-          <div className="w-20 h-20 bg-gradient-to-b from-cyan-400 to-blue-600 rounded-full flex items-center justify-center mb-8 shadow-[0_0_30px_rgba(6,182,212,0.5)]">
+          <div className="w-20 h-20 bg-gradient-to-b  to-blue-600 rounded-full flex items-center justify-center mb-8 ">
             <span className="text-4xl">🚀</span>
           </div>
           
           <h2 className="text-2xl font-bold mb-3 tracking-wide">{t('txt_1bb828')}</h2>
           
-          <div className="text-zinc-400 mb-8 text-sm leading-relaxed whitespace-pre-wrap text-left w-full bg-black/40 p-4 rounded-2xl border border-white/5">
+          <div className=" mb-8 text-sm leading-relaxed whitespace-pre-wrap text-left w-full bg-black/40 p-4 rounded-2xl border border-white/5">
             {updateInfo.notes}
           </div>
           
@@ -217,14 +217,14 @@ export function NativeBridgeProvider() {
             disabled={isDownloading}
             className={`relative w-full py-4 rounded-xl font-bold text-white transition-all overflow-hidden ${
               isDownloading 
-                ? "bg-zinc-800 border border-zinc-700" 
-                : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-[0.98]"
+                ? " border " 
+                : "bg-gradient-to-r  to-blue-600  hover:scale-[1.02] active:scale-[0.98]"
             }`}
           >
             {/* 真实物理进度条 UI */}
             {isDownloading && (
               <div 
-                className="absolute left-0 top-0 bottom-0 bg-cyan-600/50 transition-all duration-300"
+                className="absolute left-0 top-0 bottom-0  transition-all duration-300"
                 style={{ width: `${downloadProgress}%` }}
               />
             )}

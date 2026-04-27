@@ -18,6 +18,7 @@ import Image from "next/image";
 import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
 import { useTranslations } from "next-intl";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
 
@@ -110,7 +111,7 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
       {/* Play/Pause Overlay Indicator */}
       {!isPlaying && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300 z-10 pointer-events-none">
-          <div className="w-20 h-20 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 text-white">
+          <div className="w-20 h-20 rounded-full bg-black/40  flex items-center justify-center border border-white/20 text-white">
             <Play className="w-8 h-8 ml-1 fill-white opacity-80" />
           </div>
         </div>
@@ -119,7 +120,7 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
       {/* Mute/Unmute Toggle - moved higher to avoid bottom UI overlap */}
       <button 
         onClick={toggleMute}
-        className="absolute top-1/2 right-4 -translate-y-1/2 p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-colors opacity-0 group-hover/video:opacity-100 z-20"
+        className="absolute top-1/2 right-4 -translate-y-1/2 p-3 rounded-full bg-black/40  border border-white/10 text-white hover:bg-black/60 transition-colors opacity-0 group-hover/video:opacity-100 z-20"
       >
         {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
       </button>
@@ -132,6 +133,9 @@ export default function DiscoveryPage() {
   const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [posts, setPosts] = useState<DiscoveryPost[]>([]);
+
+  const { settings } = useVisualSettings();
+  const isLight = settings.frontendBgIndex !== 0;
 
   const registerBack = useHardwareBack(state => state.register);
   const unregisterBack = useHardwareBack(state => state.unregister);
@@ -203,7 +207,7 @@ export default function DiscoveryPage() {
         <div className="pointer-events-auto mt-2">
           <button 
             onClick={() => window.dispatchEvent(new Event('gx-return-home'))}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40  border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -213,14 +217,14 @@ export default function DiscoveryPage() {
         <div className="absolute left-1/2 -translate-x-1/2 top-4 pt-safe md:pt-8 flex items-center gap-6 pointer-events-auto mt-2">
           <button 
             onClick={() => setFilter("near")}
-            className={cn("text-[17px] font-bold transition-all drop-shadow-md", filter === "near" ? "text-white scale-110" : "text-white/50")}
+            className={cn("text-[17px] font-bold transition-all text-white", filter === "near" ? "scale-110" : "opacity-50")}
           >
             {t('txt_6688f2')}
           </button>
           <div className="w-[1px] h-3 bg-white/30" />
           <button 
             onClick={() => setFilter("hot")}
-            className={cn("text-[17px] font-bold transition-all drop-shadow-md", filter === "hot" ? "text-white scale-110" : "text-white/50")}
+            className={cn("text-[17px] font-bold transition-all text-white", filter === "hot" ? "scale-110" : "opacity-50")}
           >
             {t('txt_4d2d97')}
           </button>
@@ -229,7 +233,7 @@ export default function DiscoveryPage() {
         {/* 右上角发布按钮 */}
         <button 
           onClick={() => setIsUploadOpen(true)}
-          className="pointer-events-auto w-10 h-10 rounded-full bg-gx-cyan text-black flex items-center justify-center hover:scale-110 transition-transform shadow-[0_0_20px_rgba(0,240,255,0.4)] mr-2 md:mr-8 mt-1"
+          className="pointer-events-auto w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform mr-2 md:mr-8 mt-1 bg-white text-black"
         >
           <Plus className="w-6 h-6" />
         </button>
@@ -243,7 +247,7 @@ export default function DiscoveryPage() {
             className="w-full h-full snap-start snap-always relative shrink-0 flex justify-center items-center"
           >
             {/* 手机端100%全屏 / 平板与PC端双栏剧场模式 (Fluid Morphing) */}
-            <div className="relative w-full h-full md:max-w-4xl lg:max-w-5xl md:h-[calc(100vh-80px)] md:my-10 md:rounded-[2.5rem] md:overflow-hidden md:border md:border-white/10 md:shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-black group/item flex flex-col md:flex-row">
+            <div className="relative w-full h-full md:max-w-4xl lg:max-w-5xl md:h-[calc(100vh-80px)] md:my-10 md:rounded-[2.5rem] md:overflow-hidden md:border md:border-white/10  bg-black group/item flex flex-col md:flex-row">
               
               {/* 左侧：媒体内容区 (手机端100%，宽屏端60%) */}
               <div className="relative w-full h-full md:w-[60%] shrink-0">
@@ -260,26 +264,26 @@ export default function DiscoveryPage() {
                   />
                 )}
 
-                {/* 底部暗场渐变 (仅手机端需要，宽屏端文字移到右侧了) */}
-                <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none z-10 md:hidden" />
+                {/* 底部暗场渐变 (仅手机端需要，宽屏端文字移到右侧了) - 极简黑色遮罩 */}
+                <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none z-10 md:hidden" />
 
                 {/* 左下角：作者信息与描述 (仅手机端显示) */}
                 <div className="absolute bottom-6 left-4 right-16 z-20 pointer-events-auto md:hidden">
                   <div className="flex items-center gap-3 mb-3">
-                    <h3 className="font-bold text-[17px] drop-shadow-md">@{post.author}</h3>
+                    <h3 className="font-bold text-[17px] text-white">@{post.author}</h3>
                     {post.merchantId && (
-                      <button className="flex items-center gap-1 px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold text-gx-cyan hover:bg-white/30 transition-colors shadow-lg">
-                        <Navigation className="w-3 h-3" />
+                      <button className="flex items-center gap-1 px-2.5 py-1 bg-black/40 border border-white/10 rounded-full text-[11px] font-bold text-white hover:bg-black/60 transition-colors">
+                        <Navigation className="w-3 h-3 text-white" />
                         {t('txt_5cd3c9')}</button>
                     )}
                   </div>
-                  <p className="text-[14px] leading-relaxed text-white/90 drop-shadow-md line-clamp-3 mb-3">
+                  <p className="text-[14px] leading-relaxed text-white/90 line-clamp-3 mb-3">
                     {post.title}
                   </p>
                   {post.tags && post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {post.tags.map((tag: string) => (
-                        <span key={tag} className="text-[13px] font-bold text-white/60 drop-shadow-md">
+                        <span key={tag} className="text-[13px] font-bold text-white/80">
                           {tag}
                         </span>
                       ))}
@@ -290,27 +294,27 @@ export default function DiscoveryPage() {
                 {/* 右下角：悬浮交互控件 (头像、点赞、评论) - 仅手机端显示 */}
                 <div className="absolute bottom-6 right-3 z-20 flex flex-col items-center gap-6 pointer-events-auto md:hidden">
                   {/* 悬浮头像 */}
-                  <div className="relative w-12 h-12 rounded-full border-2 border-white/80 overflow-visible mb-2 cursor-pointer hover:scale-105 transition-transform shadow-lg">
+                  <div className="relative w-12 h-12 rounded-full border-2 border-white/80 overflow-visible mb-2 cursor-pointer hover:scale-105 transition-transform">
                     <Image src={post.avatar} alt={post.author} fill sizes="48px" className="object-cover rounded-full" />
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gx-cyan rounded-full flex items-center justify-center text-black font-black text-sm border-2 border-black">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center font-black text-sm border-2 bg-black text-white border-white/20">
                       <Plus className="w-3 h-3" />
                     </div>
                   </div>
 
                   {/* 悬浮点赞 */}
                   <button className="flex flex-col items-center gap-1 group/btn transition-transform active:scale-90">
-                    <div className="p-3 bg-black/20 backdrop-blur-md rounded-full group-hover/btn:bg-white/10 transition-colors border border-white/5 shadow-lg">
-                      <Heart className="w-7 h-7 text-white drop-shadow-md" />
+                    <div className="p-3 bg-black/40 border border-white/10 rounded-full group-hover/btn:bg-black/60 transition-colors">
+                      <Heart className="w-7 h-7 text-white" />
                     </div>
-                    <span className="text-[12px] font-bold drop-shadow-md">{post.likes}</span>
+                    <span className="text-[12px] font-bold text-white">{post.likes}</span>
                   </button>
 
                   {/* 悬浮评论 */}
                   <button className="flex flex-col items-center gap-1 group/btn transition-transform active:scale-90">
-                    <div className="p-3 bg-black/20 backdrop-blur-md rounded-full group-hover/btn:bg-white/10 transition-colors border border-white/5 shadow-lg">
-                      <MessageCircle className="w-7 h-7 text-white drop-shadow-md" />
+                    <div className="p-3 bg-black/40 border border-white/10 rounded-full group-hover/btn:bg-black/60 transition-colors">
+                      <MessageCircle className="w-7 h-7 text-white" />
                     </div>
-                    <span className="text-[12px] font-bold drop-shadow-md">{post.comments}</span>
+                    <span className="text-[12px] font-bold text-white">{post.comments}</span>
                   </button>
                 </div>
               </div>
@@ -340,7 +344,7 @@ export default function DiscoveryPage() {
                   {post.tags && post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-2">
                       {post.tags.map((tag: string) => (
-                        <span key={tag} className="text-[12px] font-bold text-gx-cyan bg-gx-cyan/10 px-2 py-1 rounded">
+                        <span key={tag} className="text-[12px] font-bold px-2 py-1 rounded text-white bg-white/10">
                           {tag}
                         </span>
                       ))}
@@ -349,7 +353,7 @@ export default function DiscoveryPage() {
                   {post.merchantId && (
                     <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-colors">
                       <div className="flex items-center gap-2 text-white/80">
-                        <Navigation className="w-4 h-4 text-gx-cyan" />
+                        <Navigation className="w-4 h-4 text-white" />
                         <span className="text-sm font-bold">{t('txt_342d42')}</span>
                       </div>
                       <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />

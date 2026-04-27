@@ -24,7 +24,7 @@ export const GlassCard = ({
   const glowStyles = {
     cyan: "glow-border-cyan",
     purple: "glow-border-purple",
-    danger: "border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
+    danger: "border-red-500/30 ",
     none: "border-white/10",
   };
 
@@ -34,7 +34,7 @@ export const GlassCard = ({
       whileHover={hoverGlow ? { scale: 1.01, transition: { duration: 0.2 } } : {}}
       className={cn(
         "glass-effect rounded-2xl p-6 transition-all duration-300",
-        "backdrop-blur-xl", // 视觉对齐：移动端恢复毛玻璃效果
+        "", // 视觉对齐：移动端恢复毛玻璃效果
         "bg-white/5",
         glowStyles[glowColor],
         hoverGlow && "hover:bg-white/10",

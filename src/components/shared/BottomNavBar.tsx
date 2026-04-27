@@ -6,11 +6,17 @@ import { Home, Compass, User, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useViewStack, TabId } from "@/hooks/useViewStack";
+import { useActiveTab } from "@/hooks/useActiveTab";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 export const BottomNavBar = ({ className }: { className?: string }) => {
   const t = useTranslations('BottomNavBar');
   const pathname = usePathname();
-  const { activeTab, setActiveTab } = useViewStack();
+  const { setActiveTab } = useViewStack();
+  const activeTab = useActiveTab();
+  const { settings } = useVisualSettings();
+  const isLight = settings.frontendBgIndex !== 0;
+
   
   // 闲置渐隐状态控制
   const [isIdle, setIsIdle] = useState(false);
@@ -88,11 +94,13 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
                 }}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all",
-                  active ? "text-gx-cyan" : "text-white/40 hover:text-white/70"
+                  active 
+                    ? (isLight ? "text-black" : "text-white") 
+                    : (isLight ? "text-black/40 hover:text-black/70" : "text-white/40 hover:text-white/70")
                 )}
               >
-                <Icon className={cn("w-5 h-5", active ? "drop-shadow-[0_0_12px_rgba(0,240,255,0.5)]" : "drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]")} />
-                <span className="text-[10px] font-mono uppercase tracking-widest drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">{label}</span>
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-mono uppercase tracking-widest">{label}</span>
               </button>
             );
           })}

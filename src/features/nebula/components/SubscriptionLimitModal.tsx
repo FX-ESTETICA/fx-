@@ -166,7 +166,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+          className="absolute inset-0 bg-black/80 "
           onClick={onClose}
         />
 
@@ -174,7 +174,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0a0a0a] border border-white/10 rounded-2xl md:rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden"
+          className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0a0a0a] border border-white/10 rounded-2xl md:rounded-3xl  overflow-hidden"
         >
           {/* Header 锁定提示 */}
           <div className="flex flex-col items-center justify-center pt-8 md:pt-12 pb-6 md:pb-8 px-4 md:px-6 relative shrink-0">
@@ -185,18 +185,18 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               <X className="w-5 h-5 md:w-6 md:h-6" />
             </button>
 
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-gx-gold/10 border border-gx-gold/20 flex items-center justify-center text-gx-gold mb-4 md:mb-6 shadow-[0_0_30px_rgba(250,204,21,0.2)]">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-gx-gold/10 border border-gx-gold/20 flex items-center justify-center text-gx-gold mb-4 md:mb-6 ">
               <Lock className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             
-            <h2 className="text-2xl md:text-4xl font-black text-white tracking-widest mb-3 md:mb-4 text-center">
+            <h2 className="text-2xl md:text-4xl font-bold text-white tracking-widest mb-3 md:mb-4 text-center">
               {isExpiredWarning ? '您的订阅已到期' : isUpgradeIntent ? '星际算力网络' : '公司数量上限'}
             </h2>
             
             <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3 text-xs md:text-sm text-white/60 tracking-widest font-mono text-center">
               <div className="flex items-center gap-2">
                 <span>您当前的订阅为</span>
-                <span className="px-2 py-0.5 rounded bg-gx-gold/20 text-gx-gold border border-gx-gold/30 font-black">
+                <span className="px-2 py-0.5 rounded bg-gx-gold/20 text-gx-gold border border-gx-gold/30 font-bold">
                   {currentTier}
                 </span>
               </div>
@@ -212,7 +212,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             {/* 内测专属后门按钮：一键延期 360 天 */}
             <button 
               onClick={handleBetaExtension}
-              className="mt-6 px-4 py-1.5 rounded-full bg-gx-purple/20 border border-gx-purple/50 text-gx-purple text-[10px] font-mono tracking-widest hover:bg-gx-purple hover:text-white transition-all shadow-[0_0_15px_rgba(188,19,254,0.3)] animate-pulse"
+              className="mt-6 px-4 py-1.5 rounded-full  border   text-[10px] font-mono tracking-widest  hover:text-white transition-all  animate-pulse"
             >
               [内测专属] 一键延长 360 天 PRO 版体验
             </button>
@@ -228,10 +228,10 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             {/* 单店版 (FREE) - 白银 */}
             <div className={cn(
               "relative z-10 flex flex-col bg-black/40 border rounded-2xl p-5 md:p-6 transition-all group",
-              currentTier === 'FREE' ? "border-gray-300 bg-gray-300/5 shadow-[0_0_20px_rgba(209,213,219,0.15)]" : "border-white/10 hover:border-gray-300/50"
+              currentTier === 'FREE' ? "  " : "border-white/10 "
             )}>
-              <h3 className="text-xl font-black tracking-widest text-gray-300 mb-1 md:mb-2">单店</h3>
-              <p className="text-xs text-gray-400 tracking-wider mb-6 md:mb-8">支持单个商店</p>
+              <h3 className="text-xl font-bold tracking-widest  mb-1 md:mb-2">单店</h3>
+              <p className="text-xs  tracking-wider mb-6 md:mb-8">支持单个商店</p>
               
               <div className="mt-auto pt-4 md:pt-6 border-t border-white/5 relative">
                 {/* 如果是过期警告模式，并且当前是FREE，提供幽灵续命按钮 */}
@@ -242,7 +242,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
                         onStartGracePeriod();
                         onClose();
                       }}
-                      className="text-[10px] text-white/30 hover:text-gray-300 transition-colors font-mono tracking-widest uppercase whitespace-nowrap"
+                      className="text-[10px] text-white/30  transition-colors font-mono tracking-widest uppercase whitespace-nowrap"
                     >
                       或开启最后 15 次紧急额度
                     </button>
@@ -251,9 +251,9 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
                 <button 
                   onClick={() => handleCheckout(PADDLE_PRICES.FREE)}
                   className={cn(
-                    "w-full py-2.5 md:py-3 rounded-xl font-black tracking-widest uppercase border transition-all text-xs md:text-sm",
+                    "w-full py-2.5 md:py-3 rounded-xl font-bold tracking-widest uppercase border transition-all text-xs md:text-sm",
                     currentTier === 'FREE'
-                      ? "bg-gray-300/10 text-gray-300 border-gray-300/30 hover:bg-gray-300 hover:text-black shadow-[0_0_15px_rgba(209,213,219,0.1)]"
+                      ? "   hover:text-black "
                       : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10 hover:text-white"
                   )}
                 >
@@ -265,19 +265,19 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             {/* 多店版 (BASIC) - 青蓝 */}
             <div className={cn(
               "relative z-10 flex flex-col bg-black/40 border rounded-2xl p-5 md:p-6 transition-all group",
-              currentTier === 'BASIC' ? "border-gx-cyan bg-gx-cyan/5 shadow-[0_0_20px_rgba(0,242,255,0.15)]" : "border-white/10 hover:border-gx-cyan/50"
+              currentTier === 'BASIC' ? "  " : "border-white/10 "
             )}>
-              <h3 className="text-xl font-black tracking-widest text-gx-cyan mb-1 md:mb-2">多店</h3>
-              <p className="text-xs text-gx-cyan/60 tracking-wider mb-6 md:mb-8">支持 3 家商店</p>
+              <h3 className="text-xl font-bold tracking-widest  mb-1 md:mb-2">多店</h3>
+              <p className="text-xs  tracking-wider mb-6 md:mb-8">支持 3 家商店</p>
               
               <div className="mt-auto pt-4 md:pt-6 border-t border-white/5">
                 <button 
                   onClick={() => handleCheckout(PADDLE_PRICES.BASIC)}
                   className={cn(
-                    "w-full py-2.5 md:py-3 rounded-xl font-black tracking-widest uppercase border transition-all text-xs md:text-sm",
+                    "w-full py-2.5 md:py-3 rounded-xl font-bold tracking-widest uppercase border transition-all text-xs md:text-sm",
                     currentTier === 'BASIC'
-                      ? "bg-gx-cyan/10 text-gx-cyan border-gx-cyan/30 hover:bg-gx-cyan hover:text-black shadow-[0_0_15px_rgba(0,242,255,0.1)]"
-                      : "bg-gx-cyan/5 text-gx-cyan/60 border-gx-cyan/20 hover:bg-gx-cyan/20 hover:text-gx-cyan"
+                      ? "    hover:text-black "
+                      : "    "
                   )}
                 >
                   {currentTier === 'BASIC' ? '续费' : '升级订阅'}
@@ -289,26 +289,26 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             <div className={cn(
               "relative z-10 flex flex-col bg-black border rounded-2xl p-5 md:p-6 transform transition-all group",
               currentTier === 'PRO' 
-                ? "border-gx-purple shadow-[0_0_30px_rgba(188,19,254,0.25)] md:-translate-y-4" 
-                : "border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:border-gx-purple/50"
+                ? "  md:-translate-y-4" 
+                : "border-white/10 "
             )}>
               <div className={cn(
-                "absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest transition-all whitespace-nowrap",
-                currentTier === 'PRO' ? "bg-gx-purple text-white shadow-[0_0_10px_rgba(188,19,254,0.5)]" : "bg-gx-purple/20 text-gx-purple/80"
+                "absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest transition-all whitespace-nowrap",
+                currentTier === 'PRO' ? " text-white " : " "
               )}>
                 Recommended
               </div>
-              <h3 className="text-xl md:text-2xl font-black tracking-widest text-gx-purple mb-1 md:mb-2 drop-shadow-[0_0_10px_rgba(188,19,254,0.5)]">连锁</h3>
-              <p className="text-xs text-gx-purple/80 tracking-wider mb-6 md:mb-8">支持 10 家商店</p>
+              <h3 className="text-xl md:text-2xl font-bold tracking-widest  mb-1 md:mb-2 ">连锁</h3>
+              <p className="text-xs  tracking-wider mb-6 md:mb-8">支持 10 家商店</p>
               
               <div className="mt-auto pt-4 md:pt-6 border-t border-white/5">
                 <button 
                   onClick={() => handleCheckout(PADDLE_PRICES.PRO)}
                   className={cn(
-                    "w-full py-3 md:py-4 rounded-xl font-black tracking-widest uppercase transition-all border text-xs md:text-sm",
+                    "w-full py-3 md:py-4 rounded-xl font-bold tracking-widest uppercase transition-all border text-xs md:text-sm",
                     currentTier === 'PRO' 
-                      ? "bg-gx-purple/10 text-gx-purple border-gx-purple/30 hover:bg-gx-purple hover:text-white shadow-[0_0_20px_rgba(188,19,254,0.4)]" 
-                      : "bg-gx-purple/10 text-gx-purple border-gx-purple/30 shadow-[0_0_20px_rgba(188,19,254,0.2)] hover:shadow-[0_0_30px_rgba(188,19,254,0.6)] hover:bg-gx-purple hover:text-white hover:scale-105"
+                      ? "    hover:text-white " 
+                      : "    hover:text-white hover:scale-105"
                   )}
                 >
                   {currentTier === 'PRO' ? '续费' : '升级订阅'}
@@ -319,18 +319,18 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
             {/* 集团版 (ENTERPRISE) - 暗金 */}
             <div className={cn(
               "relative z-10 flex flex-col bg-black/40 border rounded-2xl p-5 md:p-6 transition-all group",
-              currentTier === 'ENTERPRISE' ? "border-[#FFD700] bg-[#FFD700]/5 shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[#FFD700]/50"
+              currentTier === 'ENTERPRISE' ? "border-[#FFD700] bg-[#FFD700]/5 " : "border-white/10 hover:border-[#FFD700]/50"
             )}>
-              <h3 className="text-xl font-black tracking-widest text-[#FFD700] mb-1 md:mb-2 drop-shadow-[0_0_10px_rgba(255,215,0,0.3)]">集团</h3>
+              <h3 className="text-xl font-bold tracking-widest text-[#FFD700] mb-1 md:mb-2 ">集团</h3>
               <p className="text-xs text-[#FFD700]/60 tracking-wider mb-6 md:mb-8">无上限</p>
               
               <div className="mt-auto pt-4 md:pt-6 border-t border-white/5">
                 <button 
                   onClick={() => handleCheckout(PADDLE_PRICES.ENTERPRISE)}
                   className={cn(
-                    "w-full py-2.5 md:py-3 rounded-xl font-black tracking-widest uppercase border transition-all text-xs md:text-sm",
+                    "w-full py-2.5 md:py-3 rounded-xl font-bold tracking-widest uppercase border transition-all text-xs md:text-sm",
                     currentTier === 'ENTERPRISE'
-                      ? "bg-[#FFD700]/10 text-[#FFD700] border-[#FFD700]/30 hover:bg-[#FFD700] hover:text-black shadow-[0_0_15px_rgba(255,215,0,0.1)]"
+                      ? "bg-[#FFD700]/10 text-[#FFD700] border-[#FFD700]/30 hover:bg-[#FFD700] hover:text-black "
                       : "bg-[#FFD700]/5 text-[#FFD700]/60 border-[#FFD700]/20 hover:bg-[#FFD700]/20 hover:text-[#FFD700]"
                   )}
                 >

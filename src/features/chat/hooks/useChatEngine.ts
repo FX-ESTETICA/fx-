@@ -10,7 +10,7 @@ export interface ChatMessage {
   room_id?: string;
   content?: string;
   image_url?: string;
-  blurhash?: string;
+  hash?: string;
   audio_url?: string;
   audio_duration?: number;
   created_at: string;
@@ -19,6 +19,19 @@ export interface ChatMessage {
 export function useChatEngine(currentUserId: string, roomId?: string, receiverId?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
+
+  // 监听全局清空事件
+  useEffect(() => {
+    const handleClear = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const targetId = roomId || receiverId;
+      if (customEvent.detail?.targetId === targetId) {
+        setMessages([]); // 立刻清空当前显示的视图
+      }
+    };
+    window.addEventListener('gx_chat_cleared', handleClear);
+    return () => window.removeEventListener('gx_chat_cleared', handleClear);
+  }, [roomId, receiverId]);
 
   // 1. 初始化拉取历史消息 & 监听 Realtime
   useEffect(() => {
@@ -41,7 +54,34 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
 
       const { data, error } = await query;
       if (error) console.error('历史消息拉取失败:', error);
-      if (data) setMessages(data.reverse()); // 倒序转正序
+      if (data) {
+        // 读取单向删除的列表
+        const delKey = `gx_deleted_msgs_${currentUserId}`;
+        let deletedIds: string[] = [];
+        try {
+          const stored = localStorage.getItem(delKey);
+          if (stored) deletedIds = JSON.parse(stored);
+        } catch(e) {}
+
+        // 读取清空时间戳 (直接读 localStorage 避免闭包旧状态)
+        let localClearedAt = 0;
+        const targetId = roomId || receiverId;
+        if (targetId) {
+          const clearKey = `gx_cleared_${currentUserId}_${targetId}`;
+          const storedClear = localStorage.getItem(clearKey);
+          if (storedClear) localClearedAt = parseInt(storedClear, 10);
+        }
+
+        // 本地降维：过滤掉清空时间点之前的消息，以及被标记为“单向删除/双向删除”的消息
+        let validMessages = data.reverse();
+        if (localClearedAt > 0) {
+          validMessages = validMessages.filter(m => new Date(m.created_at).getTime() > localClearedAt);
+        }
+        if (deletedIds.length > 0) {
+          validMessages = validMessages.filter(m => !deletedIds.includes(m.id));
+        }
+        setMessages(validMessages);
+      }
     };
 
     fetchHistory();
@@ -51,18 +91,36 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
       .channel(`chat_${roomId || receiverId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMsg = payload.new as ChatMessage;
-          // 过滤是否属于当前聊天窗口
-          const isForRoom = roomId && newMsg.room_id === roomId;
-          const isForPrivate = !roomId && (
-            (newMsg.sender_id === currentUserId && newMsg.receiver_id === receiverId) ||
-            (newMsg.sender_id === receiverId && newMsg.receiver_id === currentUserId)
-          );
+          if (payload.eventType === 'INSERT') {
+            const newMsg = payload.new as ChatMessage;
+            // 过滤是否属于当前聊天窗口
+            const isForRoom = roomId && newMsg.room_id === roomId;
+            const isForPrivate = !roomId && (
+              (newMsg.sender_id === currentUserId && newMsg.receiver_id === receiverId) ||
+              (newMsg.sender_id === receiverId && newMsg.receiver_id === currentUserId)
+            );
 
-          if (isForRoom || isForPrivate) {
-            setMessages((prev) => [...prev, newMsg]);
+            if (isForRoom || isForPrivate) {
+              setMessages((prev) => {
+                // 防止重复插入
+                if (prev.some(m => m.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+              });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            console.log('🔴 [Realtime] 收到 DELETE 广播:', payload);
+            const oldMsg = payload.old;
+            if (oldMsg && oldMsg.id) {
+              setMessages((prev) => {
+                const newMessages = prev.filter(m => m.id !== oldMsg.id);
+                console.log('🗑️ [Realtime] 尝试移除消息:', oldMsg.id, '前后数量:', prev.length, '->', newMessages.length);
+                return newMessages;
+              });
+              // 发出全局事件，通知左侧的 RecentChats 列表刷新
+              window.dispatchEvent(new CustomEvent('gx_chat_message_deleted', { detail: { targetId: roomId || receiverId } }));
+            }
           }
         }
       )
@@ -80,7 +138,7 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
 
     try {
       let imageUrl: string | undefined;
-      let blurhashStr: string | undefined;
+      let hashStr: string | undefined;
       let audioUrl: string | undefined;
 
       // 图片降维打击流
@@ -90,7 +148,7 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
         
         // 步骤 2：为了生成 Blurhash，我们需要先给这个文件创建一个临时 URL
         const tempObjectUrl = URL.createObjectURL(compressedFile);
-        blurhashStr = await generateBlurhash(tempObjectUrl);
+        hashStr = await generateBlurhash(tempObjectUrl);
         URL.revokeObjectURL(tempObjectUrl); // 释放内存
 
         // 步骤 3：上传至 Supabase Storage
@@ -140,7 +198,7 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
           room_id: roomId,
           content,
           image_url: imageUrl,
-          blurhash: blurhashStr,
+          hash: hashStr,
           audio_url: audioUrl,
           audio_duration: audioDuration,
         });
@@ -161,5 +219,51 @@ export function useChatEngine(currentUserId: string, roomId?: string, receiverId
     }
   }, [currentUserId, roomId, receiverId]);
 
-  return { messages, isSending, sendMessage };
+  // 单向删除：仅对我删除
+  const deleteMessageForMe = useCallback((msgId: string) => {
+    if (!currentUserId) return;
+    const key = `gx_deleted_msgs_${currentUserId}`;
+    let deletedIds: string[] = [];
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) deletedIds = JSON.parse(stored);
+    } catch(e) {}
+    
+    if (!deletedIds.includes(msgId)) {
+      deletedIds.push(msgId);
+      localStorage.setItem(key, JSON.stringify(deletedIds));
+    }
+    
+    // 立即更新视图
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    // 派发全局事件以刷新列表，但不触发全盘清空
+    window.dispatchEvent(new CustomEvent('gx_chat_message_deleted', { detail: { targetId: roomId || receiverId } }));
+  }, [currentUserId, roomId, receiverId]);
+
+  // 双向删除：撤回消息 (物理删除或标记为已撤回)
+  const deleteMessageForEveryone = useCallback(async (msgId: string) => {
+    if (!currentUserId) return;
+    
+    // 1. 乐观更新 (Optimistic UI Update)：立即在本地移除，实现 0 延迟反馈
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    
+    try {
+      // 2. 真实物理删除 (这会触发所有客户端的 DELETE websocket 广播)
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', msgId)
+        .eq('sender_id', currentUserId); // 仅允许删除自己发的消息
+
+      if (error) throw error;
+      
+      // 派发全局事件以刷新列表
+      window.dispatchEvent(new CustomEvent('gx_chat_message_deleted', { detail: { targetId: roomId || receiverId } }));
+    } catch (error) {
+      console.error('撤回消息失败:', error);
+      // 可选：如果删除失败，可以在这里把消息加回来 (Rollback)
+    }
+  }, [currentUserId, roomId, receiverId]);
+
+  return { messages, isSending, sendMessage, deleteMessageForMe, deleteMessageForEveryone };
 }

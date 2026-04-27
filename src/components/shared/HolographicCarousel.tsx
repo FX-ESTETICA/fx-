@@ -37,7 +37,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
   const zIndex = useTransform(zIndexFloat, Math.round);
 
   // 4. 黑场模糊：远离中心时加深遮罩，中心完全清透
-  const blurOpacity = useTransform(virtualOffset, (vo) => Math.min(Math.abs(vo), 1) * 0.8);
+  const Opacity = useTransform(virtualOffset, (vo) => Math.min(Math.abs(vo), 1) * 0.8);
 
   // 5. 内容可见度：仅在中心时显示文字和徽章
   const contentOpacity = useTransform(virtualOffset, (vo) => 1 - Math.min(Math.abs(vo), 1) * 1.5);
@@ -54,7 +54,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
       }}
       className={cn(
         "absolute h-full aspect-[16/9] sm:aspect-[21/9] max-w-[80vw] rounded-[clamp(16px,2vw,24px)] overflow-hidden",
-        "ring-1 ring-white/5 border border-white/5 bg-gx-dark-800 shadow-2xl"
+        "ring-1 ring-white/5 border border-white/5 bg-gx-dark-800 "
       )}
     >
       <Image
@@ -67,22 +67,22 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
       />
 
       <motion.div
-        style={{ opacity: blurOpacity }}
-        className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+        style={{ opacity: Opacity }}
+        className="absolute inset-0 bg-black/70 -[2px]"
       />
 
       <motion.div style={{ opacity: contentOpacity }} className="absolute inset-0 flex flex-col justify-between pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
 
-        <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded border border-yellow-500/30 shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+        <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-black/60  rounded border border-yellow-500/30 ">
           <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-          <span className="text-[10px] font-black text-yellow-500 tracking-widest uppercase drop-shadow-[0_0_5px_rgba(255,215,0,0.8)]">
+          <span className="text-[10px] font-bold text-yellow-500 tracking-widest uppercase ">
             {t('txt_53a12c')}</span>
         </div>
 
         <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-3 z-10">
           <div>
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-white drop-shadow-[0_2px_10px_rgba(0,0,0,1)] uppercase tracking-tighter mb-1 line-clamp-1">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-white  uppercase tracking-tighter mb-1 line-clamp-1">
               {item.name}
             </h2>
             <p className="text-[9px] sm:text-[10px] font-mono text-white/70 tracking-widest line-clamp-1 uppercase">
@@ -94,7 +94,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
               e.stopPropagation();
               onClick?.();
             }}
-            className="hidden md:flex shrink-0 items-center gap-1.5 text-yellow-400 font-bold text-xs bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20 backdrop-blur-md hover:bg-yellow-500/20 transition-colors cursor-pointer shadow-[0_0_10px_rgba(255,215,0,0.1)] pointer-events-auto"
+            className="hidden md:flex shrink-0 items-center gap-1.5 text-yellow-400 font-bold text-xs bg-yellow-500/10 px-3 py-1.5 rounded-full border border-yellow-500/20  hover:bg-yellow-500/20 transition-colors cursor-pointer  pointer-events-auto"
           >
             <span>{t('txt_3ed720')}</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -104,7 +104,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
 
       <motion.div
         style={{ opacity: contentOpacity }}
-        className="absolute inset-0 rounded-[clamp(16px,2vw,24px)] border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.8)] ring-1 ring-white/20 pointer-events-none"
+        className="absolute inset-0 rounded-[clamp(16px,2vw,24px)] border border-white/20  ring-1 ring-white/20 pointer-events-none"
       />
     </motion.div>
   );
@@ -197,7 +197,7 @@ export const HolographicCarousel = ({ shops = [], onShopClick, isActive = true }
               className={cn(
                 "h-1 rounded-full transition-all duration-500",
                 normalizedActiveIndex === idx
-                  ? "w-6 bg-gx-cyan shadow-[0_0_8px_rgba(0,240,255,0.8)]"
+                  ? "w-6  "
                   : "w-1.5 bg-white/20"
               )}
             />

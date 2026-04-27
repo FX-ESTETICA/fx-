@@ -20,11 +20,11 @@ export const GracePeriodBanner = ({ remainingTime, remainingMilliseconds, isRead
       <motion.div 
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
-        className="backdrop-blur-xl bg-black/80 border border-white/10 rounded-full px-6 py-3 flex items-center gap-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] pointer-events-auto"
+        className=" bg-black/80 border border-white/10 rounded-full px-6 py-3 flex items-center gap-4  pointer-events-auto"
       >
         <div className="flex items-center gap-2">
           {isReadOnlyMode || isExhausted ? (
-            <span className="text-red-500 flex items-center gap-2 font-black tracking-wider text-sm">
+            <span className="text-red-500 flex items-center gap-2 font-bold tracking-wider text-sm">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               您的会员已到期请订阅
             </span>
@@ -34,8 +34,8 @@ export const GracePeriodBanner = ({ remainingTime, remainingMilliseconds, isRead
                 {isGracePeriodActive ? '紧急调度额度' : '试用倒计时'}
               </span>
               <span className={cn(
-                "font-black font-mono tracking-wider",
-                isGracePeriodActive ? "text-gx-gold" : "text-gx-cyan"
+                "font-bold font-mono tracking-wider",
+                isGracePeriodActive ? "text-gx-gold" : ""
               )}>
                 {isGracePeriodActive ? `${gracePeriodActionsLeft}/15 次` : remainingTime}
               </span>
@@ -47,7 +47,7 @@ export const GracePeriodBanner = ({ remainingTime, remainingMilliseconds, isRead
           onClick={() => {
             openSubscriptionModal('UPGRADE_INTENT');
           }}
-          className="text-white text-xs font-bold uppercase tracking-wider hover:text-gx-cyan transition-colors"
+          className="text-white text-xs font-bold uppercase tracking-wider  transition-colors"
         >
           {isExhausted ? '升级订阅' : '升级订阅'}
         </button>

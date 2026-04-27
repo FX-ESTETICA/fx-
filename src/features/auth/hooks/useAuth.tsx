@@ -121,76 +121,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (nextSession?.user) {
       localStorage.removeItem("gx_guest_mode");
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', nextSession.user.id)
-          .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
+        const isBoss = nextSession.user.email === ADMIN_EMAIL;
+        const userId = nextSession.user.id;
 
-        // 【核心修复】：查询新表 bindings，使用 principal_id (对应 profiles.gx_id)
-        let bindings = null;
+        // 【世界顶端：网络并发引擎】打破瀑布流，一次性并发请求核心身份数据
+        const [profileResult, appStatusResult, oldBindingsResult, bossShopsResult] = await Promise.allSettled([
+          supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+          supabase.from('merchant_applications').select('status').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('shop_bindings').select('shop_id, role, shops(id, name, industry)').eq('user_id', userId).eq('role', 'OWNER'),
+          isBoss ? supabase.from('shops').select('id, name, industry').limit(100) : Promise.resolve({ data: null, error: null })
+        ]);
+
+        const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
+        const appData = appStatusResult.status === 'fulfilled' ? appStatusResult.value.data : null;
+        let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = appData ? (appData.status as 'pending' | 'approved' | 'rejected') : 'idle';
+        const oldBindings = oldBindingsResult.status === 'fulfilled' ? oldBindingsResult.value.data : null;
+        const ownedShops = bossShopsResult.status === 'fulfilled' ? bossShopsResult.value.data : null;
+
+        let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
+
+        // 如果存在 profile.gx_id，才去拉取最新的 bindings
         if (profile?.gx_id) {
-          const { data } = await supabase
+          const { data: newBindings } = await supabase
             .from('bindings')
             .select('shop_id, role, shops(id, name, industry)')
             .eq('principal_id', profile.gx_id);
-          bindings = data;
-        }
-        
-        let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
-
-        // 为了平滑过渡，同时兼容旧的 shop_bindings (如果是 OWNER)
-        if (!shopBindings || shopBindings.length === 0) {
-          const { data: oldBindings } = await supabase
-            .from('shop_bindings')
-            .select('shop_id, role, shops(id, name, industry)')
-            .eq('user_id', nextSession.user.id)
-            .eq('role', 'OWNER');
-          shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
-        }
-
-        const isBoss = nextSession.user.email === ADMIN_EMAIL;
-        
-        // 【核心升级】：拉取全息申请状态 (消除闪烁与脏读)
-        let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = 'idle';
-        try {
-          const { data: appData } = await supabase
-            .from('merchant_applications')
-            .select('status')
-            .eq('user_id', nextSession.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (appData) {
-            appStatus = appData.status as 'pending' | 'approved' | 'rejected';
+          
+          if (newBindings && newBindings.length > 0) {
+            shopBindings = mapShopBindings(newBindings as ShopBindingRow[]);
           }
-        } catch (e) {
-          console.error("[AuthProvider] Failed to fetch application status", e);
         }
 
-        // 【核心升级】：如果是 Boss，强制接管并拉取所有名下门店
-        if (isBoss) {
-          try {
-            const { data: ownedShops } = await supabase
-              .from('shops')
-              .select('id, name, industry')
-              // 此处假设未来在数据库层 shops 表会新增 owner_principal_id 等归属字段，
-              // 暂时为了保证 0 冲突不报错，Boss 先拉取全部 shops 或特定的 shops。
-              // TODO: 在 Supabase 中为 shops 表添加 owner_principal_id 后，加上 .eq('owner_principal_id', nextSession.user.id)
-              // 目前暂时拉取所有作为模拟上帝视角
-              .limit(100);
-              
-            if (ownedShops) {
-              shopBindings = ownedShops.map(shop => ({
-                shopId: shop.id,
-                role: 'OWNER',
-                shopName: shop.name,
-                industry: shop.industry || 'other'
-              }));
-            }
-          } catch (e) {
-            console.error("[AuthProvider] Failed to fetch boss shops", e);
-          }
+        // 如果是 Boss，强制接管并覆盖所有名下门店
+        if (isBoss && ownedShops) {
+          shopBindings = ownedShops.map((shop: any) => ({
+            shopId: shop.id,
+            role: 'OWNER',
+            shopName: shop.name,
+            industry: shop.industry || 'other'
+          }));
         }
 
         if (profile) {
@@ -243,7 +212,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (error) {
         console.error("[AuthProvider] Hydrate Error:", error);
-        setUser(nextSession.user);
+        // 【终极防爆兜底】：如果发生极端的网络中断或意外抛错，必须塞入带有 gxId 的 SandboxUser，防止下游页面白屏崩溃
+        const isBoss = nextSession.user.email === ADMIN_EMAIL;
+        const fallbackRole = isBoss ? "boss" : "user";
+        const fallbackUser = {
+          ...nextSession.user,
+          gxId: "PENDING",
+          role: fallbackRole,
+          avatar: nextSession.user.user_metadata?.avatar_url,
+          name: nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name,
+          gender: nextSession.user.user_metadata?.gender || "unknown",
+          birthday: nextSession.user.user_metadata?.birthday || null,
+          bindings: [],
+          applicationStatus: 'idle'
+        } as SandboxUser;
+        
+        // 核心修复：绝对禁止在这里覆写 localStorage！仅在内存中兜底，保护用户原有的高保真离线缓存。
+        setUser(fallbackUser);
       }
     } else {
       setUser(null);
@@ -366,72 +351,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', activeSession.user.id)
-        .maybeSingle(); // 极致纯净降级：消除找不到数据时抛出的 400 Bad Request 报错
+      const isBoss = activeSession.user.email === ADMIN_EMAIL;
+      const userId = activeSession.user.id;
 
-      // 【核心修复】：查询新表 bindings，使用 principal_id (对应 profiles.gx_id)
-      let bindings = null;
+      // 【世界顶端：网络并发引擎】打破瀑布流，一次性并发请求核心身份数据
+      const [profileResult, appStatusResult, oldBindingsResult, bossShopsResult] = await Promise.allSettled([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        supabase.from('merchant_applications').select('status').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('shop_bindings').select('shop_id, role, shops(id, name, industry)').eq('user_id', userId).eq('role', 'OWNER'),
+        isBoss ? supabase.from('shops').select('id, name, industry').limit(100) : Promise.resolve({ data: null, error: null })
+      ]);
+
+      const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
+      const appData = appStatusResult.status === 'fulfilled' ? appStatusResult.value.data : null;
+      let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = appData ? (appData.status as 'pending' | 'approved' | 'rejected') : 'idle';
+      const oldBindings = oldBindingsResult.status === 'fulfilled' ? oldBindingsResult.value.data : null;
+      const ownedShops = bossShopsResult.status === 'fulfilled' ? bossShopsResult.value.data : null;
+
+      let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
+
+      // 如果存在 profile.gx_id，才去拉取最新的 bindings
       if (profile?.gx_id) {
-        const { data } = await supabase
+        const { data: newBindings } = await supabase
           .from('bindings')
           .select('shop_id, role, shops(id, name, industry)')
           .eq('principal_id', profile.gx_id);
-        bindings = data;
-      }
-      
-      let shopBindings = mapShopBindings(bindings as ShopBindingRow[] | null);
-
-      // 为了平滑过渡，同时兼容旧的 shop_bindings (如果是 OWNER)
-      if (!shopBindings || shopBindings.length === 0) {
-        const { data: oldBindings } = await supabase
-          .from('shop_bindings')
-          .select('shop_id, role, shops(id, name, industry)')
-          .eq('user_id', activeSession.user.id)
-          .eq('role', 'OWNER');
-        shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
-      }
-
-      const isBoss = activeSession.user.email === ADMIN_EMAIL;
-
-      // 【核心升级】：同步刷新全局申请状态
-      let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = 'idle';
-      try {
-        const { data: appData } = await supabase
-          .from('merchant_applications')
-          .select('status')
-          .eq('user_id', activeSession.user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (appData) {
-          appStatus = appData.status as 'pending' | 'approved' | 'rejected';
+        
+        if (newBindings && newBindings.length > 0) {
+          shopBindings = mapShopBindings(newBindings as ShopBindingRow[]);
         }
-      } catch (e) {
-        console.error("[AuthProvider] Failed to refresh application status", e);
       }
 
-      // 【核心升级】：如果是 Boss，强制接管并拉取所有名下门店 (Refresh 逻辑保持同步)
-      if (isBoss) {
-        try {
-          const { data: ownedShops } = await supabase
-            .from('shops')
-            .select('id, name, industry')
-            .limit(100);
-            
-          if (ownedShops) {
-            shopBindings = ownedShops.map(shop => ({
-              shopId: shop.id,
-              role: 'OWNER',
-              shopName: shop.name,
-              industry: shop.industry || 'other'
-            }));
-          }
-        } catch (e) {
-          console.error("[AuthProvider] Failed to refresh boss shops", e);
-        }
+      // 如果是 Boss，强制接管并覆盖所有名下门店
+      if (isBoss && ownedShops) {
+        shopBindings = ownedShops.map((shop: any) => ({
+          shopId: shop.id,
+          role: 'OWNER',
+          shopName: shop.name,
+          industry: shop.industry || 'other'
+        }));
       }
 
       if (profile) {

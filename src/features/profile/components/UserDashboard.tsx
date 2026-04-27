@@ -9,12 +9,14 @@ import { UserProfile } from "../types";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { motion } from "framer-motion";
 import { PhoneAuthBar } from "./PhoneAuthBar";
 import { useTranslations } from "next-intl";
 import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 import { HoloAscensionCard } from "@/components/shared/HoloAscensionCard";
+import { FrontendThemeSwitcher } from "./FrontendThemeSwitcher";
 
 import { useRouter } from "next/navigation";
 
@@ -27,11 +29,9 @@ interface UserDashboardProps {
 
 export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboarding = false }: UserDashboardProps) => {
     const t = useTranslations('UserDashboard');
+  const { settings } = useVisualSettings();
+  const isLight = settings.frontendBgIndex !== 0;
   const { user, refreshUserData, signOut } = useAuth();
-  // 如果绑定的商户 industry 为 'none'，则认为该用户没有日历权限
-  const hasPrivilege = profile.privileges?.includes("calendar_access") && industry !== 'none';
-  const calendarUrl = boundShopId ? `/calendar/${industry || 'beauty'}?shopId=${boundShopId}` : "/calendar/beauty";
-
   // ------------------------------------------------------------------
   // 状态机 (The Core State Machine)
   // ------------------------------------------------------------------
@@ -197,16 +197,16 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
     const portalContent = (
       <div className="fixed inset-0 z-[99999] bg-black flex overflow-hidden font-sans">
         {/* 左轨：愿景丰碑 (大屏展示) */}
-        <div className="hidden lg:flex w-2/5 relative p-12 xl:p-20 flex-col justify-between border-r border-white/10 bg-gradient-to-b from-gx-gold/5 to-black">
+        <div className={`hidden lg:flex w-2/5 relative p-12 xl:p-20 flex-col justify-between border-r ${isLight ? "border-black/10" : "border-white/10"} bg-gradient-to-b ${isLight ? "from-black/10" : "from-white/10"} to-black`}>
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-luminosity" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
           
           <div className="relative z-10 space-y-6">
-            <Sparkles className="w-12 h-12 text-gx-gold" />
-            <h2 className="text-4xl xl:text-5xl font-black tracking-tighter leading-tight text-white drop-shadow-xl">
+            <Sparkles className={`w-12 h-12 ${isLight ? "text-black" : "text-white"}`} />
+            <h2 className={`text-4xl xl:text-5xl font-black tracking-tighter leading-tight ${isLight ? "text-black" : "text-white"}`}>
               {t('txt_d3a60f')}<br />{t('txt_697bfe')}
             </h2>
-            <p className="text-white/40 text-sm xl:text-base leading-relaxed max-w-sm">
+            <p className={`${isLight ? "text-black/40" : "text-white/40"} text-sm xl:text-base leading-relaxed max-w-sm`}>
               {t('txt_d946ba')}
             </p>
           </div>
@@ -215,14 +215,14 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         {/* 移动端顶部状态栏 (仅小屏展示) */}
         <div className="lg:hidden absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-center pointer-events-none bg-gradient-to-b from-black/90 to-transparent">
           <div className="space-y-1">
-            <h2 className="text-lg font-black tracking-tighter text-white drop-shadow-lg flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-gx-gold" />
+            <h2 className={`text-lg font-black tracking-tighter ${isLight ? "text-black" : "text-white"} flex items-center gap-2`}>
+              <Sparkles className={`w-4 h-4 ${isLight ? "text-black" : "text-white"}`} />
               {t('txt_d3a60f')} {t('txt_697bfe')}
             </h2>
           </div>
           <button 
             onClick={() => setShowMerchantPortal(false)} 
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all pointer-events-auto backdrop-blur-md"
+            className={`w-10 h-10 rounded-full ${isLight ? "bg-black/10 text-black/60 hover:text-black hover:bg-black/20" : "bg-white/10 text-white/60 hover:text-white hover:bg-white/20"} flex items-center justify-center transition-all pointer-events-auto `}
           >
             <X className="w-5 h-5" />
           </button>
@@ -231,7 +231,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         {/* 大屏关闭按钮 */}
         <button 
           onClick={() => setShowMerchantPortal(false)} 
-          className="hidden lg:flex absolute top-12 right-12 w-12 h-12 rounded-full bg-white/5 items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all z-50 backdrop-blur-md"
+          className={`hidden lg:flex absolute top-12 right-12 w-12 h-12 rounded-full ${isLight ? "bg-black/5 text-black/40 hover:text-black hover:bg-black/10" : "bg-white/5 text-white/40 hover:text-white hover:bg-white/10"} items-center justify-center transition-all z-50 `}
         >
           <X className="w-6 h-6" />
         </button>
@@ -247,10 +247,10 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
           <div className="max-w-2xl mx-auto px-6 py-28 lg:py-32 relative z-10">
             {/* 锁定遮罩 (提交中) */}
             {applicationStatus === "submitting" && (
-              <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-xl flex items-center justify-center">
+              <div className="fixed inset-0 z-[1000] bg-black/80  flex items-center justify-center">
                 <div className="flex flex-col items-center gap-6">
-                  <div className="w-20 h-20 border-t-2 border-r-2 border-gx-gold rounded-full animate-spin" />
-                  <p className="text-gx-gold font-mono tracking-[0.3em] uppercase animate-pulse text-sm">
+                  <div className={`w-20 h-20 border-t-2 border-r-2 rounded-full animate-spin ${isLight ? "border-black" : "border-white"}`} />
+                  <p className={`font-mono tracking-[0.3em] uppercase animate-pulse text-sm ${isLight ? "text-black" : "text-white"}`}>
                     {t('txt_950181')}
                   </p>
                 </div>
@@ -260,18 +260,20 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
             <div className="space-y-16">
               {/* Section 1: 基础身份 */}
               <section className="space-y-8">
-                <div className="border-b border-white/5 pb-4">
-                  <h3 className="text-2xl font-black tracking-tighter text-white">{t('txt_e47036')}</h3>
+                <div className={`border-b ${isLight ? "border-black/5" : "border-white/5"} pb-4`}>
+                  <h3 className={`text-2xl font-black tracking-tighter ${isLight ? "text-black" : "text-white"}`}>{t('txt_e47036')}</h3>
                 </div>
                 
                 <div className="space-y-6">
                   {/* Identity Fission Switch - 已删除集团总部按钮 */}
-                  <div className="flex bg-white/5 p-1 rounded-xl">
+                  <div className={`flex ${isLight ? "bg-black/5" : "bg-white/5"} p-1 rounded-xl`}>
                     <button 
                       onClick={() => setAscensionMode("indie")}
                       className={cn(
                         "flex-1 py-3 text-xs font-bold tracking-widest transition-all rounded-lg",
-                        ascensionMode === "indie" ? "bg-white text-black shadow-md pointer-events-none" : "text-white/40 hover:text-white/80"
+                        ascensionMode === "indie"
+                          ? cn("pointer-events-none", isLight ? "bg-black text-white" : "bg-white text-black")
+                          : cn("transition-all", isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
                       )}
                     >
                       {t('txt_1d078b')}</button>
@@ -279,28 +281,29 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
                   {/* Brand Name */}
                   <div className="space-y-2">
-                    <label className="text-xs text-white/40 tracking-widest">
+                    <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>
                       {t('txt_d4b097')}</label>
                     <Input 
                       placeholder={t('txt_f3ef2d')}
                       value={formData.brandName}
                       onChange={(e) => setFormData(prev => ({ ...prev, brandName: e.target.value }))}
                       className={cn(
-                        "bg-black/50 focus:border-gx-gold/50 transition-all h-14 text-base font-bold",
-                        formErrors.includes("brandName") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
+                        "transition-all h-14 text-base font-bold",
+                        isLight ? "focus:border-black/20" : "focus:border-white/20",
+                        formErrors.includes("brandName") ? (isLight ? "border-black" : "border-white") : (isLight ? "border-black/10 bg-black/5" : "border-white/10 bg-white/5")
                       )} 
                     />
                   </div>
 
                   {/* Contact */}
                   <div className="space-y-2">
-                    <label className="text-xs text-white/40 tracking-widest">{t('txt_9e1660')}</label>
+                    <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>{t('txt_9e1660')}</label>
                     <div className="flex gap-2">
                       <div className="relative w-28 shrink-0">
                         <select
                           value={formData.countryCode}
                           onChange={(e) => setFormData(prev => ({ ...prev, countryCode: e.target.value }))}
-                          className="w-full bg-black/50 border border-white/10 rounded-lg px-1 text-center text-white font-mono text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-14"
+                          className={`w-full bg-black/50 border ${isLight ? "border-black/10 text-black focus:border-black/20" : "border-white/10 text-white focus:border-white/20"} rounded-lg px-1 text-center font-mono text-sm outline-none appearance-none transition-all h-14`}
                         >
                           <option value="+39">{t('txt_2aacf5')}</option>
                           <option value="+33">{t('txt_08248a')}</option>
@@ -315,22 +318,23 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                         placeholder={t('txt_577644')} 
                         value={formData.contact}
                         onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
-                        className={cn(
-                          "flex-1 bg-black/50 focus:border-gx-gold/50 transition-all font-mono h-14 text-base",
-                          formErrors.includes("contact") ? "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "border-white/10"
-                        )} 
+                      className={cn(
+                        "transition-all h-14 text-base font-bold font-mono tracking-widest",
+                        isLight ? "focus:border-black/20" : "focus:border-white/20",
+                        formErrors.includes("contact") ? (isLight ? "border-black" : "border-white") : (isLight ? "border-black/10 bg-black/5" : "border-white/10 bg-white/5")
+                      )} 
                       />
                     </div>
                   </div>
 
                   {/* Industry - 已去除判断条件，因为只有门店一种模式 */}
                   <div className="space-y-2">
-                    <label className="text-xs text-white/40 tracking-widest">{t('txt_09ab42')}</label>
+                    <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>{t('txt_09ab42')}</label>
                     <div className="relative">
                       <select
                         value={formData.industry}
                         onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 text-white text-sm outline-none focus:border-gx-gold/50 appearance-none transition-all h-14 tracking-widest"
+                        className={`w-full bg-black/50 border ${isLight ? "border-black/10 text-black focus:border-black/20" : "border-white/10 text-white focus:border-white/20"} rounded-lg px-3 text-sm outline-none appearance-none transition-all h-14 tracking-widest`}
                       >
                         <option value="beauty">{t('txt_4a6a90')}</option>
                         <option value="dining">{t('txt_2a0ad6')}</option>
@@ -347,23 +351,23 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
               {/* 物理分流器：总公司 ID (选填) */}
               <section className="space-y-8">
-                <div className="border-b border-white/5 pb-4">
-                  <h3 className="text-2xl font-black tracking-tighter text-white">
+                <div className={`border-b ${isLight ? "border-black/5" : "border-white/5"} pb-4`}>
+                  <h3 className={`text-2xl font-black tracking-tighter ${isLight ? "text-black" : "text-white"}`}>
                     {t('txt_b4154b')}</h3>
                 </div>
                 
                 <div className="space-y-4">
-                  <label className="text-xs text-white/40 tracking-widest">{t('txt_40223b')}</label>
+                  <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>{t('txt_40223b')}</label>
                   <Input 
                     placeholder={t('txt_95cd99')} 
                     value={formData.nexusCode}
                     onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
-                    className="bg-gx-gold/5 border-gx-gold/20 focus:border-gx-gold text-gx-gold placeholder:text-gx-gold/20 font-mono tracking-widest text-base h-14 text-center"
+                    className={`font-mono tracking-widest text-base h-14 text-center focus:outline-none focus:ring-1 transition-all ${isLight ? "bg-black/10 border-black/20 focus:border-black text-black placeholder:text-black/20 focus:ring-black" : "bg-white/10 border-white/20 focus:border-white text-white placeholder:text-white/20 focus:ring-white"}`}
                   />
-                  <div className="bg-white/5 rounded-xl p-4 mt-6 border border-white/5">
-                    <p className="text-xs text-white/50 leading-relaxed tracking-widest">
+                  <div className={`mt-6 p-4 rounded-xl border ${isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/5"}`}>
+                    <p className={`text-xs ${isLight ? "text-black/50" : "text-white/50"} leading-relaxed tracking-widest`}>
                       {t('txt_509c2e')}<br/><br/>
-                      <span className="text-gx-cyan/80 font-bold">{t('txt_292fbd')}</span>
+                      <span className={`font-bold ${isLight ? "text-black/80" : "text-white/80"}`}>{t('txt_292fbd')}</span>
                     </p>
                   </div>
                 </div>
@@ -372,16 +376,16 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
               {/* 终极跃迁引擎 (Global Submit) */}
               <div className="pt-12 pb-10">
                 {submitError && (
-                  <p className="text-gx-red text-xs text-center mb-6 font-mono bg-red-500/10 p-3 rounded-lg border border-red-500/20">{submitError}</p>
+                  <p className={`text-xs text-center mb-6 font-mono p-3 rounded-lg border ${isLight ? "text-black bg-black/10 border-black/20" : "text-white bg-white/10 border-white/20"}`}>{submitError}</p>
                 )}
                 <Button 
-                  className="w-full bg-gx-cyan text-black hover:bg-gx-cyan/90 shadow-[0_0_20px_rgba(0,240,255,0.4)] font-black tracking-widest text-base h-16 rounded-xl"
+                  className={`w-full font-black tracking-widest text-base h-16 rounded-xl transition-all ${isLight ? "bg-black text-white hover:bg-black/90" : "bg-white text-black hover:bg-white/90"}`}
                   onClick={handleAscensionSubmit}
                   disabled={applicationStatus === "submitting"}
                 >
                   {applicationStatus === "submitting" ? "解析中..." : "提交申请"}
                 </Button>
-                <p className="text-center text-[10px] text-white/30 mt-6 tracking-widest">
+                <p className={`text-center text-[10px] ${isLight ? "text-black/30" : "text-white/30"} mt-6 tracking-widest`}>
                   {t('txt_a2e766')}</p>
               </div>
             </div>
@@ -428,26 +432,26 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
     >
       {applicationStatus === "success" ? (
         // 审核中状态卡片
-        <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black/20 backdrop-blur-sm transition-all duration-700 p-5 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+        <div className={`relative overflow-hidden rounded-xl border ${isLight ? "border-black/20" : "border-white/20"} bg-black/20  transition-all duration-700 p-5 flex items-center justify-between`}>
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full border border-white/30 flex items-center justify-center">
-              <RefreshCw className="w-3 h-3 text-white animate-spin-slow drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
+              <RefreshCw className={`w-3 h-3 ${isLight ? "text-black" : "text-white"} animate-spin-slow`} />
             </div>
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{t('txt_58d6be')}</h3>
-              <p className="text-[10px] font-mono text-white/50 mt-0.5 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">[{formData.brandName || "未知名称"}]</p>
+              <h3 className={`text-xs font-bold tracking-widest ${isLight ? "text-black" : "text-white"}`}>{t('txt_58d6be')}</h3>
+              <p className={`text-[10px] font-mono ${isLight ? "text-black/50" : "text-white/50"} mt-0.5 tracking-widest`}>[{formData.brandName || "未知名称"}]</p>
             </div>
           </div>
         </div>
       ) : applicationStatus === "rejected" ? (
         // 被拒绝状态卡片
-        <div className="relative overflow-hidden rounded-xl border border-gx-red/30 bg-black/20 backdrop-blur-sm transition-all duration-700 p-5 flex items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
-           <div className="w-8 h-8 rounded-full border border-gx-red/40 flex items-center justify-center bg-gx-red/10">
-              <X className="w-3 h-3 text-gx-red drop-shadow-[0_0_8px_rgba(255,0,0,0.8)]" />
+        <div className={`relative overflow-hidden rounded-xl border ${isLight ? "border-black/30 bg-black/5" : "border-white/30 bg-white/5"}  transition-all duration-700 p-5 flex items-center gap-4`}>
+           <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${isLight ? "border-black/40 bg-black/10" : "border-white/40 bg-white/10"}`}>
+              <X className={`w-3 h-3 ${isLight ? "text-black" : "text-white"}`} />
             </div>
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-gx-red drop-shadow-[0_0_5px_rgba(255,0,0,0.5)]">{t('txt_f50e9d')}</h3>
-              <p className="text-[10px] font-mono text-white/50 mt-0.5 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{t('txt_43ea07')}</p>
+              <h3 className={`text-xs font-bold tracking-widest ${isLight ? "text-black" : "text-white"}`}>{t('txt_f50e9d')}</h3>
+              <p className={`text-[10px] font-mono mt-1 ${isLight ? "text-black/60" : "text-white/60"}`}>{t('txt_43ea07')}</p>
             </div>
         </div>
       ) : applicationStatus === "approved" ? (
@@ -466,41 +470,19 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
   return (
     <div className="space-y-4 flex flex-col items-center w-full max-w-2xl mx-auto pb-12 pt-[5px] animate-in fade-in duration-1000 relative">
       
-      {/* 红色脉冲流光切割线 (The Red Piercing Flow) - 绝对定位在接缝处 */}
+      {/* 脉冲流光切割线 (The Piercing Flow) - 绝对定位在接缝处 */}
       <div className="absolute top-0 left-0 right-0 h-[1px] z-10">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
+        <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${isLight ? "via-black/20" : "via-white/20"} to-transparent`} />
         <div className="absolute inset-0 overflow-hidden">
           <motion.div 
             animate={{ x: ["-200%", "200%"] }}
             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            className="absolute top-0 bottom-0 left-0 w-[30%] bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_15px_2px_rgba(239,68,68,0.9)]"
+            className={`absolute top-0 bottom-0 left-0 w-[30%] bg-gradient-to-r from-transparent ${isLight ? "via-black" : "via-white"} to-transparent`}
           />
         </div>
       </div>
 
-      {/* 核心态势引擎 (取代原有的笨重日历入口) */}
-      {hasPrivilege && (
-        <motion.div layout className="w-full flex justify-center">
-          <div className="group relative py-2 px-6 flex items-center justify-center gap-3">
-            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gx-cyan/20 group-hover:bg-gx-cyan/80 transition-colors shadow-[0_0_10px_rgba(0,240,255,0.5)] pointer-events-none" />
-            
-            <Link href={calendarUrl} className="flex items-center gap-4">
-              <Calendar className="w-4 h-4 text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)] group-hover:scale-110 transition-transform" />
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold tracking-widest uppercase text-white group-hover:text-gx-cyan drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] transition-colors">
-                  {t('txt_0ec157')}
-                </span>
-                <span className="flex items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse shadow-[0_0_8px_#00F0FF]" />
-                </span>
-              </div>
-            </Link>
-
-            {/* 内嵌的全息坐标切换器 */}
-            <NexusSwitcher />
-          </div>
-        </motion.div>
-      )}
+      {/* 核心态势引擎 (笨重日历入口) 已根据冗余法则物理超度，入口统一收归右下角全局虫洞胶囊 */}
 
       {/* ------------------------------------------------------------------ */}
       {/* 商业入驻枢纽 (高光降临期) - 0到5秒展示在顶部 */}
@@ -514,11 +496,11 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
       {/* 数字印记 (Digital Footprints) - 0成本动态横滑列表 */}
       <motion.div layout className="w-full pt-4 space-y-3">
         <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-white/50">
-            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+          <div className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest ${isLight ? "text-black/50" : "text-white/50"}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-black/20" : "bg-white/20"}`} />
             <span>{t('txt_999d5c')}</span>
           </div>
-          <button className="text-[9px] font-mono text-gx-cyan uppercase tracking-widest hover:text-white transition-colors">
+          <button className={`text-[9px] font-mono uppercase tracking-widest transition-colors ${isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white"}`}>
             {t('txt_0467cc')}</button>
         </div>
 
@@ -528,7 +510,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
             {mockFootprints.map((video) => (
               <div 
                 key={video.id}
-                className="relative w-28 md:w-32 aspect-[9/16] shrink-0 snap-center rounded-xl overflow-hidden cursor-pointer group bg-black/20 border border-white/5 hover:border-white/20 transition-all duration-500 shadow-[0_4px_15px_rgba(0,0,0,0.5)]"
+                className={`relative w-28 md:w-32 aspect-[9/16] shrink-0 snap-center rounded-xl overflow-hidden cursor-pointer group bg-black/20 border ${isLight ? "border-black/5" : "border-white/5"} hover:border-white/20 transition-all duration-500`}
               >
                 {/* 背景封面层：使用 img 标签模拟极低成本的 WebP 缩略图 */}
                 <img 
@@ -538,16 +520,16 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                 />
                 
                 {/* 底部信息遮罩层 */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
 
                 {/* 中央播放诱导元件 */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:scale-110 group-hover:bg-gx-cyan/20 group-hover:border-gx-cyan/50 transition-all duration-300">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 group-hover:scale-110 bg-black/40 border-white/20 group-hover:bg-white/20 group-hover:border-white/50">
                   <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" />
                 </div>
 
                 {/* 数据锚点挂载区 */}
                 <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1.5 pointer-events-none">
-                  <span className="text-[10px] font-bold text-white leading-tight line-clamp-1 drop-shadow-md">
+                  <span className="text-[10px] font-bold text-white leading-tight line-clamp-1">
                     {video.title}
                   </span>
                   <div className="flex items-center justify-between text-[9px] font-mono text-white/70">
@@ -555,7 +537,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                       <Eye className="w-2.5 h-2.5" />
                       <span>{video.views}</span>
                     </div>
-                    <span className="bg-black/50 px-1 rounded backdrop-blur-sm border border-white/10">
+                    <span className="bg-black/50 px-1 rounded border border-white/10 text-white">
                       {video.duration}
                     </span>
                   </div>
@@ -568,6 +550,9 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
       {/* 系统底层锚点 (System Anchor) */}
       <motion.div layout className="pt-6 pb-6 w-full flex flex-col items-center justify-center px-2 gap-6">
+        {/* 前端专属壁纸切换器 */}
+        <FrontendThemeSwitcher />
+
         {/* 融合胶囊组件 */}
         <PhoneAuthBar initialPhone={profile.phone || ""} className="max-w-none mx-0 w-auto" />
         
@@ -575,7 +560,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         <Button
           variant="ghost"
           size="sm"
-          className="text-[10px] text-white/30 hover:text-white/70 uppercase tracking-widest transition-colors flex items-center gap-1.5"
+          className={`text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1.5 ${isLight ? "text-black/30 hover:text-black/70" : "text-white/30 hover:text-white/70"}`}
           onClick={async () => {
             await signOut();
             window.location.href = "/login";

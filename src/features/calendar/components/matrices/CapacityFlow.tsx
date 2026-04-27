@@ -28,7 +28,7 @@ export const CapacityFlow = () => {
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-mono text-white font-bold uppercase tracking-[0.2em]">{t('txt_091d26')}</span>
             <div className="flex items-end gap-2">
-              <span className="text-3xl font-black text-green-400">24</span>
+              <span className="text-3xl font-bold ">24</span>
               <span className="text-[10px] font-mono text-white font-bold pb-1">{t('txt_9797fd')}</span>
             </div>
           </div>
@@ -43,7 +43,7 @@ export const CapacityFlow = () => {
                   animate={{ height: `${h}%` }}
                   className={cn(
                     "w-1.5 rounded-full",
-                    h > 80 ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : h > 50 ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" : "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+                    h > 80 ? "bg-red-500 " : h > 50 ? "bg-orange-500 " : " "
                   )}
                 />
               ))}
@@ -52,9 +52,9 @@ export const CapacityFlow = () => {
         </div>
 
         <div className="flex gap-3">
-          <button className="px-6 py-2 rounded-xl bg-white/5 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+          <button className="px-6 py-2 rounded-xl bg-white/5 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all">
             {t('txt_7a4fa6')}</button>
-          <button className="px-6 py-2 rounded-xl bg-green-500 text-black text-[11px] font-black uppercase tracking-widest hover:bg-green-400 transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+          <button className="px-6 py-2 rounded-xl  text-black text-[11px] font-bold uppercase tracking-widest  transition-all ">
             {t('txt_276c08')}</button>
         </div>
       </div>
@@ -83,13 +83,13 @@ export const CapacityFlow = () => {
                   {entry.avatar}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-black text-white">{entry.name}</span>
+                  <span className="text-[11px] font-bold text-white">{entry.name}</span>
                   <span className="text-[9px] font-mono text-white font-bold uppercase tracking-widest">{entry.time}</span>
                 </div>
               </div>
               <div className={cn(
-                "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
-                entry.type === '入场' ? "text-green-400 bg-green-400/5" : "text-white bg-white/10"
+                "px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest",
+                entry.type === '入场' ? " " : "text-white bg-white/10"
               )}>
                 {entry.type}
               </div>

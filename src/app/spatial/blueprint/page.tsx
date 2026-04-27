@@ -9,12 +9,12 @@ import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 
 const INDUSTRIES: { id: IndustryType; label: string; icon: LucideIcon; color: string }[] = [
-  { id: "beauty", label: "美业", icon: Scissors, color: "text-gx-purple" },
+  { id: "beauty", label: "美业", icon: Scissors, color: "" },
   { id: "medical", label: "医疗", icon: Stethoscope, color: "text-white" },
   { id: "dining", label: "餐饮", icon: Utensils, color: "text-orange-500" },
-  { id: "hotel", label: "住宿", icon: Hotel, color: "text-gx-cyan" },
+  { id: "hotel", label: "住宿", icon: Hotel, color: "" },
   { id: "expert", label: "专家", icon: Briefcase, color: "text-blue-400" },
-  { id: "fitness", label: "健身", icon: Dumbbell, color: "text-green-400" },
+  { id: "fitness", label: "健身", icon: Dumbbell, color: "" },
   { id: "other", label: "常规", icon: CalendarIcon, color: "text-white/60" },
 ];
 
@@ -36,7 +36,7 @@ export default function BlueprintPage() {
           </button>
         </Link>
 
-        <div className="flex items-center p-1 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+        <div className="flex items-center p-1 bg-black/60  border border-white/10 rounded-full ">
           {INDUSTRIES.map((ind) => {
             const isActive = activeIndustry === ind.id;
             const Icon = ind.icon;
@@ -54,7 +54,7 @@ export default function BlueprintPage() {
                 {isActive && (
                   <motion.div 
                     layoutId="active-blueprint-pill"
-                    className="absolute inset-0 border border-white/50 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.5)] pointer-events-none"
+                    className="absolute inset-0 border border-white/50 rounded-full  pointer-events-none"
                   />
                 )}
               </button>

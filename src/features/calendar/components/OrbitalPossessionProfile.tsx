@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useTranslations } from "next-intl";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { cn } from "@/utils/cn";
 
 interface OrbitalPossessionProfileProps {
   bossName?: string;
@@ -26,7 +28,10 @@ export const OrbitalPossessionProfile = ({
   shopId,
   onNavigateHome
 }: OrbitalPossessionProfileProps) => {
-    const t = useTranslations('OrbitalPossessionProfile');
+  const t = useTranslations('OrbitalPossessionProfile');
+  const { settings: visualSettings } = useVisualSettings();
+  const isBlack = visualSettings.headerTitleColorTheme === 'coreblack';
+
   // 当前处于大位 (主导地位) 的角色
   const [displayRole, setDisplayRole] = useState<'boss' | 'manager'>('boss');
   
@@ -129,10 +134,16 @@ export const OrbitalPossessionProfile = ({
       <div className="space-y-1">
         <div 
           onClick={onNavigateHome}
-          className="flex items-center gap-3 p-3 rounded-xl bg-transparent border border-white/10 cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group"
+          className={cn(
+            "flex items-center gap-3 p-3 rounded-xl bg-transparent border cursor-pointer transition-all group",
+            isBlack ? "border-black/10 hover:bg-black/5 hover:border-black/20" : "border-white/10 hover:bg-white/5 hover:border-white/20"
+          )}
           title={t('txt_36386d')}
         >
-          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white group-hover:scale-110 transition-transform overflow-hidden">
+          <div className={cn(
+            "w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold group-hover:scale-110 transition-transform overflow-hidden",
+            isBlack ? "bg-black/5 border-black/10 text-black" : "bg-white/5 border-white/10 text-white"
+          )}>
             {bossData.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={bossData.avatar} alt="avatar" className="w-full h-full object-cover" />
@@ -141,13 +152,13 @@ export const OrbitalPossessionProfile = ({
             )}
           </div>
           <div>
-            <div className="text-xs font-bold text-white uppercase">{bossData.name}</div>
-            <div className="text-[9px] text-white/40 font-mono tracking-widest">{bossData.id}</div>
+            <div className={cn("text-xs font-bold uppercase transition-colors", isBlack ? "text-black" : "text-white")}>{bossData.name}</div>
+            <div className={cn("text-[9px] font-mono tracking-widest transition-colors", isBlack ? "text-black/40" : "text-white/40")}>{bossData.id}</div>
           </div>
         </div>
         {shopName && (
-          <div className="flex items-center gap-2 mt-2 ml-4 text-[10px] font-mono text-white/40">
-            <div className="w-px h-4 bg-white/20" />
+          <div className={cn("flex items-center gap-2 mt-2 ml-4 text-[10px] font-mono transition-colors", isBlack ? "text-black/40 font-bold" : "text-white/40")}>
+            <div className={cn("w-px h-4 transition-colors", isBlack ? "bg-black/20" : "bg-white/20")} />
             <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>
           </div>
         )}
@@ -168,7 +179,10 @@ export const OrbitalPossessionProfile = ({
     <div className="space-y-1 select-none">
       <div 
         onClick={onNavigateHome}
-        className="flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer hover:bg-white/5 transition-all group"
+        className={cn(
+          "flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer transition-all group",
+          isBlack ? "hover:bg-black/5" : "hover:bg-white/5"
+        )}
         title={t('txt_36386d')}
       >
         {/* 左侧：星轨容器 */}
@@ -178,21 +192,30 @@ export const OrbitalPossessionProfile = ({
           <motion.div 
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className={`absolute inset-[-6px] rounded-full border-[1px] border-dashed transition-all duration-700
-              ${isBossActive ? 'border-gx-cyan/40 shadow-[0_0_10px_rgba(0,242,255,0.2)]' : 'border-white/20 shadow-none'}`}
+            className={cn(
+              "absolute inset-[-6px] rounded-full border-[1px] border-dashed transition-all duration-700",
+              isBossActive 
+                ? " " 
+                : "border-white/20 "
+            )}
           />
           
           {/* 主图 (大位) */}
           <motion.div 
             layoutId="orbital-main-avatar"
-            className={`relative z-10 w-10 h-10 rounded-full bg-black flex items-center justify-center overflow-hidden transition-all duration-700
-              ${isBossActive ? 'border border-gx-cyan shadow-[0_0_15px_rgba(0,242,255,0.3)]' : 'border border-white/30 shadow-none'}`}
+            className={cn(
+              "relative z-10 w-10 h-10 rounded-full flex items-center justify-center overflow-hidden transition-all duration-700",
+              "bg-black",
+              isBossActive 
+                ? "border  " 
+                : "border border-white/30 "
+            )}
           >
             {activeProfile.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={activeProfile.avatar} className="w-full h-full object-cover" alt="main" />
             ) : (
-              <span className="text-white font-bold text-sm">{activeProfile.name[0]}</span>
+              <span className={cn("font-bold text-sm", "text-white")}>{activeProfile.name[0]}</span>
             )}
           </motion.div>
 
@@ -200,12 +223,15 @@ export const OrbitalPossessionProfile = ({
           <motion.div
             layoutId="orbital-satellite-avatar"
             onClick={managerData.roleType === 'pending' ? undefined : handleSwap}
-            className={`absolute -bottom-1 -right-1 z-20 w-4 h-4 rounded-full bg-black border flex items-center justify-center overflow-hidden transition-all duration-300
-              ${managerData.roleType === 'pending' 
-                ? 'border-gx-gold/50 shadow-[0_0_10px_rgba(255,184,0,0.3)] cursor-not-allowed' 
+            className={cn(
+              "absolute -bottom-1 -right-1 z-20 w-4 h-4 rounded-full border flex items-center justify-center overflow-hidden transition-all duration-300",
+              "bg-black",
+              managerData.roleType === 'pending' 
+                ? "border-gx-gold/50  cursor-not-allowed" 
                 : !isBossActive 
-                  ? 'border-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.4)] cursor-pointer pointer-events-auto hover:scale-125' 
-                  : 'border-white/30 hover:border-white/60 cursor-pointer pointer-events-auto hover:scale-125'}`}
+                  ? "  cursor-pointer pointer-events-auto hover:scale-125" 
+                  : "border-white/30 hover:border-white/60 cursor-pointer pointer-events-auto hover:scale-125"
+            )}
           >
             {managerData.roleType === 'pending' ? (
               // PENDING 状态：发光的加号占位符
@@ -214,7 +240,7 @@ export const OrbitalPossessionProfile = ({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={satelliteProfile.avatar} className="w-full h-full object-cover" alt="satellite" />
             ) : (
-              <span className="text-white font-bold text-[8px] scale-75">{satelliteProfile.name[0]}</span>
+              <span className={cn("font-bold text-[8px] scale-75", "text-white")}>{satelliteProfile.name[0]}</span>
             )}
           </motion.div>
         </div>
@@ -226,8 +252,12 @@ export const OrbitalPossessionProfile = ({
             key={activeProfile.id + "-name"}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`text-xs font-bold uppercase tracking-wider transition-all duration-500
-              ${isBossActive ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]' : 'text-white/60'}`}
+            className={cn(
+              "text-xs font-bold uppercase tracking-wider transition-all duration-500",
+              isBlack 
+                ? (isBossActive ? "text-black " : "text-black/60")
+                : (isBossActive ? "text-white" : "text-white/60")
+            )}
           >
             {activeProfile.name}
           </motion.div>
@@ -235,8 +265,12 @@ export const OrbitalPossessionProfile = ({
             key={activeProfile.id + "-id"}
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`text-[9px] font-mono tracking-widest transition-all duration-500
-              ${isBossActive ? 'text-gx-cyan drop-shadow-[0_0_5px_rgba(0,242,255,0.4)]' : 'text-white/30'}`}
+            className={cn(
+              "text-[9px] font-mono tracking-widest transition-all duration-500",
+              isBlack
+                ? (isBossActive ? "text-black  font-bold" : "text-black/40")
+                : (isBossActive ? "text-white/60" : "text-white/30")
+            )}
           >
             {activeProfile.id}
           </motion.div>
@@ -245,8 +279,11 @@ export const OrbitalPossessionProfile = ({
 
       {/* 下方：监视节点锚点 */}
       {shopName && (
-        <div className="flex items-center gap-2 mt-1 ml-6 text-[10px] font-mono text-white/40">
-          <div className="w-px h-4 bg-white/20" />
+        <div className={cn(
+          "flex items-center gap-2 mt-1 ml-6 text-[10px] font-mono transition-colors",
+          isBlack ? "text-black/60 font-bold" : "text-white/40"
+        )}>
+          <div className={cn("w-px h-4", isBlack ? "bg-black/20" : "bg-white/20")} />
           <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>
         </div>
       )}

@@ -35,7 +35,7 @@ import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
-import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
+
 import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
 import { Trash2 } from "lucide-react";
 import { RecycleBinModal } from "./RecycleBinModal";
@@ -43,6 +43,7 @@ import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
 import { useTranslations } from "next-intl";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
+import { useViewStack } from "@/hooks/useViewStack";
 
 export interface OperatingHour {
   id: string;
@@ -143,6 +144,8 @@ type StaffMember = {
   color?: string;
   status?: string;
   commissionRate?: number;
+  frontendId?: string;
+  calendarView?: string;
   [key: string]: unknown;
 };
 
@@ -171,23 +174,38 @@ interface AuroraSchedulerProps {
 // 【量子时钟微组件】：彻底物理隔离时钟的每秒滴答，防止顶层渲染风暴
 const CyberClock = () => {
   const [realTime, setRealTime] = useState(new Date());
+  const { settings: visualSettings } = useVisualSettings();
+
   useEffect(() => {
     const timer = setInterval(() => setRealTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const isBlack = visualSettings.headerTitleColorTheme === 'coreblack';
+
   return (
     <>
       <div className="flex items-baseline gap-1">
-        <span className="text-5xl font-mono font-black tracking-tighter bg-gradient-to-br from-white via-gray-300 to-gray-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+        <span className={cn(
+          "text-5xl font-mono font-bold tracking-tighter transition-colors",
+          isBlack
+            ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]"
+            : "bg-gradient-to-br from-white via-gray-300 to-gray-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+        )}>
           {realTime.getHours().toString().padStart(2, '0')}:
           {realTime.getMinutes().toString().padStart(2, '0')}
         </span>
-        <span className="text-lg font-mono text-gray-400 animate-pulse">
+        <span className={cn(
+          "text-lg font-mono animate-pulse transition-colors",
+          isBlack ? "text-black/80 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-gray-400"
+        )}>
           {realTime.getSeconds().toString().padStart(2, '0')}
         </span>
       </div>
-      <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/40 mt-3">
+      <span className={cn(
+        "text-[10px] font-mono uppercase tracking-[0.3em] mt-3 transition-colors",
+        isBlack ? "text-black/80 font-bold [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/40"
+      )}>
         System Time (Local)
       </span>
     </>
@@ -220,6 +238,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   // 注册物理返回键拦截（顶端架构：优先收起弹窗/侧边栏，而不后退页面）
   const registerBack = useHardwareBack(state => state.register);
   const unregisterBack = useHardwareBack(state => state.unregister);
+  const setActiveTab = useViewStack(state => state.setActiveTab);
 
   useEffect(() => {
     if (isBookingModalOpen) {
@@ -281,10 +300,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     (user && typeof user === 'object' && 'avatar' in user) ? user.avatar as string : undefined
   );
   const [trueBusinessName, setTrueBusinessName] = useState<string | undefined>(undefined);
+  const [staffAvatars, setStaffAvatars] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user || typeof user !== 'object' || !('id' in user)) return;
-    
+
     const fetchTrueProfile = async () => {
       try {
         const { data, error } = await supabase
@@ -304,6 +324,35 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     
     fetchTrueProfile();
   }, [user]);
+
+  // 获取员工绑定的真实头像
+  useEffect(() => {
+    const boundFrontendIds = staffs.map(s => s.frontendId).filter(Boolean) as string[];
+    if (boundFrontendIds.length === 0) return;
+
+    const fetchStaffAvatars = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', boundFrontendIds);
+          
+        if (!error && data) {
+          const map: Record<string, string> = {};
+          data.forEach(p => {
+            if (p.avatar_url) {
+              map[p.id] = p.avatar_url;
+            }
+          });
+          setStaffAvatars(map);
+        }
+      } catch (e) {
+        console.error("[IndustryCalendar] Failed to fetch staff avatars", e);
+      }
+    };
+
+    fetchStaffAvatars();
+  }, [JSON.stringify(staffs.map(s => s.frontendId))]);
 
   const userMetadata = user && typeof user === "object"
     ? (user as { user_metadata?: Record<string, unknown> }).user_metadata
@@ -704,8 +753,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     });
   }, []);
 
-  // 如果预约弹窗打开，我们需要隐藏日历主体，仅保留星空背景
-  const isMainContentVisible = !isBookingModalOpen;
+  // 如果预约弹窗或财务舱打开，我们需要隐藏日历主体，仅保留星空背景
+  const isMainContentVisible = !isBookingModalOpen && !isFinanceDashboardOpen && !isConfigOpen;
 
   const handleNavigate = useCallback((direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
@@ -815,7 +864,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       type: "hotel",
       pivot: "timeline",
       label: "住宿",
-      themeColor: "text-gx-cyan",
+      themeColor: `${visualSettings?.timelineColorTheme === 'coreblack' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`,
       accent: "cyan",
       icon: "Hotel",
       iconComp: Hotel,
@@ -906,11 +955,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           id: s.id,
           name: s.name,
           role: s.role,
-          avatar: s.frontendId ? '🔗' : '✂️',
+          avatar: s.frontendId && staffAvatars[s.frontendId] ? staffAvatars[s.frontendId] : undefined,
           themeColor: s.color,
           status: (s.status === 'on_leave' ? 'away' : 'available') as "away" | "available" | "busy",
           metadata: {
-            originalStatus: s.status
+            originalStatus: s.status,
+            frontendId: s.frontendId
           }
         }));
     }
@@ -1017,7 +1067,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   };
 
   return (
-      <div className="flex h-full w-full bg-transparent overflow-hidden relative">
+      <div className={cn("flex h-full w-full bg-transparent overflow-hidden relative calendar-full-area", `theme-${visualSettings.headerTitleColorTheme}`)}>
         {/* 紧急运力续命横幅 */}
         <GracePeriodBanner 
           remainingTime={remainingTime} 
@@ -1070,30 +1120,36 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   // 顶端架构：不仅派发事件，且必须同时修改 activeTab 以彻底断绝后顾之忧
                   const event = new CustomEvent('gx-set-tab', { detail: 'me' });
                   window.dispatchEvent(event);
-                  // 同步触发浏览器原生返回，或调用状态机 (由外层监听器消费)
-                  if (typeof window !== 'undefined') window.history.back();
+                  // 使用软路由实现与物理键同等的“秒切”，消除硬刷新闪烁
+                  setActiveTab('me');
                 }} 
               />
             )}
 
             {currentUserRole === 'user' && (
               <div className="space-y-1 relative">
-                <div className="flex flex-col gap-1 text-white/20 text-[9px] font-mono uppercase tracking-widest ml-4 mb-2">
-                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/20"/>{t('txt_c145c6')}</div>
-                  <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/20"/>{t('txt_b08822')}</div>
+                <div className={cn("flex flex-col gap-1 text-[9px] font-mono uppercase tracking-widest ml-4 mb-2 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/30" : "text-white/20")}>
+                  <div className="flex items-center gap-2"><div className={cn("w-1 h-1 rounded-full transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/20" : "bg-white/20")}/>{t('txt_c145c6')}</div>
+                  <div className="flex items-center gap-2"><div className={cn("w-1 h-1 rounded-full transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/20" : "bg-white/20")}/>{t('txt_b08822')}</div>
                 </div>
-                <div className="absolute left-4 top-2 bottom-6 w-px bg-white/10" />
+                <div className={cn("absolute left-4 top-2 bottom-6 w-px transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/10" : "bg-white/10")} />
                 <div 
                   onClick={() => {
                     const event = new CustomEvent('gx-set-tab', { detail: 'me' });
                     window.dispatchEvent(event);
-                    if (typeof window !== 'undefined') window.history.back();
+                    setActiveTab('me');
                   }}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-transparent border border-white/10 ml-6 relative cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group"
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl bg-transparent border ml-6 relative cursor-pointer transition-all group",
+                    visualSettings.headerTitleColorTheme === 'coreblack' ? "border-black/10 hover:bg-black/5 hover:border-black/20" : "border-white/10 hover:bg-white/5 hover:border-white/20"
+                  )}
                   title={t('txt_5bcc6c')}
                 >
-                  <div className="absolute -left-2.5 top-1/2 w-2.5 h-px bg-white/10" />
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white font-black text-xs group-hover:scale-110 transition-transform overflow-hidden">
+                  <div className={cn("absolute -left-2.5 top-1/2 w-2.5 h-px transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/10" : "bg-white/10")} />
+                  <div className={cn(
+                    "w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs group-hover:scale-110 transition-transform overflow-hidden",
+                    visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/5 border-black/10 text-black" : "bg-white/5 border-white/10 text-white"
+                  )}>
                     {user && typeof user === 'object' && 'avatar' in user && user.avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={user.avatar as string} alt="avatar" className="w-full h-full object-cover" />
@@ -1102,8 +1158,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     )}
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white uppercase">{userName || 'STAFF'}</div>
-                    <div className="text-[9px] text-white/40 font-mono tracking-widest">EXECUTIVE_UNIT</div>
+                    <div className={cn("text-xs font-bold uppercase transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{userName || 'STAFF'}</div>
+                    <div className={cn("text-[9px] font-mono tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/40" : "text-white/40")}>EXECUTIVE_UNIT</div>
                   </div>
                 </div>
               </div>
@@ -1176,20 +1232,20 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 return (
                   <>
                     {/* 原生卡片 1：今日预约 */}
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/5 transition-all">
-                      <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{t('txt_3353f0') || '今日预约'}</span>
+                    <div className="p-3 transition-all bg-transparent">
+                      <span className={cn("text-[9px] font-mono font-bold uppercase tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/80 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/60")}>{t('txt_3353f0') || '今日预约'}</span>
                       <div className="flex items-end justify-between mt-1">
-                        <span className={cn("text-xl font-black tracking-tighter", "text-gx-cyan")}>{todayBookingsCount.toString().padStart(2, '0')}</span>
-                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">{t('txt_fb852f')}</span>
+                        <span className={cn("text-xl font-bold tracking-tighter transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>{todayBookingsCount.toString().padStart(2, '0')}</span>
+                        <span className={cn("text-[8px] font-mono font-bold mb-1 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/40")}>{t('txt_fb852f')}</span>
                       </div>
                     </div>
 
                     {/* 原生卡片 2：今日待处理 (业务待服务) */}
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/5 transition-all opacity-80">
-                      <span className="text-[9px] font-mono text-white/60 font-bold uppercase tracking-widest">{t('txt_047109') || '待处理'}</span>
+                    <div className="p-3 transition-all opacity-80 bg-transparent">
+                      <span className={cn("text-[9px] font-mono font-bold uppercase tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/80 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/60")}>{t('txt_047109') || '待处理'}</span>
                       <div className="flex items-end justify-between mt-1">
-                        <span className={cn("text-xl font-black tracking-tighter", "text-white/60")}>{todayPendingCount.toString().padStart(2, '0')}</span>
-                        <span className="text-[8px] font-mono text-white/40 font-bold mb-1">{t('txt_65dd9e')}</span>
+                        <span className={cn("text-xl font-bold tracking-tighter transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black font-bold [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/60")}>{todayPendingCount.toString().padStart(2, '0')}</span>
+                        <span className={cn("text-[8px] font-mono font-bold mb-1 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/40")}>{t('txt_65dd9e')}</span>
                       </div>
                     </div>
 
@@ -1207,19 +1263,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                             // 移除画蛇添足的侧边栏强制关闭逻辑，保持大屏工作流连贯
                           }
                         }}
-                        className="col-span-2 p-3 mt-2 rounded-xl transition-all relative overflow-hidden bg-gx-cyan/10 border border-gx-cyan/50 cursor-pointer hover:bg-gx-cyan/20 shadow-[0_0_15px_rgba(0,240,255,0.3)] hover:scale-[1.02]"
+                        className={cn(
+                          "col-span-2 p-3 mt-2 transition-all relative cursor-pointer hover:scale-[1.02] bg-transparent",
+                          visualSettings.headerTitleColorTheme === 'coreblack' 
+                            ? "hover:opacity-80" 
+                            : "hover:opacity-80"
+                        )}
                       >
-                        {/* 赛博脉冲背景光 */}
-                        <div className="absolute inset-0 bg-gx-cyan/10 animate-[pulse_2s_ease-in-out_infinite]" />
                         <div className="relative z-10 flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-mono text-gx-cyan font-bold uppercase tracking-[0.2em] flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-ping" />
+                            <span className={cn(
+                              "text-[10px] font-mono font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-colors",
+                              visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`
+                            )}>
+                              <span className={cn("w-1.5 h-1.5 rounded-full animate-ping transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`)} />
                               {t('txt_7708f1')}</span>
-                            <span className="text-[8px] text-gx-cyan/60 mt-0.5">{t('txt_9874b3')}</span>
+                            <span className={cn("text-[8px] mt-0.5 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]/60" : "text-[#FDF5E6]/60"}`)}>{t('txt_9874b3')}</span>
                           </div>
                           <div className="flex items-end gap-2">
-                            <span className="text-2xl font-black tracking-tighter text-gx-cyan drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]">
+                            <span className={cn(
+                              "text-2xl font-bold tracking-tighter transition-colors",
+                              visualSettings.headerTitleColorTheme === 'coreblack' 
+                                ? "text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]" 
+                                : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-`
+                            )}>
                               {nexusCount.toString().padStart(2, '0')}
                             </span>
                           </div>
@@ -1260,12 +1327,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                 setEditingBooking(null); // 确保是新建而不是编辑
                 handleCreateBookingClick();
               }}
-              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border border-gx-cyan/30 bg-gx-cyan/10 hover:bg-gx-cyan/20 transition-all group overflow-hidden relative shadow-[0_0_15px_rgba(0,240,255,0.15)] hover:shadow-[0_0_25px_rgba(0,240,255,0.3)] hover:scale-[1.02]"
+              className={cn(
+                "w-full flex items-center justify-center gap-3 py-3.5 transition-all group relative hover:scale-[1.02] bg-transparent",
+                visualSettings.headerTitleColorTheme === 'coreblack'
+                  ? "hover:opacity-80"
+                  : "hover:opacity-80"
+              )}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gx-cyan/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-              <div className="w-2 h-2 rounded-full bg-gx-cyan animate-pulse shadow-[0_0_8px_#00F0FF]" />
-              <span className="text-gx-cyan font-bold tracking-widest text-xs uppercase drop-shadow-[0_0_5px_rgba(0,240,255,0.8)]">
-                ⚡ 极速入店
+              <div className={cn("w-2 h-2 rounded-full animate-pulse transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black shadow-[0_0_8px_rgba(0,0,0,0.5)]" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} shadow-[0_0_8px_#00F0FF]`)} />
+              <span className={cn("font-bold tracking-widest text-xs uppercase transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-`)}>
+                极速入店
               </span>
             </button>
           </div>
@@ -1274,19 +1345,20 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           <div className="px-8 mt-4 pointer-events-auto relative z-50">        
             <button
               onClick={() => setIsFinanceDashboardOpen(true)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/5 bg-black/20 hover:bg-purple-500/10 transition-all group relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]"
+              className={cn(
+                "w-full flex items-center justify-center gap-3 px-4 py-3 transition-all group relative bg-transparent hover:scale-[1.02]",
+                visualSettings.headerTitleColorTheme === 'coreblack'
+                  ? "hover:opacity-80"
+                  : "hover:opacity-80"
+              )}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
               <div className="flex items-center gap-3 relative z-10">
-                <div className="w-6 h-6 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30 group-hover:border-purple-400 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.4)] transition-all">
-                  <span className="text-[10px] text-purple-400">⚚</span>       
-                </div>
-                <span className="text-xs font-bold text-white/70 tracking-widest group-hover:text-white transition-colors">AI 财务核算</span>
+                <span className={cn("text-xs font-bold tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/90 group-hover:text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/70 group-hover:text-white")}>AI 财务核算</span>
               </div>
               <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity relative z-10">
-                <div className="w-0.5 h-3 bg-purple-400 rounded-full animate-[pulse_1s_ease-in-out_infinite]" />
-                <div className="w-0.5 h-4 bg-purple-400 rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]" />
-                <div className="w-0.5 h-2 bg-purple-400 rounded-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]" />
+                <div className={cn("w-0.5 h-3 rounded-full animate-[pulse_1s_ease-in-out_infinite]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
+                <div className={cn("w-0.5 h-4 rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
+                <div className={cn("w-0.5 h-2 rounded-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
               </div>
             </button>
           </div>
@@ -1297,7 +1369,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               <CyberClock />
             ) : (
               <div className="h-[88px] flex items-center justify-center">
-                <span className="text-white/20 text-xs font-mono animate-pulse">SYNCING...</span>
+                <span className={cn("text-xs font-mono animate-pulse transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/30" : "text-white/20")}>SYNCING...</span>
               </div>
             )}
           </div>
@@ -1330,17 +1402,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     <h3 
                       suppressHydrationWarning 
                       className={cn(
-                        "text-2xl md:text-4xl font-black tracking-[0.02em] md:tracking-[0.15em] leading-none font-mono transition-all truncate", 
-                        // 如果是今天，应用全息流光渐变；否则使用用户设置的单色
-                        phantomDate.toDateString() === new Date().toDateString()
-                          ? "bg-gradient-to-r from-gx-cyan via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(0,240,255,0.8)]"
+                        "text-2xl md:text-4xl font-bold tracking-[0.02em] md:tracking-[0.15em] leading-none font-mono transition-all truncate", 
+                        // 如果是今天且不是黑白极简主题，应用全息流光渐变；否则使用用户设置的单色
+                        phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
+                          ? `bg-gradient-to-r ${visualSettings?.timelineColorTheme === 'blackgold' ? "from-[#8B7355]" : "from-[#FDF5E6]"} via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-`
                           : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
                       )} 
-                      style={
-                        phantomDate.toDateString() === new Date().toDateString()
-                          ? {} // 渐变色不使用 style 的 textShadow，直接用 drop-shadow
-                          : { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}b3` }
-                      }
+                        style={
+                          phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
+                            ? {} // 渐变色不使用 style 的 textShadow，直接用 drop-shadow
+                            : visualSettings.headerTitleColorTheme === 'purewhite' || visualSettings.headerTitleColorTheme === 'coreblack'
+                              ? {} // 极简白和极简黑不要任何光晕
+                              : { textShadow: `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}b3` }
+                        }
                     >
                       {phantomDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {phantomDate.getDate()}
                     </h3>
@@ -1349,14 +1423,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         suppressHydrationWarning 
                         className={cn(
                           "text-[10px] md:text-sm font-mono tracking-[0.1em] md:tracking-[0.4em] uppercase transition-all", 
-                          phantomDate.toDateString() === new Date().toDateString()
-                            ? "bg-gradient-to-r from-gx-cyan via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]"
+                          phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
+                            ? `bg-gradient-to-r ${visualSettings?.timelineColorTheme === 'blackgold' ? "from-[#8B7355]" : "from-[#FDF5E6]"} via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-`
                             : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
                         )} 
                         style={
-                          phantomDate.toDateString() === new Date().toDateString()
+                          phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
                             ? {}
-                            : { textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}66` }
+                            : visualSettings.headerTitleColorTheme === 'purewhite' || visualSettings.headerTitleColorTheme === 'coreblack'
+                              ? {}
+                              : { textShadow: `0 0 10px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}66` }
                         }
                       >
                         {phantomDate.getFullYear()}
@@ -1367,23 +1443,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
                 {/* 响应式控制中枢 (Unified Cyber Controls) */}
                 <div className="flex items-center gap-1 md:gap-4 shrink-0">
-                  {/* 多门店切换舱 (移动端隐藏，节省空间) */}
-                  <div className="hidden md:block">
-                    <NexusSwitcher />
-                  </div>
-
-                  <div className="flex bg-transparent rounded-lg md:rounded-xl p-0.5 md:p-1 border border-white/10 transition-colors" style={{ borderColor: `${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}40` }}>
+                  <div className="flex bg-transparent p-0.5 md:p-1 transition-colors">
                     <button
                       onClick={() => {
                         const modes = ['day', 'week', 'month'] as const;
                         const currentIndex = modes.indexOf(viewMode);
                         setViewMode(modes[(currentIndex + 1) % modes.length]);
                       }}
-                      className="px-2 md:px-6 py-1 md:py-1.5 text-[9px] md:text-[10px] font-black uppercase rounded-md md:rounded-lg transition-all text-black min-w-[32px] md:w-20 text-center"
-                      style={{ 
-                        backgroundColor: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
-                        boxShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80`
-                      }}
+                      className={cn(
+                        "px-2 md:px-6 py-1 md:py-1.5 text-[9px] md:text-[10px] font-bold uppercase transition-all min-w-[32px] md:w-20 text-center hover:scale-110",
+                        CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
+                      )}
                     >
                       <span className="md:hidden">{viewMode.charAt(0)}</span>
                       <span className="hidden md:inline">{viewMode}</span>
@@ -1404,10 +1474,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         setCurrentDate(now);
                         setPhantomDate(now);
                       }}
-                      className="px-1.5 md:px-4 py-1 md:py-2 text-[10px] font-black rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100 flex items-center justify-center"
+                      className="px-1.5 md:px-4 py-1 md:py-2 text-[10px] font-bold rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100 flex items-center justify-center"
                       style={{ 
                         color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
-                        textShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}80` 
+                        textShadow: visualSettings.headerTitleColorTheme === 'purewhite' || visualSettings.headerTitleColorTheme === 'coreblack' ? 'none' : `0 0 10px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}80` 
                       }}
                     >
                       <span className="md:hidden text-[10px] leading-none tracking-normal">今</span>
@@ -1463,25 +1533,38 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     >
                       {resources.map(res => (
                         <div key={res.id} className={cn("flex-1 min-w-0 h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
-                          <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1">
+                          <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1 gap-1">
+                            <div 
+                              className={cn(
+                                "relative w-6 h-6 md:w-7 md:h-7 rounded-full overflow-hidden shrink-0 border flex items-center justify-center shadow-inner",
+                                visualSettings.staffNameColorTheme === 'coreblack' ? "border-black/10" : "border-white/10"
+                              )}
+                              style={{ 
+                                backgroundColor: res.themeColor ? `${res.themeColor}20` : 'transparent',
+                                borderColor: res.themeColor ? `${res.themeColor}40` : undefined
+                              }}
+                            >
+                              {res.avatar ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={res.avatar} alt={res.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[10px] font-bold" style={{ color: res.themeColor || (visualSettings.staffNameColorTheme === 'coreblack' ? '#000' : '#fff') }}>
+                                  {res.name.charAt(0)}
+                                </span>
+                              )}
+                            </div>
                             <span className={cn(
-                              "text-[11px] md:text-[15px] font-black tracking-widest transition-all truncate uppercase w-full text-center mix-blend-screen",
+                              "text-[10px] md:text-[11px] font-bold tracking-widest transition-all truncate uppercase w-full text-center",
+                              visualSettings.staffNameColorTheme !== 'purewhite' && visualSettings.staffNameColorTheme !== 'coreblack' && "mix-blend-screen",
                               res.metadata?.isNoShowColumn 
                                 ? "text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]" 
                                 : CYBER_COLOR_DICTIONARY[visualSettings.staffNameColorTheme].className
                             )}>
                               {res.name}
                             </span>
-                            <div className="flex items-center gap-1 mt-1.5 justify-center w-full">
-                              <span className={cn(
-                                "text-[8px] md:text-[9px] font-mono font-bold uppercase tracking-widest truncate transition-colors",
-                                res.metadata?.isNoShowColumn ? "text-red-400/60" : CYBER_COLOR_DICTIONARY[visualSettings.staffNameColorTheme].className,
-                                !res.metadata?.isNoShowColumn && "opacity-40 group-hover:opacity-80 mix-blend-screen"
-                              )}>{res.role}</span>
-                              {res.metadata?.originalStatus === 'on_leave' && (
-                                <span className="px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">{t('txt_62a8cf')}</span>
-                              )}
-                            </div>
+                            {res.metadata?.originalStatus === 'on_leave' && (
+                              <span className="absolute -top-1 right-1 px-1 py-0.5 rounded text-[8px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">{t('txt_62a8cf')}</span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1503,7 +1586,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         );
                       }}
                       className={cn(
-                        "px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest transition-all shrink-0 flex items-center gap-2",
+                        "px-3 py-1.5 rounded-full text-[10px] font-bold tracking-widest transition-all shrink-0 flex items-center gap-2",
                         selectedStaffIds.includes(res.id) 
                           ? "text-white" 
                           : "text-white/40 opacity-50"
@@ -1594,7 +1677,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               
               {/* 非日视图且非资源类型时回退到网格 */}
               {viewMode !== "day" && dna.pivot !== "timeline" && dna.pivot !== "resource" && (
-                <div className="p-12 h-full flex items-center justify-center text-white/5 font-black text-4xl uppercase tracking-[1em] relative z-20">
+                <div className="p-12 h-full flex items-center justify-center text-white/5 font-bold text-4xl uppercase tracking-[1em] relative z-20">
                   {t('txt_0aece4')}</div>
               )}
             </div>

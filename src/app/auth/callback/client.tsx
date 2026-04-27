@@ -64,7 +64,7 @@ export function AuthCallbackClient() {
           认证失败: {error}
           <button 
             onClick={() => router.replace('/login')}
-            className="block mt-4 text-gx-cyan underline"
+            className="block mt-4  underline"
           >
             {t('txt_977deb')}</button>
         </div>
@@ -74,8 +74,8 @@ export function AuthCallbackClient() {
 
   return (
     <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center">
-      <div className="w-16 h-16 border-4 border-gx-cyan border-t-transparent rounded-full animate-spin"></div>
-      <p className="mt-8 text-gx-cyan font-mono tracking-widest animate-pulse">
+      <div className="w-16 h-16 border-4  border-t-transparent rounded-full animate-spin"></div>
+      <p className="mt-8  font-mono tracking-widest animate-pulse">
         VERIFYING IDENTITY...
       </p>
     </div>

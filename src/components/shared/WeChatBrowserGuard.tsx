@@ -25,7 +25,7 @@ export function WeChatBrowserGuard() {
   if (!isWeChat) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center bg-black/40 backdrop-blur-sm px-6 pt-12 text-white pointer-events-auto">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center bg-black/40  px-6 pt-12 text-white pointer-events-auto">
       {/* 右上角指示箭头 */}
       <div className="absolute top-4 right-6 animate-bounce">
         <svg
@@ -37,24 +37,24 @@ export function WeChatBrowserGuard() {
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-gx-cyan transform -rotate-45 drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]"
+          className=" transform -rotate-45 "
         >
           <path d="M5 12h14" />
           <path d="m12 5 7 7-7 7" />
         </svg>
       </div>
 
-      <div className="mt-16 w-full max-w-sm rounded-2xl border border-gx-cyan/20 bg-black/20 backdrop-blur-2xl p-8 shadow-[0_0_40px_rgba(0,240,255,0.1)] text-center relative overflow-hidden ring-1 ring-white/5">
+      <div className="mt-16 w-full max-w-sm rounded-2xl border  bg-black/20  p-8  text-center relative overflow-hidden ring-1 ring-white/5">
         {/* 流光渐变底座 */}
-        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-transparent via-gx-cyan/5 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-transparent  to-transparent pointer-events-none" />
         
         <div className="relative z-10 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-full border border-gx-cyan/40 flex items-center justify-center bg-black/60 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
-            <Compass className="w-8 h-8 text-gx-cyan animate-pulse" />
+          <div className="w-16 h-16 rounded-full border  flex items-center justify-center bg-black/60 ">
+            <Compass className="w-8 h-8  animate-pulse" />
           </div>
           
           <div className="space-y-2">
-            <h2 className="text-xl font-mono tracking-widest font-bold text-gx-cyan">{t('txt_8b2cab')}</h2>
+            <h2 className="text-xl font-mono tracking-widest font-bold ">{t('txt_8b2cab')}</h2>
             <p className="text-xs text-white/60 uppercase tracking-[0.2em]">{t('txt_285d0c')}</p>
           </div>
 
@@ -63,7 +63,7 @@ export function WeChatBrowserGuard() {
           <p className="text-sm text-white/80 leading-relaxed font-light">
             {t('txt_1bc292')}<br />
             {t('txt_a6fbe5')}<strong className="text-white">···</strong> {t('txt_bd26e0')}<br />
-            {t('txt_153fa6')}<span className="text-gx-cyan font-bold tracking-widest px-1">{t('txt_475860')}</span>
+            {t('txt_153fa6')}<span className=" font-bold tracking-widest px-1">{t('txt_475860')}</span>
           </p>
           
           <div className="flex items-center gap-2 text-xs text-white/40 bg-white/5 px-4 py-2 rounded-full border border-white/10">

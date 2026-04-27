@@ -3,9 +3,10 @@
 import { motion } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { ButtonHTMLAttributes, forwardRef } from "react";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart"> {
-  variant?: "cyan" | "purple" | "ghost" | "danger";
+  variant?: "cyan" | "purple" | "ghost" | "danger" | "primary";
   size?: "sm" | "md" | "lg";
   glow?: boolean;
   isLoading?: boolean;
@@ -13,15 +14,24 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onD
 
 /**
  * GX 系统通用按钮
- * 支持赛博发光与玻璃质感
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "cyan", size = "md", glow = true, isLoading = false, children, ...props }, ref) => {
+  ({ className, variant = "cyan", size = "md", glow = false, isLoading = false, children, ...props }, ref) => {
+    const { settings } = useVisualSettings();
+    const isLight = settings.frontendBgIndex !== 0;
+
+    const basePrimary = isLight 
+      ? "bg-black text-white hover:bg-black/80 border-black" 
+      : "bg-white text-black hover:bg-white/80 border-white";
+
     const variants = {
-      cyan: "bg-gx-cyan/20 border-gx-cyan/50 text-gx-cyan hover:bg-gx-cyan/30 shadow-[0_0_15px_rgba(0,242,255,0.2)]",
-      purple: "bg-gx-purple/20 border-gx-purple/50 text-gx-purple hover:bg-gx-purple/30 shadow-[0_0_15px_rgba(188,0,255,0.2)]",
-      ghost: "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white",
-      danger: "bg-gx-red/20 border-gx-red/50 text-gx-red hover:bg-gx-red/30 shadow-[0_0_15px_rgba(255,0,60,0.2)]",
+      cyan: basePrimary,
+      purple: basePrimary,
+      primary: basePrimary,
+      ghost: isLight 
+        ? "bg-black/5 border-black/10 text-black/60 hover:bg-black/10 hover:text-black" 
+        : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white",
+      danger: "bg-red-500/20 border-red-500/50 text-red-500 hover:bg-red-500/30 ",
     };
 
     const sizes = {
@@ -38,9 +48,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isLoading || props.disabled}
         className={cn(
           "inline-flex items-center justify-center rounded-xl border font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed",
-          variants[variant],
+          variants[variant] || variants.primary,
           sizes[size],
-          glow && !isLoading && "hover:shadow-[0_0_25px_currentColor]",
           className
         )}
         {...props}

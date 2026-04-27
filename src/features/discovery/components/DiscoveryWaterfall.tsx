@@ -7,6 +7,7 @@ import { Heart, MessageCircle, Play, Image as ImageIcon } from "lucide-react";
 import { DiscoveryItem } from "../types";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 interface DiscoveryWaterfallProps {
   items: DiscoveryItem[];
@@ -66,15 +67,16 @@ export const DiscoveryWaterfall = ({
 const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () => void }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isAuthorAvatarLocal = item.author.avatarUrl?.startsWith("data:") || item.author.avatarUrl?.startsWith("blob:");
+  const { settings } = useVisualSettings();
+  const isLight = settings.frontendBgIndex !== 0;
 
   return (
-    <GlassCard
-      glowColor="none"
+    <GlassCard 
       hoverGlow={false}
-      className="p-0 overflow-hidden cursor-pointer group mb-4 border-white/5 bg-white/[0.03]"
+      className={cn("p-0 overflow-hidden cursor-pointer group mb-4 border", isLight ? "border-black/5 bg-black/[0.03]" : "border-white/5 bg-white/[0.03]")}
     >
       <div 
-        className="relative overflow-hidden bg-white/5"
+        className={cn("relative overflow-hidden", isLight ? "bg-black/5" : "bg-white/5")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={onClick}
@@ -95,8 +97,8 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
             )}
           />
           
-          {/* 媒体类型标识 */}
-          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+          {/* 媒体类型标识 - 统一白色风格 */}
+          <div className="absolute top-2 right-2 p-1.5 rounded-full border bg-black/40 border-white/10">
             {item.mediaType === 'video' ? (
               <Play className="w-3 h-3 text-white fill-white" />
             ) : (
@@ -104,13 +106,13 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
             )}
           </div>
 
-          {/* 覆盖层信息 (Hover) */}
+          {/* 覆盖层信息 (Hover) - 顶级抖音级修复：永远使用黑色渐变和白字 */}
           <div className={cn(
-            "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity duration-300 flex flex-col justify-end p-4",
+            "absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 flex flex-col justify-end p-4 pointer-events-none",
             isHovered ? "opacity-100" : "opacity-0"
           )}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-full border border-white/20 overflow-hidden bg-gx-cyan/20">
+            <div className="flex items-center gap-2 mb-2 pointer-events-auto">
+              <div className="w-6 h-6 rounded-full border overflow-hidden border-white/20 bg-black/40">
                 {item.author.avatarUrl ? (
                   <Image
                     src={item.author.avatarUrl}
@@ -121,12 +123,12 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
                     unoptimized={isAuthorAvatarLocal}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gx-cyan">
+                  <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white">
                     {item.author.name[0]}
                   </div>
                 )}
               </div>
-              <span className="text-[10px] font-medium text-white/80">{item.author.name}</span>
+              <span className="text-[10px] font-medium text-white">{item.author.name}</span>
             </div>
           </div>
         </div>
@@ -134,22 +136,22 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
 
       {/* 基础信息 */}
       <div className="p-3 space-y-2">
-        <h4 className="text-xs font-bold leading-snug line-clamp-2 text-white/90 group-hover:text-gx-cyan transition-colors">
+        <h4 className={cn("text-xs font-bold leading-snug line-clamp-2 transition-colors", isLight ? "text-black/90 group-hover:text-black" : "text-white/90 group-hover:text-white")}>
           {item.title}
         </h4>
         
-        <div className="flex items-center justify-between text-[10px] font-mono text-white/30">
+        <div className={cn("flex items-center justify-between text-[10px] font-mono", isLight ? "text-black/40" : "text-white/30")}>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 hover:text-red-400 transition-colors">
+            <div className={cn("flex items-center gap-1 transition-colors", isLight ? "hover:text-black" : "hover:text-white")}>
               <Heart className="w-3 h-3" />
               <span>{item.stats.likes}</span>
             </div>
-            <div className="flex items-center gap-1 hover:text-gx-cyan transition-colors">
+            <div className={cn("flex items-center gap-1 transition-colors", isLight ? "hover:text-black" : "hover:text-white")}>
               <MessageCircle className="w-3 h-3" />
               <span>{item.stats.comments}</span>
             </div>
           </div>
-          <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 uppercase tracking-tighter text-[8px]">
+          <div className={cn("px-1.5 py-0.5 rounded border uppercase tracking-tighter text-[8px]", isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10")}>
             {item.category}
           </div>
         </div>

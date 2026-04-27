@@ -151,12 +151,15 @@ const fetcher = async (url: string) => {
 
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 export function HomeClient({ initialRealShops, isActive = true }: { initialRealShops: any[], isActive?: boolean }) {
   const t = useTranslations("Home");
   const { openGoogleMaps, showMapModal, handleMapModalChoice } = useMapRouter();
   const router = useRouter();
   const { user } = useAuth();
+  const { settings: visualSettings } = useVisualSettings();
+  const isLight = visualSettings.frontendBgIndex >= 1;
 
   const handleOpenMaps = (placeName: string) => {
     if (Capacitor.isNativePlatform()) {
@@ -472,8 +475,9 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
   return (
     <>
       <main className={cn(
-        "min-h-[100dvh] bg-transparent text-white relative overflow-x-hidden pb-6 transition-all duration-500",
-        selectedShop && "scale-95 blur-sm opacity-50 pointer-events-none"
+        "min-h-[100dvh] bg-transparent relative overflow-x-hidden pb-6 transition-all duration-500",
+        isLight ? "text-black" : "text-white",
+        selectedShop && "scale-95  opacity-50 pointer-events-none"
       )}>
         
         <div className="w-full px-[clamp(16px,4vw,64px)] pt-[var(--sat)] relative z-10 space-y-[clamp(24px,4vw,40px)]">
@@ -486,11 +490,11 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
             className="flex items-center select-none mix-blend-screen shrink-0"
           >
             <div className="inline-flex items-baseline gap-1.5 md:gap-2 justify-center">
-              <span className="text-[clamp(20px,5vw,30px)] whitespace-nowrap font-black tracking-tighter bg-gradient-to-br from-white via-gray-200 to-white/60 bg-clip-text text-transparent">
-                GX<span className="align-super text-[clamp(14px,3vw,20px)] text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">⁺</span>
+              <span className={cn("text-[clamp(20px,5vw,30px)] whitespace-nowrap font-black tracking-tighter", isLight ? "text-black" : "text-white")}>
+                GX<span className={cn("align-super text-[clamp(14px,3vw,20px)]", isLight ? "text-black" : "text-white")}>⁺</span>
               </span>
-              {/* 液态金属流光渐变文字，0 JS 开销 */}
-              <span className="text-[clamp(16px,4vw,24px)] whitespace-nowrap font-black tracking-tighter bg-gradient-to-r from-cyan-100 via-white to-cyan-200 bg-[length:200%_auto] animate-pulse bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+              {/* 标题 */}
+              <span className={cn("text-[clamp(16px,4vw,24px)] whitespace-nowrap font-black tracking-tighter", isLight ? "text-black" : "text-white")}>
                 {t('txt_b05e70')}</span>
             </div>
           </motion.div>
@@ -510,19 +514,22 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
           >
             <MapPin className={cn(
               "w-[clamp(14px,3vw,20px)] h-[clamp(14px,3vw,20px)] shrink-0 transition-colors",
-              isLocationDenied ? "text-red-500 group-hover:text-red-400" : "text-gx-cyan group-hover:text-gx-cyan"
+              isLocationDenied ? "text-red-500 group-hover:text-red-400" : (isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white")
             )} />
             <span className={cn(
               "text-[clamp(12px,2.5vw,16px)] whitespace-nowrap truncate font-bold transition-colors",
-              isLocationDenied ? "text-red-500/80 group-hover:text-red-400" : "text-white/60 group-hover:text-white"
+              isLocationDenied ? "text-red-500/80 group-hover:text-red-400" : (isLight ? "text-black/60 group-hover:text-black" : "text-white/60 group-hover:text-white")
             )}>
               {locationName}
             </span>
-            <ChevronRight className="w-[clamp(12px,2vw,16px)] h-[clamp(12px,2vw,16px)] shrink-0 text-white/40 group-hover:text-white transition-colors" />
+            <ChevronRight className={cn(
+              "w-[clamp(12px,2vw,16px)] h-[clamp(12px,2vw,16px)] shrink-0 transition-colors",
+              isLight ? "text-black/40 group-hover:text-black" : "text-white/40 group-hover:text-white"
+            )} />
           </motion.div>
         </div>
 
-        {/* 史诗级重构：解绑搜索与模式切换，恢复逻辑层级 */}
+        {/* 史解绑搜索与模式切换，恢复逻辑层级 */}
         <header className="flex flex-col items-center gap-0">
           {/* 第一层：超维流光中枢 (Hyper-Glow Nexus) - 纯物理镂空 */}
           <motion.div 
@@ -530,22 +537,15 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
             animate={{ opacity: 1, scale: 1 }}
             className="w-full relative group"
           >
-            {/* 真正的流光边框层 (通过 mask-composite 实现物理级镂空，中间绝对透明) */}
+            {/* 极简边框层 */}
             <div 
-              className="absolute inset-0 rounded-full opacity-60 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none"
-              style={{
-                background: 'linear-gradient(90deg, rgba(0,240,255,0.8), rgba(168,85,247,0.8), transparent)',
-                padding: '1px',
-                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                WebkitMaskComposite: 'xor',
-                maskComposite: 'exclude',
-              }}
+              className={cn("absolute inset-0 rounded-full opacity-60 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none border", isLight ? "border-black/30" : "border-white/30")}
             />
 
             {/* 物理内容层 - 彻底没有任何 bg 色，纯通透 */}
             <div className="relative flex items-center h-[44px] px-2 z-10 bg-transparent">
               <div className="flex items-center flex-1 h-full pl-4">
-                <Search className="w-4 h-4 text-white/30 group-focus-within:text-gx-cyan transition-colors" />
+                <Search className={cn("w-4 h-4 transition-colors", isLight ? "text-black/30 group-focus-within:text-black" : "text-white/30 group-focus-within:text-white")} />
                 <input 
                   type="text" 
                   value={inputValue}
@@ -556,16 +556,16 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                     }
                   }}
                   placeholder={t("searchPlaceholder")} 
-                  className="flex-1 bg-transparent h-full pl-3 pr-4 text-sm font-light focus:outline-none text-white placeholder:text-white/30"
+                  className={cn("flex-1 bg-transparent h-full pl-3 pr-4 text-sm font-light focus:outline-none", isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/30")}
                 />
               </div>
               
-              {/* 右侧渐变赛博指令字 */}
+              {/* 右侧赛博指令字 */}
               <button 
                 onClick={() => setSearchQuery(inputValue)}
                 className="h-full px-4 flex items-center justify-center transition-all active:scale-95"
               >
-                <span className="text-sm font-bold bg-gradient-to-r from-gx-cyan to-blue-400 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(0,240,255,0.4)] group-focus-within:drop-shadow-[0_0_12px_rgba(0,240,255,0.8)]">
+                <span className={cn("text-sm font-bold", isLight ? "text-black" : "text-white")}>
                   {t("search")}
                 </span>
               </button>
@@ -575,8 +575,6 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
         {/* The Trinity Nexus: 终极三体枢纽 (采用 Clamp 流体排版 + 强制单行) */}
         <div className="flex justify-center -mt-3 relative z-20">
-          {/* 背景暗场保护 */}
-          <div className="absolute inset-0 bg-black/40 blur-2xl -z-10 rounded-full" />
           
           {/* 减去顶部 padding，保留极小底部 padding。使用流体 gap 防止手机端挤压 */}
           <div className="flex items-end gap-[clamp(8px,3vw,24px)] px-2 md:px-4 pt-0 pb-[3px]">
@@ -619,21 +617,20 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               <span className={cn(
                 "text-[clamp(14px,3.5vw,18px)] font-black tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
                 activeTab === "merchant" 
-                  ? "bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(0,240,255,0.6)]" 
-                  : "text-white/80"
+                  ? (isLight ? "text-black" : "text-white")
+                  : (isLight ? "text-black/60" : "text-white/80")
               )}>
                 {t("tabs.merchant")}
               </span>
               {isActive && activeTab === "merchant" && (
                 <motion.div 
                   layoutId="trinityIndicator"
-                  className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full shadow-[0_0_12px_rgba(0,240,255,1)]"
-                  style={{ background: 'linear-gradient(90deg, transparent, rgba(0,240,255,1), transparent)' }}
+                  className={cn("absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full", isLight ? "bg-black" : "bg-white")}
                 />
               )}
             </button>
 
-            <div className="w-[1px] h-6 bg-white/20 shrink-0" />
+            <div className={cn("w-[1px] h-6 shrink-0", isLight ? "bg-black/20" : "bg-white/20")} />
 
             {/* 中核：GX 精选 */}
             <button 
@@ -647,28 +644,27 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                 <span className={cn(
                   "text-[clamp(14px,3.5vw,18px)] font-black tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
                   activeTab === "gx_pro"
-                    ? "bg-gradient-to-r from-yellow-100 via-yellow-300 to-yellow-500 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,215,0,0.8)]"
-                    : "text-white/80"
+                    ? (isLight ? "text-black" : "text-white")
+                    : (isLight ? "text-black/60" : "text-white/80")
                 )}>
                   {t("tabs.service")}
                 </span>
                 <Sparkles className={cn(
                   "w-[clamp(12px,3vw,14px)] h-[clamp(12px,3vw,14px)] shrink-0 transition-all duration-500",
                   activeTab === "gx_pro"
-                    ? "text-yellow-300 drop-shadow-[0_0_12px_rgba(255,215,0,1)]"
-                    : "text-white/50"
+                    ? (isLight ? "text-black" : "text-white")
+                    : (isLight ? "text-black/40" : "text-white/50")
                 )} />
               </div>
               {isActive && activeTab === "gx_pro" && (
                 <motion.div 
                   layoutId="trinityIndicator"
-                  className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full shadow-[0_0_12px_rgba(255,215,0,1)]"
-                  style={{ background: 'linear-gradient(90deg, transparent, rgba(255,215,0,1), transparent)' }}
+                  className={cn("absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full", isLight ? "bg-black" : "bg-white")}
                 />
               )}
             </button>
 
-            <div className="w-[1px] h-6 bg-white/20 shrink-0" />
+            <div className={cn("w-[1px] h-6 shrink-0", isLight ? "bg-black/20" : "bg-white/20")} />
 
             {/* 右翼：生活服务 */}
             <button 
@@ -681,16 +677,15 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               <span className={cn(
                 "text-[clamp(14px,3.5vw,18px)] font-black tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
                 activeTab === "service" 
-                  ? "bg-gradient-to-r from-pink-300 via-purple-400 to-indigo-500 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(168,85,247,0.6)]" 
-                  : "text-white/80"
+                  ? (isLight ? "text-black" : "text-white")
+                  : (isLight ? "text-black/60" : "text-white/80")
               )}>
                 {t("tabs.third")}
               </span>
               {isActive && activeTab === "service" && (
                 <motion.div 
                   layoutId="trinityIndicator"
-                  className="absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full shadow-[0_0_12px_rgba(168,85,247,1)]"
-                  style={{ background: 'linear-gradient(90deg, transparent, rgba(168,85,247,1), transparent)' }}
+                  className={cn("absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full", isLight ? "bg-black" : "bg-white")}
                 />
               )}
             </button>
@@ -737,13 +732,13 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                   className={cn(
                     "flex-shrink-0 flex flex-col items-center justify-center gap-2 min-w-[56px] h-[46px] rounded-xl transition-all duration-500 relative group/btn",
                     activeCategory === cat.id 
-                      ? "text-white" 
-                      : "text-white/40 hover:text-white"
+                      ? (isLight ? "text-black" : "text-white")
+                      : (isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")
                   )}
                   style={{ transformStyle: "preserve-3d" }}
                 >
-                {/* 动态探照灯背景层 (Hover时显现) */}
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-white/[0.08] to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                {/* 动态背景层 (Hover时显现) */}
+                <div className={cn("absolute inset-0 rounded-xl bg-gradient-to-b opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500 pointer-events-none", isLight ? "from-black/[0.08] to-transparent" : "from-white/[0.08] to-transparent")} />
 
                 {/* 图标与文字容器，Hover时Y轴突进与轻微放大 */}
                 <div className="relative flex flex-col items-center gap-2 transition-transform duration-500 group-hover/btn:-translate-y-1 group-hover/btn:scale-105">
@@ -751,40 +746,29 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                     <cat.icon className={cn(
                       "w-6 h-6 transition-all duration-500 relative z-10",
                       activeCategory === cat.id 
-                        ? (cat.id === "all" && activeTab === "gx_pro"
-                          ? "drop-shadow-[0_0_12px_rgba(255,215,0,0.8)] text-yellow-400 scale-110"
-                          : "drop-shadow-[0_0_12px_rgba(0,240,255,0.8)] text-gx-cyan scale-110")
-                        : "text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] group-hover/btn:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+                        ? (isLight ? "text-black scale-110" : "text-white scale-110")
+                        : (isLight ? "text-black/60 group-hover/btn:text-black" : "text-white/60 group-hover/btn:text-white")
                     )} />
                   </div>
                   <span className={cn(
                     "text-[10px] font-bold tracking-widest whitespace-nowrap transition-all duration-500 relative z-10",
                     activeCategory === cat.id 
-                      ? (cat.id === "all" && activeTab === "gx_pro"
-                        ? "bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]"
-                        : "bg-gradient-to-r from-white via-cyan-100 to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]")
-                      : "text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] group-hover/btn:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+                      ? (isLight ? "text-black" : "text-white")
+                      : (isLight ? "text-black/60 group-hover/btn:text-black" : "text-white/60 group-hover/btn:text-white")
                   )}>
                     {cat.id === "all" && activeTab === "gx_pro" ? "全部" : t(`categories.${cat.id}`)}
                   </span>
                 </div>
                 
-                {/* 底部能量注入游标 (液态张力) */}
+                {/* 底部能量注入游标 */}
                 {isActive && activeCategory === cat.id && (
                   <motion.div 
                     layoutId="activeCategoryIndicator"
                     transition={{ type: "spring", stiffness: 300, damping: 24 }}
                     className={cn(
                       "absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full",
-                      cat.id === "all" && activeTab === "gx_pro"
-                        ? "shadow-[0_0_12px_rgba(255,215,0,1)]"
-                        : "shadow-[0_0_12px_rgba(0,240,255,1)]"
+                      isLight ? "bg-black" : "bg-white"
                     )}
-                    style={{
-                      background: cat.id === "all" && activeTab === "gx_pro"
-                        ? 'linear-gradient(90deg, transparent, rgba(255,215,0,1), transparent)'
-                        : 'linear-gradient(90deg, transparent, rgba(0,240,255,1), transparent)'
-                    }}
                   />
                 )}
               </button>
@@ -818,7 +802,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               </div>
               
               {listRealShops.length === 0 && (
-                <div className="p-12 flex items-center justify-center text-white/30 font-mono text-sm tracking-widest mt-10">
+                <div className={cn("p-12 flex items-center justify-center font-mono text-sm tracking-widest mt-10", isLight ? "text-black/30" : "text-white/30")}>
                   NO GX PRO NODES FOUND
                 </div>
               )}
@@ -842,13 +826,13 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               // 骨架屏 Skeleton
               <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-[clamp(16px,2vw,24px)]">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="rounded-3xl border border-white/5 bg-white/[0.02] overflow-hidden animate-pulse">
-                    <div className="aspect-[16/9] bg-white/5" />
+                  <div key={i} className={cn("rounded-3xl border overflow-hidden animate-pulse", isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/5")}>
+                    <div className={cn("aspect-[16/9]", isLight ? "bg-black/5" : "bg-white/5")} />
                     <div className="p-5 space-y-4">
-                      <div className="h-6 bg-white/5 rounded-md w-3/4" />
+                      <div className={cn("h-6 rounded-md w-3/4", isLight ? "bg-black/5" : "bg-white/5")} />
                       <div className="flex gap-4">
-                        <div className="h-4 bg-white/5 rounded-md w-1/4" />
-                        <div className="h-4 bg-white/5 rounded-md w-1/4" />
+                        <div className={cn("h-4 rounded-md w-1/4", isLight ? "bg-black/5" : "bg-white/5")} />
+                        <div className={cn("h-4 rounded-md w-1/4", isLight ? "bg-black/5" : "bg-white/5")} />
                       </div>
                     </div>
                   </div>
@@ -879,8 +863,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                       onClick={() => handleOpenMaps(place.name)}
                       className="cursor-pointer"
                     >
-                    <GlassCard 
-                      glowColor="none" 
+                    <GlassCard  
                       className="group p-0 overflow-hidden border-white/5 hover:border-white/20 transition-all duration-500"
                     >
                       <div className="relative aspect-[16/9] overflow-hidden">
@@ -890,21 +873,19 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                           {/* Slide 1: Cover (Google or Mock) */}
                           <div className="relative w-full h-full shrink-0 snap-start bg-transparent">
                             {place.image === "HOLOGRAPHIC_PLACEHOLDER" ? (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gx-cyan/10 via-purple-900/20 to-black overflow-hidden group-hover:scale-105 transition-all duration-700">
-                                {/* AI 流光占位特效 */}
-                                <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                              <div className="absolute inset-0 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-all duration-700 bg-white/5">
                                 <div className="flex flex-col items-center gap-2 z-10 opacity-60 group-hover:opacity-100 transition-opacity">
-                                  <div className="w-10 h-10 rounded-full border border-gx-cyan/30 flex items-center justify-center bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-                                    <Sparkles className="w-5 h-5 text-gx-cyan animate-pulse" />
+                                  <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-black/40 border-white/30">
+                                    <Sparkles className="w-5 h-5 animate-pulse text-white" />
                                   </div>
-                                  <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]">{t('txt_fc724a')}</span>
+                                  <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-white">{t('txt_fc724a')}</span>
                                   <span className="text-[8px] font-mono tracking-widest text-white/40">{t('txt_2fa2bd')}</span>
                                 </div>
                               </div>
                             ) : (
                               <>
-                                {/* 流光渐变底座 (Image Placeholder) - 防止黑框，提供加载时的赛博质感 */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-gx-cyan/10 to-transparent animate-pulse" />
+                                {/* 极简占位底座 */}
+                                <div className="absolute inset-0 animate-pulse bg-white/5" />
                                 <Image
                                   src={place.image}
                                   alt={place.name}
@@ -924,9 +905,8 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                                 />
                               </>
                             )}
-                            {/* 彻底移除黑色遮罩和扫描线，遵从极致清透法则 */}
-                            {/* 引入更深邃的自下而上的纯黑渐变暗场，为行动栏腾出空间 */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+                            {/* 顶级抖音级修复：放弃根据主题变色，永远使用极简深邃黑色渐变，保持文字纯白 */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
                           </div>
 
                           {/* Slide 2...N: UGC Images (Color Privilege) */}
@@ -939,41 +919,39 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 className="object-cover opacity-50 group-hover:opacity-80 transition-opacity duration-700"
                               />
-                              <div className="absolute top-4 left-4 px-2 py-1 bg-white/5 backdrop-blur-md rounded border border-white/10 flex items-center gap-1.5 z-10 pointer-events-none">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                <span className="text-[8px] font-bold text-white tracking-widest uppercase drop-shadow-md">{t('txt_3efb32')}</span>
+                              <div className="absolute top-4 left-4 px-2 py-1 rounded border flex items-center gap-1.5 z-10 pointer-events-none bg-black/20 border-white/10">
+                                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-white" />
+                                <span className="text-[8px] font-bold tracking-widest uppercase text-white">{t('txt_3efb32')}</span>
                               </div>
-                              {/* 彻底移除黑色遮罩 - removed to achieve extreme transparency */}
-                              {/* <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 pointer-events-none" /> */}
                             </div>
                           ))}
 
                           {/* Last Slide: Upload UGC */}
                           <div 
-                            className="relative w-full h-full shrink-0 snap-start bg-white/5 flex flex-col items-center justify-center border-l border-white/5 group/upload hover:bg-white/10 transition-colors backdrop-blur-md"
+                            className="relative w-full h-full shrink-0 snap-start flex flex-col items-center justify-center border-l group/upload transition-colors bg-black/40 border-white/10 hover:bg-black/60"
                             onClick={(e) => {
                               e.stopPropagation();
                               alert("UGC 照片上传功能即将开放");
                             }}
                           >
-                             <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3 group-hover/upload:bg-gx-cyan/20 group-hover/upload:border-gx-cyan/50 group-hover/upload:shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all duration-500">
-                                <Camera className="w-5 h-5 text-white/50 group-hover/upload:text-gx-cyan transition-colors" />
+                             <div className="w-12 h-12 rounded-full border flex items-center justify-center mb-3 transition-all duration-500 bg-white/5 border-white/10 group-hover/upload:bg-white/10 group-hover/upload:border-white/30">
+                                <Camera className="w-5 h-5 transition-colors text-white/50 group-hover/upload:text-white" />
                              </div>
-                             <span className="text-[10px] font-bold text-white/50 tracking-widest group-hover/upload:text-gx-cyan transition-colors uppercase">{t("uploadRealPhoto")}</span>
-                             <span className="text-[8px] font-mono text-white/30 mt-1">{t('txt_de7277')}</span>
+                             <span className="text-[10px] font-bold tracking-widest transition-colors uppercase text-white/50 group-hover/upload:text-white">{t("uploadRealPhoto")}</span>
+                             <span className="text-[8px] font-mono mt-1 text-white/30">{t('txt_de7277')}</span>
                           </div>
                         </div>
 
                         {/* Swipe Hint */}
-                        <div className="absolute top-4 left-4 flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 backdrop-blur-md border border-white/10 pointer-events-none">
-                          <span className="text-[8px] font-mono text-white/60 tracking-widest">◂ SWIPE</span>
+                        <div className="absolute top-4 left-4 flex items-center gap-1.5 px-2 py-1 rounded border pointer-events-none bg-black/40 border-white/10">
+                          <span className="text-[8px] font-mono tracking-widest text-white/80">◂ SWIPE</span>
                         </div>
                         
                         {/* 顶部标签 */}
                         <div className="absolute top-4 right-4 flex gap-2 pointer-events-none">
                           <div className={cn(
-                            "px-3 py-1 rounded-full text-[9px] font-bold tracking-widest backdrop-blur-md border",
-                            place.status === "OPEN" ? "bg-gx-cyan/20 border-gx-cyan/40 text-gx-cyan" : "bg-white/10 border-white/20 text-white/60"
+                            "px-3 py-1 rounded-full text-[9px] font-bold tracking-widest border",
+                            place.status === "OPEN" ? "bg-white/10 border-white/20 text-white" : "bg-black/40 border-white/20 text-white/60"
                           )}>
                             {place.status === "OPEN" ? "🟢 OPEN" : "CLOSED"}
                           </div>
@@ -983,17 +961,17 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                         <div className="absolute bottom-0 left-0 right-0 pointer-events-none flex flex-col justify-end p-5 gap-3">
                           {/* 店名与评分区 */}
                           <div className="flex flex-col gap-2">
-                            <h3 className="text-xl font-bold tracking-tighter uppercase drop-shadow-[0_0_10px_rgba(0,0,0,1)] line-clamp-1">{place.name}</h3>
+                            <h3 className="text-xl font-bold tracking-tighter uppercase line-clamp-1 text-white">{place.name}</h3>
                             
-                            <div className="flex items-center justify-between w-full drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]">
+                            <div className="flex items-center justify-between w-full">
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1 text-gx-gold text-sm font-bold">
-                                  <span className="drop-shadow-[0_0_5px_rgba(255,184,0,0.5)]">★</span>
+                                <div className="flex items-center gap-1 text-sm font-bold text-white">
+                                  <span>★</span>
                                   <span>{place.rating}</span>
-                                  <span className="text-[10px] text-white/70 font-normal">({place.user_ratings_total})</span>
+                                  <span className="text-[10px] font-normal text-white/70">({place.user_ratings_total})</span>
                                 </div>
                                 <div className="w-1 h-1 rounded-full bg-white/40" />
-                                <div className="flex items-center gap-1 text-[10px] font-mono text-gx-cyan drop-shadow-[0_0_5px_rgba(0,240,255,0.5)]">
+                                <div className="flex items-center gap-1 text-[10px] font-mono text-white">
                                   <MapPin className="w-3 h-3" />
                                   <span>{place.distance}</span>
                                 </div>
@@ -1002,11 +980,11 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                           </div>
                           
                           {/* 行动栏 - 完美融入 */}
-                          <div className="flex items-center justify-between mt-1 pt-3 border-t border-white/10 relative z-10 pointer-events-auto">
-                            <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest drop-shadow-md">
+                          <div className="flex items-center justify-between mt-1 pt-3 border-t relative z-10 pointer-events-auto border-white/10">
+                            <span className="text-[9px] font-mono uppercase tracking-widest text-white/50">
                               {place.category} / GOOGLE MAPS
                             </span>
-                            <div className="flex items-center gap-2 text-[10px] font-mono text-gx-cyan opacity-60 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 drop-shadow-[0_0_5px_rgba(0,240,255,0.5)]">
+                            <div className="flex items-center gap-2 text-[10px] font-mono opacity-60 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 text-white">
                               <span>{t('txt_306058')}</span>
                               <ArrowUpRight className="w-4 h-4" />
                             </div>
@@ -1020,12 +998,12 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
               {/* 极致降噪版无限加载底座：嵌入卡片与横幅缝隙的隐形文字 */}
               <div ref={loadMoreRef} className="w-full flex justify-center py-2 relative z-10">
-                <span className="text-[9px] font-mono tracking-[0.3em] uppercase font-bold text-white/20 transition-colors cursor-default">
-                  {t('txt_d5b619')}<span className="text-cyan-600/40">{t('txt_afb9fb')}</span>
+                <span className={cn("text-[9px] font-mono tracking-[0.3em] uppercase font-bold transition-colors cursor-default", isLight ? "text-black/20" : "text-white/20")}>
+                  {t('txt_d5b619')}<span>{t('txt_afb9fb')}</span>
                 </span>
                 {/* 极简加载状态指示器 (仅在还有数据时显示) */}
                 {displayCount < aggregatedPlaces.length && (
-                  <div className="absolute top-1/2 -translate-y-1/2 right-[calc(50%-110px)] w-3 h-3 border border-white/10 border-t-gx-cyan/50 rounded-full animate-spin opacity-50" />
+                  <div className={cn("absolute top-1/2 -translate-y-1/2 right-[calc(50%-110px)] w-3 h-3 border rounded-full animate-spin opacity-50", isLight ? "border-black/10 border-t-black/50" : "border-white/10 border-t-white/50")} />
                 )}
               </div>
               
@@ -1056,8 +1034,8 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
         {/* 原有 Service Tab 内容保留空白或后续开发 */}
         {activeTab === "service" && (
-          <div className="py-20 text-center text-white/30 font-mono text-sm tracking-widest flex flex-col items-center gap-4">
-            <Zap className="w-12 h-12 text-gx-cyan/40 mb-4 animate-pulse" />
+          <div className={cn("py-20 text-center font-mono text-sm tracking-widest flex flex-col items-center gap-4", isLight ? "text-black/30" : "text-white/30")}>
+            <Zap className={cn("w-12 h-12 mb-4 animate-pulse", isLight ? "text-black/40" : "text-white/40")} />
             <p>{t('txt_6821d6')}</p>
             <p className="text-[10px]">{t('txt_c76b02')}</p>
           </div>
@@ -1072,44 +1050,41 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              className={cn("absolute inset-0 ", isLight ? "bg-white/80" : "bg-black/80")}
               onClick={() => setShowRecoveryModal(false)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-sm bg-black/60 border border-red-500/30 rounded-3xl p-8 overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.15)] flex flex-col items-center text-center"
+              className={cn("relative w-full max-w-sm border rounded-3xl p-8 overflow-hidden flex flex-col items-center text-center", isLight ? "bg-white/60 border-black/10" : "bg-black/60 border-white/10")}
             >
-              {/* 装饰光效 */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
               
               <button 
                 onClick={() => setShowRecoveryModal(false)}
-                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+                className={cn("absolute top-4 right-4 transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <h2 className="text-xl font-black text-white tracking-widest mt-4 mb-8 uppercase">
+              <h2 className={cn("text-xl font-black tracking-widest mt-4 mb-8 uppercase", isLight ? "text-black" : "text-white")}>
                 {t('txt_a92d4f') || '卫星连接遭拒'}
               </h2>
 
               {/* 全息浏览器地址栏骨架模拟 (Holographic Browser UI) */}
               <div className="w-full max-w-[280px] mb-8 flex flex-col gap-2 relative z-10">
                 {/* 伪地址栏 */}
-                <div className="relative flex items-center justify-center h-12 w-full bg-white/5 border border-white/10 rounded-xl overflow-hidden shrink-0">
+                <div className={cn("relative flex items-center justify-center h-12 w-full rounded-xl overflow-hidden shrink-0 border", isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10")}>
                   
                   {/* 左侧固定区：锁图标与点击波纹 */}
                   <div className="absolute left-4 flex items-center justify-center w-6 h-6">
                     <div className="relative flex items-center justify-center">
-                      <Lock className="w-4 h-4 text-gx-cyan relative z-10" />
-                      {/* 锁图标的呼吸光晕 */}
-                      <div className="absolute inset-0 bg-gx-cyan/30 blur-md rounded-full animate-pulse" />
+                      <Lock className={cn("w-4 h-4 relative z-10", isLight ? "text-black" : "text-white")} />
+                      <div className={cn("absolute inset-0 rounded-full animate-pulse", isLight ? "bg-black/10" : "bg-white/10")} />
                       
                       {/* 点击波纹光圈 (以锁为绝对圆心扩散) */}
                       <motion.div 
-                        className="absolute inset-0 rounded-full border border-white/40 bg-white/10"
+                        className={cn("absolute inset-0 rounded-full border", isLight ? "border-black/40 bg-black/10" : "border-white/40 bg-white/10")}
                         animate={{ scale: [0.5, 2, 2], opacity: [0, 1, 0] }}
                         transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", times: [0, 0.2, 0.5] }}
                       />
@@ -1117,42 +1092,41 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                   </div>
 
                   {/* 绝对居中区：域名文本 */}
-                  <span className="text-xs font-mono text-white/30 tracking-wider">
+                  <span className={cn("text-xs font-mono tracking-wider", isLight ? "text-black/30" : "text-white/30")}>
                     fx-rapallo.vercel.app
                   </span>
                 </div>
 
                 {/* 下拉权限菜单模拟 - 回归文档流物理占位 */}
                 <motion.div 
-                  className="w-full max-w-[192px] ml-2 bg-[#1A1A1A] border border-white/10 rounded-lg shadow-2xl p-3 flex flex-col gap-3 text-left origin-top-left shrink-0 relative z-20"
+                  className={cn("w-full max-w-[192px] ml-2 border rounded-lg p-3 flex flex-col gap-3 text-left origin-top-left shrink-0 relative z-20", isLight ? "bg-white/90 border-black/10" : "bg-black/90 border-white/10")}
                   animate={{ opacity: [0, 1, 1, 0], scale: [0.95, 1, 1, 0.95] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/80 flex items-center gap-2">
+                    <span className={cn("text-[11px] flex items-center gap-2", isLight ? "text-black/80" : "text-white/80")}>
                       <MapPin className="w-3 h-3" />
                       {t('txt_6f7f8f')}
                     </span>
                     {/* 模拟开关 Toggle 被打开 */}
-                    <div className="w-7 h-4 rounded-full bg-gx-cyan/20 p-0.5 flex items-center justify-end border border-gx-cyan/50">
-                      <div className="w-3 h-3 rounded-full bg-gx-cyan shadow-[0_0_5px_#00f2ff]" />
+                    <div className={cn("w-7 h-4 rounded-full p-0.5 flex items-center justify-end border", isLight ? "bg-black/20 border-black/50" : "bg-white/20 border-white/50")}>
+                      <div className={cn("w-3 h-3 rounded-full", isLight ? "bg-black" : "bg-white")} />
                     </div>
                   </div>
                 </motion.div>
               </div>
 
-              <p className="text-xs text-white/60 font-mono tracking-widest mb-6">
+              <p className={cn("text-xs font-mono tracking-widest mb-6", isLight ? "text-black/60" : "text-white/60")}>
                 {t('txt_15c54d')}
               </p>
 
               <button 
                 onClick={() => window.location.reload()}
-                className="w-full relative group overflow-hidden bg-red-500/10 border border-red-500/30 rounded-xl p-4 transition-all hover:border-red-500 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                className={cn("w-full relative group overflow-hidden border rounded-xl p-4 transition-all", isLight ? "bg-black/5 border-black/10 hover:border-black/30" : "bg-white/5 border-white/10 hover:border-white/30")}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                <div className="relative z-10 flex items-center justify-center gap-2 text-red-500 font-bold tracking-widest">
-                  <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span>{t('txt_refresh')}</span>
+                <div className="relative z-10 flex items-center justify-center gap-2 font-bold tracking-widest">
+                  <RefreshCw className={cn("w-5 h-5 group-hover:rotate-180 transition-transform duration-500", isLight ? "text-black" : "text-white")} />
+                  <span className={isLight ? "text-black" : "text-white"}>{t('txt_refresh')}</span>
                 </div>
               </button>
             </motion.div>

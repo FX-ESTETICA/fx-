@@ -19,14 +19,14 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="text-center space-y-3">
-        <div className="inline-flex p-3 rounded-full bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan mb-2">
+        <div className="inline-flex p-3 rounded-full  border   mb-2">
           <ShieldCheck className="w-8 h-8" />
         </div>
         <h2 className="text-3xl font-bold tracking-tight">{t('txt_f8ce3d')}</h2>
         <p className="text-white/40 text-sm">{t('txt_c4043e')}</p>
       </header>
 
-      <GlassCard className="p-8 border-white/10 bg-white/[0.03]" glowColor="cyan">
+      <GlassCard className="p-8 border-white/10 bg-white/[0.03]" >
         <div className="space-y-8">
           {/* 预约核心信息 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-8 border-b border-white/5">
@@ -69,7 +69,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                 </div>
                 <div>
                   <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">{t('txt_63fb41')}</p>
-                  <p className="text-sm font-mono text-gx-cyan">¥{details.price || '待确认'}</p>
+                  <p className="text-sm font-mono ">¥{details.price || '待确认'}</p>
                 </div>
               </div>
             </div>
@@ -111,7 +111,7 @@ export const BookingConfirmation = ({ details, onConfirm, onBack, isLoading }: B
                   type="checkbox" 
                   checked={termsAgreed}
                   onChange={(e) => setTermsAgreed(e.target.checked)}
-                  className="peer appearance-none w-5 h-5 rounded-md border border-white/10 bg-white/5 checked:bg-gx-cyan checked:border-gx-cyan transition-all"
+                  className="peer appearance-none w-5 h-5 rounded-md border border-white/10 bg-white/5   transition-all"
                 />
                 <CheckCircle className="absolute w-3 h-3 text-black opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
               </div>

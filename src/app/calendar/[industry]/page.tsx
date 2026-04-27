@@ -43,7 +43,7 @@ export default function ImmersiveCalendarPage({
   return (
     <main className="min-h-[100dvh] bg-transparent text-white p-0 relative overflow-hidden">
       {/* 背景光效 - 沉浸式减弱干扰 */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gx-cyan/2 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%]   rounded-full pointer-events-none" />
       
       <div className="w-full h-[100dvh] flex flex-col relative z-10">
         {/* 核心日历组件 (Immersive / Admin Mode 动态判定) */}

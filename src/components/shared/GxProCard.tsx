@@ -41,9 +41,9 @@ export function GxProCard({ shop, onClick, index = 0 }: GxProCardProps) {
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
 
       {/* 右上角信标 (GX PRO 官方认证) */}
-      <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded border border-yellow-500/30 z-10 pointer-events-none shadow-[0_0_15px_rgba(255,215,0,0.2)]">
+      <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-black/60  rounded border border-yellow-500/30 z-10 pointer-events-none ">
         <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-        <span className="text-[10px] font-black text-yellow-500 tracking-widest uppercase drop-shadow-[0_0_5px_rgba(255,215,0,0.8)]">{t('txt_53a12c')}</span>
+        <span className="text-[10px] font-bold text-yellow-500 tracking-widest uppercase ">{t('txt_53a12c')}</span>
       </div>
 
       {/* 底部内容区 */}
@@ -51,7 +51,7 @@ export function GxProCard({ shop, onClick, index = 0 }: GxProCardProps) {
         
         {/* 左下角：名字 + Slogan */}
         <div className="flex flex-col items-start gap-1 max-w-[65%]">
-          <h3 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,1)] text-white line-clamp-1">
+          <h3 className="text-2xl sm:text-3xl font-bold tracking-tighter uppercase  text-white line-clamp-1">
             {shop.name}
           </h3>
           <p className="text-xs font-mono text-white/70 tracking-widest line-clamp-1 uppercase">
@@ -60,7 +60,7 @@ export function GxProCard({ shop, onClick, index = 0 }: GxProCardProps) {
         </div>
         
         {/* 右下角：立即预约按钮 */}
-        <div className="shrink-0 flex items-center gap-1.5 text-yellow-400 font-bold text-xs bg-yellow-500/10 px-4 py-2 rounded-full border border-yellow-500/30 backdrop-blur-md transition-colors shadow-[0_0_15px_rgba(255,215,0,0.15)] pointer-events-auto">
+        <div className="shrink-0 flex items-center gap-1.5 text-yellow-400 font-bold text-xs bg-yellow-500/10 px-4 py-2 rounded-full border border-yellow-500/30  transition-colors  pointer-events-auto">
           <span>{t('txt_3ed720')}</span>
           <ArrowUpRight className="w-3.5 h-3.5" />
         </div>

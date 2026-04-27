@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense, memo } from "react";
 import { useViewStack } from "@/hooks/useViewStack";
+import { useActiveTab } from "@/hooks/useActiveTab";
 import { cn } from "@/utils/cn";
 import { HomeClient } from "@/app/home/HomeClient";
 import DiscoveryClient from "@/app/discovery/DiscoveryClient";
@@ -37,12 +38,12 @@ const TabContainer = memo(({ active, children }: { active: boolean, children: Re
 
 export const MainStage = () => {
   const setActiveTab = useViewStack((state) => state.setActiveTab);
-  const activeTab = useViewStack((state) => state.activeTab);
+  const activeTab = useActiveTab();
   const tabProps = useViewStack((state) => state.tabProps);
   const overlays = useViewStack((state) => state.overlays);
   const { user, isLoading } = useAuth();
   const [mounted, setMounted] = useState(false);
-  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set(['home'])); // 默认先挂载 home
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set([activeTab])); // 默认先挂载基于真实URL解析出的首帧tab
 
   // 初始化时，根据当前的真实 URL 路径来设置正确的激活 Tab
   useEffect(() => {
@@ -66,13 +67,16 @@ export const MainStage = () => {
     }
     
     // 初始化时，把当前 URL 对应的 Tab 加入已挂载集合
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMountedTabs(prev => new Set(prev).add(initialTab));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
   // 监听 activeTab 变化，实现惰性激活（Lazy Mount）
   useEffect(() => {
     if (activeTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMountedTabs(prev => {
         if (prev.has(activeTab)) return prev;
         return new Set(prev).add(activeTab);
@@ -99,27 +103,21 @@ export const MainStage = () => {
     };
   }, [setActiveTab]);
 
-  if (!mounted) return null;
-
-  // 1. 本地优先 (Local-First) 架构重构：彻底砸碎 Hydration 渲染结界
-  // 废弃原有的严格组装检查 (user && !('gxId' in user))，只要不是底层的极度加载中，直接放行！
-  // 哪怕 user 还没从云端同步完 gxId，也允许先用缓存的 user 或空状态进场，实现真正的 0 延迟秒开。
-  // 后台的 refreshUserData 会像幽灵一样在网络恢复后自动替换状态。
   const isHydrating = isLoading;
 
-  if (isHydrating) {
+  if (!mounted || isHydrating) {
     return (
-      <div className="relative w-full h-[100dvh] bg-[#0a0a0a] overflow-hidden flex flex-col justify-between">
+      <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-between">
         {/* 顶部环境光模糊占位 */}
         <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent animate-pulse" />
         
         {/* 核心能量场模糊占位 */}
         <div className="flex-1 flex items-center justify-center opacity-20">
-          <div className="w-32 h-32 rounded-full bg-white/10 blur-2xl animate-pulse" />
+          <div className="w-32 h-32 rounded-full bg-white/10  animate-pulse" />
         </div>
         
         {/* 底导栏物理轮廓呼吸灯锚定 (防止页面初载时下方太空) */}
-        <div className="w-full h-[84px] border-t border-white/5 bg-black/40 backdrop-blur-md flex justify-around items-center px-6 pb-safe z-50">
+        <div className="w-full h-[84px] border-t border-white/5 bg-black/40  flex justify-around items-center px-6 pb-safe z-50">
           {[1,2,3,4].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />)}
         </div>
       </div>

@@ -21,7 +21,7 @@ export const BookingForm = ({ initialDetails, onSubmit, onCancel }: BookingFormP
   });
 
   return (
-    <GlassCard className="max-w-2xl mx-auto p-8 border-white/5 bg-white/[0.02]" glowColor="cyan">
+    <GlassCard className="max-w-2xl mx-auto p-8 border-white/5 bg-white/[0.02]" >
       <div className="space-y-8">
         <header className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight">{t('txt_432960')}</h2>
@@ -52,11 +52,11 @@ export const BookingForm = ({ initialDetails, onSubmit, onCancel }: BookingFormP
               <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
                 <User className="w-3 h-3" /> {t('txt_a140c4')}</label>
               <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-gx-cyan transition-colors" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20  transition-colors" />
                 <input
                   {...register("customerName", { required: "请输入姓名" })}
                   className={cn(
-                    "w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:border-gx-cyan/50 transition-all",
+                    "w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none  transition-all",
                     errors.customerName && "border-red-500/50"
                   )}
                   placeholder={t('txt_0ec7d3')}
@@ -69,11 +69,11 @@ export const BookingForm = ({ initialDetails, onSubmit, onCancel }: BookingFormP
               <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
                 <Phone className="w-3 h-3" /> {t('txt_d73ae8')}</label>
               <div className="relative group">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-gx-cyan transition-colors" />
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20  transition-colors" />
                 <input
                   {...register("customerPhone", { required: "请输入联系电话" })}
                   className={cn(
-                    "w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:border-gx-cyan/50 transition-all font-mono",
+                    "w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none  transition-all font-mono",
                     errors.customerPhone && "border-red-500/50"
                   )}
                   placeholder="1xx-xxxx-xxxx"
@@ -88,7 +88,7 @@ export const BookingForm = ({ initialDetails, onSubmit, onCancel }: BookingFormP
               <FileText className="w-3 h-3" /> {t('txt_982cf5')}</label>
             <textarea
               {...register("notes")}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-gx-cyan/50 transition-all min-h-[100px] resize-none"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm focus:outline-none  transition-all min-h-[100px] resize-none"
               placeholder={t('txt_135237')}
             />
           </div>

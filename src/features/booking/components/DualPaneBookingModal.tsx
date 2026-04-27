@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Calendar as CalendarIcon, Clock, User, X, ArrowLeft } from 'lucide-react';
-import Image from "next/image";
 import { cn } from "@/utils/cn";
 import { BookingService, BookingUpsertInput } from "@/features/booking/api/booking";
 import { supabase } from "@/lib/supabase";
@@ -73,6 +72,8 @@ export type BookingEdit = {
   [key: string]: unknown;
 };
 
+import { useVisualSettings } from "@/hooks/useVisualSettings";
+
 export function DualPaneBookingModal({
   isOpen,
   onClose,
@@ -86,6 +87,8 @@ export function DualPaneBookingModal({
 }: DualPaneBookingModalProps) {
   const t = useTranslations('DualPaneBookingModal');
   const { activeShopId, refreshBookings, trackAction } = useShop();
+  const { settings } = useVisualSettings();
+  const isLight = settings.headerTitleColorTheme === 'coreblack';
 
   // --- 结账模式状态 (Neon Core Checkout) ---
   const [checkoutOverride, setCheckoutOverride] = useState<boolean | null>(null);
@@ -146,6 +149,26 @@ export function DualPaneBookingModal({
 
   // --- 历史老客匹配状态 (Historical B-End Match) ---
   const [matchedHistoryCustomer, setMatchedHistoryCustomer] = useState<{name?: string, phone: string, gx_id: string} | null>(null);
+
+  // --- 会员真实姓名 (Customer Real Name) ---
+  const [customerRealName, setCustomerRealName] = useState<string>(() => {
+    if (editingBooking) {
+      const name = editingBooking.customerName || "";
+      const phone = editingBooking.customerPhone || "";
+      const actualPhone = phone || name;
+      return name === actualPhone ? "" : name;
+    }
+    return "";
+  });
+
+  // 当匹配到 C端或历史客资时，自动填充名字
+  useEffect(() => {
+    if (matchedProfile?.name) {
+      setCustomerRealName(matchedProfile.name);
+    } else if (matchedHistoryCustomer?.name) {
+      setCustomerRealName(matchedHistoryCustomer.name);
+    }
+  }, [matchedProfile, matchedHistoryCustomer]);
 
   // --- 会员真实历史消费流 (Real History Data Stream) ---
   const [realHistoryStream, setRealHistoryStream] = useState<any[]>([]);
@@ -404,7 +427,7 @@ export function DualPaneBookingModal({
            // 但我们需要排除那些“尚未真正创建(正在编辑中且未保存)”或者是完全未来且未结账的订单。
            // 这里我们干脆展示所有（因为查出来的都是数据库里的），然后在渲染时根据日期和状态来区分！
            // 为了避免显示太多未来的未完成订单，我们过滤掉“日期大于今天，且未结账”的订单
-           const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+          // const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
            
            // 砸碎物理结界：不要过滤未来的未结账订单，直接吸入所有查询到的数据
            const filteredData = data;
@@ -656,7 +679,8 @@ export function DualPaneBookingModal({
 
     // 2. 生成拆分后的预约卡片数据
     const newBookings: BookingEdit[] = [];
-    const customerName = phoneTracks.filter(t => t.trim() !== "").join(',') || "散客 Walk-in";
+    const customerPhoneStr = phoneTracks.filter(t => t.trim() !== "").join(',');
+    const finalCustomerName = customerRealName.trim() || customerPhoneStr || "散客 Walk-in";
     const baseDate = selectedDate.replace(/\//g, '-'); // 确保格式为 YYYY-MM-DD 以便解析
     
     // 如果编辑的是连单，复用其 masterOrderId；否则生成新的
@@ -710,7 +734,8 @@ export function DualPaneBookingModal({
         masterOrderId: editingBooking ? editingBooking.masterOrderId : masterOrderId,
         resourceId: empId === 'unassigned' ? undefined : empId, // 临时设为 undefined，后面由前置派发逻辑处理
         customerId: finalCustomerId, // 【核心修复】：注入使用 matchedProfile.gx_id 纠正后的智能编号
-        customerName: customerName,
+        customerName: finalCustomerName,
+        customerPhone: customerPhoneStr,
         serviceName: customServiceText ? `${groupServiceNames} (${customServiceText})` : groupServiceNames,
         customServiceText: customServiceText, // 存入自定义文本以便下次编辑回显
         date: baseDate, // 【核心修复】：注入丢失的 date 字段，打破渲染隐形诅咒
@@ -895,7 +920,10 @@ export function DualPaneBookingModal({
     <>
       {isOpen && (
         <div 
-          className="fixed inset-0 z-[100] font-sans text-white animate-in fade-in duration-300"
+          className={cn(
+            "fixed inset-0 z-[100] font-sans animate-in fade-in duration-300",
+            isLight ? "text-black" : "text-white"
+          )}
           style={{
             // 【幽灵点击终极防弹衣】：在弹窗刚挂载的 350ms 内，使其处于绝对物理真空状态 (pointer-events-none)
             // 等待浏览器底层 300ms 的延迟 Click 事件发射完毕并打空后，再恢复 pointer-events-auto
@@ -912,7 +940,7 @@ export function DualPaneBookingModal({
           {/* 背景暗场遮罩 (固定在底层，不随滚动条滚动) */}
           {/* 【硬派商业系统法则】：彻底移除 onClick={handleClose} 属性，防止幽灵点击闪退及防止店长误触导致填单数据丢失 */}
           <div 
-            className={cn("fixed inset-0 pointer-events-auto transition-colors duration-200", isCheckoutMode ? "bg-black/95 backdrop-blur-3xl" : "bg-black/20 backdrop-blur-sm")}
+            className={cn("fixed inset-0 pointer-events-auto transition-colors duration-200", "bg-transparent")}
           />
 
           {/* 滚动容器：允许在移动端键盘弹起时进行瀑布流滑动 */}
@@ -921,32 +949,35 @@ export function DualPaneBookingModal({
             /* ===================== Neon Core 结账舱 ===================== */
             <div 
               key="checkout-pane"
-              className="relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 border border-[#39FF14]/30 rounded-2xl shadow-[0_0_50px_rgba(57,255,20,0.15)] bg-black/60 touch-pan-y pointer-events-auto"
+              className={cn(
+                "relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 rounded-2xl touch-pan-y pointer-events-auto",
+                isLight ? " bg-white/50" : " bg-black/50"
+              )}
             >
               {/* 顶角关闭 / 返回按钮 */}
               {!isAlreadyCompleted && (
                 <button 
                   onClick={() => setCheckoutOverride(false)} 
-                  className="absolute top-4 left-4 text-white/40 hover:text-[#39FF14] transition-colors"
+                  className={cn("absolute top-4 left-4 transition-colors", isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-[#39FF14]")}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
               <button 
                 onClick={handleClose} 
-                className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition-colors"
+                className={cn("absolute top-4 right-4 transition-colors", isLight ? "text-black/40 hover:text-red-500" : "text-white/40 hover:text-red-400")}
               >
                 <X className="w-5 h-5" />
               </button>
 
               {/* Top Anchor: VIP 身份图腾 */}
               <div className="mt-2 mb-4 flex flex-col items-center text-center space-y-1">
-                <span className="text-[#39FF14]/50 text-[10px] font-mono uppercase tracking-widest">Target Entity</span>
+                <span className={cn("text-[10px] font-mono uppercase tracking-widest", isLight ? "text-black/40" : "text-[#39FF14]/50")}>Target Entity</span>
                 <h1 className={cn(
-                  "text-4xl md:text-5xl font-black font-mono tracking-[0.2em] uppercase",
+                  "text-4xl md:text-5xl font-bold font-mono tracking-[0.2em] uppercase",
                   customerId.startsWith('CO') 
-                    ? "text-white/60" 
-                    : "bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(250,204,21,0.3)]"
+                    ? (isLight ? "text-black/60" : "text-white/60") 
+                    : "bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 bg-clip-text text-transparent "
                 )}>
                   [{formatDisplayId(customerId)}]
                 </h1>
@@ -970,7 +1001,7 @@ export function DualPaneBookingModal({
                             {/* 员工签名栏：仅在该员工的第一个项目显示，后续项目留白以维持网格对齐 */}
                             <div className="w-24 shrink-0 text-left">
                               {idx === 0 ? (
-                                <span className="text-lg font-bold tracking-widest text-white/80 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] uppercase">
+                                <span className={cn("text-lg font-bold tracking-widest uppercase", isLight ? "text-black/80 " : "text-white/80 ")}>
                                   {staffName as React.ReactNode}
                                 </span>
                               ) : (
@@ -981,16 +1012,16 @@ export function DualPaneBookingModal({
                             </div>
                             
                             {/* 高对比度项目名称 */}
-                            <span className="text-white font-bold text-lg tracking-wider shrink-0 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                            <span className={cn("font-bold text-lg tracking-wider shrink-0", isLight ? "text-black " : "text-white ")}>
                               {service.name as React.ReactNode}
                             </span>
                             
                             {/* 动态赛博引线 (Leader) */}
-                            <div className="flex-1 h-px border-b border-dashed border-white/20 opacity-60 mx-2" />
+                            <div className={cn("flex-1 h-px border-b border-dashed opacity-60 mx-2", isLight ? "border-black/20" : "border-white/20")} />
                             
                             {/* 价格与备用胶囊阵列 */}
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-white font-bold text-lg tracking-wider">
+                              <span className={cn("font-bold text-lg tracking-wider", isLight ? "text-black" : "text-white")}>
                                 ¥ {getCheckoutPrice(service.id, service.prices)}
                               </span>
                               
@@ -1005,11 +1036,11 @@ export function DualPaneBookingModal({
                                         key={pIdx}
                                         onClick={() => setCheckoutPrices(prev => ({ ...prev, [service.id]: p }))}
                                         className={cn(
-                                          "text-[10px] font-mono px-2 py-0.5 rounded-full border transition-all",
-                                          currentActive 
-                                            ? "bg-[#39FF14]/20 text-[#39FF14] border-[#39FF14]/50 shadow-[0_0_10px_rgba(57,255,20,0.2)]" 
-                                            : "bg-white/5 text-white/50 border-white/10 hover:border-white/30 hover:text-white"
-                                        )}
+                                        "text-[10px] font-mono px-2 py-0.5 rounded-full transition-all",
+                                        currentActive 
+                                          ? "bg-[#39FF14]/20 text-[#39FF14]" 
+                                          : (isLight ? "bg-black/5 text-black/50 hover:bg-black/10 hover:text-black" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white")
+                                      )}
                                       >
                                         {p}
                                       </button>
@@ -1020,6 +1051,7 @@ export function DualPaneBookingModal({
                                   {editingCustomPriceId === service.id ? (
                                     <input 
                                       type="number"
+                                      autoComplete="off"
                                       autoFocus
                                       value={customPriceInput}
                                       onChange={e => setCustomPriceInput(e.target.value)}
@@ -1046,7 +1078,7 @@ export function DualPaneBookingModal({
                                         setCustomPriceInput("");
                                         setEditingCustomPriceId(service.id);
                                       }}
-                                      className="w-6 h-5 flex items-center justify-center rounded-full border border-dashed border-white/20 text-white/40 hover:text-[#39FF14] hover:border-[#39FF14]/50 transition-colors"
+                                      className={cn("w-6 h-5 flex items-center justify-center rounded-full border border-dashed hover:text-[#39FF14] hover:border-[#39FF14]/50 transition-colors", isLight ? "border-black/20 text-black/40" : "border-white/20 text-white/40")}
                                       title="自定义价格"
                                     >
                                       <span className="text-xs leading-none -mt-0.5">+</span>
@@ -1065,15 +1097,15 @@ export function DualPaneBookingModal({
                 {customServiceText && (
                   <div className="flex items-center w-full gap-6 opacity-50 mt-2">
                     <div className="w-24 shrink-0 text-left">
-                      <span className="text-sm font-mono tracking-widest text-white/40 uppercase">
+                      <span className={cn("text-sm font-mono tracking-widest uppercase", isLight ? "text-black/40" : "text-white/40")}>
                         [EXT]
                       </span>
                     </div>
-                    <span className="text-white/80 font-bold text-lg tracking-widest shrink-0">
+                    <span className={cn("font-bold text-lg tracking-widest shrink-0", isLight ? "text-black/80" : "text-white/80")}>
                       {customServiceText as string}
                     </span>
-                    <div className="flex-1 h-px border-b border-dashed border-white/10 mx-2" />
-                    <span className="text-white/50 font-bold text-lg tracking-wider shrink-0">
+                    <div className={cn("flex-1 h-px border-b border-dashed mx-2", isLight ? "border-black/10" : "border-white/10")} />
+                    <span className={cn("font-bold text-lg tracking-wider shrink-0", isLight ? "text-black/50" : "text-white/50")}>
                       --
                     </span>
                   </div>
@@ -1099,14 +1131,14 @@ export function DualPaneBookingModal({
                         className={cn(
                           "text-[10px] font-mono tracking-widest px-4 py-1.5 rounded transition-all whitespace-nowrap",
                           isAlreadyCompleted
-                            ? "bg-transparent text-white/10 border border-white/5 cursor-not-allowed opacity-50"
+                            ? (isLight ? "bg-transparent text-black/10 cursor-not-allowed opacity-50" : "bg-transparent text-white/10 cursor-not-allowed opacity-50")
                             : isSelected 
-                              ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14] shadow-[0_0_15px_rgba(57,255,20,0.3)] scale-105" 
+                              ? "bg-[#39FF14]/20 text-[#39FF14] scale-105" 
                               : isVipMethod && canUseVip
-                                ? "bg-white/5 text-yellow-400/80 border border-yellow-400/30 hover:border-yellow-400/60"
+                                ? "bg-white/5 text-yellow-400/80 hover:bg-white/10"
                                 : isVipMethod && !canUseVip
-                                  ? "bg-transparent text-white/10 border border-white/5 cursor-not-allowed"
-                                  : "bg-transparent text-white/40 border border-white/10 hover:border-white/30 hover:text-white/80"
+                                  ? (isLight ? "bg-transparent text-black/10 cursor-not-allowed" : "bg-transparent text-white/10 cursor-not-allowed")
+                                  : (isLight ? "bg-transparent text-black/40 hover:bg-black/5 hover:text-black/80" : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/80")
                         )}
                       >
                         [{method}]
@@ -1117,12 +1149,12 @@ export function DualPaneBookingModal({
                 
                 <div className="text-[10px] text-[#39FF14]/50 tracking-[0.3em] uppercase mb-1">Total Amount</div>
                 <div className={cn(
-                  "text-5xl font-black tabular-nums transition-all duration-500 tracking-tighter mb-4",
+                  "text-5xl font-bold tabular-nums transition-all duration-500 tracking-tighter mb-4",
                   isAlreadyCompleted
-                    ? "text-[#39FF14] drop-shadow-[0_0_10px_rgba(57,255,20,0.3)]" // 已结账：静谧稳定绿
+                    ? "text-[#39FF14] drop-" // 已结账：静谧稳定绿
                     : checkoutSlideProgress === 100 
-                      ? "text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] scale-110" 
-                      : "text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)]"
+                      ? (isLight ? "text-black  scale-110" : "text-white  scale-110") 
+                      : "text-[#39FF14] drop-"
                 )}>
                   ¥ {checkoutAllServices.reduce((sum, s) => sum + getCheckoutPrice(s.id, s.prices), 0)}.00
                 </div>
@@ -1144,10 +1176,10 @@ export function DualPaneBookingModal({
                     <span className={cn(
                       "text-[10px] font-mono tracking-widest uppercase transition-all duration-300",
                       isAlreadyCompleted
-                        ? "text-[#39FF14] font-bold tracking-[0.4em] drop-shadow-[0_0_8px_rgba(57,255,20,0.8)]"
+                        ? "text-[#39FF14] font-bold tracking-[0.4em] drop-"
                         : isCheckoutReady 
                           ? "text-[#39FF14]/80" // 移除呼吸灯特效 
-                          : "text-white/20",
+                          : (isLight ? "text-black/20" : "text-white/20"),
                       !isAlreadyCompleted && checkoutSlideProgress > 20 && "opacity-0"
                     )}>
                       {isAlreadyCompleted ? "/// PAYMENT VERIFIED ///" : isCheckoutReady ? ">>> SLIDE TO PAY >>>" : "[ 请先选择支付方式 ]"}
@@ -1160,7 +1192,7 @@ export function DualPaneBookingModal({
                       className={cn(
                         "absolute top-1 bottom-1 w-12 rounded-full cursor-grab active:cursor-grabbing flex items-center justify-center z-10 transition-colors",
                         isCheckoutReady 
-                          ? "bg-[#39FF14] shadow-[0_0_15px_rgba(57,255,20,0.8)]" 
+                          ? "bg-[#39FF14]" 
                           : "bg-white/10"
                       )}
                       style={{
@@ -1289,32 +1321,33 @@ export function DualPaneBookingModal({
                           console.error("Reject failed:", e);
                         }
                       }}
-                      className="text-red-500 hover:text-red-400 font-black tracking-widest text-3xl md:text-4xl drop-shadow-[0_0_20px_rgba(239,68,68,1)] transition-all hover:scale-110 hover:-translate-y-2 uppercase"
+                      className="text-red-500 hover:text-red-400 font-bold tracking-widest text-3xl md:text-4xl  transition-all hover:scale-110 hover:-translate-y-2 uppercase"
                     >
                       {t('txt_7173f8')}</button>
                     <button 
                       onClick={() => setIsAIPending(false)}
-                      className="text-[#39FF14] hover:text-green-400 font-black tracking-widest text-3xl md:text-4xl drop-shadow-[0_0_20px_rgba(57,255,20,1)] transition-all hover:scale-110 hover:-translate-y-2 uppercase"
+                      className="text-[#39FF14]  font-bold tracking-widest text-3xl md:text-4xl drop- transition-all hover:scale-110 hover:-translate-y-2 uppercase"
                     >
                       {t('txt_e61f2c')}</button>
                   </div>
                 </div>
               )}
 
-              {/* 核心双窗容器 (Glassmorphism + Neon Border) */}
+              {/* 核心双窗容器 (Glassmorphism + Zero Border) */}
               <main className={cn(
-                "w-full h-auto min-h-[500px] md:h-[450px] flex flex-col md:flex-row relative group transition-all duration-300 rounded-2xl border shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black/40 pointer-events-auto backdrop-blur-xl",
-                isAIPending ? "border-white/20 opacity-60 grayscale-[0.2]" : "border-gx-cyan/50"
+                "w-full h-auto min-h-[500px] md:h-[450px] flex flex-col md:flex-row relative group transition-all duration-300 rounded-2xl pointer-events-auto overflow-hidden",
+                isLight ? "bg-white/50" : "bg-black/50",
+                isAIPending ? "opacity-60 grayscale-[0.2]" : ""
               )}>
                 <button 
                   onClick={handleClose} 
-                  className="absolute top-4 right-4 text-white/40 hover:text-red-400 transition-colors z-50"
+                  className={cn("absolute top-4 right-4 transition-colors z-50", isLight ? "text-black/40 hover:text-red-500" : "text-white/40 hover:text-red-400")}
                 >
                   <X className="w-5 h-5" />
                 </button>
                 {/* ===================== 左侧/顶部：控制台面板 ===================== */}
                   <section 
-                    className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 pb-24 md:pb-24 flex flex-col gap-4 relative z-10 border-b md:border-b-0 border-white/10 shrink-0"
+                    className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 pb-24 md:pb-24 flex flex-col gap-4 relative z-10 shrink-0"
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                   >
@@ -1322,11 +1355,12 @@ export function DualPaneBookingModal({
                 {/* 表单录入区 */}
                 <div className="flex flex-col gap-4 mt-1">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">{t('txt_ef3505')}</label>
+                    <label className={cn("text-[10px] font-bold font-mono tracking-widest uppercase", isLight ? "text-black" : "text-white")}>{t('txt_ef3505')}</label>
                     <div 
                       className={cn(
-                        "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] overflow-hidden",
-                        activePaneMode === 'service' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
+                        "border rounded-lg p-2 min-h-[48px] flex items-center cursor-text transition-all overflow-hidden",
+                        isLight ? "bg-white/40" : "bg-black/40",
+                        activePaneMode === 'service' ? `${isLight ? "border-[#8B7355]" : "border-[#FDF5E6]"}` : `${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"} ${isLight ? "hover:border-[#8B7355]/70" : "hover:border-[#FDF5E6]/70"}`
                       )}
                       onClick={() => {
                         // 终极修复：由于内部的胶囊 (button) 已经有了 e.stopPropagation()，
@@ -1338,11 +1372,11 @@ export function DualPaneBookingModal({
                     >
                       <div id="custom-service-input-container" className="flex-1 flex flex-wrap items-center gap-2 w-full h-full">
                         {selectedServices.length === 0 && customServiceText === "" && (
-                          <span className="text-[11px] text-white/20 absolute pointer-events-none ml-1">{t('txt_1809c0')}</span>
+                          <span className={cn("text-[11px] absolute pointer-events-none ml-1", isLight ? "text-black/30" : "text-white/20")}>{t('txt_1809c0')}</span>
                         )}
                         {selectedServices.map((s, index) => {
                           const staff = staffs.find(st => st.id === s.assignedEmployeeId);
-                          const textColor = staff ? staff.color : '#ffffff'; // 未指定时字体为亮白色
+                          const textColor = staff ? staff.color : (isLight ? '#000000' : '#ffffff'); // 未指定时字体根据主题
                           const isRetargeting = retargetingServiceId === s.id;
                           
                           return (
@@ -1354,12 +1388,15 @@ export function DualPaneBookingModal({
                                 setActivePaneMode('service'); // 确保唤起右侧服务面板
                               }}
                               className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-all shrink-0 group relative overflow-hidden",
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-all shrink-0 group relative overflow-hidden bg-transparent",
                                 isRetargeting 
-                                  ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] animate-pulse" 
-                                  : "bg-white/5 border-white/10 hover:bg-white/10"
+                                  ? (isLight ? "bg-black text-white border-black  animate-pulse" : "bg-white text-black border-white  animate-pulse")
+                                  : (isLight ? "hover:bg-black/5" : "hover:bg-white/5")
                               )}
                               title={t('txt_d0dea7')}
+                              style={!isRetargeting ? {
+                                border: `1px solid ${textColor as string}`
+                              } : {}}
                             >
                                {/* 左侧颜色指示条 */}
                                <div 
@@ -1369,8 +1406,7 @@ export function DualPaneBookingModal({
                               <span 
                                 className="text-[12px] font-bold tracking-wide transition-colors ml-1"
                                 style={!isRetargeting ? { 
-                                  color: textColor as string,
-                                  textShadow: staff ? `0 0 8px ${textColor as string}40` : 'none'
+                                  color: textColor as string
                                 } : {}}
                               >
                                 {s.name as React.ReactNode}
@@ -1378,7 +1414,7 @@ export function DualPaneBookingModal({
                               
                               {/* 删除按钮 */}
                               <div 
-                                className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded-full text-white/40 hover:text-red-400"
+                                className={cn("ml-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded-full hover:text-red-500", isLight ? "text-black/40" : "text-white/40 hover:text-red-400")}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleToggleService(s); // 再次点击等于取消选中
@@ -1393,34 +1429,36 @@ export function DualPaneBookingModal({
                         <input
                           id="custom-service-input"
                           type="text"
+                          autoComplete="off"
                           value={customServiceText as string}
                           onChange={(e) => setCustomServiceText(e.target.value)}
-                          className="bg-transparent border-none outline-none text-[12px] text-white font-bold flex-1 min-w-[60px] p-0 m-0 leading-tight placeholder:text-transparent shrink-0 ml-1"
+                          className={cn("bg-transparent border-none outline-none text-[12px] font-bold flex-1 min-w-[60px] p-0 m-0 leading-tight placeholder:text-transparent shrink-0 ml-1", isLight ? "text-black" : "text-white")}
                           placeholder={selectedServices.length > 0 ? "" : " "}
                         />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">{t('txt_32fd76')}</label>
+                    <label className={cn("text-[10px] font-bold font-mono tracking-widest uppercase", isLight ? "text-black" : "text-white")}>{t('txt_32fd76')}</label>
                     <div 
                       className={cn(
-                        "bg-black/40 border rounded-lg p-2 min-h-[48px] flex items-center gap-2 cursor-text transition-all shadow-[0_0_10px_rgba(0,240,255,0.05)] relative group",
-                        activePaneMode === 'member' ? "border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.2)]" : "border-gx-cyan/30 hover:border-gx-cyan/70"
+                        "border rounded-lg p-2 min-h-[48px] flex items-center gap-2 cursor-text transition-all relative group",
+                        isLight ? "bg-white/40" : "bg-black/40",
+                        activePaneMode === 'member' ? `${isLight ? "border-[#8B7355]" : "border-[#FDF5E6]"}` : `${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"} ${isLight ? "hover:border-[#8B7355]/70" : "hover:border-[#FDF5E6]/70"}`
                       )}
                       onClick={() => {
                         setActivePaneMode('member');
                         setIsMemberInputFocused(true); // 点击整个区域时触发输入模式
                       }}
                     >
-                      <User className={cn("w-3 h-3 shrink-0", activePaneMode === 'member' ? "text-gx-cyan" : "text-gx-cyan/70")} />
+                      <User className={cn("w-3 h-3 shrink-0", activePaneMode === 'member' ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : `${isLight ? "text-[#8B7355]/70" : "text-[#FDF5E6]/70"}`)} />
                       
                       {/* 终极极简交互：如果处于非输入状态，且有 phoneTracks[0] 则说明有记录，如果为空则显示 placeholder */}
                       {!isMemberInputFocused && phoneTracks[0] ? (
                         <div className="flex-1 truncate flex items-center justify-start pl-2">
                           <span className={cn(
                             "text-[11px] font-bold font-mono tracking-widest leading-none -translate-y-[1px]",
-                            matchedProfile || matchedHistoryCustomer || (customerId && !customerId.startsWith('CO')) ? "text-gx-cyan" : "text-white/80"
+                            matchedProfile || matchedHistoryCustomer || (customerId && !customerId.startsWith('CO')) ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black/80" : "text-white/80")
                           )}>
                             {matchedProfile?.name || phoneTracks[0]}
                           </span>
@@ -1430,8 +1468,9 @@ export function DualPaneBookingModal({
                         <div className="flex-1 w-full h-full flex flex-col justify-center pl-2 relative">
                           <input 
                             type="text" 
+                            autoComplete="off"
                             placeholder={t('txt_9be070')} 
-                            className="bg-transparent border-none outline-none text-[11px] w-full placeholder:text-white/20 text-white font-bold truncate leading-none text-left"
+                            className={cn("bg-transparent border-none outline-none text-[11px] w-full font-bold truncate leading-none text-left", isLight ? "placeholder:text-black/30 text-black" : "placeholder:text-white/20 text-white")}
                             value={phoneTracks[0] || ""}
                             onChange={(e) => {
                               const newTracks = [...phoneTracks];
@@ -1454,23 +1493,23 @@ export function DualPaneBookingModal({
                                 animate={{ opacity: 1, y: 0, height: 'auto' }}
                                 exit={{ opacity: 0, y: -5, height: 0 }}
                                 transition={{ duration: 0.2 }}
-                                className="absolute top-[120%] left-0 w-[120%] bg-black/90 border border-gx-cyan/30 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8),0_0_15px_rgba(0,240,255,0.1)] backdrop-blur-2xl z-[100] overflow-hidden flex flex-col"
+                                className={cn("absolute top-[120%] left-0 w-[120%] border rounded-xl  z-[100] overflow-hidden flex flex-col", isLight ? `bg-white/90 ${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"}` : `bg-black/90 ${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"}`)}
                               >
                                 {/* 顶部光线 */}
-                                <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-gx-cyan to-transparent opacity-50" />
+                                <div className={`h-[1px] w-full bg-gradient-to-r from-transparent ${isLight ? "via-[#8B7355]" : "via-[#FDF5E6]"} to-transparent opacity-50`} />
                                 
                                 {isFuzzySearching ? (
-                                  <div className="p-4 flex items-center justify-center gap-2 text-white/40">
-                                    <span className="w-1 h-1 bg-gx-cyan rounded-full animate-ping" />
-                                    <span className="w-1 h-1 bg-gx-cyan rounded-full animate-ping delay-150" />
-                                    <span className="w-1 h-1 bg-gx-cyan rounded-full animate-ping delay-300" />
+                                  <div className="p-4 flex items-center justify-center gap-2 opacity-40">
+                                    <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping`} />
+                                    <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping delay-150`} />
+                                    <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping delay-300`} />
                                   </div>
                                 ) : (
                                   <div className="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col py-1">
                                     {fuzzyResults.map((result, idx) => (
                                       <div 
                                         key={idx}
-                                        className="px-3 py-2.5 hover:bg-gx-cyan/10 cursor-pointer flex items-center justify-between group transition-colors"
+                                        className={`px-3 py-2.5 ${isLight ? "hover:bg-[#8B7355]/10" : "hover:bg-[#FDF5E6]/10"} cursor-pointer flex items-center justify-between group transition-colors`}
                                         onClick={() => {
                                           const newTracks = [...phoneTracks];
                                           newTracks[0] = result.phone;
@@ -1495,22 +1534,22 @@ export function DualPaneBookingModal({
                                         }}
                                       >
                                         <div className="flex flex-col gap-0.5">
-                                          <span className="text-[11px] font-mono text-white group-hover:text-gx-cyan transition-colors">
+                                          <span className={cn(`text-[11px] font-mono ${isLight ? "group-hover:text-[#8B7355]" : "group-hover:text-[#FDF5E6]"} transition-colors`, isLight ? "text-black" : "text-white")}>
                                             {/* 高亮匹配的数字 */}
                                             {result.phone.split(new RegExp(`(${phoneTracks[0]})`, 'gi')).map((part: string, i: number) => 
                                               part.toLowerCase() === phoneTracks[0].toLowerCase() 
-                                                ? <span key={i} className="text-gx-cyan font-black bg-gx-cyan/20 px-0.5 rounded">{part}</span>
+                                                ? <span key={i} className={`${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} font-bold ${isLight ? "bg-[#8B7355]/20" : "bg-[#FDF5E6]/20"} px-0.5 rounded`}>{part}</span>
                                                 : <span key={i}>{part}</span>
                                             )}
                                           </span>
                                           {result.name && (
-                                            <span className="text-[9px] font-mono text-white/40 group-hover:text-white/70 truncate max-w-[120px]">
+                                            <span className={cn("text-[9px] font-mono truncate max-w-[120px]", isLight ? "text-black/40 group-hover:text-black/70" : "text-white/40 group-hover:text-white/70")}>
                                               {result.name}
                                             </span>
                                           )}
                                         </div>
                                         {result.gx_id && !result.gx_id.startsWith('CO') && (
-                                          <div className="shrink-0 px-1.5 py-0.5 rounded border border-gx-pink/30 bg-gx-pink/10 text-gx-pink text-[9px] font-mono tracking-widest uppercase">
+                                          <div className="shrink-0 px-1.5 py-0.5 rounded border    text-[9px] font-mono tracking-widest uppercase">
                                             {result.gx_id.replace(/^[a-zA-Z]+\s*/, '')}
                                           </div>
                                         )}
@@ -1527,29 +1566,31 @@ export function DualPaneBookingModal({
                   </div>
                 </div>
 
-                {/* 预约时空仪表盘 (Unified Time/Date Dashboard) */}
-                <div className="mt-2 space-y-1.5">
-                  <label className="text-[10px] text-white font-bold font-mono tracking-widest uppercase">{t('txt_5b32fe')}</label>
-                  <div className="bg-black/40 border border-white/10 rounded-xl p-1.5 flex flex-col gap-1 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                {/* 预约时空仪表盘 (Unified Time/Date Dashboard) - 悬浮极简版 */}
+                <div className="mt-4 space-y-2">
+                  <label className={cn("text-[10px] font-bold font-mono tracking-[0.2em] uppercase opacity-50", isLight ? "text-black" : "text-white")}>{t('txt_5b32fe')}</label>
+                  <div className="rounded-xl flex flex-col overflow-hidden transition-colors bg-transparent">
+                    
                     {/* 上半部分：日期与时间 (并排) */}
-                    <div className="flex gap-1">
+                    <div className="flex">
                       {/* 预约日期触发器 */}
                       <button
                         onClick={() => setActivePaneMode('date')}
                         className={cn(
-                          "flex-1 flex flex-col items-start justify-center p-3 rounded-lg transition-all border group",
-                          activePaneMode === 'date' 
-                            ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
-                            : "bg-white/5 border-transparent hover:bg-white/10"
+                          "flex-1 flex flex-col items-start justify-center p-4 transition-all relative group",
+                          isLight ? "hover:bg-black/5" : "hover:bg-white/5"
                         )}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <CalendarIcon className={cn("w-3.5 h-3.5", activePaneMode === 'date' ? "text-gx-cyan" : "text-white/40 group-hover:text-white/60")} />
-                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">{t('txt_4ff1e7')}</span>
+                        {activePaneMode === 'date' && (
+                          <div className={`absolute top-0 left-0 w-full h-0.5 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />
+                        )}
+                        <div className="flex items-center gap-2 mb-2">
+                          <CalendarIcon className={cn("w-3 h-3 transition-colors", activePaneMode === 'date' ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black/30 group-hover:text-black/50" : "text-white/30 group-hover:text-white/50"))} />
+                          <span className={cn("text-[10px] font-mono tracking-[0.2em] uppercase transition-colors", isLight ? "text-black/30 group-hover:text-black/50" : "text-white/30 group-hover:text-white/50")}>{t('txt_4ff1e7')}</span>
                         </div>
                         <span className={cn(
-                          "text-sm font-bold font-mono tracking-wider",
-                          activePaneMode === 'date' ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/80"
+                          "text-lg font-bold font-mono tracking-wider transition-all",
+                          activePaneMode === 'date' ? (isLight ? "text-black " : "text-white ") : (isLight ? "text-black/90" : "text-white/90")
                         )}>
                           {selectedDate.replace(/\//g, '.')}
                         </span>
@@ -1559,19 +1600,20 @@ export function DualPaneBookingModal({
                       <button
                         onClick={() => setActivePaneMode('time')}
                         className={cn(
-                          "flex-1 flex flex-col items-start justify-center p-3 rounded-lg transition-all border group",
-                          activePaneMode === 'time' 
-                            ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
-                            : "bg-white/5 border-transparent hover:bg-white/10"
+                          "flex-1 flex flex-col items-start justify-center p-4 transition-all relative group",
+                          isLight ? "hover:bg-black/5" : "hover:bg-white/5"
                         )}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Clock className={cn("w-3.5 h-3.5", activePaneMode === 'time' ? "text-gx-cyan" : "text-white/40 group-hover:text-white/60")} />
-                          <span className="text-[9px] text-white/40 font-mono tracking-widest uppercase">{t('txt_19fcb9')}</span>
+                        {activePaneMode === 'time' && (
+                          <div className={`absolute top-0 left-0 w-full h-0.5 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />
+                        )}
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className={cn("w-3 h-3 transition-colors", activePaneMode === 'time' ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black/30 group-hover:text-black/50" : "text-white/30 group-hover:text-white/50"))} />
+                          <span className={cn("text-[10px] font-mono tracking-[0.2em] uppercase transition-colors", isLight ? "text-black/30 group-hover:text-black/50" : "text-white/30 group-hover:text-white/50")}>{t('txt_19fcb9')}</span>
                         </div>
                         <span className={cn(
-                          "text-sm font-bold font-mono tracking-wider",
-                          activePaneMode === 'time' ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/80"
+                          "text-lg font-bold font-mono tracking-wider transition-all",
+                          activePaneMode === 'time' ? (isLight ? "text-black " : "text-white ") : (isLight ? "text-black/90" : "text-white/90")
                         )}>
                           {selectedTime}
                         </span>
@@ -1579,30 +1621,34 @@ export function DualPaneBookingModal({
                     </div>
 
                     {/* 下半部分：时长与结束时间推算 (并排) */}
-                    <div className="flex gap-1">
+                    <div className="flex">
                       {/* 服务时长触发器 */}
                       <button
                         onClick={() => setActivePaneMode('duration')}
                         className={cn(
-                          "flex-1 flex items-center justify-between p-3 rounded-lg transition-all border group",
-                          activePaneMode === 'duration' 
-                            ? "bg-gx-cyan/10 border-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.15)]" 
-                            : "bg-white/5 border-transparent hover:bg-white/10"
+                          "flex-1 flex items-center justify-between p-4 transition-all relative group",
+                          isLight ? "hover:bg-black/5" : "hover:bg-white/5"
                         )}
                       >
-                        <span className="text-[10px] text-white/40 font-mono tracking-widest uppercase">{t('txt_5bdfd7')}</span>
+                        {activePaneMode === 'duration' && (
+                          <div className={`absolute bottom-0 left-0 w-full h-0.5 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />
+                        )}
+                        <span className={cn("text-[10px] font-mono tracking-[0.2em] uppercase transition-colors", isLight ? "text-black/30 group-hover:text-black/50" : "text-white/30 group-hover:text-white/50")}>{t('txt_5bdfd7')}</span>
                         <span className={cn(
-                          "text-xs font-bold font-mono",
-                          durationOffset !== 0 ? "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]" : "text-white/80"
+                          "text-sm font-bold font-mono transition-all",
+                          durationOffset !== 0 ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-` : (isLight ? "text-black/90" : "text-white/90")
                         )}>
                           {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
                         </span>
                       </button>
 
                       {/* 结束时间 (只读展示) */}
-                      <div className="flex-1 flex items-center justify-between p-3 rounded-lg bg-black/40 border border-transparent">
-                        <span className="text-[10px] text-white/30 font-mono tracking-widest uppercase">{t('txt_946010')}</span>
-                        <span className="text-xs font-bold font-mono text-white/40">
+                      <div className={cn(
+                        "flex-1 flex items-center justify-between p-4 transition-all",
+                        totalDuration === 0 ? "opacity-30" : ""
+                      )}>
+                        <span className={cn("text-[10px] font-mono tracking-[0.2em] uppercase", isLight ? "text-black/30" : "text-white/30")}>{t('txt_946010')}</span>
+                        <span className={cn("text-sm font-bold font-mono", isLight ? "text-black/90" : "text-white/90")}>
                           {getEndTime()}
                         </span>
                       </div>
@@ -1621,45 +1667,46 @@ export function DualPaneBookingModal({
                   // 服务项目选择矩阵与人员分配
                   <div className="h-full flex flex-col overflow-hidden relative">
                     {/* 分类标签导航 */}
-                    <div className="flex gap-[20px] border-b border-white/10 pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none">
+                    <div className="flex gap-[20px] pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none">
                       {categories.map(cat => (
                         <button
                           key={cat.id}
                           onClick={() => setActiveCategory(cat.id)}
                           className={cn(
                             "text-[15px] font-mono whitespace-nowrap transition-colors uppercase tracking-widest pointer-events-auto",
-                            activeCategory === cat.id ? "text-gx-cyan font-bold" : "text-white/40 hover:text-white/80"
+                            activeCategory === cat.id ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} font-bold` : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
                           )}
                         >
                           {(cat.name || '').replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()}
                         </button>
                       ))}
                       {categories.length === 0 && (
-                        <span className="text-[10px] text-white/30 font-mono">{t('txt_0552d7')}</span>
+                        <span className={cn("text-[10px] font-mono", isLight ? "text-black/30" : "text-white/30")}>{t('txt_0552d7')}</span>
                       )}
                     </div>
 
                     {/* Pro Studio 工作台布局：左侧画笔槽 + 右侧画布 */}
                     <div className="flex-1 flex gap-3 overflow-hidden min-h-0">
                       {/* 左侧垂直画笔槽 (极致压缩版竖列胶囊) */}
-                      <div className="w-[80px] shrink-0 flex flex-col gap-1.5 overflow-y-auto no-scrollbar border-r border-white/5 pr-2 pb-10">
+                      <div className="w-[80px] shrink-0 flex flex-col gap-1.5 overflow-y-auto no-scrollbar pr-2 pb-24">
                         {/* 无指定 (断电态) */}
                         <button
                           onClick={() => handleSetBrush(null)}
                           className={cn(
-                            "flex items-center justify-start gap-2 p-2 rounded-lg transition-all border shrink-0 h-[36px]",
-                            currentBrushEmployeeId === null
-                              ? "bg-gx-cyan/10 border-gx-cyan/50 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
-                              : "bg-white/5 border-transparent hover:bg-white/10"
+                            "flex items-center justify-start gap-2 p-2 rounded-lg transition-all shrink-0 h-[36px] bg-transparent",
+                            currentBrushEmployeeId !== null && (isLight ? "hover:bg-black/5" : "hover:bg-white/5")
                           )}
+                          style={{
+                            border: currentBrushEmployeeId === null ? `1px solid ${isLight ? '#8B7355' : '#FDF5E6'}` : '1px solid transparent'
+                          }}
                         >
                           <div className={cn(
                             "w-2 h-2 rounded-full shrink-0 transition-all",
-                            currentBrushEmployeeId === null ? "bg-gx-cyan shadow-[0_0_8px_rgba(0,240,255,0.8)]" : "border border-white/20"
+                            currentBrushEmployeeId === null ? `${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}` : (isLight ? "border border-black/20" : "border border-white/20")
                           )} />
                           <span className={cn(
                             "text-[11px] font-mono font-bold tracking-wider uppercase text-left truncate",
-                            currentBrushEmployeeId === null ? "text-gx-cyan" : "text-white/40"
+                            currentBrushEmployeeId === null ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black/40" : "text-white/40")
                           )}>
                             TBD
                           </span>
@@ -1673,12 +1720,12 @@ export function DualPaneBookingModal({
                               key={staff.id}
                               onClick={() => handleSetBrush(staff.id)}
                               className={cn(
-                                "flex items-center justify-start gap-2 p-2 rounded-lg transition-all border shrink-0 h-[36px]",
-                                isAssigned
-                                  ? "bg-white/10 shadow-lg"
-                                  : "bg-transparent border-transparent hover:bg-white/5"
+                                "flex items-center justify-start gap-2 p-2 rounded-lg transition-all shrink-0 h-[36px] bg-transparent",
+                                !isAssigned && (isLight ? "hover:bg-black/5" : "hover:bg-white/5")
                               )}
-                              style={isAssigned ? { borderColor: staff.color, boxShadow: `0 0 10px ${staff.color}30` } : {}}
+                              style={{
+                                border: isAssigned ? `1px solid ${staff.color}` : '1px solid transparent'
+                              }}
                             >
                               <div 
                                 className={cn(
@@ -1686,13 +1733,12 @@ export function DualPaneBookingModal({
                                   isAssigned ? "scale-125" : ""
                                 )}
                                 style={{ 
-                                  backgroundColor: staff.color,
-                                  boxShadow: isAssigned ? `0 0 8px ${staff.color}` : 'none'
+                                  backgroundColor: staff.color
                                 }}
                               />
                               <span className={cn(
                                 "text-[11px] font-mono font-bold tracking-wider uppercase text-left truncate",
-                                isAssigned ? "text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" : "text-white/50"
+                                isAssigned ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/50" : "text-white/50")
                               )}>
                                 {staff.name}
                               </span>
@@ -1702,7 +1748,7 @@ export function DualPaneBookingModal({
                       </div>
 
                       {/* 右侧服务项目矩阵画布 */}
-                      <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+                      <div className="flex-1 overflow-y-auto custom-scrollbar pb-24">
                         <div className="grid grid-cols-2 gap-3 pr-2 content-start">
                           {services
                             .filter(s => s.categoryId === activeCategory)
@@ -1712,20 +1758,20 @@ export function DualPaneBookingModal({
                               const assignedStaff = selectedData ? staffs.find(st => st.id === selectedData.assignedEmployeeId) : null;
                               
                               // 灵魂注入材质：根据分配的员工颜色决定发光颜色
-                              const glowColor = assignedStaff ? assignedStaff.color : 'rgba(0,240,255,0.8)'; // 未指定时默认青色发光
+                              const glowColor = assignedStaff ? assignedStaff.color : (isLight ? '#8B7355' : '#FDF5E6'); // 未指定时默认黑金/白金发光
                               const glowStyle = isSelected ? {
-                                borderColor: glowColor,
-                                boxShadow: `0 0 20px ${glowColor}30`,
-                                backgroundColor: `${glowColor}10`
-                              } : {};
+                                border: `1px solid ${glowColor}`
+                              } : {
+                                border: `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}`
+                              };
 
                               return (
                                 <button
                                   key={service.id}
                                   onClick={() => handleToggleService(service)}
                                   className={cn(
-                                    "p-3 rounded-xl border transition-none text-left flex flex-col justify-center h-[64px] group relative overflow-hidden",
-                                    !isSelected && "bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10"
+                                    "p-3 rounded-xl transition-none text-left flex flex-col justify-center h-[64px] group relative overflow-hidden bg-transparent",
+                                    !isSelected && (isLight ? "hover:bg-black/5" : "hover:bg-white/5")
                                   )}
                                   style={glowStyle}
                                 >
@@ -1733,15 +1779,16 @@ export function DualPaneBookingModal({
                                   
                                   <span className={cn(
                                     "text-xs font-bold line-clamp-2 leading-tight transition-none pr-3 z-10",
-                                    isSelected ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : "text-white/60 group-hover:text-white"
-                                  )}>
+                                    !isSelected && (isLight ? "text-black/60 group-hover:text-black" : "text-white/60 group-hover:text-white")
+                                  )}
+                                  style={isSelected ? { color: glowColor } : {}}>
                                     {service.name}
                                   </span>
                                 </button>
                               );
                             })}
                           {services.filter(s => s.categoryId === activeCategory).length === 0 && categories.length > 0 && (
-                            <div className="col-span-full text-center text-[10px] text-white/20 font-mono mt-10">
+                            <div className={cn("col-span-full text-center text-[10px] font-mono mt-10", isLight ? "text-black/20" : "text-white/20")}>
                               NO SERVICES IN THIS CATEGORY
                             </div>
                           )}
@@ -1756,44 +1803,42 @@ export function DualPaneBookingModal({
                     className="h-full flex flex-col p-2 overflow-hidden relative"
                   >
                     {/* 1. 顶部：核心身份与消费概览 (双轨ID跨域融合架构) */}
-                    <div className="flex items-start justify-between border-b border-white/10 pb-4 mb-4 shrink-0 px-2">
+                    <div className="flex items-start justify-between pb-4 mb-4 shrink-0 px-2">
                       <div className="flex items-center gap-4 w-[75%]">
                         {/* 左侧：全息圆形头像 (平台社交身份锚点) */}
                         <div className="relative shrink-0">
                           <div className={cn(
-                            "w-14 h-14 rounded-full flex items-center justify-center backdrop-blur-xl transition-transform duration-500 relative border-2",
+                            "w-14 h-14 rounded-full flex items-center justify-center  transition-transform duration-500 relative border-2",
                             matchedProfile 
-                              ? "bg-gradient-to-br from-gx-pink/20 to-gx-purple/20 border-gx-pink/60 shadow-[0_0_20px_rgba(255,0,234,0.3)]" // 已匹配 C 端用户
+                              ? "bg-gradient-to-br    " // 已匹配 C 端用户
                               : matchedHistoryCustomer
-                                ? "bg-gradient-to-br from-gx-cyan/20 to-gx-blue/20 border-gx-cyan/60 shadow-[0_0_20px_rgba(0,240,255,0.3)]" // 已匹配 B 端老客
+                                ? `bg-gradient-to-br ${isLight ? "from-[#8B7355]/20" : "from-[#FDF5E6]/20"} to-gx-blue/20 ${isLight ? "border-[#8B7355]/60" : "border-[#FDF5E6]/60"}` // 已匹配 B 端老客
                                 : (phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO')))
-                                  ? "bg-gradient-to-br from-gx-pink/20 to-gx-purple/20 border-gx-pink/60 shadow-[0_0_20px_rgba(255,0,234,0.3)]"
-                                  : "bg-white/5 border-white/10" // 游离态散客
+                                  ? "bg-gradient-to-br    "
+                                  : (isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10") // 游离态散客
                           )}>
-                            {matchedProfile?.avatar_url ? (
-                              <Image
-                                src={matchedProfile.avatar_url}
-                                alt="avatar"
-                                width={56}
-                                height={56}
-                                className="w-full h-full rounded-full object-cover"
-                              />
-                            ) : (matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) ? (
-                              <Image
-                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=gx-vip"
-                                alt="avatar"
-                                width={56}
-                                height={56}
-                                className="w-full h-full rounded-full object-cover"
-                              />
-                            ) : (
-                              <User className="w-6 h-6 text-white/20" />
-                            )}
+                            <span className={cn(
+                              "text-xl font-bold font-mono tracking-widest",
+                              customerId.startsWith('CO')
+                                ? (isLight ? "text-black/40" : "text-white/40")
+                                : `bg-gradient-to-br ${isLight ? "from-[#8B7355]" : "from-[#FDF5E6]"}  bg-clip-text text-transparent `
+                            )}>
+                              {(() => {
+                                if (customerId) {
+                                  const prefix = customerId.substring(0, 2).toUpperCase();
+                                  if (/^[A-Z]{2}$/.test(prefix)) return prefix;
+                                }
+                                if (newCustomerType) {
+                                  return newCustomerType.toUpperCase();
+                                }
+                                return 'CO';
+                              })()}
+                            </span>
                             
                             {/* 匹配成功的光晕特效 */}
                             {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
                               <div 
-                                className="absolute inset-[-4px] rounded-full border border-dashed border-gx-pink/40 pointer-events-none animate-[spin_15s_linear_infinite]"
+                                className="absolute inset-[-4px] rounded-full border border-dashed  pointer-events-none animate-[spin_15s_linear_infinite]"
                               />
                             )}
                           </div>
@@ -1804,42 +1849,53 @@ export function DualPaneBookingModal({
                           {/* 上层：门店内部档案编号 (业务基石，绝不覆盖) */}
                           <div className="flex items-baseline gap-2">
                             <div className={cn(
-                              "font-mono text-lg font-black tracking-[0.1em] shrink-0 leading-none",
+                              "font-mono text-lg font-bold tracking-[0.1em] shrink-0 leading-none",
                               customerId.startsWith('CO') 
-                                ? "text-gx-cyan" // 散客冷峻单色
-                                : "bg-gradient-to-r from-gx-cyan via-purple-400 to-pink-500 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]" // VIP 七彩流光
+                                ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` // 散客冷峻单色
+                                : `bg-gradient-to-r ${isLight ? "from-[#8B7355]" : "from-[#FDF5E6]"}   bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-` // VIP 七彩流光
                             )}>
                               {formatDisplayId(customerId)}
                             </div>
-                            {/* 客人名字/昵称 */}
-                            <span className="text-sm font-bold text-white/80 truncate">
-                              {matchedProfile?.name ? matchedProfile.name : (matchedHistoryCustomer?.name ? matchedHistoryCustomer.name : ((phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) ? "赛博浪客 (备注: 王总)" : ""))}
-                            </span>
                           </div>
 
-                          {/* 中层：历史信标与徽章 */}
-                          {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
-                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                              {matchedProfile && (
-                                <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-gx-pink/10 border border-gx-pink/30 text-gx-pink">
-                                  已联动 C端
+                          {/* 中层：历史信标与徽章及名字输入 */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
+                              <>
+                                {matchedProfile && (
+                                  <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded  border  ">
+                                    已联动 C端
+                                  </span>
+                                )}
+                                {!matchedProfile && matchedHistoryCustomer && (
+                                  <span className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded ${isLight ? "bg-[#8B7355]/10" : "bg-[#FDF5E6]/10"} border ${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"} ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}`}>
+                                    已留存档案
+                                  </span>
+                                )}
+                                
+                                <span className={cn(
+                                  "text-[10px] font-mono font-bold italic tracking-widest",
+                                  isLight ? "text-black" : "text-white",
+                                  ""
+                                )}>
+                                  LV.{Math.floor((realTotalSpent || 0) / 1000)}
                                 </span>
+                              </>
+                            )}
+                            
+                            {/* 名字输入框 (始终显示，供散客录入) */}
+                            <input 
+                              type="text"
+                              autoComplete="off"
+                              placeholder="客户名字..."
+                              className={cn(
+                                "bg-transparent border-b outline-none text-xs font-bold w-24 ml-1 transition-colors px-1",
+                                isLight ? "border-black/20 text-black/80 placeholder:text-black/30 focus:border-black/50" : "border-white/20 text-white/80 placeholder:text-white/30 focus:border-white/50"
                               )}
-                              {!matchedProfile && matchedHistoryCustomer && (
-                                <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-gx-cyan/10 border border-gx-cyan/30 text-gx-cyan">
-                                  已留存档案
-                                </span>
-                              )}
-                              {!matchedProfile && !matchedHistoryCustomer && (
-                                <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/40">
-                                  LV.4 先驱
-                                </span>
-                              )}
-                              <span className="text-[9px] font-mono uppercase tracking-widest text-white/40">
-                                ID: {matchedProfile?.gx_id || matchedHistoryCustomer?.gx_id || customerId || "GX-1024"}
-                              </span>
-                            </div>
-                          )}
+                              value={customerRealName}
+                              onChange={(e) => setCustomerRealName(e.target.value)}
+                            />
+                          </div>
                           
                           {/* 下层：电话号码多轨流 */}
                           <div className="flex flex-col gap-0.5 mt-1">
@@ -1848,8 +1904,9 @@ export function DualPaneBookingModal({
                                 {editingPhoneIndex === index ? (
                                   <input 
                                     type="text" 
+                                    autoComplete="off"
                                     placeholder={t('txt_f3a023')} 
-                                    className="bg-transparent border-b border-gx-cyan/50 outline-none text-sm font-mono text-white placeholder:text-white/20 w-32"
+                                    className={cn(`bg-transparent border-b ${isLight ? "border-[#8B7355]/50" : "border-[#FDF5E6]/50"} outline-none text-sm font-mono w-32`, isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/20")}
                                     value={phone}
                                     onChange={(e) => {
                                       const newTracks = [...phoneTracks];
@@ -1862,10 +1919,11 @@ export function DualPaneBookingModal({
                                 ) : (
                                   <span 
                                     className={cn(
-                                      "text-sm font-mono cursor-pointer hover:text-white transition-colors",
+                                      "text-sm font-mono cursor-pointer transition-colors",
+                                      isLight ? "hover:text-black" : "hover:text-white",
                                       customerId.startsWith('CO') 
-                                        ? "text-white/60" 
-                                        : "bg-gradient-to-r from-gx-cyan/80 to-purple-400/80 bg-clip-text text-transparent font-bold"
+                                        ? (isLight ? "text-black/60" : "text-white/60")
+                                        : `bg-gradient-to-r ${isLight ? "from-[#8B7355]/80" : "from-[#FDF5E6]/80"}  bg-clip-text text-transparent font-bold`
                                     )}
                                     onClick={() => setEditingPhoneIndex(index)}
                                   >
@@ -1878,7 +1936,7 @@ export function DualPaneBookingModal({
                                   {index === phoneTracks.length - 1 && (
                                     <button 
                                       onClick={() => updatePhoneTracks([...phoneTracks, ''])}
-                                      className="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center text-white/40 hover:text-white hover:border-white hover:bg-white/10 transition-all text-xs"
+                                      className={cn("w-4 h-4 rounded-full border flex items-center justify-center transition-all text-xs", isLight ? "border-black/20 text-black/40 hover:text-black hover:border-black hover:bg-black/10" : "border-white/20 text-white/40 hover:text-white hover:border-white hover:bg-white/10")}
                                     >
                                       +
                                     </button>
@@ -1889,7 +1947,7 @@ export function DualPaneBookingModal({
                                         const newTracks = phoneTracks.filter((_, i) => i !== index);
                                         updatePhoneTracks(newTracks);
                                       }}
-                                      className="w-4 h-4 rounded-full border border-red-500/20 flex items-center justify-center text-red-500/60 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10 transition-all text-xs"
+                                      className={cn("w-4 h-4 rounded-full border flex items-center justify-center transition-all text-xs", isLight ? "border-red-500/20 text-red-500/60 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10" : "border-red-500/20 text-red-500/60 hover:text-red-500 hover:border-red-500 hover:bg-red-500/10")}
                                     >
                                       -
                                     </button>
@@ -1903,8 +1961,7 @@ export function DualPaneBookingModal({
                       
                       {/* 右侧：总金额 */}
                       <div className="flex flex-col items-end shrink-0 pt-1">
-                        <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest mb-1">Total Spent</span>
-                        <span className="text-xl font-black text-white tracking-wider font-mono">
+                        <span className={cn("text-xl font-bold tracking-wider font-mono mt-4", isLight ? "text-black" : "text-white")}>
                           {phoneTracks[0] || newCustomerType || matchedHistoryCustomer || matchedProfile || (customerId && !customerId.startsWith('CO')) 
                             ? (isFetchingHistory ? "..." : `¥ ${realTotalSpent.toLocaleString()}`)
                             : "¥ 0"}
@@ -1915,15 +1972,14 @@ export function DualPaneBookingModal({
                     {/* 2. 中间：过往消费记录卡片 (可滚动区) / 散客极简显示 */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 mb-4 px-2 pb-2">
                       {phoneTracks[0] || newCustomerType || matchedHistoryCustomer || matchedProfile || (customerId && !customerId.startsWith('CO')) ? (
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-mono text-white/30 uppercase tracking-[0.2em] block mb-3 sticky top-0 bg-black/80 backdrop-blur-sm z-10 py-1">LIFECYCLE TIME STREAM</span>
+                        <div className="flex flex-col gap-2 pt-2">
                           
                           {isFetchingHistory ? (
-                             <div className="text-center text-white/30 text-xs font-mono py-8 animate-pulse">Scanning Neural Network...</div>
+                             <div className={cn("text-center text-xs font-mono py-8 animate-pulse", isLight ? "text-black/30" : "text-white/30")}>Scanning Neural Network...</div>
                           ) : realHistoryStream.length === 0 ? (
-                             <div className="text-center text-white/30 text-xs font-mono py-8">NO HISTORICAL RECORDS FOUND</div>
+                             <div className={cn("text-center text-xs font-mono py-8", isLight ? "text-black/30" : "text-white/30")}>NO HISTORICAL RECORDS FOUND</div>
                           ) : (
-                            realHistoryStream.map((record, index) => {
+                            realHistoryStream.map((record) => {
                               const dateObj = new Date(record.date);
                               const formattedDate = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}.${dateObj.getDate().toString().padStart(2, '0')}`;
                               const isNoShow = record.status?.toUpperCase() === 'NO_SHOW';
@@ -1936,13 +1992,13 @@ export function DualPaneBookingModal({
                               const staffId = record.resourceId;
                               const staff = staffs.find(s => s.id === staffId);
                               const staffName = staff?.name || (staffId !== 'unassigned' && staffId !== 'null' ? staffId : 'UN');
-                              const staffColor = staff?.color || 'rgba(255,255,255,0.2)';
+                              const staffColor = staff?.color || (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)');
                               
                               // 判断时空状态法则
                               const todayStr = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
                               const isToday = record.date === todayStr;
                               const isFuture = record.date > todayStr;
-                              const isPast = record.date < todayStr;
+                              // const isPast = record.date < todayStr;
                               
                               // 计算时空差值
                               const todayTime = new Date(todayStr.replace(/-/g, '/')).getTime();
@@ -1973,51 +2029,69 @@ export function DualPaneBookingModal({
                                 <div key={record.id} className="relative group cursor-pointer flex">
                                   {/* 左侧能量轴 (Time Axis) */}
                                   <div className="w-6 shrink-0 flex flex-col items-center relative mr-2">
-                                    <div className="absolute top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
+                                    <div className={cn("absolute top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent to-transparent", isLight ? "via-black/10" : "via-white/10")}></div>
                                     <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-center">
                                       {isToday ? (
-                                        <div className="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse border-2 border-black z-10" />
+                                        <div className={cn("w-2 h-2 rounded-full animate-pulse border-2 z-10", isLight ? "bg-black  border-white" : "bg-white  border-black")} />
                                       ) : isFuture ? (
-                                        <div className="w-2.5 h-2.5 rounded-full border border-gx-cyan/50 bg-black shadow-[0_0_8px_rgba(0,240,255,0.2)] z-10 flex items-center justify-center">
-                                          <div className="w-0.5 h-0.5 bg-gx-cyan rounded-full" />
+                                        <div className={cn(`w-2.5 h-2.5 rounded-full border ${isLight ? "border-[#8B7355]/50" : "border-[#FDF5E6]/50"} z-10 flex items-center justify-center`, isLight ? "bg-white" : "bg-black")}>
+                                          <div className={`w-0.5 h-0.5 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full`} />
                                         </div>
                                       ) : (
-                                        <div className="w-2 h-2 rounded-full bg-white/20 border-2 border-black z-10" />
+                                        <div className={cn("w-2 h-2 rounded-full border-2 z-10", isLight ? "border-white bg-black/20" : "border-black bg-white/20")} />
                                       )}
                                     </div>
                                   </div>
                                   
                                   <div className={cn(
-                                    "flex-1 flex items-center justify-between bg-white/[0.02] p-4 transition-all relative overflow-hidden",
-                                    isFuture ? "border border-dashed border-white/20 hover:border-gx-cyan/50 rounded-xl" : "border border-white/5 hover:border-white/20 rounded-xl",
-                                    isNoShow && "border-white/5 hover:border-red-500/30 opacity-70 hover:opacity-100 border-solid",
-                                    isCurrentViewing && "border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)] border-solid"
+                                    "flex-1 flex items-center justify-between p-4 transition-all relative overflow-hidden rounded-xl",
+                                    isFuture ? (isLight ? `border border-dashed border-black/20 hover:border-[#8B7355]/50` : `border border-dashed border-white/20 hover:border-[#FDF5E6]/50`) : (isLight ? "border border-black/5 hover:border-black/20" : "border border-white/5 hover:border-white/20"),
+                                    isNoShow && (isLight ? "border-black/5 hover:border-red-500/30 opacity-70 hover:opacity-100 border-solid" : "border-white/5 hover:border-red-500/30 opacity-70 hover:opacity-100 border-solid"),
+                                    isCurrentViewing && (isLight ? "border-[#8B7355]/50 border-solid" : "border-[#FDF5E6]/50 border-solid"),
+                                    isToday && !isCurrentViewing && "border-transparent" // 为TODAY准备跑马灯
                                   )}>
                                     
-                                    {/* 当天正在查看的订单跑马灯特效 */}
-                                    {isCurrentViewing && !isCompleted && !isNoShow && (
-                                       <div className="absolute inset-0 pointer-events-none">
-                                          <div className="absolute inset-0 rounded-xl border border-transparent [background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)_border-box] [mask-composite:exclude] [mask:linear-gradient(#fff_0_0)_padding-box,linear-gradient(#fff_0_0)] animate-[shimmer_2s_linear_infinite] bg-[length:200%_auto]" />
+                                    {/* 当天订单特效：跑马灯边框 */}
+                                    {isToday && (
+                                       <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden">
+                                          <div className="absolute -inset-[100%] animate-[spin_4s_linear_infinite]"
+                                               style={{
+                                                 background: isLight 
+                                                   ? `conic-gradient(from 90deg at 50% 50%, transparent 0%, transparent 50%, rgba(0,0,0,0.1) 80%, rgba(0,0,0,0.4) 100%)`
+                                                   : `conic-gradient(from 90deg at 50% 50%, transparent 0%, transparent 50%, rgba(255,255,255,0.1) 80%, rgba(255,255,255,0.4) 100%)`
+                                               }}
+                                          />
+                                          <div className={cn("absolute inset-[1px] rounded-[11px]", isLight ? "bg-[#f5f5f5]" : "bg-[#1a1a1a]")} />
                                        </div>
+                                    )}
+                                    
+                                    {/* 当前查看中的呼吸微标签 */}
+                                    {isCurrentViewing && (
+                                      <div className={cn(
+                                        "absolute top-1.5 right-3 text-[9px] tracking-widest animate-pulse z-10",
+                                        isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"
+                                      )}>
+                                        查看中
+                                      </div>
                                     )}
 
                                     <div className="flex items-center gap-4 w-[70%] z-10 overflow-hidden">
                                         <div className="flex flex-col items-center justify-center w-12 shrink-0">
                                           <span className={cn(
-                                            "text-sm font-black font-mono transition-colors text-center tracking-tighter", 
-                                            isNoShow ? "text-white/30" : (isToday ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" : isFuture ? "text-gx-cyan" : "text-white/50")
+                                            "text-sm font-bold font-mono transition-colors text-center tracking-tighter", 
+                                            isNoShow ? (isLight ? "text-black/30" : "text-white/30") : (isToday ? (isLight ? "text-black " : "text-white ") : isFuture ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black/50" : "text-white/50"))
                                           )}>
                                             {epochLabel}
                                           </span>
                                           {epochSubLabel && !isNoShow && (
-                                            <span className={cn("text-[9px] font-mono mt-0.5", isFuture ? "text-gx-cyan/60" : "text-white/30")}>
+                                            <span className={cn("text-[9px] font-mono mt-0.5", isFuture ? `${isLight ? "text-[#8B7355]/60" : "text-[#FDF5E6]/60"}` : (isLight ? "text-black/30" : "text-white/30"))}>
                                               {epochSubLabel}
                                             </span>
                                           )}
                                         </div>
                                         
                                         <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
-                                          <span className="w-3 h-[1px] bg-white/20 shrink-0 rounded-full hidden sm:block"></span>
+                                          <span className={cn("w-3 h-[1px] shrink-0 rounded-full hidden sm:block", isLight ? "bg-black/20" : "bg-white/20")}></span>
                                           {/* 渲染多服务多员工胶囊 */}
                                           <div className="flex items-center gap-1.5 flex-1 overflow-x-auto no-scrollbar pr-4">
                                             {services.length > 0 ? (
@@ -2025,20 +2099,20 @@ export function DualPaneBookingModal({
                                                 const assignedId = svc.assignedEmployeeId || record.resourceId;
                                                 const svcStaff = staffs.find(s => s.id === assignedId);
                                                 const svcStaffName = svcStaff?.name || (assignedId !== 'unassigned' && assignedId !== 'null' ? assignedId : 'UN');
-                                                const svcCx = svcStaff?.color || 'rgba(255,255,255,0.2)';
+                                                const svcCx = svcStaff?.color || (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)');
                                                 
                                                 return (
                                                   <div 
                                                     key={idx} 
                                                     className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border shrink-0 transition-all"
                                                     style={{ 
-                                                      backgroundColor: isNoShow ? 'rgba(255,255,255,0.02)' : `${svcCx}15`,
-                                                      borderColor: isNoShow ? 'rgba(255,255,255,0.05)' : `${svcCx}30`,
+                                                      backgroundColor: isNoShow ? (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)') : `${svcCx}15`,
+                                                      borderColor: isNoShow ? (isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)') : `${svcCx}30`,
                                                     }}
                                                   >
-                                                    <span className="font-bold tracking-widest uppercase" style={{ color: isNoShow ? 'rgba(255,255,255,0.3)' : svcCx }}>{svcStaffName}</span>
+                                                    <span className="font-bold tracking-widest uppercase" style={{ color: isNoShow ? (isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)') : svcCx }}>{svcStaffName}</span>
                                                     {!isNoShow && <span className="w-[1px] h-2.5 opacity-30" style={{ backgroundColor: svcCx }}></span>}
-                                                    <span className={cn("truncate max-w-[100px]", isNoShow ? "text-white/30" : "text-white/80")}>{svc.name || '未知项目'}</span>
+                                                    <span className={cn("truncate max-w-[100px]", isNoShow ? (isLight ? "text-black/30" : "text-white/30") : (isLight ? "text-black/80" : "text-white/80"))}>{svc.name || '未知项目'}</span>
                                                   </div>
                                                 );
                                               })
@@ -2046,13 +2120,13 @@ export function DualPaneBookingModal({
                                               <div 
                                                 className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border shrink-0"
                                                 style={{ 
-                                                  backgroundColor: isNoShow ? 'rgba(255,255,255,0.02)' : `${staffColor}15`,
-                                                  borderColor: isNoShow ? 'rgba(255,255,255,0.05)' : `${staffColor}30`,
+                                                  backgroundColor: isNoShow ? (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)') : `${staffColor}15`,
+                                                  borderColor: isNoShow ? (isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)') : `${staffColor}30`,
                                                 }}
                                               >
-                                                <span className="font-bold tracking-widest uppercase" style={{ color: isNoShow ? 'rgba(255,255,255,0.3)' : staffColor }}>{staffName}</span>
+                                                <span className="font-bold tracking-widest uppercase" style={{ color: isNoShow ? (isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)') : staffColor }}>{staffName}</span>
                                                 {!isNoShow && <span className="w-[1px] h-2.5 opacity-30" style={{ backgroundColor: staffColor }}></span>}
-                                                <span className={cn("truncate max-w-[100px]", isNoShow ? "text-white/30" : "text-white/80")}>{serviceName}</span>
+                                                <span className={cn("truncate max-w-[100px]", isNoShow ? (isLight ? "text-black/30" : "text-white/30") : (isLight ? "text-black/80" : "text-white/80"))}>{serviceName}</span>
                                               </div>
                                             )}
                                           </div>
@@ -2061,12 +2135,12 @@ export function DualPaneBookingModal({
                                     
                                     <div className="flex items-center gap-4 z-10">
                                       {/* 金额：未结账时不显示金额（无论过去、今天还是未来） */}
-                                      <span className={cn("text-xs font-mono", isNoShow ? "text-white/20" : "text-white/80")}>
+                                      <span className={cn("text-xs font-mono", isNoShow ? (isLight ? "text-black/20" : "text-white/20") : (isLight ? "text-black/80" : "text-white/80"))}>
                                         {isNoShow ? "--" : (!isCompleted ? "--" : `¥ ${price}`)}
                                       </span>
                                       
                                       {isNoShow ? (
-                                        <span className="text-[10px] font-black bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/30 whitespace-nowrap uppercase tracking-widest">
+                                        <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/30 whitespace-nowrap uppercase tracking-widest">
                                           {t('txt_e49d53')}
                                         </span>
                                       ) : (
@@ -2081,7 +2155,7 @@ export function DualPaneBookingModal({
                         </div>
                       ) : (
                         <div className="h-full flex flex-col items-center justify-center relative">
-                          <span className="text-5xl font-black font-mono text-white/10 uppercase tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.05)]">
+                          <span className={cn("text-5xl font-bold font-mono uppercase tracking-widest", isLight ? "text-black/10 " : "text-white/10 ")}>
                             {formatDisplayId(customerId)}
                           </span>
                         </div>
@@ -2089,19 +2163,19 @@ export function DualPaneBookingModal({
                     </div>
 
                     {/* 3. 底部：新客分类按钮 & 单行备注 */}
-                    <div className="shrink-0 space-y-4 px-2">
+                    <div className="shrink-0 space-y-4 px-2 pb-24">
                       {/* 分类选项 (仅在新客且未匹配到会员时显示) */}
                       {!matchedProfile && !matchedHistoryCustomer && (!editingBooking?.customerId || editingBooking.customerId.startsWith('CO')) && (
-                        <div className="flex gap-3">
+                        <div className="flex justify-between items-center px-4">
                           {['GV', 'AD', 'AN', 'UM'].map(type => (
                             <button 
                               key={type}
                               onClick={() => setNewCustomerType(type)}
                               className={cn(
-                                "flex-1 py-2 rounded-lg border transition-all text-xs font-mono font-bold uppercase tracking-widest flex items-center justify-center",
+                                "transition-all text-sm font-mono font-bold uppercase tracking-widest flex items-center justify-center outline-none",
                                 newCustomerType === type 
-                                  ? "bg-gx-cyan/20 border-gx-cyan text-white shadow-[0_0_15px_rgba(0,240,255,0.3)]" 
-                                  : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-gx-cyan/50 text-gx-cyan hover:text-white"
+                                  ? `drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] ${isLight ? "text-[#8B7355] scale-110" : "text-[#FDF5E6] scale-110"}`
+                                  : `opacity-40 hover:opacity-80 hover:scale-105 ${isLight ? "text-black" : "text-white"}`
                               )}
                             >
                               {type}
@@ -2114,33 +2188,33 @@ export function DualPaneBookingModal({
                       <div className="relative">
                         <textarea 
                           placeholder={t('txt_bf9b52')}
-                          className="w-full bg-transparent border-none outline-none text-xs text-white placeholder:text-white/20 resize-none h-8 leading-8 px-1 custom-scrollbar overflow-x-hidden whitespace-nowrap"
+                          className={cn("w-full bg-transparent border-none outline-none text-xs resize-none h-8 leading-8 px-1 custom-scrollbar overflow-x-hidden whitespace-nowrap", isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/20")}
                           rows={1}
                           style={{ whiteSpace: 'nowrap' }} // 强制单行横向滚动
                         />
-                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-gx-cyan/50 via-white/10 to-transparent" />
+                        <div className={cn(`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r ${isLight ? "from-[#8B7355]/50" : "from-[#FDF5E6]/50"} to-transparent`, isLight ? "via-black/10" : "via-white/10")} />
                       </div>
                     </div>
                   </div>
                 )}
 
                 {activePaneMode === 'duration' && (
-                  <div className="h-full flex flex-col items-center justify-center p-8 select-none touch-none relative">
+                  <div className="h-full flex flex-col items-center justify-center p-8 pb-24 select-none touch-none relative">
                     {/* 全息视界区 (HUD Display) */}
                     <div className="flex flex-col items-center mb-6">
                       <span 
                         key={totalDuration}
-                        className="text-[64px] font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-br from-white via-white/90 to-white/40 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] font-mono leading-none whitespace-nowrap"
+                        className={cn("text-[64px] font-bold tracking-widest bg-clip-text text-transparent font-mono leading-none whitespace-nowrap", isLight ? "bg-gradient-to-br from-black via-black/90 to-black/40 " : "bg-gradient-to-br from-white via-white/90 to-white/40 ")}
                       >
                         {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
                       </span>
                       
-                      <div className="mt-4 flex items-center gap-4 text-[11px] font-mono tracking-widest text-white/60">
+                      <div className={cn("mt-4 flex items-center gap-4 text-[11px] font-mono tracking-widest", isLight ? "text-black/60" : "text-white/60")}>
                         <span>BASE {baseDuration} MIN</span>
                         {durationOffset !== 0 && (
                           <>
-                            <span className="w-1 h-1 rounded-full bg-white/20" />
-                            <span className={durationOffset > 0 ? "text-red-400" : "text-gx-cyan"}>
+                            <span className={cn("w-1 h-1 rounded-full", isLight ? "bg-black/20" : "bg-white/20")} />
+                            <span className={durationOffset > 0 ? "text-red-400" : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}`}>
                               OFFSET {durationOffset > 0 ? '+' : ''}{durationOffset} MIN
                             </span>
                           </>
@@ -2174,12 +2248,12 @@ export function DualPaneBookingModal({
                         }
                       }}
                     >
-                      <div className="flex items-center gap-4 text-gx-cyan/40 group-hover:text-gx-cyan transition-colors">
+                      <div className={`flex items-center gap-4 ${isLight ? "text-[#8B7355]/40" : "text-[#FDF5E6]/40"} ${isLight ? "group-hover:text-[#8B7355]" : "group-hover:text-[#FDF5E6]"} transition-colors`}>
                         <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         <span className="text-[10px] font-mono tracking-[0.3em] uppercase">Drag to Adjust</span>
                         <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </div>
-                      <div className="w-48 h-px bg-gradient-to-r from-transparent via-gx-cyan/30 to-transparent mt-3 group-hover:via-gx-cyan transition-all" />
+                      <div className={`w-48 h-px bg-gradient-to-r from-transparent ${isLight ? "via-[#8B7355]/30" : "via-[#FDF5E6]/30"} to-transparent mt-3 ${isLight ? "group-hover:via-[#8B7355]" : "group-hover:via-[#FDF5E6]"} transition-all`} />
                     </div>
 
                     {/* 脉冲微调阵列 (Quick Offset Tags) */}
@@ -2193,8 +2267,8 @@ export function DualPaneBookingModal({
                             className={cn(
                               "w-16 py-2 rounded-lg font-mono text-xs transition-all",
                               durationOffset === offset 
-                                ? "bg-gx-cyan/10 text-gx-cyan shadow-[0_0_15px_rgba(0,255,255,0.3)] drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]" 
-                                : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/80"
+                                ? `${isLight ? "bg-[#8B7355]/10" : "bg-[#FDF5E6]/10"} ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-` 
+                                : (isLight ? "bg-black/5 text-black/40 hover:bg-black/10 hover:text-black/80" : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/80")
                             )}
                           >
                             {offset}
@@ -2211,8 +2285,8 @@ export function DualPaneBookingModal({
                             className={cn(
                               "w-16 py-2 rounded-lg font-mono text-xs transition-all",
                               durationOffset === offset 
-                                ? "bg-gx-cyan/10 text-gx-cyan shadow-[0_0_15px_rgba(0,255,255,0.3)] drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]" 
-                                : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/80"
+                                ? `${isLight ? "bg-[#8B7355]/10" : "bg-[#FDF5E6]/10"} ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-` 
+                                : (isLight ? "bg-black/5 text-black/40 hover:bg-black/10 hover:text-black/80" : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/80")
                             )}
                           >
                             +{offset}
@@ -2224,7 +2298,7 @@ export function DualPaneBookingModal({
                 )}
 
                 {activePaneMode === 'date' && (
-                  <div className="h-full flex flex-col pt-2 pb-10 overflow-y-auto custom-scrollbar pr-2">
+                  <div className="h-full flex flex-col pt-2 pb-24 overflow-y-auto custom-scrollbar pr-2">
                     {/* Header: Month and Year with glowing text */}
                     <div className="flex items-center justify-between mb-6 px-4 shrink-0">
                       <button 
@@ -2233,11 +2307,11 @@ export function DualPaneBookingModal({
                           newDate.setMonth(newDate.getMonth() - 1);
                           setCalendarViewDate(newDate);
                         }}
-                        className="text-white/40 hover:text-gx-cyan transition-colors px-2 py-1"
+                        className={cn(`${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} transition-colors px-2 py-1`, isLight ? "text-black/40" : "text-white/40")}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                       </button>
-                      <span className="text-lg font-black tracking-[0.2em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/50">
+                      <span className={cn("text-lg font-bold tracking-[0.2em] uppercase bg-clip-text text-transparent", isLight ? "bg-gradient-to-r from-black via-black/90 to-black/50" : "bg-gradient-to-r from-white via-white/90 to-white/50")}>
                         {calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                       </span>
                       <button 
@@ -2246,7 +2320,7 @@ export function DualPaneBookingModal({
                           newDate.setMonth(newDate.getMonth() + 1);
                           setCalendarViewDate(newDate);
                         }}
-                        className="text-white/40 hover:text-gx-cyan transition-colors px-2 py-1"
+                        className={cn(`${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} transition-colors px-2 py-1`, isLight ? "text-black/40" : "text-white/40")}
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
@@ -2257,7 +2331,7 @@ export function DualPaneBookingModal({
                       {/* Weekdays */}
                       <div className="grid grid-cols-7 mb-4">
                         {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
-                          <div key={day} className="text-center text-[10px] text-white/40 tracking-widest font-mono">
+                          <div key={day} className={cn("text-center text-[10px] tracking-widest font-mono", isLight ? "text-black/40" : "text-white/40")}>
                             {day}
                           </div>
                         ))}
@@ -2294,14 +2368,14 @@ export function DualPaneBookingModal({
                                 className={cn(
                                   "relative h-10 flex flex-col items-center justify-center font-mono text-sm transition-all rounded-lg group",
                                   isSelected 
-                                    ? "text-gx-cyan border border-gx-cyan/50 shadow-[0_0_10px_rgba(0,255,255,0.2)] bg-gx-cyan/5" 
-                                    : "text-white/90 hover:bg-white/5 border border-transparent"
+                                    ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} border ${isLight ? "border-[#8B7355]/50" : "border-[#FDF5E6]/50"} ${isLight ? "bg-[#8B7355]/5" : "bg-[#FDF5E6]/5"}` 
+                                    : (isLight ? "text-black/90 hover:bg-black/5 border border-transparent" : "text-white/90 hover:bg-white/5 border border-transparent")
                                 )}
                               >
                                 {formattedDay}
                                 {/* Today pulse indicator */}
                                 {isToday && !isSelected && (
-                                  <div className="absolute bottom-1 w-[3px] h-[3px] rounded-full bg-gx-cyan animate-pulse shadow-[0_0_4px_rgba(0,255,255,0.8)]" />
+                                  <div className={`absolute bottom-1 w-[3px] h-[3px] rounded-full ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} animate-pulse`} />
                                 )}
                               </button>
                             );
@@ -2318,22 +2392,22 @@ export function DualPaneBookingModal({
                     className="h-full flex flex-col items-center justify-start relative select-none pt-0 touch-none cursor-default"
                   >
                     {/* 顶部中心 HUD (HH:mm) */}
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 flex shrink-0 items-center gap-2 z-30 font-black font-mono text-[50px] tracking-widest leading-none drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                    <div className={cn("absolute -top-2 left-1/2 -translate-x-1/2 flex shrink-0 items-center gap-2 z-30 font-bold font-mono text-[50px] tracking-widest leading-none", isLight ? "" : "")}>
                       <button 
                         onClick={() => setTimeSelectionMode('hour')}
                         className={cn(
                           "transition-all px-2 rounded-lg",
-                          timeSelectionMode === 'hour' ? "text-gx-cyan bg-white/5" : "text-white/40 hover:text-white/80"
+                          timeSelectionMode === 'hour' ? (isLight ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-black/5` : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-white/5`) : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
                         )}
                       >
                         {selectedTime.split(':')[0]}
                       </button>
-                      <span className="text-white/20 mb-3">:</span>
+                      <span className={cn("mb-3", isLight ? "text-black/20" : "text-white/20")}>:</span>
                       <button 
                         onClick={() => setTimeSelectionMode('minute')}
                         className={cn(
                           "transition-all px-2 rounded-lg",
-                          timeSelectionMode === 'minute' ? "text-gx-cyan bg-white/5" : "text-white/40 hover:text-white/80"
+                          timeSelectionMode === 'minute' ? (isLight ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-black/5` : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-white/5`) : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
                         )}
                       >
                         {selectedTime.split(':')[1]}
@@ -2345,7 +2419,7 @@ export function DualPaneBookingModal({
                       isSwitching ? "scale-95 opacity-50 pointer-events-none" : "scale-100 opacity-100"
                     )}>
                       {/* 中心光点 */}
-                      <div className="absolute inset-0 m-auto w-3 h-3 rounded-full bg-gx-cyan shadow-[0_0_15px_rgba(0,255,255,1)] z-30 pointer-events-none" />
+                      <div className={`absolute inset-0 m-auto w-3 h-3 rounded-full ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} z-30 pointer-events-none`} />
 
                       {/* 双圈 / 单圈 渲染 */}
                       {timeSelectionMode === 'hour' ? (
@@ -2368,8 +2442,8 @@ export function DualPaneBookingModal({
                                   className={cn(
                                     "absolute rounded-full flex items-center justify-center font-mono text-base transition-all cursor-pointer font-bold pointer-events-auto",
                                     isSelected 
-                                      ? "text-black bg-gx-cyan scale-110 shadow-[0_0_15px_rgba(0,255,255,0.6)] w-12 h-12" 
-                                      : "text-white/90 hover:text-gx-cyan hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] w-10 h-10"
+                                      ? `text-black ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} scale-110 w-12 h-12` 
+                                      : (isLight ? `text-black/90 ${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} hover:scale-110  w-10 h-10` : `text-white/90 ${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} hover:scale-110  w-10 h-10`)
                                   )}
                                   style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
                                   onClick={() => {
@@ -2406,8 +2480,8 @@ export function DualPaneBookingModal({
                                   className={cn(
                                     "absolute rounded-full flex items-center justify-center font-mono text-xs transition-all cursor-pointer font-bold pointer-events-auto",
                                     isSelected 
-                                      ? "text-black bg-gx-cyan scale-110 shadow-[0_0_15px_rgba(0,255,255,0.6)] w-8 h-8" 
-                                      : "text-white/60 hover:text-gx-cyan hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] w-6 h-6"
+                                      ? `text-black ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} scale-110 w-8 h-8` 
+                                      : (isLight ? `text-black/60 ${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} hover:scale-110  w-6 h-6` : `text-white/60 ${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} hover:scale-110  w-6 h-6`)
                                   )}
                                   style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
                                   onClick={() => {
@@ -2443,7 +2517,7 @@ export function DualPaneBookingModal({
 
                             return (
                               <div 
-                                className="absolute top-1/2 left-1/2 h-[2px] bg-gx-cyan origin-left z-10 opacity-70 transition-all duration-300 pointer-events-none"
+                                className={`absolute top-1/2 left-1/2 h-[2px] ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} origin-left z-10 opacity-70 transition-all duration-300 pointer-events-none`}
                                 style={{ 
                                   width: `${distance}px`, 
                                   transform: `translate(0, -50%) rotate(${rotation}deg)`
@@ -2472,8 +2546,8 @@ export function DualPaneBookingModal({
                                   className={cn(
                                     "absolute rounded-full flex items-center justify-center font-mono text-base transition-all cursor-pointer font-bold pointer-events-auto",
                                     isSelected 
-                                      ? "text-black bg-gx-cyan scale-110 shadow-[0_0_15px_rgba(0,255,255,0.6)] w-12 h-12" 
-                                      : "text-white/90 hover:text-gx-cyan hover:scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] w-10 h-10"
+                                      ? `text-black ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} scale-110 w-12 h-12` 
+                                      : (isLight ? `text-black/90 ${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} hover:scale-110  w-10 h-10` : `text-white/90 ${isLight ? "hover:text-[#8B7355]" : "hover:text-[#FDF5E6]"} hover:scale-110  w-10 h-10`)
                                   )}
                                   style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
                                   onClick={() => {
@@ -2498,7 +2572,7 @@ export function DualPaneBookingModal({
 
                             return (
                               <div 
-                                className="absolute top-1/2 left-1/2 h-[2px] bg-gx-cyan origin-left z-10 opacity-70 transition-all duration-300 pointer-events-none"
+                                className={`absolute top-1/2 left-1/2 h-[2px] ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} origin-left z-10 opacity-70 transition-all duration-300 pointer-events-none`}
                                 style={{ 
                                   width: `${distance}px`, 
                                   transform: `translate(0, -50%) rotate(${rotation}deg)`
@@ -2515,13 +2589,13 @@ export function DualPaneBookingModal({
                 {/* ===================== 新增：内嵌底部操作舱 ===================== */}
               </section>
               
-              {/* 内嵌底部操作舱 */}
+              {/* 内嵌底部操作舱 - 悬浮极简版 */}
               <div className={cn(
-                "absolute bottom-0 left-0 right-0 w-full p-4 flex flex-wrap justify-center items-center gap-3 z-50 pointer-events-auto transition-opacity bg-black/60 backdrop-blur-md border-t border-white/5",
+                "absolute bottom-0 left-0 right-0 w-full p-6 flex flex-wrap justify-center items-center gap-4 z-50 pointer-events-auto transition-opacity",
                 isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
               )}>
                 {isReadOnly ? (
-                  <div className="w-full md:w-64 py-3 text-center rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 font-mono text-[10px] uppercase tracking-widest">
+                  <div className="w-full md:w-64 py-3 text-center rounded-xl bg-red-500/10 text-red-500 font-mono text-[10px] uppercase tracking-widest">
                     只读模式 / READ ONLY
                   </div>
                 ) : (
@@ -2529,22 +2603,29 @@ export function DualPaneBookingModal({
                     {editingBooking && (
                       <button 
                         onClick={handleMarkAsNoShow}
-                        className="flex-1 md:flex-none md:w-32 min-w-[100px] py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:border-red-500 transition-all font-mono text-[10px] uppercase tracking-widest hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                        className={cn(
+                          "flex-1 md:flex-none md:w-32 min-w-[100px] py-3.5 bg-transparent hover:scale-105 transition-all duration-300 font-bold text-[12px] uppercase tracking-[0.3em] outline-none",
+                          isLight ? " hover:text-red-600" : " hover:text-red-500"
+                        )}
                       >
-                        {t('txt_81c4b2')}
+                        爽 约
                       </button>
                     )}
                     <button 
                       onClick={handleConfirmBooking}
                       disabled={selectedServices.length === 0}
                       className={cn(
-                        "flex-1 md:flex-none md:w-48 min-w-[120px] py-3 rounded-xl text-xs font-black tracking-widest transition-all",
+                        "flex-1 md:flex-none md:w-56 min-w-[120px] py-3.5 text-[12px] font-bold tracking-[0.3em] transition-all duration-300 uppercase outline-none bg-transparent",
                         selectedServices.length > 0 
-                          ? "bg-gx-cyan text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white" 
-                          : "bg-black/60 border border-white/10 text-white/30 cursor-not-allowed"
+                          ? (isLight 
+                              ? "  hover:scale-105" 
+                              : "  hover:scale-105")
+                          : (isLight 
+                              ? "text-black/20 cursor-not-allowed" 
+                              : "text-white/20 cursor-not-allowed")
                       )}
                     >
-                      {editingBooking ? "更新预约" : "确认预约"}
+                      {editingBooking ? "更 新 预 约" : "确 认 预 约"}
                     </button>
                   </>
                 )}
@@ -2558,11 +2639,11 @@ export function DualPaneBookingModal({
                 height: 0px; /* Hide horizontal scrollbar */
               }
               .custom-scrollbar::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, 0.02);
+                background: ${isLight ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.02)'};
                 border-radius: 4px;
               }
               .custom-scrollbar::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.1);
+                background: ${isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
                 border-radius: 4px;
               }
               .custom-scrollbar::-webkit-scrollbar-thumb:hover {

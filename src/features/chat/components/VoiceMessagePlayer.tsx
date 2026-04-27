@@ -40,21 +40,21 @@ export const VoiceMessagePlayer = ({ audioUrl, duration }: VoiceMessagePlayerPro
       <audio ref={audioRef} src={audioUrl} />
 
       {/* 播放/停止按钮 */}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/10 text-white/70'}`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isPlaying ? ' ' : 'bg-white/10 text-white/70'}`}>
         {isPlaying ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
       </div>
 
       {/* 赛博假波形 (可根据时长做不同宽度) */}
       <div className="flex items-center gap-1 opacity-70">
-        <div className={`w-1 bg-cyan-400 rounded-full ${isPlaying ? 'animate-pulse h-4' : 'h-2'}`} />
-        <div className={`w-1 bg-cyan-400 rounded-full ${isPlaying ? 'animate-pulse delay-75 h-6' : 'h-3'}`} />
-        <div className={`w-1 bg-cyan-400 rounded-full ${isPlaying ? 'animate-pulse delay-150 h-3' : 'h-2'}`} />
-        <div className={`w-1 bg-cyan-400 rounded-full ${isPlaying ? 'animate-pulse delay-300 h-5' : 'h-4'}`} />
-        <div className={`w-1 bg-cyan-400 rounded-full ${isPlaying ? 'animate-pulse h-2' : 'h-1'}`} />
+        <div className={`w-1  rounded-full ${isPlaying ? 'animate-pulse h-4' : 'h-2'}`} />
+        <div className={`w-1  rounded-full ${isPlaying ? 'animate-pulse delay-75 h-6' : 'h-3'}`} />
+        <div className={`w-1  rounded-full ${isPlaying ? 'animate-pulse delay-150 h-3' : 'h-2'}`} />
+        <div className={`w-1  rounded-full ${isPlaying ? 'animate-pulse delay-300 h-5' : 'h-4'}`} />
+        <div className={`w-1  rounded-full ${isPlaying ? 'animate-pulse h-2' : 'h-1'}`} />
       </div>
 
       {/* 时长显示 */}
-      <span className="text-sm font-mono text-cyan-400 ml-2 font-bold tracking-wider">
+      <span className="text-sm font-mono  ml-2 font-bold tracking-wider">
         {duration}″
       </span>
     </div>

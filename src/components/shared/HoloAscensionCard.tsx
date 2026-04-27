@@ -14,7 +14,7 @@ export function HoloAscensionCard({ onClick, className }: HoloAscensionCardProps
     <div 
       onClick={onClick} 
       className={cn(
-        "group relative rounded-xl p-[1.5px] cursor-pointer transition-all duration-700 hover:scale-[1.02] shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_40px_rgba(139,92,246,0.6)] w-full",
+        "group relative rounded-xl p-[1.5px] cursor-pointer transition-all duration-700 hover:scale-[1.02]  w-full",
         className
       )}
     >
@@ -22,23 +22,23 @@ export function HoloAscensionCard({ onClick, className }: HoloAscensionCardProps
       <div className="absolute inset-0 rounded-xl bg-[linear-gradient(90deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite]" />
       
       {/* 2. 内部核心黑胆 (遮罩底层，留出边框缝隙) */}
-      <div className="relative z-10 w-full h-full bg-black/80 backdrop-blur-xl rounded-[10px] overflow-hidden flex items-center justify-between p-5">
+      <div className="relative z-10 w-full h-full bg-black/80  rounded-[10px] overflow-hidden flex items-center justify-between p-5">
         
         {/* 内部极微弱的流光氛围背景 */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-cyan-500/5 to-pink-500/10 bg-[length:200%_auto] animate-[shimmer_5s_linear_infinite] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r    bg-[length:200%_auto] animate-[shimmer_5s_linear_infinite] opacity-50 pointer-events-none" />
 
         <div className="relative z-20 flex items-center gap-5">
           {/* Icon 容器：悬浮多色发光 */}
           <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 group-hover:border-transparent transition-all duration-500 shrink-0">
             {/* 旋转的光晕底座 */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 animate-spin-slow opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[2px]" />
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r    animate-spin-slow opacity-0 group-hover:opacity-100 transition-opacity duration-700 " />
             <div className="absolute inset-[1px] rounded-full bg-black z-10" />
-            <Sparkles className="relative z-20 w-4 h-4 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] group-hover:text-cyan-300 transition-colors duration-500" />
+            <Sparkles className="relative z-20 w-4 h-4 text-white  transition-colors duration-500" />
           </div>
 
           {/* 文本区：动态渐变流光文字 */}
           <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-purple-400 to-pink-400 bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite] drop-shadow-[0_2px_4px_rgba(0,0,0,1)] pr-1">
+            <h3 className="text-sm font-bold tracking-widest bg-clip-text text-transparent bg-gradient-to-r    bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite]  pr-1">
               {t('txt_bf27a7')}</h3>
             <p className="text-[10px] font-mono text-white/50 tracking-[0.15em] group-hover:text-white/80 transition-colors duration-500 line-clamp-1">
               {t('txt_54a5fb')}</p>

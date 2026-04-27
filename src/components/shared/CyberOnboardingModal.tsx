@@ -143,7 +143,7 @@ export const CyberOnboardingModal = () => {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="w-full max-w-md"
       >
-        <GlassCard className="p-6 sm:p-8 border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] relative overflow-hidden bg-black/10 backdrop-blur-2xl max-h-[calc(100dvh-2rem)] flex flex-col">
+        <GlassCard className="p-6 sm:p-8 border border-white/10  relative overflow-hidden bg-black/10  max-h-[calc(100dvh-2rem)] flex flex-col">
           {/* 底部柔和黑色渐变阴影，托起弹窗并保证按钮清晰度 */}
           <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none rounded-b-2xl" />
           
@@ -185,14 +185,14 @@ export const CyberOnboardingModal = () => {
                     {/* 智控 (公司) */}
                     <button 
                       onClick={() => { setRoleSelection('merchant'); setStep('form'); }} 
-                      className="group relative p-6 rounded-2xl border border-gx-cyan/20 bg-gx-cyan/5 hover:bg-gx-cyan/10 hover:border-gx-cyan/50 transition-all flex flex-col items-center gap-4 text-center"
+                      className="group relative p-6 rounded-2xl border     transition-all flex flex-col items-center gap-4 text-center"
                     >
-                      <div className="w-14 h-14 rounded-full bg-gx-cyan/10 flex items-center justify-center group-hover:bg-gx-cyan/20 transition-colors shadow-[0_0_15px_rgba(0,240,255,0.1)] group-hover:shadow-[0_0_20px_rgba(0,240,255,0.3)]">
-                        <Building2 className="w-8 h-8 text-gx-cyan/80 group-hover:text-gx-cyan transition-colors" />
+                      <div className="w-14 h-14 rounded-full  flex items-center justify-center  transition-colors ">
+                        <Building2 className="w-8 h-8   transition-colors" />
                       </div>
                       <div>
-                        <div className="font-bold text-gx-cyan tracking-widest mb-1 text-lg">智控</div>
-                        <div className="text-[10px] text-gx-cyan/60 tracking-wider">数字门店 · 智能排班日历</div>
+                        <div className="font-bold  tracking-widest mb-1 text-lg">智控</div>
+                        <div className="text-[10px]  tracking-wider">数字门店 · 智能排班日历</div>
                       </div>
                     </button>
                   </div>
@@ -227,7 +227,7 @@ export const CyberOnboardingModal = () => {
                       </p>
                     </div>
                     {roleSelection === 'merchant' && (
-                      <div className="w-10 h-10 rounded-full bg-gx-cyan/10 border border-gx-cyan/30 flex items-center justify-center text-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.2)]">
+                      <div className="w-10 h-10 rounded-full  border  flex items-center justify-center  ">
                         <Building2 className="w-5 h-5" />
                       </div>
                     )}
@@ -245,7 +245,7 @@ export const CyberOnboardingModal = () => {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder={t('txt_ab4b97')}
-                        className="h-12 bg-black/50 text-white placeholder:text-white/20 border-white/10 focus:border-gx-cyan/50"
+                        className="h-12 bg-black/50 text-white placeholder:text-white/20 border-white/10 "
                       />
                     </div>
 
@@ -292,10 +292,10 @@ export const CyberOnboardingModal = () => {
                               const [_, m, d] = formData.birthday.split('-');
                               setFormData({ ...formData, birthday: `${e.target.value}-${m || '01'}-${d || '01'}` });
                             }}
-                            className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-2 sm:px-3 text-sm appearance-none focus:border-gx-cyan/50 focus:outline-none transition-colors"
+                            className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-2 sm:px-3 text-sm appearance-none  focus:outline-none transition-colors"
                           >
                             {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                              <option key={year} value={year} className="bg-zinc-900 text-white">{year}</option>
+                              <option key={year} value={year} className=" text-white">{year}</option>
                             ))}
                           </select>
                           <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">年</div>
@@ -309,10 +309,10 @@ export const CyberOnboardingModal = () => {
                               const [y, _, d] = formData.birthday.split('-');
                               setFormData({ ...formData, birthday: `${y || new Date().getFullYear() - 18}-${e.target.value.padStart(2, '0')}-${d || '01'}` });
                             }}
-                            className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-2 sm:px-3 text-sm appearance-none focus:border-gx-cyan/50 focus:outline-none transition-colors"
+                            className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-2 sm:px-3 text-sm appearance-none  focus:outline-none transition-colors"
                           >
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                              <option key={month} value={month.toString().padStart(2, '0')} className="bg-zinc-900 text-white">{month}</option>
+                              <option key={month} value={month.toString().padStart(2, '0')} className=" text-white">{month}</option>
                             ))}
                           </select>
                           <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">月</div>
@@ -326,10 +326,10 @@ export const CyberOnboardingModal = () => {
                               const [y, m, _] = formData.birthday.split('-');
                               setFormData({ ...formData, birthday: `${y || new Date().getFullYear() - 18}-${m || '01'}-${e.target.value.padStart(2, '0')}` });
                             }}
-                            className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-2 sm:px-3 text-sm appearance-none focus:border-gx-cyan/50 focus:outline-none transition-colors"
+                            className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-2 sm:px-3 text-sm appearance-none  focus:outline-none transition-colors"
                           >
                             {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day.toString().padStart(2, '0')} className="bg-zinc-900 text-white">{day}</option>
+                              <option key={day} value={day.toString().padStart(2, '0')} className=" text-white">{day}</option>
                             ))}
                           </select>
                           <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">日</div>
@@ -353,7 +353,7 @@ export const CyberOnboardingModal = () => {
                             value={formData.brandName}
                             onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
                             placeholder="请输入您的店铺或品牌名称"
-                            className="h-12 bg-black/50 text-white placeholder:text-white/20 border-white/10 focus:border-gx-cyan/50"
+                            className="h-12 bg-black/50 text-white placeholder:text-white/20 border-white/10 "
                           />
                         </div>
 
@@ -366,7 +366,7 @@ export const CyberOnboardingModal = () => {
                             <select
                               value={formData.industry}
                               onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                              className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-3 text-sm appearance-none focus:border-gx-cyan/50 focus:outline-none transition-colors"
+                              className="w-full h-12 bg-black/50 text-white border border-white/10 rounded-lg px-3 text-sm appearance-none  focus:outline-none transition-colors"
                             >
                               <option value="beauty">美业 / 美容美甲</option>
                               <option value="dining">餐饮 / 咖啡烘焙</option>
@@ -384,7 +384,7 @@ export const CyberOnboardingModal = () => {
                   <button 
                     type="submit" 
                     disabled={isSubmitting || !formData.name || !formData.birthday || formData.gender === 'unknown' || (roleSelection === 'merchant' && !formData.brandName)}
-                    className="w-full h-12 rounded-lg font-bold tracking-widest mt-4 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gx-cyan/10 border border-gx-cyan/30 text-gx-cyan hover:bg-gx-cyan/20"
+                    className="w-full h-12 rounded-lg font-bold tracking-widest mt-4 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed  border   "
                   >
                     {isSubmitting ? t('txt_6c4783') : (roleSelection === 'merchant' ? '创建门店并进入智控台' : '开启体验')}
                   </button>
@@ -398,7 +398,7 @@ export const CyberOnboardingModal = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   className="py-8 flex flex-col items-center text-center space-y-4"
                 >
-                  <p className="text-gx-cyan font-bold tracking-widest text-lg">
+                  <p className=" font-bold tracking-widest text-lg">
                     {t('txt_6da9ee')}
                   </p>
                   <p className="text-xs font-mono text-white/40 tracking-[0.2em] animate-pulse uppercase">

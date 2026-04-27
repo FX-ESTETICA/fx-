@@ -35,7 +35,7 @@ export default function OnboardingPage() {
       <div className="max-w-4xl mx-auto px-6 py-24 relative z-10">
         <button 
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-white/40 hover:text-gx-cyan transition-colors mb-12 group"
+          className="flex items-center gap-2 text-white/40  transition-colors mb-12 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span className="text-xs font-mono uppercase tracking-widest">{t('txt_7513ca')}</span>
@@ -46,10 +46,10 @@ export default function OnboardingPage() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gx-cyan/10 border border-gx-cyan/20 rounded-full"
+              className="inline-flex items-center gap-2 px-4 py-2  border  rounded-full"
             >
-              <Building2 className="w-4 h-4 text-gx-cyan" />
-              <span className="text-[10px] font-mono text-gx-cyan uppercase tracking-[0.2em]">{t('txt_5eb15b')}</span>
+              <Building2 className="w-4 h-4 " />
+              <span className="text-[10px] font-mono  uppercase tracking-[0.2em]">{t('txt_5eb15b')}</span>
             </motion.div>
             
             <motion.h1 
@@ -59,7 +59,7 @@ export default function OnboardingPage() {
               className="text-5xl md:text-7xl font-bold tracking-tighter"
             >
               BECOME A <br />
-              <span className="text-gradient-cyan">{t('txt_e8df34')}</span>
+              <span className="">{t('txt_e8df34')}</span>
             </motion.h1>
             
             <motion.p 
@@ -79,9 +79,9 @@ export default function OnboardingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + idx * 0.1 }}
               >
-                <GlassCard className="h-full p-8 border-white/5 space-y-4 group hover:border-gx-cyan/30 transition-all duration-500">
-                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-gx-cyan/10 transition-colors">
-                    <b.icon className="w-6 h-6 text-white/40 group-hover:text-gx-cyan transition-colors" />
+                <GlassCard className="h-full p-8 border-white/5 space-y-4 group  transition-all duration-500">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center  transition-colors">
+                    <b.icon className="w-6 h-6 text-white/40  transition-colors" />
                   </div>
                   <h3 className="text-lg font-bold">{b.title}</h3>
                   <p className="text-sm text-white/30 leading-relaxed">{b.desc}</p>
@@ -98,7 +98,7 @@ export default function OnboardingPage() {
           >
             <Link 
               href="/login?role=merchant" 
-              className="w-full md:w-auto px-12 py-5 bg-gx-cyan text-black font-bold uppercase tracking-widest rounded-2xl hover:shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:scale-105 transition-all duration-500 flex items-center justify-center gap-3"
+              className="w-full md:w-auto px-12 py-5  text-black font-bold uppercase tracking-widest rounded-2xl  hover:scale-105 transition-all duration-500 flex items-center justify-center gap-3"
               prefetch={false}
             >
               {t('txt_f9c0f6')}<ArrowRight className="w-5 h-5" />

@@ -23,7 +23,6 @@ type TableInfo = {
 type LegendItem = {
   label: string;
   color: string;
-  shadow: string;
 };
 
 /**
@@ -42,9 +41,9 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
     { id: 'T6', name: '包间 06', type: '10人桌', status: 'available' },
   ];
   const statusLegend: LegendItem[] = [
-    { label: '空闲', color: 'bg-gx-cyan', shadow: 'shadow-[0_0_12px_rgba(0,240,255,0.5)]' },
-    { label: '占用', color: 'bg-red-500', shadow: 'shadow-[0_0_12px_rgba(239,68,68,0.5)]' },
-    { label: '已预订', color: 'bg-orange-500', shadow: 'shadow-[0_0_12px_rgba(249,115,22,0.5)]' }
+    { label: '空闲', color: 'bg-[#FDF5E6]' }, 
+    { label: '占用', color: 'bg-red-500' },
+    { label: '已预订', color: 'bg-orange-500' }
   ];
 
   return (
@@ -55,7 +54,7 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
-          className="absolute -left-12 -top-12 w-64 h-64 bg-gradient-to-r from-gx-cyan/10 to-transparent rounded-full pointer-events-none"
+          className="absolute -left-12 -top-12 w-64 h-64 bg-gradient-to-r from-[#FDF5E6]/10 to-transparent rounded-full pointer-events-none"
         />
 
         <div className="flex items-center gap-6 relative z-10">
@@ -64,12 +63,12 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
               {dna.metadata?.columnHeader?.split(' / ')[0] || "Occupancy"}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black text-gx-cyan">3/6</span>
+              <span className="text-xl font-bold text-[#FDF5E6]">3/6</span>
               <div className="w-48 h-1.5 bg-white/5 rounded-full overflow-hidden relative">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: '50%' }}
-                  className="h-full bg-gx-cyan shadow-[0_0_15px_rgba(0,240,255,0.6)]" 
+                  className="h-full bg-[#FDF5E6]" 
                 />
               </div>
             </div>
@@ -78,16 +77,16 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
           <div className="flex gap-6">
             {statusLegend.map((s) => (
               <div key={s.label} className="flex items-center gap-2.5">
-                <div className={cn("w-2 h-2 rounded-full", s.color, s.shadow)} />
+                <div className={cn("w-2 h-2 rounded-full", s.color)} />
                 <span className="text-[10px] font-mono text-white font-bold uppercase tracking-widest">{s.label}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="flex items-center gap-3 relative z-10">
-          <button className="px-6 py-2.5 rounded-xl bg-white/5 text-white/40 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all backdrop-blur-md">
+          <button className="px-6 py-2.5 rounded-xl bg-white/5 text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all ">
             {t('txt_154261')}</button>
-          <button className="px-6 py-2.5 rounded-xl bg-gx-cyan/5 text-gx-cyan text-[10px] font-black uppercase tracking-[0.2em] hover:bg-gx-cyan hover:text-black transition-all shadow-[0_0_25px_rgba(0,240,255,0.15)] backdrop-blur-md">
+          <button className="px-6 py-2.5 rounded-xl bg-[#FDF5E6]/5 text-[#FDF5E6] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-[#FDF5E6] hover:text-black transition-all ">
             {industry === 'dining' ? '智能寻位' : '智能排班'} / Smart Search
           </button>
         </div>
@@ -112,10 +111,10 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
         <div className="flex-1 overflow-x-auto overflow-y-auto no-scrollbar">
           <div className="min-w-fit flex flex-col">
             {/* 桌位表头 */}
-            <div className="flex bg-black/40 sticky top-0 z-10 backdrop-blur-xl">
+            <div className="flex bg-black/40 sticky top-0 z-10 ">
               {tables.map((table) => (
                 <div key={table.id} className="flex-1 min-w-[140px] max-w-[240px] h-16 flex flex-col items-center justify-center shrink-0 group cursor-pointer hover:bg-white/[0.02] transition-colors">
-                  <span className="text-[11px] font-black text-white group-hover:text-gx-cyan transition-colors">{table.name}</span>
+                  <span className="text-[11px] font-bold text-white group-hover:text-[#FDF5E6] transition-colors">{table.name}</span>
                   <span className="text-[8px] font-mono text-white font-bold uppercase tracking-widest">{table.type}</span>
                 </div>
               ))}
@@ -129,20 +128,20 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
                     <div key={table.id} className="flex-1 min-w-[140px] max-w-[240px] relative group hover:bg-white/[0.01] transition-colors shrink-0">
                       {/* 模拟状态占位 */}
                       {timeIdx === 2 && table.id === 'T1' && (
-                        <div className="absolute inset-1 rounded-lg bg-red-500/10 flex flex-col items-center justify-center gap-1 backdrop-blur-sm group-hover:bg-red-500/20 transition-all">
-                          <span className="text-[9px] font-black text-red-400">{t('txt_65f899')}</span>
+                        <div className="absolute inset-1 rounded-lg bg-red-500/10 flex flex-col items-center justify-center gap-1  group-hover:bg-red-500/20 transition-all">
+                          <span className="text-[9px] font-bold text-red-400">{t('txt_65f899')}</span>
                           <span className="text-[7px] font-mono text-red-400/60">{t('txt_c1b815')}</span>
                         </div>
                       )}
                       {timeIdx === 5 && table.id === 'T3' && (
-                        <div className="absolute inset-1 rounded-lg bg-orange-500/10 flex flex-col items-center justify-center gap-1 backdrop-blur-sm group-hover:bg-orange-500/20 transition-all">
-                          <span className="text-[9px] font-black text-orange-400">{t('txt_44209e')}</span>
+                        <div className="absolute inset-1 rounded-lg bg-orange-500/10 flex flex-col items-center justify-center gap-1  group-hover:bg-orange-500/20 transition-all">
+                          <span className="text-[9px] font-bold text-orange-400">{t('txt_44209e')}</span>
                           <span className="text-[7px] font-mono text-orange-400/60">{t('txt_c71976')}</span>
                         </div>
                       )}
                       {/* 空位引导 */}
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus className="w-4 h-4 text-gx-cyan/20" />
+                        <Plus className="w-4 h-4 text-[#FDF5E6]/20" />
                       </div>
                     </div>
                   ))}

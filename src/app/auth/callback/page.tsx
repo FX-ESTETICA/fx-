@@ -5,7 +5,7 @@ import { AuthCallbackClient } from './client';
 
 export default function AuthCallback() {
   return (
-    <Suspense fallback={<div className="min-h-[100dvh] bg-black flex items-center justify-center text-gx-cyan">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-[100dvh] bg-black flex items-center justify-center ">Loading...</div>}>
       <AuthCallbackClient />
     </Suspense>
   );

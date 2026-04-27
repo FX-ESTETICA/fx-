@@ -43,7 +43,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
       <div className="xl:col-span-2 space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold tracking-tighter flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-gx-cyan" />
+            <Sparkles className="w-5 h-5 " />
             {t('txt_414a0a')}</h3>
           <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
             Live Sync: 200ms
@@ -69,7 +69,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
                   </div>
                   <div className={cn(
                     "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border",
-                    metric.status === "growing" ? "text-gx-cyan border-gx-cyan/20 bg-gx-cyan/5" :
+                    metric.status === "growing" ? "  " :
                     metric.status === "declining" ? "text-gx-red border-gx-red/20 bg-gx-red/5" :
                     "text-white/40 border-white/10 bg-white/5"
                   )}>
@@ -88,7 +88,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
       {/* AI 复盘洞察 */}
       <div className="space-y-6">
         <h3 className="text-xl font-bold tracking-tighter flex items-center gap-2">
-          <MessageSquareText className="w-5 h-5 text-gx-purple" />
+          <MessageSquareText className="w-5 h-5 " />
           {t('txt_c43c54')}</h3>
 
         <div className="space-y-4">
@@ -103,9 +103,9 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
                 glowColor={insight.type === "opportunity" ? "cyan" : insight.type === "warning" ? "danger" : "purple"}
                 className={cn(
                   "p-5 border-l-4",
-                  insight.type === "opportunity" ? "border-gx-cyan" : 
+                  insight.type === "opportunity" ? "" : 
                   insight.type === "warning" ? "border-gx-red" : 
-                  "border-gx-purple"
+                  ""
                 )}
               >
                 <div className="space-y-3">

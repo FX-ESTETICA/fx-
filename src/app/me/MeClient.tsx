@@ -12,7 +12,7 @@ export default function MePage() {
   const t = useTranslations('me');
   const { user, isLoading } = useAuth();
   
-  const isHydrating = isLoading || (user && !('gxId' in user));
+  const isHydrating = isLoading;
 
   useEffect(() => {
     if (isLoading) return;
@@ -30,7 +30,7 @@ export default function MePage() {
         <div className="relative z-10 w-full h-full" />
       ) : (
         <div className="relative z-10 w-full max-w-sm px-6">
-          <GlassCard className="p-8 flex flex-col items-center justify-center gap-6 text-center border-white/5 bg-black/20 backdrop-blur-2xl">
+          <GlassCard className="p-8 flex flex-col items-center justify-center gap-6 text-center border-white/5 bg-black/20 ">
             <div className="space-y-2">
               <div className="text-lg font-bold tracking-widest">{t('txt_146ea7')}</div>
               <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Join GX Membership</div>

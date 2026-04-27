@@ -71,7 +71,7 @@ export const useHardwareBack = create<HardwareBackState>((set, get) => ({
 
     if (typeof window !== 'undefined') {
       pendingOperations[id] = 'push';
-      clearTimeout(processTimeout);
+      if (processTimeout) clearTimeout(processTimeout);
       processTimeout = setTimeout(processHistoryQueue, 50);
     }
 
@@ -82,7 +82,7 @@ export const useHardwareBack = create<HardwareBackState>((set, get) => ({
   unregister: (id) => set((state) => {
     if (typeof window !== 'undefined') {
       pendingOperations[id] = 'pop';
-      clearTimeout(processTimeout);
+      if (processTimeout) clearTimeout(processTimeout);
       processTimeout = setTimeout(processHistoryQueue, 50);
     }
     return { handlers: state.handlers.filter(h => h.id !== id) };

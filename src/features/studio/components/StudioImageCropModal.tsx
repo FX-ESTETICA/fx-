@@ -61,7 +61,7 @@ export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-xl">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 ">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -71,8 +71,8 @@ export const StudioImageCropModal = ({ isOpen, imageSrc, onClose, onComplete }: 
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/50 z-10">
               <div className="flex items-center gap-3 relative z-10">
-                <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-pulse shadow-[0_0_10px_rgba(0,240,255,1)]" />
-                <h2 className="text-sm font-black tracking-[0.2em] text-white/90 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                <div className="w-1.5 h-1.5 rounded-full  animate-pulse " />
+                <h2 className="text-sm font-bold tracking-[0.2em] text-white/90 ">
                   {t('txt_6d5d49')}</h2>
               </div>
               <button 

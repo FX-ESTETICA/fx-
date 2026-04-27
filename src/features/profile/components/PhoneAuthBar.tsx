@@ -5,6 +5,7 @@ import { Smartphone, Eye, EyeOff } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useTranslations } from "next-intl";
 
 interface PhoneAuthBarProps {
@@ -15,6 +16,8 @@ interface PhoneAuthBarProps {
 export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps) => {
   const { user } = useAuth();
   const t = useTranslations('PhoneAuthBar');
+  const { settings, isLoaded } = useVisualSettings();
+  const isLight = isLoaded && settings.frontendBgIndex !== 0;
   
   // ------------------------------------------------------------------
   // 状态机 (The Core State Machine) - Firebase Phone Auth 模式
@@ -150,15 +153,15 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
         <div className="w-full flex flex-col items-center justify-center pt-8 pb-4">
           {/* 形态 B：已绑定（系统底层信标 - 融合式胶囊） */}
           <div className={cn(
-            "flex items-center rounded-full border backdrop-blur-md overflow-hidden transition-all duration-500",
+            "flex items-center rounded-full border  overflow-hidden transition-all duration-500",
             isPressing 
-              ? "bg-gx-cyan/10 border-gx-cyan/50 shadow-[0_0_20px_rgba(0,240,255,0.3)] scale-[0.98]" 
-              : "bg-black/40 border-white/10 shadow-[0_4px_15px_rgba(0,0,0,0.5)]"
+              ? "${isLight ? 'bg-black/10' : 'bg-white/10'} ${isLight ? 'border-black/50' : '${isLight ? 'border-black/5' : 'border-white/5'}0'}/50  scale-[0.98]" 
+              : "bg-black/40 ${isLight ? 'border-black/10' : 'border-white/10'} "
           )}>
             
             {/* 左侧：机甲铭牌区 (长按进入编辑，单击切换打码) */}
             <div 
-              className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-white/5 transition-all duration-300 group select-none touch-none"
+              className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:${isLight ? 'bg-black/5' : 'bg-white/5'} transition-all duration-300 group select-none touch-none"
               onClick={() => !isPressing && setShowFullPhone(!showFullPhone)}
               onPointerDown={handlePointerDown}
               onPointerUp={handlePointerUpOrLeave}
@@ -167,14 +170,14 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
             >
               {/* 状态指示灯 (呼吸绿点) */}
               <div className="relative flex items-center justify-center w-2 h-2">
-                <span className="absolute inline-flex w-full h-full rounded-full bg-green-500 opacity-75 animate-ping" />
-                <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-green-400" />
+                <span className={`absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping ${isLight ? 'bg-black/50' : 'bg-white/50'}`} />
+                <span className={`relative inline-flex w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
               </div>
               
               {/* 铭牌文本区 */}
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold tracking-widest text-white/50">{t('txt_421f72')}</span>
-                <span className="text-[11px] font-mono tracking-[0.1em] text-white/90 w-[115px] text-center transition-all duration-300">
+                <span className={cn("text-[10px] font-bold tracking-widest", isLight ? "text-black/50" : "text-white/50")}>{t('txt_421f72')}</span>
+                <span className={cn("text-[11px] font-mono tracking-[0.1em] w-[115px] text-center transition-all duration-300", isLight ? "text-black/90" : "text-white/90")}>
                   {showFullPhone ? initialPhone : formatHiddenPhone(initialPhone)}
                 </span>
               </div>
@@ -182,15 +185,15 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
               {/* 物理锁图标 (小眼睛) */}
               <div className="flex items-center justify-center w-4 h-4 ml-1">
                 {showFullPhone ? (
-                  <EyeOff className="w-3 h-3 text-white/40 group-hover:text-gx-cyan transition-colors" />
+                  <EyeOff className={cn("w-3 h-3 transition-colors", isLight ? "text-black/40 group-hover:text-black" : "text-white/40 group-hover:text-white")} />
                 ) : (
-                  <Eye className="w-3 h-3 text-white/20 group-hover:text-gx-cyan transition-colors" />
+                  <Eye className={cn("w-3 h-3 transition-colors", isLight ? "text-black/20 group-hover:text-black" : "text-white/20 group-hover:text-white")} />
                 )}
               </div>
             </div>
 
             {/* 极细物理分割线 */}
-            <div className="w-px h-4 bg-white/10" />
+            <div className={cn("w-px h-4", isLight ? "bg-black/10" : "bg-white/10")} />
 
             {/* 右侧：退出系统区 */}
             <button
@@ -198,9 +201,9 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
                 await supabase.auth.signOut();
                 window.location.href = "/login";
               }}
-              className="flex items-center justify-center px-5 py-2 text-[10px] font-bold tracking-widest text-white/30 hover:text-red-500/80 transition-colors group"
+              className={cn("flex items-center justify-center px-5 py-2 text-[10px] font-bold tracking-widest transition-colors group", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
             >
-              <span className="drop-shadow-sm">{t('txt_732906')}</span>
+              <span className="">{t('txt_732906')}</span>
             </button>
             
           </div>
@@ -209,22 +212,23 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
           <div className="mt-2 h-3 flex items-center justify-center overflow-hidden">
             <span className={cn(
               "text-[9px] font-mono tracking-widest transition-all duration-300",
-              isPressing ? "text-gx-cyan scale-105" : "text-white/20"
+              isPressing ? (isLight ? 'text-black scale-105' : 'text-white scale-105') : (isLight ? 'text-black/20' : 'text-white/20')
             )}>
               {isPressing ? ">>> 强制授权中 <<<" : "长按左侧重置终端"}
             </span>
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-[320px] mx-auto flex items-center bg-black/20 backdrop-blur-sm border border-white/10 rounded-lg overflow-hidden focus-within:border-gx-cyan focus-within:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all h-10 group">
+        <div className={cn("w-full max-w-[320px] mx-auto flex items-center  border rounded-lg overflow-hidden transition-all h-10 group", isLight ? "bg-black/5 border-black/10 focus-within:border-black/50" : "bg-white/5 border-white/10 focus-within:border-white/50")}>
           {/* 形态 A：未绑定 / 编辑模式（极简输入流 - 终极空间降维） */}
           
           {/* 左侧：现代手机图标前缀 (动态响应) */}
           <div className={cn(
-            "h-full flex items-center px-3 shrink-0 transition-colors border-r border-white/5",
+            "h-full flex items-center px-3 shrink-0 transition-colors border-r",
+            isLight ? "border-black/5" : "border-white/5",
             isCodeSent 
-              ? "bg-gx-cyan/10 text-gx-cyan animate-pulse" 
-              : "bg-white/5 text-white/40 group-focus-within:text-gx-cyan group-focus-within:bg-gx-cyan/5"
+              ? (isLight ? "bg-black/10 text-black animate-pulse" : "bg-white/10 text-white animate-pulse") 
+              : (isLight ? "bg-black/5 text-black/40 group-focus-within:text-black group-focus-within:bg-black/5" : "bg-white/5 text-white/40 group-focus-within:text-white group-focus-within:bg-white/5")
           )}>
             <Smartphone className="w-3.5 h-3.5" strokeWidth={1.5} />
             {isCodeSent && (
@@ -238,15 +242,15 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
             // 模式 1：输入手机号 (无界输入流)
             <>
               {/* 国家码微缩选择器 */}
-              <div className="h-full flex items-center shrink-0 border-r border-white/5">
+              <div className={cn("h-full flex items-center shrink-0 border-r", isLight ? "border-black/5" : "border-white/5")}>
                 <select
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
-                  className="h-full bg-transparent text-white/80 font-mono text-[11px] font-bold outline-none px-2 appearance-none cursor-pointer hover:bg-white/5 transition-colors w-12 text-center"
+                  className={cn("h-full bg-transparent font-mono text-[11px] font-bold outline-none px-2 appearance-none cursor-pointer transition-colors w-12 text-center", isLight ? "text-black/80 hover:bg-black/5" : "text-white/80 hover:bg-white/5")}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                 >
                   {countryCodes.map((item) => (
-                    <option key={item.code} value={item.code} className="bg-black text-white">
+                    <option key={item.code} value={item.code} className={isLight ? "bg-white text-black" : "bg-black text-white"}>
                       {item.code}
                     </option>
                   ))}
@@ -258,14 +262,14 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
                 placeholder={t('txt_7d4d29')} 
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value)}
-                className="flex-1 min-w-0 bg-transparent px-3 text-xs sm:text-sm font-mono text-white outline-none placeholder:text-white/20 tracking-wider"
+                className={cn("flex-1 min-w-0 bg-transparent px-3 text-xs sm:text-sm font-mono outline-none tracking-wider", isLight ? "text-black placeholder:text-black/20" : "text-white placeholder:text-white/20")}
               />
               
               {/* 极简执行按钮 */}
               <button 
                 onClick={handleSendCode} 
                 disabled={isUpdatingPhone || !phoneInput.trim()}
-                className="h-full shrink-0 px-4 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white font-bold tracking-widest text-[10px] transition-all disabled:opacity-40 disabled:hover:bg-white/5 disabled:hover:text-white/50 disabled:cursor-not-allowed border-l border-white/5"
+                className={cn("h-full shrink-0 px-4 font-bold tracking-widest text-[10px] transition-all disabled:opacity-40 disabled:cursor-not-allowed border-l", isLight ? "bg-black/5 text-black/50 hover:bg-black/10 hover:text-black disabled:hover:bg-black/5 disabled:hover:text-black/50 border-black/5" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white disabled:hover:bg-white/5 disabled:hover:text-white/50 border-white/5")}
               >
                 {isUpdatingPhone ? "..." : "验证"}
               </button>
@@ -278,12 +282,12 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value)}
                 maxLength={6}
-                className="flex-1 min-w-0 bg-transparent px-4 text-xs font-mono text-center tracking-[0.3em] sm:tracking-[0.5em] text-gx-cyan outline-none placeholder:text-white/20 placeholder:tracking-normal"
+                className={cn("flex-1 min-w-0 bg-transparent px-4 text-xs font-mono text-center tracking-[0.3em] sm:tracking-[0.5em] outline-none placeholder:tracking-normal", isLight ? "text-black placeholder:text-black/20" : "text-white placeholder:text-white/20")}
               />
               <button 
                 onClick={handleVerifyCode} 
                 disabled={isUpdatingPhone || verificationCode.length < 6}
-                className="h-full shrink-0 px-5 bg-gx-cyan/10 text-gx-cyan hover:bg-gx-cyan/20 hover:text-white font-bold tracking-widest text-[10px] transition-all disabled:opacity-40 disabled:hover:bg-gx-cyan/10 disabled:hover:text-gx-cyan disabled:cursor-not-allowed border-l border-gx-cyan/20"
+                className={cn("h-full shrink-0 px-5 font-bold tracking-widest text-[10px] transition-all disabled:opacity-40 disabled:cursor-not-allowed border-l", isLight ? "bg-black/10 text-black hover:bg-black/20 hover:text-black disabled:hover:bg-black/10 disabled:hover:text-black border-black/50/20" : "bg-white/10 text-white  hover:text-white disabled:hover:bg-white/10 disabled:hover:text-white border-white/50/20")}
               >
                 {isUpdatingPhone ? "..." : "确认"}
               </button>
@@ -294,18 +298,27 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
 
 
 
-      {phoneMessage && (
-        <div className="pt-2 flex items-center justify-between">
-            <p className={cn(
-              "text-[10px] font-bold font-mono uppercase tracking-widest",
-              phoneMessage.includes("激活") || phoneMessage.includes("SUCCESS") ? "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.8)]" 
-              : phoneMessage.includes("等待") || phoneMessage.includes("发送") || phoneMessage.includes("SEND") ? "text-yellow-400 animate-pulse" 
-              : "text-gx-red drop-shadow-[0_0_8px_rgba(255,0,0,0.8)]"
-            )}>
-              {phoneMessage}
-            </p>
+        <div className={cn("mt-3 h-4 flex items-center justify-center overflow-hidden transition-all duration-500", 
+          phoneMessage ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
+        )}>
+          {phoneMessage && (
+            <div className={cn("px-4 py-0.5 rounded-full border  flex items-center gap-2", isLight ? "bg-black/10 border-black/20" : "bg-black/40 border-white/20")}>
+              <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", 
+                phoneMessage.includes("激活") || phoneMessage.includes("SUCCESS") ? "" 
+                : phoneMessage.includes("等待") || phoneMessage.includes("发送") || phoneMessage.includes("SEND") ? "bg-yellow-400" 
+                : "bg-red-500"
+              )} />
+              <p className={cn(
+                "text-[10px] font-bold font-mono uppercase tracking-widest",
+                phoneMessage.includes("激活") || phoneMessage.includes("SUCCESS") ? (isLight ? 'text-black ' : 'text-white ') 
+                : phoneMessage.includes("等待") || phoneMessage.includes("发送") || phoneMessage.includes("SEND") ? "text-yellow-400 animate-pulse" 
+                : "text-red-500 "
+              )}>
+                {phoneMessage}
+              </p>
+            </div>
+          )}
         </div>
-      )}
     </div>
   );
 };

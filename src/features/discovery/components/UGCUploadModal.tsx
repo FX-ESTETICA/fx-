@@ -224,10 +224,10 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
 
                 <button 
                   onClick={() => photoInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center gap-4 aspect-square rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-gx-cyan/50 transition-all group"
+                  className="flex flex-col items-center justify-center gap-4 aspect-square rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10  transition-all group"
                 >
                   <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <ImageIcon className="w-8 h-8 text-white/80 group-hover:text-gx-cyan" />
+                    <ImageIcon className="w-8 h-8 text-white/80 " />
                   </div>
                   <span className="text-xs font-bold tracking-widest text-white/60 group-hover:text-white uppercase">{t('txt_fb8804')}</span>
                 </button>
@@ -252,7 +252,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
               {/* Close Button */}
               <button 
                 onClick={handleClose} 
-                className="absolute top-12 right-8 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md text-white/80 hover:text-white transition-colors"
+                className="absolute top-12 right-8 w-10 h-10 flex items-center justify-center rounded-full bg-white/10  text-white/80 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -278,14 +278,14 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                 )}
               </div>
 
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/50 pointer-events-none" />
+              {/* Overlay - 抖音极简黑色渐变 */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
 
               {/* Top Bar */}
               <div className="relative z-10 flex justify-between items-center p-6 pt-[calc(var(--sat)+24px)]">
                 <button 
                   onClick={() => { setStep("camera"); setFile(null); setPreviewUrl(null); }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white/80 hover:text-white transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20  text-white/80 hover:text-white transition-colors"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
@@ -300,7 +300,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={t('txt_e4205f')}
                     disabled={uploading}
-                    className="w-full bg-transparent border-b border-white/20 pb-4 text-xl font-bold text-white placeholder:text-white/40 focus:outline-none focus:border-gx-cyan transition-colors"
+                    className="w-full bg-transparent border-b border-white/20 pb-4 text-xl font-bold text-white placeholder:text-white/40 focus:outline-none  transition-colors"
                   />
                 </div>
 
@@ -308,7 +308,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-[10px] font-mono text-white/40">
-                    <span className="px-2 py-1 bg-white/10 rounded-md backdrop-blur-md uppercase">
+                    <span className="px-2 py-1 bg-white/10 rounded-md  uppercase">
                       {file.type.startsWith("video/") ? "VIDEO" : "PHOTO"}
                     </span>
                     <span>{(file.size / (1024 * 1024)).toFixed(1)} MB</span>
@@ -318,7 +318,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                     variant="cyan"
                     onClick={handleUpload}
                     disabled={uploading}
-                    className="px-8 py-4 rounded-full font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(0,240,255,0.3)] flex items-center gap-2"
+                    className="px-8 py-4 rounded-full font-bold uppercase tracking-widest  flex items-center gap-2"
                   >
                     {uploading ? (
                       <>

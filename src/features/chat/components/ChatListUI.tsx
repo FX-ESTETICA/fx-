@@ -1,9 +1,13 @@
-import { Search, ScanLine, Plus, CheckCheck, MessageCircle, Database, Signal, SearchX } from 'lucide-react';
+import { Search, ScanLine, Plus, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2 } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useTranslations } from "next-intl";
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useChatStore } from '@/store/useChatStore';
 import { supabase } from '@/lib/supabase';
+import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { usePathname } from "next/navigation";
+import { useActiveTab } from "@/hooks/useActiveTab";
+import { cn } from "@/utils/cn";
 
 export interface ChatListUIProps {
   currentUserId: string;
@@ -29,11 +33,39 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const { activeChat } = useChatStore();
   const { recentChats, isLoading } = useRecentChats(currentUserId, activeChat?.id);
   
+  // 主题嗅探系统
+  const { settings } = useVisualSettings();
+  const pathname = usePathname();
+  const activeTab = useActiveTab();
+  
+  const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+  const isLight = isCalendar 
+    ? settings.calendarBgIndex !== 0 
+    : settings.frontendBgIndex !== 0;
+
   // 搜索状态机
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 右键菜单状态
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, targetId: string } | null>(null);
+
+  const handleContextMenu = (e: React.MouseEvent, targetId: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, targetId });
+  };
+
+  const handleClearHistory = () => {
+    if (!contextMenu?.targetId) return;
+    
+    const key = `gx_cleared_${currentUserId}_${contextMenu.targetId}`;
+    localStorage.setItem(key, Date.now().toString());
+    
+    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId } }));
+    setContextMenu(null);
+  };
 
   // =========================================================================
   // 【世界级多轨探测雷达 (Multi-Track Radar)】
@@ -178,7 +210,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
     // 我们在这里使用一种“前端伪加密/映射”的临时降维方案（如果将来有后端 API，这里换成调用 API 获取真实 Token）。
     // 将手机号通过 Base64 编码变形，加上一个随机混淆前缀，生成一个表面上毫无意义的 Token。
     // 例如：3937 -> 'gx_tk_' + btoa('3937_salt')
-    const token = `gx_tk_${btoa(finalPhone + '_nexus')}`;
+    const token = encodeURIComponent(`gx_tk_${btoa(finalPhone + '_nexus')}`);
     
     // 最终的邀请链接：干净、无明文手机号。带上时间戳彻底摧毁 WhatsApp 的旧图片缓存机制。
     const inviteUrl = `${domain}/chat?t=${token}&shopId=${currentUserId}&ts=${Date.now()}`;
@@ -198,24 +230,27 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
       <div className="px-5 py-4 shrink-0 relative z-20">
         <div className="relative group">
           {/* 无边框幽灵悬浮底色 (完全透明) */}
-          <div className="absolute inset-0 bg-transparent rounded-2xl group-focus-within:bg-white/5 transition-colors duration-500" />
+          <div className={cn("absolute inset-0 rounded-2xl transition-colors duration-500", isLight ? "bg-black/5 group-focus-within:bg-black/10" : "bg-transparent group-focus-within:bg-white/5")} />
           
           {/* 输入框与聚合功能 */}
           <div className="relative flex items-center h-12 px-4 space-x-3">
-            <Search className="w-5 h-5 text-white/50" />
+            <Search className={cn("w-5 h-5", isLight ? "text-black/50" : "text-white/50")} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('txt_8a6e8e')}
-              className="flex-1 bg-transparent border-none outline-none focus:outline-none text-white placeholder:text-white/30 focus:ring-0 text-[15px]"
+              className={cn(
+                "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-[15px]",
+                isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/30"
+              )}
             />
             {/* 扫码与添加快捷指令 (同样去除分割线，保持极致清透) */}
             <div className="flex items-center space-x-3 pl-3">
-              <button className="text-white/60 hover:text-cyan-400 transition-colors">
-                <ScanLine className="w-5 h-5 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" />
+              <button className={cn("transition-colors", isLight ? "text-black/60" : "text-white/60")}>
+                <ScanLine className="w-5 h-5" />
               </button>
-              <button className="text-white/60 hover:text-cyan-400 transition-colors">
+              <button className={cn("transition-colors", isLight ? "text-black/60" : "text-white/60")}>
                 <Plus className="w-5 h-5" />
               </button>
             </div>
@@ -267,36 +302,43 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                   <img 
                     src={contact.avatar} 
                     alt={contact.name}
-                    className={`w-full h-full rounded-full object-cover border-[1.5px] border-black 
-                      ${contact.isCityChannel ? 'shadow-[0_0_15px_rgba(188,19,254,0.6)]' : ''}
-                      ${contact.isOnline ? '' : 'grayscale opacity-40 border-white/20'}
-                    `}
+                    className={cn(
+                      "w-full h-full rounded-full object-cover border-[1.5px]",
+                      isLight ? "border-black" : "border-white",
+                      !contact.isOnline && "grayscale opacity-40",
+                      !contact.isOnline && (isLight ? "border-black/20" : "border-white/20")
+                    )}
                   />
                 ) : (
                   <div 
-                    className={`w-full h-full rounded-full flex items-center justify-center border-[1.5px] border-black bg-gradient-to-br from-gray-800 to-gray-900 text-white font-bold text-xl
-                      ${contact.isOnline ? '' : 'opacity-40 border-white/20'}
-                    `}
+                    className={cn(
+                      "w-full h-full rounded-full flex items-center justify-center border-[1.5px] bg-gradient-to-br font-bold text-xl",
+                      isLight ? "border-black text-black" : "border-white text-white",
+                      !contact.isOnline && "opacity-40",
+                      !contact.isOnline && (isLight ? "border-black/20" : "border-white/20")
+                    )}
                   >
                     {contact.name ? contact.name.charAt(0).toUpperCase() : '?'}
                   </div>
                 )}
                 {/* 在线绿点 / 同城雷达点 */}
                 {contact.isCityChannel ? (
-                   <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-500 border-2 border-black rounded-full shadow-[0_0_8px_rgba(188,19,254,0.9)] flex items-center justify-center animate-pulse">
-                     <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                   <div className={cn("absolute -bottom-1 -right-1 w-4 h-4 border-2 rounded-full flex items-center justify-center animate-pulse", isLight ? "border-white" : "border-black")}>
+                     <div className={cn("w-1.5 h-1.5 rounded-full", isLight ? "bg-black" : "bg-white")} />
                    </div>
                 ) : contact.isOnline ? (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-black rounded-full shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
+                  <div className={cn("absolute bottom-0 right-0 w-3 h-3 border-2 rounded-full", isLight ? "border-white bg-black" : "border-black bg-white")} />
                 ) : null}
               </div>
               {/* 名字 */}
               <span 
-                className={`text-[10px] truncate w-14 text-center tracking-wider uppercase
-                  ${contact.isCityChannel ? 'text-purple-300 drop-shadow-[0_0_5px_rgba(188,19,254,0.8)] font-bold' : ''}
-                  ${contact.isOnline && !contact.isCityChannel ? 'text-white drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]' : ''}
-                  ${!contact.isOnline ? 'text-gray-500' : ''}
-                `}
+                className={cn(
+                  "text-[10px] truncate w-14 text-center tracking-wider uppercase",
+                  contact.isCityChannel && "font-bold",
+                  contact.isOnline && !contact.isCityChannel 
+                    ? (isLight ? "text-black" : "text-white") 
+                    : (isLight ? "text-black/60" : "text-white/60")
+                )}
               >
                 {contact.name}
               </span>
@@ -314,9 +356,9 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             {/* 加载状态 */}
             {isSearching && (
               <div className="flex justify-center items-center py-10">
-                <div className="w-16 h-16 rounded-full border border-cyan-500/20 flex items-center justify-center relative animate-pulse">
-                  <div className="absolute inset-0 rounded-full border-t border-cyan-400 animate-spin opacity-80" />
-                  <Signal className="w-5 h-5 text-cyan-500/50" />
+                <div className={cn("w-16 h-16 rounded-full border flex items-center justify-center relative animate-pulse", isLight ? "border-black/20" : "border-white/20")}>
+                  <div className={cn("absolute inset-0 rounded-full border-t animate-spin opacity-80", isLight ? "border-black" : "border-white")} />
+                  <Signal className={cn("w-5 h-5", isLight ? "text-black/50" : "text-white/50")} />
                 </div>
               </div>
             )}
@@ -333,7 +375,10 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                   });
                   setSearchQuery(''); // 选中后清空搜索
                 }}
-                className="relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 border border-white/10 hover:bg-white/5 group"
+                className={cn(
+                  "relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 border group",
+                  isLight ? "border-black/5 hover:bg-black/5" : "border-white/10 hover:bg-white/5"
+                )}
               >
                 {/* 内部用户发光效果 */}
                 {res.track === 'profiles' && (
@@ -354,35 +399,35 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 
                 <div className="relative shrink-0 mr-4">
                   {res.avatar ? (
-                    <img src={res.avatar} alt={res.name} className="w-14 h-14 rounded-full object-cover border border-white/20" />
+                    <img src={res.avatar} alt={res.name} className={cn("w-14 h-14 rounded-full object-cover border", isLight ? "border-black/20" : "border-white/20")} />
                   ) : (
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center border border-white/20 bg-gradient-to-br from-gray-800 to-gray-900 text-white font-bold text-xl">
+                    <div className={cn("w-14 h-14 rounded-full flex items-center justify-center border bg-gradient-to-br font-bold text-xl", isLight ? "border-black/20 text-black" : "border-white/20 text-white")}>
                       {res.name.charAt(0).toUpperCase()}
                     </div>
                   )}
                   {/* 身份角标 */}
-                  <div className="absolute -bottom-1 -right-1 bg-black border border-gray-700 rounded-full p-1 shadow-lg">
+                  <div className={cn("absolute -bottom-1 -right-1 border rounded-full p-1", isLight ? "bg-white border-black/10" : "bg-black border-white/10")}>
                     {res.track === 'profiles' ? (
-                      <Database className="w-3 h-3 text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                      <Database className={cn("w-3 h-3", isLight ? "text-black" : "text-white")} />
                     ) : (
-                      <SearchX className="w-3 h-3 text-gray-400" />
+                      <SearchX className={cn("w-3 h-3", isLight ? "text-black" : "text-white")} />
                     )}
                   </div>
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="truncate text-lg font-medium tracking-wide text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
+                    <span className={cn("truncate text-lg font-medium tracking-wide", isLight ? "text-black" : "text-white")}>
                       {res.name}
                     </span>
-                    <span className="shrink-0 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/50">
+                    <span className={cn("shrink-0 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border", isLight ? "bg-black/5 border-black/10 text-black/50" : "bg-white/5 border-white/10 text-white/50")}>
                       {res.track === 'profiles' ? '内网档案' : '历史客源'}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-[12px] font-mono text-cyan-400 tracking-widest">{res.gx_id}</span>
+                    <span className={cn("text-[12px] font-mono tracking-widest", isLight ? "text-black/60" : "text-white/60")}>{res.gx_id}</span>
                     {res.phone && (
-                      <span className="text-[12px] font-mono text-gray-500 tracking-widest">
+                      <span className={cn("text-[12px] font-mono tracking-widest", isLight ? "text-black/60" : "text-white/60")}>
                         {res.phone.substring(0, 3)}•••{res.phone.substring(res.phone.length - 4)}
                       </span>
                     )}
@@ -394,18 +439,18 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             {/* 外部兜底：WhatsApp 降维打击卡片 */}
             {!isSearching && (
               <div className="flex flex-col items-center justify-center pt-6 pb-10">
-                <div className="relative w-full max-w-[320px] bg-gray-900/40 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-gray-800/60 transition-colors group">
-                  <div className="absolute inset-0 rounded-2xl shadow-[0_0_15px_rgba(37,211,102,0)] group-hover:shadow-[0_0_15px_rgba(37,211,102,0.15)] transition-all pointer-events-none" />
+                <div className={cn("relative w-full max-w-[320px] border rounded-2xl p-5 flex flex-col items-center justify-center transition-colors group", isLight ? "border-black/10" : "border-white/10")}>
+                  <div className="absolute inset-0 rounded-2xl transition-all pointer-events-none" />
                   
-                  <div className="w-12 h-12 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center mb-3 relative">
-                    <span className="text-gray-400 text-sm">?</span>
-                    <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5">
-                      <MessageCircle className="w-4 h-4 text-[#25D366] drop-shadow-[0_0_3px_rgba(37,211,102,0.8)]" />
+                  <div className={cn("w-12 h-12 rounded-full border flex items-center justify-center mb-3 relative", isLight ? "border-black/20" : "border-white/20")}>
+                    <span className={cn("text-sm", isLight ? "text-black/60" : "text-white/60")}>?</span>
+                    <div className={cn("absolute -bottom-1 -right-1 rounded-full p-0.5", isLight ? "bg-white" : "bg-black")}>
+                      <MessageCircle className="w-4 h-4 text-[#25D366] " />
                     </div>
                   </div>
                   
-                  <span className="text-gray-300 font-mono text-sm mb-1">{searchQuery}</span>
-                  <span className="text-xs text-gray-500 mb-4 text-center">
+                  <span className={cn("font-mono text-sm mb-1", isLight ? "text-black" : "text-white")}>{searchQuery}</span>
+                  <span className={cn("text-xs mb-4 text-center", isLight ? "text-black/50" : "text-white/50")}>
                     {searchResults.length > 0 
                       ? "没找到你想找的人？\n试试通过 WhatsApp 发起强制连接"
                       : "未检测到内部信号\n是否通过 WhatsApp 发起强制连接？"
@@ -416,9 +461,14 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                     href={getWhatsAppNativeUrl(searchQuery)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-5 py-2 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs tracking-wider uppercase hover:bg-[#25D366]/20 transition-colors cursor-pointer z-10"
+                    className={cn(
+                      "px-6 py-2.5 rounded-full text-xs font-bold tracking-widest uppercase transition-all duration-300",
+                      isLight 
+                        ? "bg-black text-white hover:bg-black/80" 
+                        : "bg-white text-black hover:bg-white/90"
+                    )}
                   >
-                    拉起原生 WhatsApp (免费)
+                    Initiate Link
                   </a>
                 </div>
               </div>
@@ -429,7 +479,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           /* 正常历史聊天记录 */
           <>
             {isLoading && recentChats.length === 0 && (
-              <div className="flex justify-center items-center h-20 text-white/40 text-sm tracking-widest">
+              <div className={cn("flex justify-center items-center h-20 text-sm tracking-widest", isLight ? "text-black/40" : "text-white/40")}>
                 {t('txt_8fc78c')}</div>
             )}
             
@@ -441,14 +491,13 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                   name: chat.name,
                   isGroup: chat.isGroup,
                 })}
-                className={`
-                  relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300
-                  ${chat.unread 
-                    ? 'shadow-[0_0_20px_rgba(188,19,254,0.15)] border border-transparent' // 未读：底部光晕 + 透明占位边框(防止高度塌陷)
-                    : 'border border-white/10' // 已读：极度安静的冷线框
-                  }
-                  bg-transparent /* 绝对禁用背景色 */
-                `}
+                onContextMenu={(e) => handleContextMenu(e, chat.id)}
+                className={cn(
+                  "relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 bg-transparent",
+                  chat.unread 
+                    ? "border border-transparent" // 未读：底部光晕 + 透明占位边框(防止高度塌陷)
+                    : (isLight ? "border border-black/10" : "border border-white/10") // 已读：极度安静的冷线框
+                )}
               >
                 {/* 未读状态的七彩流光边框 (绝对定位覆盖) */}
                 {chat.unread && (
@@ -471,21 +520,24 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                     <img
                       src={chat.avatar}
                       alt={chat.name}
-                      className="w-14 h-14 rounded-full object-cover border border-white/20"
+                      className={cn("w-14 h-14 rounded-full object-cover border", isLight ? "border-black/20" : "border-white/20")}
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center border border-white/20 bg-gradient-to-br from-gray-800 to-gray-900 text-white font-bold text-xl">
+                    <div className={cn(
+                      "w-14 h-14 rounded-full flex items-center justify-center border bg-gradient-to-br font-bold text-xl",
+                      isLight ? "border-black/20 text-black" : "border-white/20 text-white"
+                    )}>
                       {chat.name ? chat.name.charAt(0).toUpperCase() : '?'}
                     </div>
                   )}
                   {/* WhatsApp 卫星节点标识 / 或群聊小标签 */}
                   {chat.id.startsWith('wa_') ? (
-                    <div className="absolute -bottom-1 -right-1 bg-black border border-gray-700 rounded-full p-0.5">
-                      <MessageCircle className="w-3.5 h-3.5 text-[#25D366] drop-shadow-[0_0_5px_rgba(37,211,102,0.8)]" />
+                    <div className="absolute -bottom-1 -right-1 bg-black border  rounded-full p-0.5">
+                      <MessageCircle className="w-3.5 h-3.5 text-[#25D366] " />
                     </div>
                   ) : chat.isGroup && (
-                    <div className="absolute -bottom-1 -right-1 bg-black border border-cyan-500 rounded-full p-0.5">
-                      <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                    <div className="absolute -bottom-1 -right-1 bg-black border  rounded-full p-0.5">
+                      <div className="w-2.5 h-2.5  rounded-full animate-pulse " />
                     </div>
                   )}
                 </div>
@@ -494,17 +546,19 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                 <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
                   <div className="flex items-center justify-between">
                     <span
-                      className={`
-                        truncate text-lg font-medium tracking-wide flex items-center gap-2
-                        ${chat.unread 
-                          ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]' // 未读：高亮白字+发光
-                          : 'text-gray-300' // 已读：沉寂的灰白
-                        }
-                      `}
+                      className={cn(
+                        "truncate text-lg font-medium tracking-wide flex items-center gap-2",
+                        chat.unread 
+                          ? (isLight ? "text-black" : "text-white") 
+                          : (isLight ? "text-black/60" : "text-white/60")
+                      )}
                     >
                       {chat.name}
                       {chat.isPhantom && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded border border-cyan-500/50 bg-cyan-500/10 text-cyan-400 font-mono tracking-widest whitespace-nowrap">
+                        <span className={cn(
+                          "text-[9px] px-1.5 py-0.5 rounded border font-mono tracking-widest whitespace-nowrap",
+                          isLight ? "border-black/10 text-black/60" : "border-white/10 text-white/60"
+                        )}>
                           CONNECTING
                         </span>
                       )}
@@ -512,13 +566,12 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                     
                     {/* 时间 (右) */}
                     <span
-                      className={`
-                        shrink-0 text-xs ml-2
-                        ${chat.unread 
-                          ? 'text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]' // 未读：电光紫/青色
-                          : 'text-gray-500' // 已读：暗灰
-                        }
-                      `}
+                      className={cn(
+                        "shrink-0 text-xs ml-2",
+                        chat.unread 
+                          ? (isLight ? "text-black" : "text-white") 
+                          : (isLight ? "text-black/40" : "text-white/40")
+                      )}
                     >
                       {chat.time}
                     </span>
@@ -527,17 +580,16 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                   <div className="flex items-center space-x-1.5">
                     {/* 已读状态标记 (双蓝勾/灰勾) */}
                     {!chat.unread && (
-                      <CheckCheck className="w-4 h-4 text-cyan-500/50 shrink-0" />
+                      <CheckCheck className={cn("w-4 h-4 shrink-0", isLight ? "text-black/40" : "text-white/40")} />
                     )}
                     
                     <p
-                      className={`
-                        truncate text-[14px]
-                        ${chat.unread 
-                          ? 'text-white/90 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] font-medium' // 未读：高亮白字
-                          : 'text-gray-500' // 已读：暗灰
-                        }
-                      `}
+                      className={cn(
+                        "truncate text-[14px]",
+                        chat.unread 
+                          ? (isLight ? "text-black/90 font-medium" : "text-white/90 font-medium") 
+                          : (isLight ? "text-black/60" : "text-white/60")
+                      )}
                     >
                       {chat.lastMessage}
                     </p>
@@ -548,6 +600,43 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           </>
         )}
       </div>
+
+      {/* 右键菜单层 */}
+      {contextMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-[100]" 
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+          />
+          <div 
+            className={cn(
+              "fixed w-48 rounded-xl border z-[110] overflow-hidden py-1 shadow-2xl backdrop-blur-xl",
+              isLight ? "bg-white/80 border-black/10" : "bg-black/80 border-white/10"
+            )}
+            style={{ 
+              left: `${contextMenu.x}px`, 
+              top: `${contextMenu.y}px`,
+              // 防止菜单超出屏幕右侧或底部
+              transform: `translate(min(0px, calc(100vw - 100% - ${contextMenu.x}px - 16px)), min(0px, calc(100vh - 100% - ${contextMenu.y}px - 16px)))`
+            }}
+          >
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClearHistory();
+              }}
+              className={cn(
+                "w-full px-4 py-3 flex items-center gap-3 transition-colors group",
+                isLight ? "text-red-600 hover:bg-red-500/10" : "text-red-400 hover:bg-red-500/10"
+              )}
+            >
+              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-medium tracking-wide">清空聊天记录</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

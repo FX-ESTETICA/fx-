@@ -75,7 +75,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
       <div className="grid grid-cols-7 h-12 bg-transparent">
         {DAYS_OF_WEEK.map((day, idx) => (
           <div key={idx} className="flex items-center justify-center">
-            <span className="text-[11px] font-black uppercase tracking-widest text-white/40">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
               {day}
             </span>
           </div>
@@ -96,7 +96,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
                 cell.isCurrentMonth 
                   ? "bg-white/[0.02] border-white/5" 
                   : "bg-transparent border-transparent opacity-30",
-                isToday && "border-gx-cyan/30 bg-gx-cyan/5 shadow-[0_0_20px_rgba(0,240,255,0.05)]"
+                isToday && "border-[#FDF5E6]/30 bg-[#FDF5E6]/5"
               )}
             >
               <div className="flex items-center justify-between">
@@ -106,14 +106,14 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
                     onDateClick?.(cell.date);
                   }}
                   className={cn(
-                    "text-lg font-mono font-bold cursor-pointer hover:scale-110 transition-transform hover:text-gx-cyan",
-                    isToday ? "text-gx-cyan" : "text-white"
+                    "text-lg font-mono font-bold cursor-pointer hover:scale-110 transition-transform hover:text-[#FDF5E6]",
+                    isToday ? "text-[#FDF5E6]" : "text-white"
                   )}
                 >
                   {cell.day}
                 </span>
                 {isToday && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.8)] animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#FDF5E6] animate-pulse" />
                 )}
               </div>
               

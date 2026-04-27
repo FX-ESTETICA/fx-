@@ -1,20 +1,34 @@
 import { useState, useEffect, useCallback, startTransition } from 'react';
 
-export const BACKGROUND_IMAGES = [
-  'starry', // 默认纯星空
-  '/images/backgrounds/p1.jpg'
+export const GLOBAL_BACKGROUNDS = [
+  '/images/backgrounds/A1.jpg' // 仅保留深色跑车
 ];
 
+export const FRONTEND_BACKGROUNDS = [
+  '/images/backgrounds/A1.jpg', // 深色跑车
+  '/images/backgrounds/B3.jpg', // 浅色壁纸3
+  '/images/backgrounds/B4.jpg', // 浅色壁纸4
+  '/images/backgrounds/B6.jpg'  // 浅色壁纸6
+];
+
+export const CALENDAR_BACKGROUNDS = [
+  '/images/backgrounds/A1.jpg', // 深色跑车
+  '/images/backgrounds/B3.jpg', // 浅色壁纸3
+  '/images/backgrounds/B4.jpg', // 浅色壁纸4
+  '/images/backgrounds/B6.jpg'  // 浅色壁纸6
+];
+
+// 兼容老代码的导出（后续可以在 NebulaConfigHub 里分发使用）
+export const BACKGROUND_IMAGES = GLOBAL_BACKGROUNDS;
+
 export function useBackground() {
-  // Hydration 安全原点：SSR 和初始挂载强制为 0 (纯代码星空)
   const [bgIndex, setBgIndex] = useState<number>(0); 
 
   useEffect(() => {
-    // 客户端挂载后，再去读取真实的物理缓存
     const saved = localStorage.getItem('gx_theme_bg_index');
     if (saved !== null) {
       const parsedIndex = parseInt(saved, 10);
-      if (parsedIndex >= 0 && parsedIndex < BACKGROUND_IMAGES.length) {
+      if (parsedIndex >= 0 && parsedIndex < GLOBAL_BACKGROUNDS.length) {
         setBgIndex(parsedIndex);
       } else {
         localStorage.setItem('gx_theme_bg_index', '0');
@@ -38,14 +52,25 @@ export function useBackground() {
   }, []);
 
   const cycleBackground = useCallback(() => {
-    const nextIndex = (bgIndex + 1) % BACKGROUND_IMAGES.length;
+    const nextIndex = (bgIndex + 1) % GLOBAL_BACKGROUNDS.length;
     localStorage.setItem('gx_theme_bg_index', nextIndex.toString());
     window.dispatchEvent(new CustomEvent('gx-bg-change', { detail: nextIndex }));
   }, [bgIndex]);
 
+  const setSpecificBackground = useCallback((index: number) => {
+    if (index >= 0 && index < GLOBAL_BACKGROUNDS.length) {
+      const saved = localStorage.getItem('gx_theme_bg_index');
+      if (saved !== index.toString()) {
+        localStorage.setItem('gx_theme_bg_index', index.toString());
+        window.dispatchEvent(new CustomEvent('gx-bg-change', { detail: index }));
+      }
+    }
+  }, []);
+
   return {
     bgIndex,
-    currentBg: BACKGROUND_IMAGES[bgIndex],
-    cycleBackground
+    currentBg: GLOBAL_BACKGROUNDS[bgIndex],
+    cycleBackground,
+    setSpecificBackground
   };
 }

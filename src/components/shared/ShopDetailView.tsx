@@ -54,7 +54,7 @@ export function ShopDetailView({
         {/* 左脑：原生比例画廊 (仅在 Full 模式下展示，Compact 模式下隐藏) */}
         {!isCompact && (
           <div className="hidden lg:block w-full lg:w-[45%] shrink-0">
-            <div className="w-full aspect-[3/4] xl:aspect-[4/5] rounded-3xl bg-[#111] border border-white/10 relative overflow-hidden shadow-2xl group sticky top-8 flex items-center justify-center">
+            <div className="w-full aspect-[3/4] xl:aspect-[4/5] rounded-3xl bg-[#111] border border-white/10 relative overflow-hidden  group sticky top-8 flex items-center justify-center">
               {coverImages.length > 0 ? (
                 <img src={coverImages[0]} alt="Gallery" className="w-full h-full object-contain bg-black/50" />
               ) : (
@@ -64,10 +64,10 @@ export function ShopDetailView({
                 </div>
               )}
               {/* 画廊顶部光影遮罩 */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
               
               {/* SWIPE Badge */}
-              <div className="absolute top-6 left-6 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-[10px] font-bold tracking-widest text-white/80 uppercase flex items-center gap-2">
+              <div className="absolute top-6 left-6 px-3 py-1.5 rounded-lg bg-black/40  border border-white/10 text-[10px] font-bold tracking-widest text-white/80 uppercase flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-pulse" />
                 SWIPE
               </div>
@@ -91,10 +91,10 @@ export function ShopDetailView({
         )}>
           
           {/* 控制舱 (黑金信息卡片) */}
-          <div className="bg-[#111] border border-white/10 rounded-2xl p-5 shadow-2xl backdrop-blur-xl relative w-full">
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-5  relative w-full">
           {/* 跨界黑金评分硬币 (The Holographic Rating Coin) */}
-          <div className="absolute top-0 right-6 -translate-y-1/2 translate-x-1/2 z-20 flex flex-col items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#2a2a2a] via-black to-[#111] border border-gx-gold/30 shadow-[0_10px_20px_rgba(0,0,0,0.8),inset_0_2px_4px_rgba(255,255,255,0.1)] backdrop-blur-md cursor-pointer hover:scale-105 hover:border-gx-gold/50 transition-all duration-300 group">
-            <Star className="w-3.5 h-3.5 fill-gx-gold text-gx-gold drop-shadow-[0_0_5px_rgba(255,215,0,0.5)] mb-0.5" />
+          <div className="absolute top-0 right-6 -translate-y-1/2 translate-x-1/2 z-20 flex flex-col items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-[#2a2a2a] via-black to-[#111] border border-gx-gold/30  cursor-pointer hover:scale-105 hover:border-gx-gold/50 transition-all duration-300 group">
+            <Star className="w-3.5 h-3.5 fill-gx-gold text-gx-gold  mb-0.5" />
             <span className="text-gx-gold text-[10px] font-bold font-mono leading-none">5.0</span>
             <div className="absolute inset-0 rounded-full bg-gx-gold/0 group-hover:bg-gx-gold/10 transition-colors duration-500" />
           </div>
@@ -105,7 +105,7 @@ export function ShopDetailView({
           
           <p className={cn(
             "text-xs text-transparent bg-clip-text bg-[length:200%_auto] font-medium pb-2",
-            slogan ? "bg-gradient-to-r from-gx-cyan via-blue-400 to-purple-500" : "bg-gradient-to-r from-white/40 to-white/10"
+            slogan ? "bg-gradient-to-r  via-blue-400 " : "bg-gradient-to-r from-white/40 to-white/10"
           )}>
             {slogan || "公司简历"}
           </p>
@@ -114,7 +114,7 @@ export function ShopDetailView({
 
           <div className="flex items-start justify-between text-xs text-white/60 mb-3">
             <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-gx-cyan shrink-0" />
+              <Clock className="w-3.5 h-3.5  shrink-0" />
               <span className="whitespace-nowrap">{t('txt_cc3307')}</span>
               {hours && hours.length > 0 && (
                 <span className="font-mono whitespace-nowrap text-white/80 ml-2">
@@ -124,7 +124,7 @@ export function ShopDetailView({
             </div>
             <div className={cn(
               "px-2 py-0.5 rounded text-[9px] font-bold font-mono tracking-wider shrink-0 ml-2",
-              storeStatus === 'open' ? "bg-gx-cyan/20 text-gx-cyan" :
+              storeStatus === 'open' ? " " :
               storeStatus === 'closed_today' ? "bg-red-500/20 text-red-500" :
               "bg-yellow-500/20 text-yellow-500"
             )}>
@@ -136,7 +136,7 @@ export function ShopDetailView({
             className="flex items-start gap-2 text-xs text-white/60 cursor-pointer group"
             onClick={() => setIsAddressExpanded(!isAddressExpanded)}
           >
-            <MapPin className="w-3.5 h-3.5 text-gx-cyan mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
+            <MapPin className="w-3.5 h-3.5  mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
             <span className={cn(
               "leading-relaxed transition-all duration-300",
               !isAddressExpanded && "line-clamp-1"
@@ -153,7 +153,7 @@ export function ShopDetailView({
                 window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.name)}`, '_blank');
               }
             }}
-            className="w-full mt-5 py-3 bg-gx-cyan/10 hover:bg-gx-cyan/20 transition-colors rounded-xl flex items-center justify-center gap-2 text-gx-cyan text-xs font-bold tracking-widest border border-gx-cyan/30"
+            className="w-full mt-5 py-3   transition-colors rounded-xl flex items-center justify-center gap-2  text-xs font-bold tracking-widest border "
           >
             <Navigation2 className="w-4 h-4" /> {t('txt_e7a0d0')}</button>
         </div>
@@ -161,7 +161,7 @@ export function ShopDetailView({
         {/* 货架 / 引流胶囊 (右脑的下半部分) */}
           <div className={cn(isCompact ? "mt-8" : "flex-1")}>
             <h3 className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <div className="w-1 h-1 rounded-full bg-gx-cyan" />
+              <div className="w-1 h-1 rounded-full " />
               {t('txt_54cfc3')}</h3>
             {capsules.length > 0 ? (
               <div className={cn(
@@ -171,19 +171,19 @@ export function ShopDetailView({
                 <div 
                   key={cap.id || idx} 
                   onClick={() => onCapsuleClick && onCapsuleClick(cap.label || cap.name)}
-                  className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col justify-between group hover:border-gx-cyan/30 hover:bg-gx-cyan/5 transition-all cursor-pointer relative overflow-hidden h-full min-h-[100px]"
+                  className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col justify-between group   transition-all cursor-pointer relative overflow-hidden h-full min-h-[100px]"
                 >
-                  <div className="absolute top-0 bottom-0 left-0 w-1 bg-gx-cyan/0 group-hover:bg-gx-cyan/50 transition-colors" />
+                  <div className="absolute top-0 bottom-0 left-0 w-1   transition-colors" />
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h4 className="text-sm font-bold text-white group-hover:text-gx-cyan transition-colors line-clamp-2 pr-2">{cap.label || cap.name}</h4>
+                      <h4 className="text-sm font-bold text-white  transition-colors line-clamp-2 pr-2">{cap.label || cap.name}</h4>
                       <div className="text-[10px] text-white/40 font-mono mt-1.5 flex items-center gap-1.5">
                         <Clock className="w-3 h-3" /> {cap.duration || "60"} MIN
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-between items-end mt-auto">
-                    <div className="text-[9px] text-gx-cyan border border-gx-cyan/30 px-2 py-0.5 rounded-full">{t('txt_26ad89')}</div>
+                    <div className="text-[9px]  border  px-2 py-0.5 rounded-full">{t('txt_26ad89')}</div>
                     <div className="text-lg font-bold text-white font-mono">{cap.price}</div>
                   </div>
                 </div>

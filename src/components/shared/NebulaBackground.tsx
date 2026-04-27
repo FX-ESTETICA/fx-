@@ -6,7 +6,8 @@ import { Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
-import { useBackground } from "@/hooks/useBackground";
+import { CALENDAR_BACKGROUNDS, FRONTEND_BACKGROUNDS } from "@/hooks/useBackground";
+import { useActiveTab } from "@/hooks/useActiveTab";
 import Image from "next/image";
 
 // 【物理级静音】拦截底层 R3F 引擎由于内部使用 THREE.Clock 产生的无意义警告，保持控制台绝对全绿。
@@ -33,7 +34,7 @@ function MobileNebulaFallback({ rotation }: { rotation: number }) {
         className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%]"
         style={{
           background: "radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.15) 0%, transparent 50%), radial-gradient(circle at 30% 30%, rgba(188, 19, 254, 0.1) 0%, transparent 40%)",
-          filter: "blur(60px)",
+          filter: "(60px)",
         }}
       />
       {/* 增强星星层可见度 */}
@@ -161,25 +162,33 @@ export function NebulaBackground({ rotation }: { rotation?: number }) {
   const [hasError, setHasError] = useState(false);
   const [imageError, setImageError] = useState(false); // 渲染层动态自愈探针
   const { settings } = useVisualSettings();
-  const { currentBg } = useBackground();
+  const activeTab = useActiveTab();
   
-  // 切换背景时重置错误状态
+  // 1. 世界顶端 SSR 同步架构：使用 useActiveTab 获得完美首帧
+  const isCalendar = activeTab === 'calendar';
+
+  const displayBgSource = isCalendar 
+    ? CALENDAR_BACKGROUNDS[settings.calendarBgIndex] || CALENDAR_BACKGROUNDS[0]
+    : FRONTEND_BACKGROUNDS[settings.frontendBgIndex] || FRONTEND_BACKGROUNDS[0];
+
+  // 2. 切换背景时重置错误状态
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setImageError(false);
-  }, [currentBg]);
+  }, [displayBgSource]);
 
   const rot = rotation || 0;
 
   return (
     <div className="fixed inset-0 z-0 bg-black pointer-events-none">
       {/* 静态壁纸层 (自愈架构) */}
-      {settings.showWallpaper && !imageError && (
+      {!imageError && (
         <div 
           className="absolute inset-0 z-0 transition-opacity duration-1000"
           style={{ opacity: settings.wallpaperOpacity / 100 }}
         >
           <Image
-            src={currentBg === 'starry' ? '/images/backgrounds/p1.jpg' : currentBg}
+            src={displayBgSource === 'starry' ? '/images/backgrounds/A1.jpg' : displayBgSource}
             alt="Global Background"
             fill
             className="object-cover"

@@ -151,14 +151,14 @@ export const LoginForm = () => {
       {/* 错误提示 */}
       {error && (
         <div className="absolute -top-20 left-0 right-0 animate-in fade-in slide-in-from-top-4">
-          <div className="bg-red-500/10 border border-red-500/20 backdrop-blur-xl p-4 rounded-xl text-red-500 text-[10px] font-mono uppercase tracking-widest text-center">
+          <div className="bg-red-500/10 border border-red-500/20  p-4 rounded-xl text-red-500 text-[10px] font-mono uppercase tracking-widest text-center">
             {error}
           </div>
         </div>
       )}
       {!error && message && (
         <div className="absolute -top-20 left-0 right-0 animate-in fade-in slide-in-from-top-4">
-          <div className="bg-gx-cyan/10 border border-gx-cyan/20 backdrop-blur-xl p-4 rounded-xl text-gx-cyan text-[10px] font-mono uppercase tracking-widest text-center">
+          <div className=" border   p-4 rounded-xl  text-[10px] font-mono uppercase tracking-widest text-center">
             {message}
           </div>
         </div>
@@ -173,7 +173,7 @@ export const LoginForm = () => {
               variant="ghost"
               glow={false}
               type="button" 
-              className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-sm bg-transparent"
+              className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2  uppercase tracking-[0.2em] text-sm bg-transparent"
               onClick={handleGoogleLogin}
               disabled={isLoading}
             >
@@ -208,7 +208,7 @@ export const LoginForm = () => {
             <button
               type="button"
               onClick={() => setMode(mode === "otp" ? "password" : "otp")}
-              className="text-[10px] font-mono uppercase tracking-widest text-white/30 hover:text-gx-cyan transition-colors"
+              className="text-[10px] font-mono uppercase tracking-widest text-white/30  transition-colors"
             >
               {mode === "otp" ? t("switchToPassword") : t("switchToOtp")}
             </button>
@@ -220,7 +220,7 @@ export const LoginForm = () => {
                 glow={false}
                 type="button"
                 onClick={async () => { await handleMagicLink(); setCooldown(60); setAwaitingOtp(true); setOtp(""); }}
-                className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs bg-transparent"
+                className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2  uppercase tracking-[0.2em] text-xs bg-transparent"
                 disabled={isLoading || !email || cooldown > 0}
               >
                 {cooldown > 0 ? t("resendOtp", { seconds: cooldown }) : t("getOtp")}
@@ -230,7 +230,7 @@ export const LoginForm = () => {
                 variant="ghost"
                 glow={false}
                 type="submit" 
-                className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2 focus:ring-gx-cyan/50 uppercase tracking-[0.2em] text-xs bg-transparent"
+                className="w-full h-12 text-white border border-white/20 hover:bg-white/5 focus:ring-2  uppercase tracking-[0.2em] text-xs bg-transparent"
                 isLoading={isLoading}
               >
                 {t("loginWithPassword")}
@@ -243,7 +243,7 @@ export const LoginForm = () => {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-white/10"></div>
           </div>
-          <span className="relative px-4 text-[10px] text-white/40 font-mono uppercase tracking-widest backdrop-blur-md rounded-full">
+          <span className="relative px-4 text-[10px] text-white/40 font-mono uppercase tracking-widest  rounded-full">
             {t("or")}
           </span>
         </div>

@@ -13,6 +13,9 @@ import { BookingService } from "@/features/booking/api/booking";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
 import { useShop } from "@/features/shop/ShopContext";
 
+import { usePathname } from 'next/navigation';
+import { useActiveTab } from "@/hooks/useActiveTab";
+
 export interface EliteResourceMatrixProps {
   industry: IndustryType;
   dna: IndustryDNA;
@@ -158,20 +161,26 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
       <div className={cn(
         "w-full h-[1px] transition-all duration-500",
         isWarning 
-          ? "bg-gradient-to-r from-red-400 via-white to-transparent bg-[length:100%_auto] animate-[gradient_0.5s_linear_infinite] shadow-[0_0_15px_rgba(255,255,255,0.8)] opacity-100" 
-          : "bg-gradient-to-r from-red-500 via-rose-400 to-transparent bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] opacity-80"
+          ? "bg-gradient-to-r from-red-400 via-white to-transparent bg-[length:100%_auto] animate-[gradient_0.5s_linear_infinite]  opacity-100" 
+          : "bg-gradient-to-r from-red-500  to-transparent bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] opacity-80"
       )} />
     </div>
   );
 });
 
 export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, isReadOnly }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
-  const [isMounted, setIsMounted] = React.useState(false);
   const { refreshBookings, trackAction } = useShop();
 
-  React.useEffect(() => setIsMounted(true), []);
-  const currentHour = isMounted ? new Date().getHours() : -1;
   const { settings: visualSettings } = useVisualSettings();
+  const pathname = usePathname();
+  const activeTab = useActiveTab();
+  
+  const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+  const isLight = isCalendar 
+    ? visualSettings.calendarBgIndex !== 0 
+    : visualSettings.frontendBgIndex !== 0;
+  
+  const resolvedTimelineTheme = isLight ? 'coreblack' : visualSettings.timelineColorTheme;
   const matrixContainerRef = useRef<HTMLDivElement>(null);
   const timeColumnRef = useRef<HTMLDivElement>(null);
   const internalMatrixRef = useRef<HTMLDivElement>(null);
@@ -755,20 +764,19 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
               return (
                 <div key={node.id} className="absolute w-full group" style={{ top: node.top, height: node.height }}>
                   <div className={cn(
-                    "absolute top-0 left-2.5 -translate-y-1/2 transition-all duration-500 text-[13px] leading-none mix-blend-screen flex items-center justify-center font-normal tracking-normal tabular-nums z-10",
-                    node.hour === currentHour && "scale-110 drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] [text-shadow:0_0_15px_rgba(0,240,255,0.6)]",
-                    node.hour !== currentHour && "hover:scale-110"
-                  )} style={node.hour !== currentHour ? { textShadow: `0 0 15px ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].hex}80` } : {}}>
-                    <span className={cn(node.hour === currentHour ? "bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
-                      {node.hour!.toString().padStart(2, '0')}
-                    </span>
-                    <span className={cn(
-                      "text-[10px] mx-[3px] animate-pulse", 
-                      node.hour === currentHour ? "text-gx-cyan opacity-40" : "text-white/30"
-                    )}>:</span>
-                    <span className={cn("opacity-80", node.hour === currentHour ? "bg-gradient-to-br from-white via-gx-cyan to-white bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] bg-clip-text text-transparent" : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
-                      00
-                    </span>
+                "absolute top-0 left-2.5 -translate-y-1/2 transition-all duration-500 text-[13px] leading-none flex items-center justify-center font-normal tracking-normal tabular-nums z-10",
+                visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'coreblack' && "mix-blend-screen",
+                "hover:scale-110"
+              )} style={{ textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` }}>
+                <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
+                  {node.hour!.toString().padStart(2, '0')}
+                </span>
+                <span className={cn("text-[10px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black/40" : "text-white/30")}>
+                  :
+                </span>
+                <span className={cn("opacity-80", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                  00
+                </span>
                   </div>
                 </div>
               );
@@ -801,11 +809,17 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                 style={{ top: crosshair.y, transform: 'translateY(-50%)' }}
               >
                 {/* 时间胶囊 HUD */}
-                <div className="absolute left-4 bg-gx-cyan text-black text-[10px] font-black font-mono px-2 py-0.5 rounded shadow-[0_0_15px_rgba(0,240,255,0.8)] z-10">
+                <div className={cn(
+                  "absolute left-4 text-[10px] font-bold font-mono px-2 py-0.5 rounded z-10",
+                  resolvedTimelineTheme === 'coreblack' ? "bg-[#8B7355] text-white" : "bg-[#FDF5E6] text-black"
+                )}>
                   {crosshair.time}
                 </div>
                 {/* 激光线 */}
-                <div className="w-full h-[1px] bg-gx-cyan shadow-[0_0_10px_rgba(0,240,255,0.8)]" />
+                <div className={cn(
+                  "w-full h-[1px]",
+                  visualSettings.timelineColorTheme === 'coreblack' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"
+                )} />
               </div>
             )}
 
@@ -816,9 +830,14 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
             {waterfallData.nodes.map((node, idx) => {
               return (
                 <div key={`bg-${node.id}`} className="absolute w-full z-0" style={{ top: node.top, height: node.height }}>
-                  {/* 赛博光刃 (挂载在新一天首个节点的顶部边框，即 0 刻度) */}
+                  {/* 跨天分隔线 (适配深浅壁纸的白金/黑金极简光刃) */}
                   {node.isDayStart && idx > 0 && (
-                    <div className="absolute top-0 left-0 w-full h-[2px] -translate-y-[1px] bg-gradient-to-r from-transparent via-gx-cyan/50 to-transparent shadow-[0_0_15px_rgba(0,240,255,0.6)] z-20" />
+                    <div className={cn(
+                      "absolute top-0 left-0 w-full h-[1px] -translate-y-[1px] bg-gradient-to-r from-transparent to-transparent z-20",
+                      visualSettings.timelineColorTheme === 'coreblack' 
+                        ? "via-[#8B7355]/60" 
+                        : "via-[#FDF5E6]/60"
+                    )} />
                   )}
                   {/* 【第四步改造】：直接物理隐藏非营业时间的灰色遮罩，让时间轴只显示有效开店时间 */}
                   {/* 原本的 bg-stripes 被物理删除了，保持极致干净 */}
@@ -847,14 +866,14 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
               return (
                 <div 
                   key={`locked-${dayNode.dateStr}`}
-                  className="absolute left-0 right-0 z-40 flex flex-col items-center justify-center pointer-events-auto backdrop-blur-md"
+                  className="absolute left-0 right-0 z-40 flex flex-col items-center justify-center pointer-events-auto "
                   style={{ top: dayNode.top, height: dayHeight }}
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                   onPointerDown={(e) => { e.stopPropagation(); }}
                 >
                   <div className="absolute inset-0 bg-red-500/10 pointer-events-none" />
-                  <div className="p-8 rounded-2xl border bg-red-500/10 border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center relative z-10">
-                    <h2 className="text-2xl font-black tracking-widest mb-2 text-red-500">
+                  <div className="p-8 rounded-2xl border bg-red-500/10 border-red-500/50  text-center relative z-10">
+                    <h2 className="text-2xl font-bold tracking-widest mb-2 text-red-500">
                       {dayNode.dateStr === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') ? "今日关门" : "休息 CLOSED"}
                     </h2>
                     <p className="text-red-400/80 font-mono text-sm">
@@ -923,7 +942,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       if (!booking.startTime || !booking.duration || !booking.date) return null;
                       
                       // 动态编号降维处理函数
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       const formatMinimalId = (idStr: string) => {
                         if (!idStr) return 'Unknown';
                         if (idStr.startsWith("CO") || idStr.startsWith("NO")) {
@@ -945,10 +964,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       // 如果订单在当前视界（这三天）内不可见，则不渲染
                       if (topOffset === -1 || heightPx === 0) return null;
 
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       const isMicro = booking.duration <= 25;
                       const isTiny = booking.duration > 25 && booking.duration <= 45;
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       const serviceTitle = booking.serviceName || '';
                       const isUnassigned = booking.originalUnassigned === true;
                       const isPending = booking.status === 'PENDING'; // 检查是否是待确认预约
@@ -956,7 +975,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       // --- 生命周期的视觉降维法则 ---
                       // 1. 动态获取系统当前时间，用于比对预约是否过期
                       const now = new Date();
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       let isPast = false;
                       if (booking.startTime && booking.date) {
                         const [hourStr, minStr] = booking.startTime.split(':');
@@ -969,7 +988,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       }
 
                       // 2. 判定是否已结账/结束 (彻底隐身)
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       const isCheckedOut = booking.status?.toUpperCase() === 'COMPLETED' || booking.status?.toUpperCase() === 'CHECKED_OUT';
 
                       // 3. 判定是否为爽约 (降维打击：幽灵灰，彻底熄灭)
@@ -977,7 +996,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
                       // 恢复您的设计：未指定的散单保留青色，作为店长灵活调度的视觉锚点
                       const blockColor = isUnassigned ? '#00f0ff' : (resource.id === 'NO' ? '#ef4444' : (resource.themeColor || dna.themeColor));
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       const blockAccent = isUnassigned ? 'cyan' : (resource.id === 'NO' ? 'red' : dna.accent);
 
                       // --- 快捷调度内爆形变与极速拆单法则 ---
@@ -1015,7 +1034,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       const isSplitMode = booking.services && booking.services.length > 1;
 
                       // 5. 确保附加菜单在这次引爆行动中，只渲染一次
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                       
                       const isFirstImploded = isImploded;
 
                       // 6. 物理切割：动态计算宽度和位置（0 遮挡）
@@ -1026,8 +1045,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       
                       // 7. 预览颜色注入 (Cyber Glow Resonance)
                       // 【新交互法则】：大卡片保持原色，不随选定的员工发生形变和变色
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      let finalBlockColor = blockColor;
+                       
+                      const finalBlockColor = blockColor;
                       
                       const isProcessing = processingOrderId === booking.id;
 
@@ -1124,7 +1143,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                           {isFirstImploded && (
                             <div 
                               className={cn(
-                                "absolute z-[60] flex flex-row gap-1 pointer-events-auto h-[240px] shadow-2xl",
+                                "absolute z-[60] flex flex-row gap-1 pointer-events-auto h-[240px] ",
                                 isSplitMode ? "-left-[200%] w-[200%]" : "-left-[100%] w-[100%]"
                               )}
                               style={{
@@ -1133,7 +1152,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                             >
                               {/* 员工列表 (左侧 33.3% 或 50%) */}
                               <div className={cn(
-                                "h-full bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-2xl flex flex-col gap-1 overflow-y-auto no-scrollbar",
+                                "h-full rounded-xl p-1 flex flex-col gap-1 overflow-y-auto no-scrollbar",
+                                isLight ? "bg-white/50" : "bg-black/50",
                                 isSplitMode ? "w-1/2" : "w-full"
                               )}>
                                 {/* 未指定选项 - 固定在最顶部 */}
@@ -1163,16 +1183,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                     }
                                   }}
                                   className={cn(
-                                    "text-center px-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all shrink-0 border",
+                                    "text-center px-1 py-2 rounded-lg text-xs font-bold tracking-widest transition-all shrink-0 border",
                                     splitActiveEmployeeId === 'UNASSIGNED_POOL'
                                       ? "scale-105"
-                                      : "border-transparent hover:border-white/20"
+                                      : cn("border-transparent", isLight ? "hover:border-black/20" : "hover:border-white/20")
                                   )}
                                   style={{ 
-                                    color: '#00f0ff',
+                                    color: isLight ? '#000000' : '#ffffff',
                                     backgroundColor: 'transparent',
-                                    borderColor: splitActiveEmployeeId === 'UNASSIGNED_POOL' ? '#00f0ff' : 'transparent',
-                                    boxShadow: splitActiveEmployeeId === 'UNASSIGNED_POOL' ? `0 0 10px #00f0ff80, inset 0 0 5px #00f0ff40` : 'none'
+                                    borderColor: splitActiveEmployeeId === 'UNASSIGNED_POOL' ? (isLight ? '#000000' : '#ffffff') : 'transparent',
+                                    boxShadow: splitActiveEmployeeId === 'UNASSIGNED_POOL' ? `0 0 10px ${isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'}, inset 0 0 5px ${isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'}` : 'none'
                                   }}
                                 >
                                   <div>未指定</div>
@@ -1226,16 +1246,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                       }
                                     }}
                                     className={cn(
-                                      "text-center px-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all shrink-0 border",
+                                      "text-center px-1 py-2 rounded-lg text-xs font-bold tracking-widest transition-all shrink-0 border",
                                       splitActiveEmployeeId === res.id 
                                         ? "scale-105" 
-                                        : "border-transparent hover:border-white/20"
+                                        : cn("border-transparent", isLight ? "hover:border-black/20" : "hover:border-white/20")
                                     )}
                                     style={{ 
-                                      color: res.themeColor || dna.themeColor,
+                                      color: isLight ? '#000000' : (res.themeColor || dna.themeColor || '#ffffff'),
                                       backgroundColor: 'transparent',
-                                      borderColor: splitActiveEmployeeId === res.id ? (res.themeColor || dna.themeColor) : 'transparent',
-                                      boxShadow: splitActiveEmployeeId === res.id ? `0 0 10px ${res.themeColor || dna.themeColor}80, inset 0 0 5px ${res.themeColor || dna.themeColor}40` : 'none'
+                                      borderColor: splitActiveEmployeeId === res.id ? (isLight ? '#000000' : (res.themeColor || dna.themeColor || '#ffffff')) : 'transparent',
+                                      boxShadow: splitActiveEmployeeId === res.id ? `0 0 10px ${isLight ? 'rgba(0,0,0,0.5)' : ((res.themeColor || dna.themeColor || '#ffffff') + '80')}, inset 0 0 5px ${isLight ? 'rgba(0,0,0,0.2)' : ((res.themeColor || dna.themeColor || '#ffffff') + '40')}` : 'none'
                                     }}
                                   >
                                     <div>{res.name}</div>
@@ -1245,7 +1265,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
                               {/* 项目列表 (仅多项拆单时显示，中间 33.3%) */}
                               {isSplitMode && booking.services && (
-                                <div className="w-1/2 h-full bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-2xl flex flex-col gap-1 overflow-y-auto no-scrollbar">
+                                <div className={cn(
+                                  "w-1/2 h-full rounded-xl p-1 flex flex-col gap-1 overflow-y-auto no-scrollbar",
+                                  isLight ? "bg-white/50" : "bg-black/50"
+                                )}>
                                   {booking.services.map((svc: any) => {
                                     // 确定该项目当前被分配给谁
                                     const assignedEmpId = splitServiceAssignments[svc.id];
@@ -1276,8 +1299,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                     
                                     // 这里保留 previewColor 逻辑以防鼠标悬浮或点击时需要发光
                                     // 当前我们把被分配过（记录在字典里）的就视作选中并打上钩
-                                    let isPreviewing = isAssigned;
-                                    let previewColor = itemColor;
+                                    const isPreviewing = isAssigned;
+                                    const previewColor = itemColor;
                                     
                                     return (
                                       <button
@@ -1316,8 +1339,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                         {isAssigned && (
                                           <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: previewColor, boxShadow: `0 0 8px ${previewColor}` }} />
                                         )}
-                                        <div className="text-white truncate pr-3" title={svc.name || svc.serviceName}>{svc.name || svc.serviceName}</div>
-                                        <div className="text-[9px] text-white/50">{svc.duration || 60}m</div>
+                                        <div className={cn("truncate pr-3", isLight ? "text-black" : "text-white")} title={svc.name || svc.serviceName}>{svc.name || svc.serviceName}</div>
+                                        <div className={cn("text-[9px]", isLight ? "text-black/50" : "text-white/50")}>{svc.duration || 60}m</div>
                                       </button>
                                     );
                                   })}
@@ -1355,9 +1378,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
             >
               {/* 黑洞引力场 */}
               <div className={cn(
-                "absolute inset-0 rounded-full bg-red-600/10 blur-xl transition-all duration-300 pointer-events-none",
-                isHoveringVoid ? "bg-red-500/40 blur-2xl scale-125" : "",
-                pendingVoidBooking ? "bg-red-600/30 blur-3xl animate-pulse" : "animate-pulse"
+                "absolute inset-0 rounded-full bg-red-600/10  transition-all duration-300 pointer-events-none",
+                isHoveringVoid ? "bg-red-500/40  scale-125" : "",
+                pendingVoidBooking ? "bg-red-600/30  animate-pulse" : "animate-pulse"
               )} />
               
               {/* 黑洞实体 / 分裂核心 */}
@@ -1366,26 +1389,32 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                   {/* 销毁当前 (局部) */}
                   <button 
                     onClick={destroyCurrent}
-                    className="w-32 h-32 rounded-full border-2 border-gx-cyan/50 bg-black/90 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:bg-gx-cyan/20 hover:scale-105 transition-all"
+                    className={cn(
+                      "w-32 h-32 rounded-full border-2 bg-black/90 flex flex-col items-center justify-center hover:scale-105 transition-all",
+                      visualSettings.timelineColorTheme === 'coreblack' ? "border-[#8B7355]/50 hover:bg-[#8B7355]/20" : "border-[#FDF5E6]/50 hover:bg-[#FDF5E6]/20"
+                    )}
                   >
-                    <span className="text-gx-cyan text-sm font-black tracking-widest drop-shadow-[0_0_10px_rgba(0,240,255,0.8)]">销毁当前</span>
-                    <span className="text-white/40 text-[9px] uppercase tracking-widest mt-1">Single</span>
+                    <span className={cn(
+                      "text-sm font-bold tracking-widest",
+                      visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"
+                    )}>销毁当前</span>
+                    <span className={cn("text-[9px] uppercase tracking-widest mt-1", isLight ? "text-black/40" : "text-white/40")}>Single</span>
                   </button>
                   
                   {/* 摧毁全部 (级联) */}
                   <button 
                     onClick={destroyAll}
-                    className="w-32 h-32 rounded-full border-2 border-red-500/50 bg-black/90 flex flex-col items-center justify-center shadow-[0_0_40px_rgba(239,68,68,0.6)] hover:bg-red-500/30 hover:scale-105 transition-all"
+                    className="w-32 h-32 rounded-full border-2 border-red-500/50 bg-black/90 flex flex-col items-center justify-center  hover:bg-red-500/30 hover:scale-105 transition-all"
                   >
-                    <span className="text-red-400 text-sm font-black tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">摧毁全部</span>
-                    <span className="text-white/40 text-[9px] uppercase tracking-widest mt-1">All Linked</span>
+                    <span className="text-red-400 text-sm font-bold tracking-widest ">摧毁全部</span>
+                    <span className={cn("text-[9px] uppercase tracking-widest mt-1", isLight ? "text-black/40" : "text-white/40")}>All Linked</span>
                   </button>
                 </div>
               ) : (
                 <div 
                   className={cn(
                     "relative z-10 rounded-full border flex flex-col items-center justify-center text-center overflow-hidden transition-all pointer-events-none",
-                    isHoveringVoid ? "w-20 h-20 border-red-400 bg-black/90 shadow-[0_0_50px_rgba(239,68,68,0.8)]" : "w-16 h-16 border-red-500/30 bg-black/60"
+                    isHoveringVoid ? "w-20 h-20 border-red-400 bg-black/90 " : "w-16 h-16 border-red-500/30 bg-black/60"
                   )}
                 >
                   <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center">

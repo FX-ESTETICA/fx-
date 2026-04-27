@@ -490,8 +490,8 @@ function GlobalSearchHUD({
   return (
     <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
       <div className="relative group">
-        <div className="absolute inset-0 bg-gx-cyan/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        <div className="relative flex items-center bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 transition-all duration-300 group-hover:border-gx-cyan/50 focus-within:border-gx-cyan focus-within:bg-black/60">
+        <div className="absolute inset-0   rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        <div className="relative flex items-center bg-black/40  border border-white/10 rounded-full px-4 py-2 transition-all duration-300   focus-within:bg-black/60">
           <Search className="w-4 h-4 text-white/50 mr-3" />
           <input 
             type="text" 
@@ -518,7 +518,7 @@ function GlobalSearchHUD({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute top-full left-0 w-full mt-2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(0,240,255,0.1)] max-h-60 overflow-y-auto"
+              className="absolute top-full left-0 w-full mt-2 bg-black/80  border border-white/10 rounded-xl overflow-hidden  max-h-60 overflow-y-auto"
             >
               {filtered.map(planet => (
                 <div 
@@ -528,13 +528,13 @@ function GlobalSearchHUD({
                     setIsOpen(false);
                     onSelect(planet);
                   }}
-                  className="px-4 py-3 border-b border-white/5 hover:bg-gx-cyan/10 cursor-pointer transition-colors flex items-center justify-between group"
+                  className="px-4 py-3 border-b border-white/5  cursor-pointer transition-colors flex items-center justify-between group"
                 >
                   <div className="flex flex-col">
-                    <span className="text-white text-sm font-bold group-hover:text-gx-cyan transition-colors">{planet.name}</span>
+                    <span className="text-white text-sm font-bold  transition-colors">{planet.name}</span>
                     <span className="text-white/40 text-[10px] font-mono tracking-widest">{planet.id.split('-')[0]}...</span>
                   </div>
-                  <Rocket className="w-4 h-4 text-white/20 group-hover:text-gx-cyan group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
+                  <Rocket className="w-4 h-4 text-white/20  group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
                 </div>
               ))}
             </motion.div>
@@ -691,7 +691,7 @@ function NodeManagementHUD({
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center p-4 sm:p-8 pointer-events-none">
       {/* 核心全息控制舱 (Holographic Command Pod) */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0a0a0a]/60 backdrop-blur-2xl ring-1 ring-white/5 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] rounded-3xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0a0a0a]/60  ring-1 ring-white/5  rounded-3xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-300">
         
         {/* 四角折角装饰 (Cyber Brackets) */}
         <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/10 rounded-tl-3xl" />
@@ -709,14 +709,14 @@ function NodeManagementHUD({
 
         {/* --- 顶部穹顶 (The Zenith Dome) --- */}
         <div className="pt-[calc(var(--sat)+8px)] pb-4 flex flex-col items-center justify-center relative">
-          <div className="text-xl md:text-2xl font-black tracking-[0.3em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-300 to-white/50 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] mb-2 select-none flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] animate-pulse" />
+          <div className="text-xl md:text-2xl font-bold tracking-[0.3em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-white  to-white/50  mb-2 select-none flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full   animate-pulse" />
             {t('txt_10ab83')}</div>
           <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
             Nebula Node Command Pod
           </div>
           {/* 分割能量线 */}
-          <div className="absolute bottom-0 w-full h-px bg-gradient-to-r from-transparent via-gx-cyan/50 to-transparent" />
+          <div className="absolute bottom-0 w-full h-px bg-gradient-to-r from-transparent  to-transparent" />
         </div>
 
         {/* --- 主体双舱矩阵 (Dual-Pane Matrix) / 状态机折叠 --- */}
@@ -740,26 +740,26 @@ function NodeManagementHUD({
                     <div className="lg:col-span-7 flex flex-col gap-4 md:gap-6">
                       
                       {/* Top: 宏观现金流与利润 (联邦能量核心) */}
-                      <div className="bg-black/40 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-8 flex flex-col justify-center relative overflow-hidden group hover:border-gx-cyan/30 transition-colors h-auto md:h-[45%]">
+                      <div className="bg-black/40 border border-white/5 rounded-2xl md:rounded-3xl p-5 md:p-8 flex flex-col justify-center relative overflow-hidden group  transition-colors h-auto md:h-[45%]">
                         {/* 背景微光 */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gx-cyan/5 blur-[80px] rounded-full pointer-events-none" />
+                        <div className="absolute top-0 right-0 w-64 h-64   rounded-full pointer-events-none" />
                         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_24px] pointer-events-none" />
                         
                         <div className="relative z-10">
                           <div className="flex items-center justify-between mb-4">
                             <h2 className="text-[10px] md:text-xs text-white/40 font-mono tracking-widest flex items-center gap-2">
-                              <Activity className="w-3 h-3 md:w-4 md:h-4 text-gx-cyan animate-pulse" />
+                              <Activity className="w-3 h-3 md:w-4 md:h-4  animate-pulse" />
                               {t('txt_105031')}</h2>
-                            <span className="px-2 md:px-3 py-0.5 md:py-1 bg-gx-cyan/10 border border-gx-cyan/20 text-gx-cyan text-[9px] md:text-[10px] font-bold rounded-full tracking-widest shadow-[0_0_15px_rgba(0,242,255,0.2)]">
+                            <span className="px-2 md:px-3 py-0.5 md:py-1  border   text-[9px] md:text-[10px] font-bold rounded-full tracking-widest ">
                               {t('txt_829f9b')}</span>
                           </div>
                           
                           <div className="flex items-end gap-4 md:gap-6 mb-4 md:mb-6">
-                            <div className="text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                            <div className="text-4xl md:text-6xl font-bold tracking-tighter text-white ">
                               € 1,245,800
                             </div>
                             <div className="flex flex-col mb-1">
-                              <span className="text-gx-cyan font-bold text-sm md:text-lg flex items-center gap-1">
+                              <span className=" font-bold text-sm md:text-lg flex items-center gap-1">
                                 ↑ 12.4%
                               </span>
                               <span className="text-[9px] md:text-[10px] text-white/30 font-mono tracking-widest">{t('txt_7ccf55')}</span>
@@ -769,11 +769,11 @@ function NodeManagementHUD({
                           {/* 利润瀑布 (进度条对比) */}
                           <div className="w-full space-y-1 md:space-y-2">
                             <div className="flex justify-between text-[9px] md:text-[10px] font-mono tracking-widest">
-                              <span className="text-gx-cyan">{t('txt_a5891d')}</span>
+                              <span className="">{t('txt_a5891d')}</span>
                               <span className="text-red-500/80">{t('txt_013e29')}</span>
                             </div>
                             <div className="h-1.5 md:h-2 w-full bg-white/5 rounded-full overflow-hidden flex">
-                              <div className="h-full bg-gx-cyan/80 shadow-[0_0_10px_rgba(0,242,255,0.5)]" style={{ width: '68%' }} />
+                              <div className="h-full  " style={{ width: '68%' }} />
                               <div className="h-full bg-red-500/50" style={{ width: '32%' }} />
                             </div>
                           </div>
@@ -790,10 +790,10 @@ function NodeManagementHUD({
                           <div className="flex items-center gap-2 md:gap-4">
                             <div className="w-16 md:w-24 text-[9px] md:text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8d0')}</div>
                             <div className="flex-1 h-1 md:h-1.5 bg-white/5 rounded-full overflow-hidden relative">
-                              <div className="absolute top-0 left-0 h-full bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" style={{ width: '65%' }} />
+                              <div className="absolute top-0 left-0 h-full  " style={{ width: '65%' }} />
                             </div>
-                            <div className="w-8 md:w-12 text-right text-[9px] md:text-[10px] font-mono text-gx-cyan">65%</div>
-                            <div className="w-12 md:w-16 text-center text-[8px] md:text-[9px] py-0.5 rounded border border-gx-cyan/30 bg-gx-cyan/10 text-gx-cyan tracking-wider">{t('txt_572a4f')}</div>
+                            <div className="w-8 md:w-12 text-right text-[9px] md:text-[10px] font-mono ">65%</div>
+                            <div className="w-12 md:w-16 text-center text-[8px] md:text-[9px] py-0.5 rounded border    tracking-wider">{t('txt_572a4f')}</div>
                           </div>
                           
                           {/* Node B */}
@@ -810,7 +810,7 @@ function NodeManagementHUD({
                           <div className="flex items-center gap-2 md:gap-4">
                             <div className="w-16 md:w-24 text-[9px] md:text-[10px] font-bold text-white tracking-widest uppercase truncate">{t('txt_88b8b6')}</div>
                             <div className="flex-1 h-1 md:h-1.5 bg-white/5 rounded-full overflow-hidden relative">
-                              <div className="absolute top-0 left-0 h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" style={{ width: '5%' }} />
+                              <div className="absolute top-0 left-0 h-full bg-red-500  animate-pulse" style={{ width: '5%' }} />
                             </div>
                             <div className="w-8 md:w-12 text-right text-[9px] md:text-[10px] font-mono text-red-500">5%</div>
                             <div className="w-12 md:w-16 text-center text-[8px] md:text-[9px] py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-500 tracking-wider">{t('txt_83c21d')}</div>
@@ -823,17 +823,17 @@ function NodeManagementHUD({
                     {/* 右侧板块：AI 幕僚长的深度洞察 (预警与行动) 5/12 */}
                     <div className="lg:col-span-5 flex flex-col gap-3 md:gap-4">
                       <div className="flex items-center gap-2 mb-1 md:mb-2">
-                        <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-gx-cyan" />
+                        <Sparkles className="w-3 h-3 md:w-4 md:h-4 " />
                         <span className="text-[10px] md:text-xs font-bold tracking-widest text-white/80">{t('txt_6c2342')}</span>
                       </div>
 
                       {/* 致命警报 (Critical) */}
                       <div className="bg-red-500/5 border border-red-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group hover:bg-red-500/10 transition-colors">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500 " />
                         <div className="flex items-start gap-2 md:gap-3">
                           <Zap className="w-3 h-3 md:w-4 md:h-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
                           <div>
-                            <div className="text-[9px] md:text-[10px] font-black text-red-500 tracking-widest mb-1">{t('txt_2ee3dd')}</div>
+                            <div className="text-[9px] md:text-[10px] font-bold text-red-500 tracking-widest mb-1">{t('txt_2ee3dd')}</div>
                             <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium">
                               {t('txt_e12bb1')}</p>
                           </div>
@@ -842,11 +842,11 @@ function NodeManagementHUD({
 
                       {/* 异动监控 (Warning) */}
                       <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group hover:bg-yellow-500/10 transition-colors">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 " />
                         <div className="flex items-start gap-2 md:gap-3">
                           <UserMinus className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 shrink-0 mt-0.5" />
                           <div>
-                            <div className="text-[9px] md:text-[10px] font-black text-yellow-500 tracking-widest mb-1">{t('txt_7717e3')}</div>
+                            <div className="text-[9px] md:text-[10px] font-bold text-yellow-500 tracking-widest mb-1">{t('txt_7717e3')}</div>
                             <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium">
                               {t('txt_9e9590')}</p>
                           </div>
@@ -854,17 +854,17 @@ function NodeManagementHUD({
                       </div>
 
                       {/* 战术推演 (Advice) */}
-                      <div className="bg-gx-cyan/5 border border-gx-cyan/20 rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group hover:bg-gx-cyan/10 transition-colors flex-1 min-h-[120px]">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)]" />
+                      <div className=" border  rounded-xl md:rounded-2xl p-4 md:p-5 relative overflow-hidden group  transition-colors flex-1 min-h-[120px]">
+                        <div className="absolute left-0 top-0 bottom-0 w-1  " />
                         <div className="flex items-start gap-2 md:gap-3 h-full">
-                          <Rocket className="w-3 h-3 md:w-4 md:h-4 text-gx-cyan shrink-0 mt-0.5" />
+                          <Rocket className="w-3 h-3 md:w-4 md:h-4  shrink-0 mt-0.5" />
                           <div className="flex flex-col h-full justify-between w-full">
                             <div>
-                              <div className="text-[9px] md:text-[10px] font-black text-gx-cyan tracking-widest mb-1">{t('txt_1ec201')}</div>
+                              <div className="text-[9px] md:text-[10px] font-bold  tracking-widest mb-1">{t('txt_1ec201')}</div>
                               <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium mb-3 md:mb-4">
                                 {t('txt_a6dc6b')}</p>
                             </div>
-                            <button className="w-full py-1.5 md:py-2 bg-gx-cyan/10 hover:bg-gx-cyan/20 border border-gx-cyan/30 text-gx-cyan text-[9px] md:text-[10px] font-bold tracking-widest rounded-lg transition-all mt-auto">
+                            <button className="w-full py-1.5 md:py-2   border   text-[9px] md:text-[10px] font-bold tracking-widest rounded-lg transition-all mt-auto">
                               {t('txt_416e0d')}</button>
                           </div>
                         </div>
@@ -907,14 +907,14 @@ function NodeManagementHUD({
                         onChange={(e) => setNameInput(e.target.value)}
                         placeholder={isPending ? "INITIALIZING..." : "ENTER NODE NAME"}
                         className={cn(
-                          "w-full bg-transparent border-none outline-none text-2xl md:text-3xl font-black tracking-tight transition-all",
-                          isPending ? "text-white/50 placeholder:text-white/30 animate-pulse" : "text-gx-cyan drop-shadow-[0_0_15px_rgba(0,242,255,0.4)] placeholder:text-white/20"
+                          "w-full bg-transparent border-none outline-none text-2xl md:text-3xl font-bold tracking-tight transition-all",
+                          isPending ? "text-white/50 placeholder:text-white/30 animate-pulse" : "  placeholder:text-white/20"
                         )}
                       />
                       {/* 悬浮聚焦下划线 */}
                       <div className={cn(
                         "absolute -bottom-2 left-0 w-full h-px transition-all duration-300",
-                        isPending ? "bg-gx-cyan/40 shadow-[0_0_10px_rgba(0,242,255,0.5)] animate-pulse" : "bg-white/10 group-focus-within:bg-gx-cyan shadow-[0_0_10px_rgba(0,242,255,0)] group-focus-within:shadow-[0_0_10px_rgba(0,242,255,0.5)]"
+                        isPending ? "  animate-pulse" : "bg-white/10  "
                       )} />
                     </div>
 
@@ -943,10 +943,10 @@ function NodeManagementHUD({
                       <button 
                         onClick={handleActivate}
                         disabled={isSubmitting}
-                        className="w-full relative overflow-hidden group bg-gx-cyan/10 border border-gx-cyan/30 rounded-xl p-4 transition-all hover:border-gx-cyan hover:shadow-[0_0_30px_rgba(0,242,255,0.2)] disabled:opacity-50"
+                        className="w-full relative overflow-hidden group  border  rounded-xl p-4 transition-all   disabled:opacity-50"
                       >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gx-cyan/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                        <div className="relative z-10 flex items-center justify-center gap-3 text-gx-cyan font-bold tracking-[0.2em]">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent  to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                        <div className="relative z-10 flex items-center justify-center gap-3  font-bold tracking-[0.2em]">
                           {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />}
                           <span>{t('txt_452293')}</span>
                         </div>
@@ -965,7 +965,7 @@ function NodeManagementHUD({
                     {planet.managerId ? (
                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:bg-white/10 transition-all">
                         <div>
-                          <div className="text-sm font-bold text-white group-hover:text-gx-cyan transition-colors">{planet.managerName || 'UNKNOWN'}</div>
+                          <div className="text-sm font-bold text-white  transition-colors">{planet.managerName || 'UNKNOWN'}</div>
                           <div className="text-[10px] text-white/40 font-mono mt-0.5">{planet.managerId}</div>
                         </div>
                         <button 
@@ -978,8 +978,8 @@ function NodeManagementHUD({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex bg-black/50 ring-1 ring-white/10 focus-within:ring-gx-cyan/50 rounded-xl overflow-hidden transition-all shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
-                        <div className="pl-4 pr-2 py-3 text-gx-cyan/50 font-mono select-none flex items-center">{'>_'}</div>
+                      <div className="flex bg-black/50 ring-1 ring-white/10  rounded-xl overflow-hidden transition-all ">
+                        <div className="pl-4 pr-2 py-3  font-mono select-none flex items-center">{'>_'}</div>
                         <input 
                           type="text"
                           value={managerInput}
@@ -991,7 +991,7 @@ function NodeManagementHUD({
                         <button 
                           onClick={handleAuthorize}
                           disabled={isSubmitting || !managerInput}
-                          className="px-6 bg-transparent text-gx-cyan hover:text-white hover:bg-gx-cyan/20 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gx-cyan transition-all flex items-center gap-2 font-bold tracking-widest text-xs border-l border-white/10"
+                          className="px-6 bg-transparent  hover:text-white  disabled:opacity-30 disabled:hover:bg-transparent  transition-all flex items-center gap-2 font-bold tracking-widest text-xs border-l border-white/10"
                         >
                           <ShieldCheck className="w-4 h-4" />
                           <span>{t('txt_98a315')}</span>
@@ -1008,32 +1008,32 @@ function NodeManagementHUD({
                     <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 relative">
                       {isPending && (
                         <div className="absolute inset-0 z-20 flex items-center justify-center">
-                          <Lock className="w-8 h-8 text-white/50 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                          <Lock className="w-8 h-8 text-white/50 " />
                         </div>
                       )}
                       
                       {/* 星云下钻 (左) */}
                       <button 
                         onClick={onDive}
-                        className="flex-1 relative overflow-hidden group bg-purple-900/20 border border-purple-500/20 rounded-xl p-4 hover:border-purple-400 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] transition-all"
+                        className="flex-1 relative overflow-hidden group  border  rounded-xl p-4   transition-all"
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-br  to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="relative z-10 flex flex-col items-center justify-center gap-2">
-                          <Rocket className="w-6 h-6 text-purple-400 group-hover:scale-110 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
-                          <span className="text-xs text-purple-300 font-bold tracking-widest">{t('txt_b641f2')}</span>
+                          <Rocket className="w-6 h-6  group-hover:scale-110 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+                          <span className="text-xs  font-bold tracking-widest">{t('txt_b641f2')}</span>
                         </div>
                       </button>
 
                       {/* 进入日历 (右 - 主入口) */}
                       <button 
                         onClick={handleEnterCalendar}
-                        className="flex-[1.5] relative overflow-hidden group bg-gx-cyan/10 border border-gx-cyan/30 rounded-xl p-4 hover:border-gx-cyan hover:shadow-[0_0_30px_rgba(0,242,255,0.2)] transition-all"
+                        className="flex-[1.5] relative overflow-hidden group  border  rounded-xl p-4   transition-all"
                       >
                         {/* 常驻流光背景 */}
-                        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r from-gx-cyan/0 via-gx-cyan/10 to-gx-cyan/0" />
+                        <div className="absolute inset-0 bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] bg-gradient-to-r   " />
                         <div className="relative z-10 flex flex-col items-center justify-center gap-2">
-                          <Calendar className="w-6 h-6 text-gx-cyan group-hover:scale-110 transition-transform" />
-                          <span className="text-xs text-white font-bold tracking-widest group-hover:text-gx-cyan transition-colors">{t('txt_53656b')}</span>
+                          <Calendar className="w-6 h-6  group-hover:scale-110 transition-transform" />
+                          <span className="text-xs text-white font-bold tracking-widest  transition-colors">{t('txt_53656b')}</span>
                         </div>
                       </button>
                     </div>
@@ -1044,7 +1044,7 @@ function NodeManagementHUD({
               {/* 右舱：AI 洞察域 (AI Financials Core) - 40% */}
               <div className="w-full md:w-[40%] relative border-t md:border-t-0 flex flex-col items-center justify-center overflow-hidden min-h-[250px] bg-black/20">
                 {/* 左侧垂直渐变分割线 */}
-                <div className="hidden md:block absolute left-0 top-[10%] bottom-[10%] w-px bg-gradient-to-b from-transparent via-gx-cyan/20 to-transparent" />
+                <div className="hidden md:block absolute left-0 top-[10%] bottom-[10%] w-px bg-gradient-to-b from-transparent  to-transparent" />
 
                 {/* 微弱的背景跳动动画 */}
                 <div className="absolute inset-0 opacity-10 pointer-events-none">
@@ -1053,14 +1053,14 @@ function NodeManagementHUD({
 
                 {/* 扫描线动画 (Data Stream) - 增强休眠态科技感 */}
                 <div className="absolute inset-0 pointer-events-none opacity-30 mix-blend-screen">
-                  <div className="absolute top-0 left-0 w-full h-full bg-[length:100%_200%] animate-[shimmer_3s_linear_infinite] bg-gradient-to-b from-transparent via-gx-cyan/10 to-transparent" />
+                  <div className="absolute top-0 left-0 w-full h-full bg-[length:100%_200%] animate-[shimmer_3s_linear_infinite] bg-gradient-to-b from-transparent  to-transparent" />
                 </div>
 
                 {/* AI 财务按钮卡片 / 四宫格降维快照 */}
                 {isPending ? (
                   <button 
                     disabled={isPending}
-                    className="relative z-10 group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-sm transition-all duration-500 opacity-30 grayscale cursor-not-allowed"
+                    className="relative z-10 group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl border border-white/5 bg-white/5  transition-all duration-500 opacity-30 grayscale cursor-not-allowed"
                   >
                     <div className="absolute inset-0 z-20 flex items-center justify-center">
                       <Lock className="w-10 h-10 text-white/30" />
@@ -1076,37 +1076,37 @@ function NodeManagementHUD({
                 ) : (
                   <div className="relative z-10 w-full h-full flex flex-col p-6">
                     <div className="flex items-center gap-2 mb-6">
-                      <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
-                      <span className="text-[10px] font-mono text-emerald-400/80 uppercase tracking-widest">Live Node Snapshot</span>
+                      <Activity className="w-4 h-4  animate-pulse" />
+                      <span className="text-[10px] font-mono  uppercase tracking-widest">Live Node Snapshot</span>
                     </div>
 
                     {/* 四宫格数据区 */}
                     <div className="grid grid-cols-2 gap-3 mb-6 flex-1">
                       <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
                         <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Total Revenue</span>
-                        <span className="text-xl font-black text-emerald-400 mt-1 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">¥ 45,200</span>
+                        <span className="text-xl font-bold  mt-1 ">¥ 45,200</span>
                       </div>
                       <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
                         <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Total Members</span>
-                        <span className="text-xl font-black text-white mt-1">128</span>
+                        <span className="text-xl font-bold text-white mt-1">128</span>
                       </div>
                       <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
                         <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Walk-ins</span>
-                        <span className="text-xl font-black text-white mt-1">45</span>
+                        <span className="text-xl font-bold text-white mt-1">45</span>
                       </div>
                       <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col justify-center group hover:bg-white/10 transition-colors">
                         <span className="text-[9px] text-white/40 uppercase tracking-widest font-mono">Services</span>
-                        <span className="text-xl font-black text-white mt-1">312</span>
+                        <span className="text-xl font-bold text-white mt-1">312</span>
                       </div>
                     </div>
 
                     {/* 原地翻转下钻按钮 */}
                     <button 
                       onClick={() => setViewMode('financial')}
-                      className="w-full relative overflow-hidden group bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 transition-all hover:border-emerald-400 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+                      className="w-full relative overflow-hidden group  border  rounded-xl p-4 transition-all  "
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-400/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                      <div className="relative z-10 flex items-center justify-center gap-2 text-emerald-400 font-bold tracking-[0.1em] text-xs">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent  to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                      <div className="relative z-10 flex items-center justify-center gap-2  font-bold tracking-[0.1em] text-xs">
                         <LineChart className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <span>{t('txt_5294b4')}</span>
                       </div>
@@ -1123,7 +1123,7 @@ function NodeManagementHUD({
               <button 
                 onClick={handlePurge}
                 disabled={isSubmitting}
-                className="group flex items-center gap-2 px-6 py-2 text-[10px] font-mono tracking-widest text-red-500/30 hover:text-red-400 transition-all duration-300 rounded-full hover:bg-red-500/10 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] bg-transparent border border-transparent hover:border-red-500/20"
+                className="group flex items-center gap-2 px-6 py-2 text-[10px] font-mono tracking-widest text-red-500/30 hover:text-red-400 transition-all duration-300 rounded-full hover:bg-red-500/10  bg-transparent border border-transparent hover:border-red-500/20"
               >
                 <Trash2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <span>{t('txt_f1e7ae')}</span>
@@ -1144,56 +1144,56 @@ function NodeManagementHUD({
           <div className="flex items-center justify-between mb-8 z-10 relative">
             <button
               onClick={() => setViewMode('control')}
-              className="flex items-center gap-2 text-emerald-400/60 hover:text-emerald-400 transition-colors group px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20"
+              className="flex items-center gap-2  transition-colors group px-4 py-2  rounded-full border "
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
               <span className="text-xs font-bold tracking-widest uppercase">{t('txt_a08954')}</span>
             </button>
-            <div className="text-xs font-mono text-emerald-400/50 uppercase tracking-widest flex items-center gap-2">
-              <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+            <div className="text-xs font-mono  uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-3 h-3  animate-pulse" />
               {planet.name} // FINANCIAL DATASLATE
             </div>
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center z-10 relative">
             <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-               <div className="col-span-2 bg-black/40 border border-white/5 rounded-2xl p-6 h-56 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+               <div className="col-span-2 bg-black/40 border border-white/5 rounded-2xl p-6 h-56 flex flex-col justify-between relative overflow-hidden group  transition-colors">
                  <div className="text-xs text-white/40 font-mono tracking-widest uppercase mb-4 flex justify-between">
                    <span>Revenue Trend (7 Days)</span>
-                   <span className="text-emerald-400 font-bold">+12.4%</span>
+                   <span className=" font-bold">+12.4%</span>
                  </div>
                  <div className="flex items-end gap-2 h-32 w-full">
                     {[40, 70, 45, 90, 65, 80, 100].map((h, i) => (
-                      <div key={i} className="flex-1 bg-gradient-to-t from-emerald-500/10 to-emerald-400/60 rounded-t-sm group-hover:to-emerald-400/80 transition-colors" style={{ height: `${h}%` }} />
+                      <div key={i} className="flex-1 bg-gradient-to-t   rounded-t-sm  transition-colors" style={{ height: `${h}%` }} />
                     ))}
                  </div>
                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:100%_20px] pointer-events-none" />
                </div>
 
-               <div className="col-span-1 bg-black/40 border border-white/5 rounded-2xl p-6 h-56 flex flex-col justify-between group hover:border-emerald-500/30 transition-colors">
+               <div className="col-span-1 bg-black/40 border border-white/5 rounded-2xl p-6 h-56 flex flex-col justify-between group  transition-colors">
                  <div className="text-xs text-white/40 font-mono tracking-widest uppercase mb-4 flex items-center gap-2">
-                   <Sparkles className="w-3 h-3 text-emerald-400" />
+                   <Sparkles className="w-3 h-3 " />
                    AI Insight
                  </div>
                  <p className="text-sm text-white/80 leading-relaxed font-medium">
-                   <span className="text-emerald-400 font-bold text-lg mr-1">"</span>
-                   {t('txt_e8ec21')}<span className="text-emerald-400 font-bold text-lg ml-1">"</span>
+                   <span className=" font-bold text-lg mr-1">"</span>
+                   {t('txt_e8ec21')}<span className=" font-bold text-lg ml-1">"</span>
                  </p>
-                 <div className="text-[10px] text-emerald-400/50 font-mono mt-2">- Nexus AI Engine</div>
+                 <div className="text-[10px]  font-mono mt-2">- Nexus AI Engine</div>
                </div>
             </div>
 
             <div className="w-full bg-black/40 border border-white/5 rounded-2xl p-6 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
-                   <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                 <div className="w-12 h-12 rounded-full  flex items-center justify-center border ">
+                   <ShieldCheck className="w-6 h-6 " />
                  </div>
                  <div>
                    <div className="text-white text-sm font-bold tracking-widest">{t('txt_ca7df9')}</div>
                    <div className="text-xs text-white/40 font-mono">Last updated: LIVE</div>
                  </div>
               </div>
-              <button className="px-6 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase rounded-xl transition-all border border-emerald-500/20 hover:border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+              <button className="px-6 py-2.5   text-xs font-bold tracking-widest uppercase rounded-xl transition-all border  ">
                 Export Report
               </button>
             </div>
@@ -1201,7 +1201,7 @@ function NodeManagementHUD({
 
           {/* 全息扫描线背景 */}
           <div className="absolute inset-0 pointer-events-none opacity-20 mix-blend-screen">
-            <div className="absolute top-0 left-0 w-full h-full bg-[length:100%_200%] animate-[shimmer_5s_linear_infinite] bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent" />
+            <div className="absolute top-0 left-0 w-full h-full bg-[length:100%_200%] animate-[shimmer_5s_linear_infinite] bg-gradient-to-b from-transparent  to-transparent" />
           </div>
         </motion.div>
       )}
@@ -1293,7 +1293,7 @@ function CyberSphere({
           onClick={onClick}
         >
           <span 
-            className={`text-[10px] font-medium tracking-[0.3em] px-3 py-1.5 rounded-full backdrop-blur-xl border transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 ${!isDimmed ? 'shadow-[0_0_15px_var(--glow-color)]' : ''}`}
+            className={`text-[10px] font-medium tracking-[0.3em] px-3 py-1.5 rounded-full  border transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 ${!isDimmed ? '' : ''}`}
             style={{
               backgroundColor: `${effectiveHex}20`,
               borderColor: `${effectiveHex}40`,
@@ -1513,7 +1513,7 @@ function CoreNode({
       {/* 中心图标保留 Billboard 确保永远正对摄像机 */}
       <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
         <Html position={[0, 0, 0]} center transform sprite zIndexRange={[100, 0]}>
-          <LineChart className="w-16 h-16 text-white drop-shadow-[0_0_20px_rgba(0,0,0,0.8)] animate-pulse" />
+          <LineChart className="w-16 h-16 text-white  animate-pulse" />
         </Html>
       </Billboard>
 
@@ -1521,9 +1521,9 @@ function CoreNode({
       <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
         <Html position={[0, -4.5, 0]} center transform sprite zIndexRange={[100, 0]}>
           <div className="flex flex-col items-center text-center space-y-2 w-[600px] pointer-events-none select-none">
-            <h1 className="text-3xl md:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gx-cyan via-purple-400 to-gx-cyan bg-[length:200%_auto] animate-gradient drop-shadow-[0_0_20px_rgba(0,255,255,0.3)] whitespace-nowrap">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r   bg-[length:200%_auto] animate-gradient  whitespace-nowrap">
               {t('txt_88c35d')}</h1>
-            <div className="text-[10px] font-mono text-gx-cyan/80 tracking-[0.2em] border border-gx-cyan/30 px-3 py-1 rounded-full bg-gx-cyan/[0.05] backdrop-blur-md">
+            <div className="text-[10px] font-mono  tracking-[0.2em] border  px-3 py-1 rounded-full /[0.05] ">
               SYSTEM CORE
             </div>
           </div>
@@ -1533,7 +1533,7 @@ function CoreNode({
   );
 }
 
-// 兼容色盘，避免 CYBER_COLOR_DICTIONARY 只有 corelight 时报错
+// 兼容色盘，避免 CYBER_COLOR_DICTIONARY 只有 purewhite/coreblack 时报错
 const FALLBACK_COLORS: Record<string, { hex: string }> = {
   cyan: { hex: "#00f0ff" },
   purple: { hex: "#a855f7" },
@@ -1543,6 +1543,7 @@ const FALLBACK_COLORS: Record<string, { hex: string }> = {
   silver: { hex: "#9ca3af" },
   platinum: { hex: "#e5e7eb" },
   corelight: { hex: "#ffffff" },
+  purewhite: { hex: "#ffffff" },
   white: { hex: "#ffffff" },
   core: { hex: "#ffffff" }
 };
@@ -1711,8 +1712,8 @@ export const NebulaOverlay = () => {
     return (
       <main className="min-h-[100dvh] bg-black relative overflow-hidden flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="w-8 h-8 text-gx-cyan animate-spin" />
-          <div className="text-gx-cyan/50 font-mono text-sm tracking-widest animate-pulse">INITIALIZING NEBULA PROTOCOL...</div>
+          <Loader2 className="w-8 h-8  animate-spin" />
+          <div className=" font-mono text-sm tracking-widest animate-pulse">INITIALIZING NEBULA PROTOCOL...</div>
         </div>
       </main>
     );
@@ -1776,7 +1777,7 @@ export const NebulaOverlay = () => {
             {/* 极光深渊特效 */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,242,255,0.1)_0%,transparent_50%)] animate-pulse" />
             <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(188,0,255,0.05)_0%,transparent_100%)]" />
-            <div className="w-screen h-[2px] bg-gx-cyan/50 blur-[2px] shadow-[0_0_20px_#00f2ff] scale-x-0 animate-[scale-x-up_0.4s_ease-in-out_forwards]" />
+            <div className="w-screen h-[2px]    scale-x-0 animate-[scale-x-up_0.4s_ease-in-out_forwards]" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1792,7 +1793,7 @@ export const NebulaOverlay = () => {
           >
             <button
               onClick={triggerReturnToNebula}
-              className="flex items-center space-x-2 bg-black/40 backdrop-blur-md border border-white/20 hover:border-gx-cyan/50 rounded-xl p-3 transition-colors text-white/80 hover:text-white group shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+              className="flex items-center space-x-2 bg-black/40  border border-white/20  rounded-xl p-3 transition-colors text-white/80 hover:text-white group "
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
               <span className="text-xs font-bold tracking-widest uppercase">{t('txt_8f3492')}</span>
@@ -1814,7 +1815,7 @@ export const NebulaOverlay = () => {
               onClick={() => {
                 if (typeof window !== 'undefined') window.history.back();
               }}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40  border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all  active:scale-95"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>

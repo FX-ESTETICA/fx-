@@ -34,7 +34,9 @@ export default function ChatListPage() {
       // 临时降维解密算法：如果 URL 带有 Token，我们解密出真实号码作为当前身份
       if (tokenParam && tokenParam.startsWith('gx_tk_')) {
         try {
-          const decoded = atob(tokenParam.replace('gx_tk_', ''));
+          // 完美自愈：如果旧链接没有 encodeURIComponent，浏览器可能会把 '+' 变成空格 ' '，这里将其强行还原
+          const cleanToken = tokenParam.replace(/ /g, '+');
+          const decoded = atob(cleanToken.replace('gx_tk_', ''));
           const realPhone = decoded.replace('_nexus', '');
           if (realPhone) {
             // 将此号码与当前的 deviceId 死绑 (实际这里应该调后端接口验证)
@@ -115,11 +117,11 @@ export default function ChatListPage() {
         <div className={`flex-1 h-full relative ${!activeChat ? 'hidden md:flex' : 'block'}`}>
           
           {/* 世界顶级修复法则：毛玻璃层持久化剥离 (Persistent Glass Shield)
-              绝对禁止将 backdrop-blur 放入带有动态 key 的 AnimatePresence 容器中！
+              绝对禁止将  放入带有动态 key 的 AnimatePresence 容器中！
               将毛玻璃层提升为静态兄弟节点，仅控制 opacity，彻底消灭 GPU 重建渲染层导致的黑场闪烁。
           */}
           <div 
-            className={`absolute inset-0 w-full h-full bg-black/40 backdrop-blur-sm pointer-events-none transition-opacity duration-300 ${activeChat ? 'opacity-100 z-0' : 'opacity-0 -z-10'}`}
+            className={`absolute inset-0 w-full h-full bg-black/40  pointer-events-none transition-opacity duration-300 ${activeChat ? 'opacity-100 z-0' : 'opacity-0 -z-10'}`}
             style={{ willChange: 'opacity' }}
           />
 
@@ -150,7 +152,7 @@ export default function ChatListPage() {
                 className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white/30 z-10"
               >
                 <div className="w-24 h-24 mb-6 rounded-full border border-white/10 flex items-center justify-center relative">
-                  <div className="absolute inset-0 rounded-full border-t border-gx-cyan animate-spin opacity-50" />
+                  <div className="absolute inset-0 rounded-full border-t  animate-spin opacity-50" />
                   <span className="text-4xl">📡</span>
                 </div>
                 <p className="text-sm tracking-[0.2em] uppercase font-mono">{t('txt_71f8fd')}</p>

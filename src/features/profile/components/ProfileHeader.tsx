@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User, ShieldCheck, RefreshCw, Copy, Check } from "lucide-react";
 import { UserProfile } from "../types";
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useShop } from "@/features/shop/ShopContext";
 import { AvatarCropModal } from "./AvatarCropModal";
@@ -22,6 +23,8 @@ import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const t = useTranslations('ProfileHeader');
+  const { settings } = useVisualSettings();
+  const isLight = settings.frontendBgIndex !== 0;
   const { user, activeRole, setActiveRole, refreshUserData } = useAuth();
   const { subscription } = useShop();
   const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
@@ -40,9 +43,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   }, [profile.avatar]);
   
   const roleLabels = {
-    user: { zh: t('role_user'), color: "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" },
-    merchant: { zh: t('role_merchant'), color: "text-gx-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.7)]" },
-    boss: { zh: t('role_boss'), color: "text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" },
+    user: { zh: t('role_user'), color: isLight ? "text-black" : "text-white" },
+    merchant: { zh: t('role_merchant'), color: isLight ? "text-black" : "text-white" },
+    boss: { zh: t('role_boss'), color: isLight ? "text-black" : "text-white" },
   };
 
   const currentRole = roleLabels[activeRole] || roleLabels[profile.role];
@@ -141,14 +144,14 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     const now = new Date();
     const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
     
-    if (daysDiff < 10) return { level: "LV.0", title: t('level_0_title'), color: "border-white/20", glow: "shadow-[0_0_10px_rgba(255,255,255,0.1)]" };
-    if (daysDiff < 30) return { level: "LV.1", title: t('level_1_title'), color: "border-gx-cyan/30", glow: "shadow-[0_0_15px_rgba(0,242,255,0.2)]" };
-    if (daysDiff < 180) return { level: "LV.2", title: t('level_2_title'), color: "border-gx-cyan/60", glow: "shadow-[0_0_20px_rgba(0,242,255,0.4)]" };
-    if (daysDiff < 365) return { level: "LV.3", title: t('level_3_title'), color: "border-dashed border-gx-cyan", glow: "shadow-[0_0_25px_rgba(0,242,255,0.5)]" };
-    if (daysDiff < 730) return { level: "LV.4", title: t('level_4_title'), color: "border-gx-pink/60", glow: "shadow-[0_0_30px_rgba(255,0,234,0.4)]" };
-    if (daysDiff < 1825) return { level: "LV.5", title: t('level_5_title'), color: "border-gx-purple/80", glow: "shadow-[0_0_40px_rgba(188,0,255,0.5)]" };
-    return { level: "LV.6", title: t('level_6_title'), color: "border-white", glow: "shadow-[0_0_50px_rgba(255,255,255,0.8)]" };
-  }, [profile.role, profile.createdAt]);
+    if (daysDiff < 10) return { level: "LV.0", title: t('level_0_title'), color: isLight ? "border-black/20" : "border-white/20" };
+    if (daysDiff < 30) return { level: "LV.1", title: t('level_1_title'), color: isLight ? "border-black/40" : "border-white/40" };
+    if (daysDiff < 180) return { level: "LV.2", title: t('level_2_title'), color: isLight ? "border-black/60" : "border-white/60" };
+    if (daysDiff < 365) return { level: "LV.3", title: t('level_3_title'), color: isLight ? "border-dashed border-black" : "border-dashed border-white" };
+    if (daysDiff < 730) return { level: "LV.4", title: t('level_4_title'), color: isLight ? "border-black/80" : "border-white/80" };
+    if (daysDiff < 1825) return { level: "LV.5", title: t('level_5_title'), color: isLight ? "border-black" : "border-white" };
+    return { level: "LV.6", title: t('level_6_title'), color: isLight ? "border-black" : "border-white" };
+  }, [profile.role, profile.createdAt, isLight, t]);
 
   // 动态推算年龄和星座
   const calculateAge = (birthday?: string) => {
@@ -184,31 +187,17 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     return null;
   };
 
-  const getGenderColorInfo = (gender?: string) => {
-    if (gender === 'male' || gender === '男') {
-      return {
-        className: "text-gx-cyan drop-shadow-[0_0_8px_rgba(0,242,255,0.8)]",
-        color: "rgb(0, 242, 255)",
-        shadow: "rgba(0, 242, 255, 0.8)"
-      };
-    }
-    if (gender === 'female' || gender === '女') {
-      return {
-        className: "text-fuchsia-400 drop-shadow-[0_0_8px_rgba(232,121,249,0.8)]",
-        color: "rgb(232, 121, 249)",
-        shadow: "rgba(232, 121, 249, 0.8)"
-      };
-    }
+  const getGenderColorInfo = (isLight?: boolean) => {
     return {
-      className: "text-white/60 drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]",
-      color: "rgba(255, 255, 255, 0.6)",
-      shadow: "rgba(255, 255, 255, 0.4)"
+      className: isLight ? "text-black/60" : "text-white/60",
+      color: isLight ? "rgba(0, 0, 0, 0.6)" : "rgba(255, 255, 255, 0.6)"
     };
   };
 
   const age = calculateAge(profile.birthday);
   const zodiac = getZodiacInfo(profile.birthday);
-  const genderColorInfo = getGenderColorInfo(profile.gender);
+  const textColorHex = isLight ? "#000000" : "#ffffff";
+  const genderColorInfo = getGenderColorInfo(isLight);
 
   // 提取上传逻辑 (切换为 Supabase Storage 直连上传)
   const handleUploadCroppedFile = async (file: File) => {
@@ -288,22 +277,19 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               {zodiac && (
                 <div 
                   className="relative w-16 h-16 mb-1"
-                  style={{
-                    filter: `drop-shadow(0 0 8px ${genderColorInfo.shadow})`
-                  }}
                 >
                   <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
                     {/* 星轨连线 */}
-                    <polyline points="20,80 40,50 70,40 85,15" fill="none" stroke={genderColorInfo.color} strokeWidth="1" opacity="0.6" />
-                    <polyline points="40,50 60,75 90,60" fill="none" stroke={genderColorInfo.color} strokeWidth="1" opacity="0.6" />
+                    <polyline points="20,80 40,50 70,40 85,15" fill="none" stroke={textColorHex} strokeWidth="1" opacity="0.6" />
+                    <polyline points="40,50 60,75 90,60" fill="none" stroke={textColorHex} strokeWidth="1" opacity="0.6" />
                     
                     {/* 发光星点 (核心节点放大、呼吸、带发光色) */}
-                    <circle cx="20" cy="80" r="2" fill="#fff" filter="blur(0.5px)" />
-                    <circle cx="40" cy="50" r="3.5" fill="#fff" filter="blur(1px)" className="animate-pulse" style={{ fill: genderColorInfo.color }} />
-                    <circle cx="70" cy="40" r="2" fill="#fff" filter="blur(0.5px)" />
-                    <circle cx="85" cy="15" r="3" fill="#fff" filter="blur(1px)" style={{ fill: genderColorInfo.color }} />
-                    <circle cx="60" cy="75" r="2" fill="#fff" filter="blur(0.5px)" />
-                    <circle cx="90" cy="60" r="3.5" fill="#fff" filter="blur(1px)" className="animate-pulse" style={{ fill: genderColorInfo.color }} />
+                    <circle cx="20" cy="80" r="2" fill={textColorHex} />
+                    <circle cx="40" cy="50" r="3.5" fill={textColorHex} className="animate-pulse" />
+                    <circle cx="70" cy="40" r="2" fill={textColorHex} />
+                    <circle cx="85" cy="15" r="3" fill={textColorHex} />
+                    <circle cx="60" cy="75" r="2" fill={textColorHex} />
+                    <circle cx="90" cy="60" r="3.5" fill={textColorHex} className="animate-pulse" />
                   </svg>
                 </div>
               )}
@@ -312,24 +298,14 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               <div className="flex items-center gap-2">
                 {age !== null && (
                   <span 
-                    className="text-[12px] font-bold tracking-[0.3em] pointer-events-none select-none whitespace-nowrap leading-none transition-colors duration-500"
-                    style={{
-                      color: genderColorInfo.color,
-                      WebkitTextStroke: `0.5px ${genderColorInfo.shadow}`,
-                      textShadow: `0 0 10px ${genderColorInfo.shadow}`,
-                    }}
+                    className={cn("text-[12px] font-bold tracking-[0.3em] pointer-events-none select-none whitespace-nowrap leading-none transition-colors duration-500", isLight ? "text-black" : isLight ? "text-black" : "text-white")}
                   >
                     {age}
                   </span>
                 )}
                 {zodiac && (
                   <div 
-                    className="text-[12px] font-bold tracking-[0.3em] pointer-events-none select-none whitespace-nowrap uppercase leading-none transition-colors duration-500"
-                    style={{
-                      color: genderColorInfo.color,
-                      WebkitTextStroke: `0.5px ${genderColorInfo.shadow}`,
-                      textShadow: `0 0 10px ${genderColorInfo.shadow}`,
-                    }}
+                    className={cn("text-[12px] font-bold tracking-[0.3em] pointer-events-none select-none whitespace-nowrap uppercase leading-none transition-colors duration-500", isLight ? "text-black" : isLight ? "text-black" : "text-white")}
                   >
                     {zodiac}
                   </div>
@@ -353,15 +329,10 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 className={cn(
                   "text-[18px] md:text-[24px] font-black tracking-widest select-none leading-none mb-1 transition-all duration-500 cursor-pointer pr-2 flex items-center group",
                   nameCopyState === "copied" 
-                    ? "whitespace-nowrap max-w-none text-gx-cyan" 
-                    : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:brightness-125"
+                    ? "whitespace-nowrap max-w-none" 
+                    : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:opacity-80",
+                  isLight ? "text-black" : isLight ? "text-black" : "text-white"
                 )}
-                style={{
-                  color: nameCopyState === "copied" ? 'rgb(0, 242, 255)' : 'rgba(255, 255, 255, 0.6)',
-                  WebkitTextStroke: nameCopyState === "copied" ? '0.5px rgba(0, 242, 255, 0.8)' : '0.5px rgba(0, 242, 255, 0.5)',
-                  textShadow: nameCopyState === "copied" ? '0 0 15px rgba(0, 242, 255, 0.8)' : '0 0 10px rgba(0, 242, 255, 0.4)',
-                  filter: nameCopyState === "copied" ? 'none' : 'blur(0.2px)',
-                }}
               >
                 {profile.name}
                 
@@ -374,16 +345,18 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                       exit={{ opacity: 0, scale: 0.5, x: -5 }}
                       className="ml-2 flex items-center gap-2"
                     >
-                      <div className="flex items-center text-gx-cyan drop-shadow-[0_0_8px_rgba(0,240,255,1)]">
+                      <div className={cn("flex items-center font-bold", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
                         <Check className="w-4 h-4" strokeWidth={3} />
                         <span className="text-[10px] ml-1 tracking-widest uppercase">Copied</span>
                       </div>
-                      <div 
+                      <motion.div 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={handleEnterEditName}
-                        className="flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300 text-[10px] tracking-widest cursor-pointer border border-white/20 rounded px-1.5 py-0.5 bg-black/40 shadow-sm whitespace-nowrap"
+                        className={cn("flex items-center justify-center transition-all duration-300 text-[10px] tracking-widest cursor-pointer border rounded px-1.5 py-0.5 whitespace-nowrap", isLight ? "bg-black/40 text-black/70 hover:text-black hover:bg-black/10 border-black/20" : isLight ? "bg-black/40" : "bg-white/40", isLight ? "text-black/70" : "text-white/70", isLight ? "hover:text-black" : "hover:text-white", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "border-black/20" : "border-white/20")}
                       >
                         {t('rename') || '改名'}
-                      </div>
+                      </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -396,17 +369,13 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   value={editNameValue}
                   onChange={(e) => setEditNameValue(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                  className="bg-transparent border-b border-gx-cyan/50 focus:border-gx-cyan outline-none text-[18px] md:text-[24px] font-black tracking-widest leading-none text-gx-cyan placeholder-white/20 w-[140px] sm:w-[180px] md:w-[240px] transition-colors pb-0.5"
-                  style={{
-                    WebkitTextStroke: '0.5px rgba(0, 242, 255, 0.8)',
-                    textShadow: '0 0 15px rgba(0, 242, 255, 0.8)'
-                  }}
+                  className={cn("bg-transparent border-b focus:outline-none text-[18px] md:text-[24px] font-black tracking-widest leading-none w-[140px] sm:w-[180px] md:w-[240px] transition-colors pb-0.5", isLight ? "border-black/50 focus:border-black text-black placeholder-black/20" : "border-white/50 focus:border-white placeholder-white/20", isLight ? "text-black" : isLight ? "text-black" : "text-white")}
                 />
                 <div className="ml-3 flex items-center gap-3">
-                  <button onClick={handleSaveName} className="text-gx-cyan hover:text-white transition-colors hover:scale-110 active:scale-95">
-                    <Check className="w-5 h-5 drop-shadow-[0_0_5px_rgba(0,242,255,0.8)]" strokeWidth={3} />
+                  <button onClick={handleSaveName} className={cn("transition-colors hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black/70" : "hover:text-white/70", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
+                    <Check className="w-5 h-5" strokeWidth={3} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className="text-white/40 hover:text-white transition-colors hover:scale-110 active:scale-95">
+                  <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className={cn("transition-colors hover:scale-110 active:scale-95", isLight ? "text-black/40 hover:text-black" : isLight ? "text-black/40" : "text-white/40", isLight ? "hover:text-black" : "hover:text-white")}>
                     <span className="text-[14px] font-bold">✕</span>
                   </button>
                 </div>
@@ -439,8 +408,8 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 {/* 原始 ID 渲染 - 同步左侧流光 */}
                 <div className={cn(
                   "flex items-center transition-all duration-300 font-bold whitespace-nowrap",
-                  currentRole.color,
-                  copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative group-hover:brightness-125"
+                  isLight ? "text-black" : isLight ? "text-black" : "text-white",
+                  copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative group-hover:opacity-80"
                 )}>
                   ID: {profile.id === "GX-GUEST-0000" ? profile.id : profile.id.split('-').length >= 3 ? profile.id.split('-')[0] + '·' + profile.id.split('-')[1] + '·' + profile.id.split('-')[2] : profile.id}
                 </div>
@@ -448,8 +417,8 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 {/* 复制反馈状态 - 保持高亮白/青色 */}
                 <div className={cn(
                   "flex items-center gap-1 transition-all duration-300 font-bold",
-                  copyState === "copied" ? "opacity-100 relative text-gx-cyan drop-shadow-[0_0_5px_rgba(0,240,255,0.8)]" : "opacity-0 absolute",
-                  copyState === "hover" && "text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]"
+                  copyState === "copied" ? (isLight ? "opacity-100 relative text-black" : "opacity-100 relative", isLight ? "text-black" : "text-white") : "opacity-0 absolute",
+                  copyState === "hover" && (isLight ? "text-black/80" : "text-white")
                 )}>
                   {copyState === "copied" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                   {copyState === "copied" ? t('copied') : t('copy')}
@@ -463,10 +432,10 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 className={cn(
                   "relative flex items-center text-[10px] font-mono tracking-widest leading-none mt-1.5",
                   (remainingMilliseconds ?? 0) < 5 * 60 * 1000 
-                    ? "text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" 
+                    ? "animate-pulse " + (isLight ? "text-black font-bold" : "text-white font-bold") 
                     : (remainingMilliseconds ?? 0) < 24 * 60 * 60 * 1000
-                      ? "text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.6)]"
-                      : "text-white/40 drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]"
+                      ? (isLight ? "text-black/80" : "text-white/80")
+                      : (isLight ? "text-black/40" : "text-white/40")
                 )}
               >
                 {subscription.subscriptionTier} 剩余 {remainingTime}
@@ -479,23 +448,23 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             <motion.div 
               animate={{ rotate: 360 }} 
               transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-full border border-dashed border-gx-cyan/30" 
+              className={cn("absolute inset-0 rounded-full border border-dashed", isLight ? "border-black/30" : "border-white/30")} 
             />
             <motion.div 
               animate={{ rotate: -360 }} 
               transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-6 rounded-full border border-gx-purple/20" 
+              className={cn("absolute inset-6 rounded-full border", isLight ? "border-black/20" : isLight ? "border-black/20" : "border-white/20")} 
             />
           </div>
 
           {/* 动态角色头像框 (尺寸缩小为 w-24 h-24 96px) */}
           <div 
-            className={`w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-xl transition-transform duration-500 relative cursor-pointer group-hover:scale-105 ${
+            className={`w-24 h-24 rounded-full flex items-center justify-center  transition-transform duration-500 relative cursor-pointer group-hover:scale-105 ${
               profile.role === "boss" 
-                ? "bg-gradient-to-br from-red-600/20 to-orange-500/20 border-2 border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+                ? "bg-gradient-to-br from-red-600/20 to-orange-500/20 border-2 border-red-500/50"
                 : profile.role === "merchant"
-                ? "bg-gradient-to-br from-gx-purple/20 to-fuchsia-500/20 border-2 border-gx-purple/50 shadow-[0_0_30px_rgba(188,0,255,0.3)]"
-                : `bg-gradient-to-br from-white/5 to-white/10 border-2 ${userLevelInfo?.color || "border-white/20"} ${userLevelInfo?.glow || "shadow-none"}`
+                ? (isLight ? "bg-black/10 border-2 border-black/30" : "bg-white/10 border-2 border-white/30")
+                : `bg-gradient-to-br from-white/5 to-white/10 border-2 ${userLevelInfo?.color || "border-white/20"}`
             }`}
             onClick={() => {
               if (isUploading) return;
@@ -522,7 +491,6 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               className="absolute inset-[-5px] rounded-full border-[1.5px] pointer-events-none z-0 transition-all duration-500 opacity-80"
               style={{
                 borderColor: genderColorInfo.color,
-                boxShadow: `0 0 10px ${genderColorInfo.shadow}, inset 0 0 4px ${genderColorInfo.shadow}`
               }}
             >
               {/* 环绕的性别能量粒子 */}
@@ -535,7 +503,6 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   className="absolute top-0 left-1/2 w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full" 
                   style={{ 
                     backgroundColor: genderColorInfo.color,
-                    boxShadow: `0 0 10px 2px ${genderColorInfo.color}`
                   }} 
                 />
               </motion.div>
@@ -548,7 +515,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   <motion.div 
                     animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.3, 0.8, 0.3] }}
                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    className="w-10 h-10 rounded-full border-2 border-dashed border-gx-cyan/50"
+                    className={`w-10 h-10 rounded-full border-2 border-dashed ${isLight ? "border-black/50" : "border-white/50"}`}
                   />
                 </div>
               )}
@@ -568,11 +535,11 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   onLoad={() => setImageLoaded(true)}
                 />
               ) : profile.role === "boss" ? (
-                <ShieldCheck className="w-16 h-16 text-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]" />
+                <ShieldCheck className="w-16 h-16 text-red-500" />
               ) : profile.role === "merchant" ? (
-                <ShieldCheck className="w-16 h-16 text-gx-purple drop-shadow-[0_0_20px_rgba(188,0,255,0.8)]" />
+                <ShieldCheck className={`w-16 h-16 ${isLight ? "text-black/80" : "text-white/80"}`} />
               ) : (
-                <User className="w-16 h-16 text-white/60 group-hover:text-white transition-colors" />
+                <User className={`w-16 h-16 ${isLight ? "text-black/60 group-hover:text-black" : "text-white/60 group-hover:text-white"} transition-colors`} />
               )}
             </div>
 
@@ -583,9 +550,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center z-20 backdrop-blur-sm"
+                  className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center z-20 "
                 >
-                  <RefreshCw className="w-8 h-8 text-gx-cyan animate-spin" />
+                  <RefreshCw className={`w-8 h-8 animate-spin ${isLight ? "text-black" : "text-white"}`} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -599,7 +566,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               />
             )}
             {profile.role === "merchant" && (
-              <div className="absolute inset-[-10px] rounded-full border-[1px] border-gx-purple/30 rotate-45 pointer-events-none" style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} />
+              <div className={`absolute inset-[-10px] rounded-full border-[1px] rotate-45 pointer-events-none ${isLight ? "border-black/30" : "border-white/30"}`} style={{ clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)" }} />
             )}
           </div>
         </div>
@@ -614,14 +581,14 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
           {/* --- 第二层：流光线分割 --- */}
           <div className="relative w-full h-[1px]">
             {/* 绝对定位的底层暗线 (贯穿整个容器) */}
-            <div className="absolute top-1/2 left-0 right-0 h-[1px] -translate-y-1/2 bg-gradient-to-r from-transparent via-white/10 to-transparent z-0" />
+            <div className={cn("absolute top-1/2 left-0 right-0 h-[1px] -translate-y-1/2 z-0", isLight ? "bg-gradient-to-r from-transparent via-black/10 to-transparent" : "bg-gradient-to-r from-transparent via-white/10 to-transparent")} />
             
             {/* 绝对定位的脉冲流光 (穿梭于所有元素底部) */}
             <div className="absolute top-1/2 left-0 right-0 h-[1px] -translate-y-1/2 z-0 overflow-hidden">
               <motion.div 
                 animate={{ x: ["-200%", "200%"] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                className="absolute top-0 bottom-0 left-0 w-[40%] bg-gradient-to-r from-transparent via-gx-cyan to-transparent shadow-[0_0_15px_2px_rgba(0,242,255,0.8)]"
+                className={cn("absolute top-0 bottom-0 left-0 w-[40%]", isLight ? "bg-gradient-to-r from-transparent via-black to-transparent" : "bg-gradient-to-r from-transparent via-white to-transparent")}
               />
             </div>
           </div>
@@ -640,10 +607,10 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
           {profile.stats.map((stat) => (
             <div
               key={stat.label}
-              className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center min-w-[80px]"
+              className={`px-4 py-2 rounded-xl ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/5" : "border-white/5"} flex flex-col items-center min-w-[80px]`}
             >
-              <span className="text-[10px] text-white/20 uppercase tracking-tighter">{stat.label}</span>
-              <span className="text-lg font-mono font-bold text-white/80">{stat.value}</span>
+              <span className={`text-[10px] ${isLight ? "text-black/20" : "text-white/20"} uppercase tracking-tighter`}>{stat.label}</span>
+              <span className={`text-lg font-mono font-bold ${isLight ? "text-black/80" : "text-white/80"}`}>{stat.value}</span>
             </div>
           ))}
         </div>

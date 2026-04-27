@@ -281,24 +281,24 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
             href={inviteUrl} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="block relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/60 to-black border border-purple-500/30 p-4 hover:border-purple-400/60 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all group no-underline"
+            className="block relative overflow-hidden rounded-xl bg-gradient-to-br  to-black border  p-4   transition-all group no-underline"
           >
             <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
-            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition-colors" />
+            <div className="absolute top-0 right-0 w-24 h-24  rounded-bl-full  pointer-events-none  transition-colors" />
             
             <div className="relative z-10 flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-black border border-purple-500/40 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(168,85,247,0.4)]">
-                <Sparkles className="w-5 h-5 text-purple-400" />
+              <div className="w-10 h-10 rounded-lg bg-black border  flex items-center justify-center shrink-0 ">
+                <Sparkles className="w-5 h-5 " />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-purple-100 font-bold text-[15px] mb-1 tracking-wide truncate">GX 专属全息通行证</h4>
-                <p className="text-purple-300/60 text-xs font-mono tracking-widest uppercase">Click to activate Nexus</p>
+                <h4 className=" font-bold text-[15px] mb-1 tracking-wide truncate">GX 专属全息通行证</h4>
+                <p className=" text-xs font-mono tracking-widest uppercase">Click to activate Nexus</p>
               </div>
             </div>
             
-            <div className="relative z-10 mt-4 flex items-center justify-between border-t border-purple-500/20 pt-3">
-              <span className="text-[10px] text-purple-400/50 font-mono tracking-widest">SECURE LINK</span>
-              <div className="flex items-center gap-1 text-purple-400 text-xs font-bold uppercase tracking-widest group-hover:text-purple-300 transition-colors">
+            <div className="relative z-10 mt-4 flex items-center justify-between border-t  pt-3">
+              <span className="text-[10px]  font-mono tracking-widest">SECURE LINK</span>
+              <div className="flex items-center gap-1  text-xs font-bold uppercase tracking-widest  transition-colors">
                 立即进入 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
@@ -326,7 +326,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
         initial={false}
         animate={isOpen ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 50, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-12 md:bottom-12 md:w-[400px] h-[60vh] max-h-[600px] min-h-[400px] z-[1000] rounded-3xl pointer-events-none bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-12 md:bottom-12 md:w-[400px] h-[60vh] max-h-[600px] min-h-[400px] z-[1000] rounded-3xl pointer-events-none bg-black/40  border border-white/10 "
         style={{ willChange: 'opacity, transform' }}
       />
       
@@ -343,12 +343,12 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
             {/* Header */}
             <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0 bg-gradient-to-r from-white/5 to-transparent">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gx-cyan/20 border border-gx-cyan/40 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.3)]">
-                  <Sparkles className="w-4 h-4 text-gx-cyan" />
+                <div className="w-8 h-8 rounded-full  border  flex items-center justify-center ">
+                  <Sparkles className="w-4 h-4 " />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
-                    {t('txt_e4c031')}<span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    {t('txt_e4c031')}<span className="w-1.5 h-1.5 rounded-full  animate-pulse" />
                   </h3>
                   <p className="text-[10px] text-white/40 font-mono tracking-wider">{t('txt_06af22')}</p>
                 </div>
@@ -377,18 +377,18 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                     "max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed",
                     msg.role === "user"
                       ? "bg-white/10 text-white border border-white/5 rounded-tr-sm"
-                      : "bg-transparent text-white/90 border-l-2 border-gx-cyan pl-4 pr-0 py-1"
+                      : "bg-transparent text-white/90 border-l-2  pl-4 pr-0 py-1"
                   )}>
                     {formatMessage(msg.content)}
                   </div>
                   
                   {/* 如果该消息带有预订意图标记，渲染确认卡片 */}
                   {msg.bookingAction && (
-                    <div className="mt-3 bg-black/40 border border-gx-cyan/30 rounded-xl p-3 flex flex-col gap-2 relative overflow-hidden max-w-[85%] self-start ml-4">
+                    <div className="mt-3 bg-black/40 border  rounded-xl p-3 flex flex-col gap-2 relative overflow-hidden max-w-[85%] self-start ml-4">
                       {/* 赛博朋克扫描线动画 */}
-                      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gx-cyan to-transparent animate-[shimmer_2s_infinite]" />
+                      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent  to-transparent animate-[shimmer_2s_infinite]" />
                       
-                      <div className="text-xs text-gx-cyan font-bold flex items-center gap-1">
+                      <div className="text-xs  font-bold flex items-center gap-1">
                         <CalendarCheck className="w-3 h-3" />
                         <span>{t('txt_83b6af')}</span>
                       </div>
@@ -411,7 +411,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                       <button 
                         onClick={() => handleLockBooking(msg.bookingAction, msg.id)}
                         disabled={isLocking}
-                        className="mt-2 w-full py-2 bg-gx-cyan text-black text-xs font-bold rounded hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="mt-2 w-full py-2  text-black text-xs font-bold rounded hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {isLocking ? (
                           <>
@@ -434,11 +434,11 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                   animate={{ opacity: 1, y: 0 }}
                   className="flex w-full justify-start"
                 >
-                  <div className="bg-transparent text-white/50 border-l-2 border-gx-cyan/50 pl-4 pr-0 py-1 flex items-center gap-2">
+                  <div className="bg-transparent text-white/50 border-l-2  pl-4 pr-0 py-1 flex items-center gap-2">
                     <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full  animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full  animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full  animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 </motion.div>
@@ -457,7 +457,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                       <button
                         key={idx}
                         onClick={() => handleQuickReply(cat.name)}
-                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/60 hover:text-white hover:border-white/30 transition-all backdrop-blur-md disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/60 hover:text-white hover:border-white/30 transition-all  disabled:opacity-50"
                         disabled={isLoading}
                       >
                         {cat.name}
@@ -468,7 +468,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                       <button
                         key={idx}
                         onClick={() => handleQuickReply(cap.label || cap.name)}
-                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/60 hover:text-white hover:border-white/30 transition-all backdrop-blur-md disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/60 hover:text-white hover:border-white/30 transition-all  disabled:opacity-50"
                         disabled={isLoading}
                       >
                         {cap.label || cap.name}
@@ -483,7 +483,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
 
             {/* Input Area */}
             <div className="p-4 border-t border-white/5 bg-black/20 shrink-0">
-              <form onSubmit={handleFormSubmit} className="relative flex items-center bg-white/5 border border-white/10 rounded-full overflow-hidden focus-within:border-gx-cyan/50 focus-within:bg-white/10 transition-all">
+              <form onSubmit={handleFormSubmit} className="relative flex items-center bg-white/5 border border-white/10 rounded-full overflow-hidden  focus-within:bg-white/10 transition-all">
                 <button type="button" className="p-3 text-white/40 hover:text-white transition-colors">
                   <Mic className="w-5 h-5" />
                 </button>
@@ -498,7 +498,7 @@ export function AiBookingAssistant({ isOpen, onClose, shop }: AiBookingAssistant
                 <button 
                   type="submit"
                   disabled={!localInput.trim() || isLoading}
-                  className="p-3 text-gx-cyan hover:text-white disabled:opacity-30 disabled:hover:text-gx-cyan transition-colors"
+                  className="p-3  hover:text-white disabled:opacity-30  transition-colors"
                 >
                   <Send className="w-5 h-5" />
                 </button>

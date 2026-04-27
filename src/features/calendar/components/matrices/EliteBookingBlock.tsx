@@ -46,7 +46,7 @@ export const EliteBookingBlock = ({
   const getBackgroundColor = () => {
     if (isPending) return '';
     if (isCheckedOut || isPast || isNoShow) return 'transparent';
-    return isHexColor ? `${color}` : ''; // 100% opacity for background (完全不透明实心色块)
+    return isHexColor ? `${color}CC` : ''; // 80% opacity for background
   };
 
   const getBorderColor = () => {
@@ -59,7 +59,7 @@ export const EliteBookingBlock = ({
   const getBoxShadow = () => {
     if (isPending) return '';
     if (isCheckedOut || isPast || isNoShow) return 'none'; // 已过时完全去除发光阴影，变成静态死线框
-    return '0 10px 30px rgba(0,0,0,0.2)'; // 恢复一点阴影
+    return 'none'; // 彻底移除黑色阴影
   };
 
   return (
@@ -93,7 +93,7 @@ export const EliteBookingBlock = ({
           backgroundColor: getBackgroundColor(),
           borderColor: getBorderColor(),
           boxShadow: getBoxShadow(),
-          backdropFilter: (isCheckedOut || isPast || isNoShow) ? "blur(0px)" : "blur(30px)", // 已过时也彻底移除毛玻璃
+          backdropFilter: (isCheckedOut || isPast || isNoShow) ? "(0px)" : "(30px)", // 已过时也彻底移除毛玻璃
         }}
       >
       {/* 内部极光背景 (Aurora Glow) - 已移除 animate-pulse，改为静态极简底色以提升性能 */}
@@ -101,7 +101,7 @@ export const EliteBookingBlock = ({
         <div 
           className={cn(
             "absolute -top-1/2 -left-1/2 w-full h-full opacity-[0.03] rounded-full pointer-events-none",
-            !isHexColor && (accent === 'purple' ? 'bg-gx-purple' : accent === 'cyan' ? 'bg-gx-cyan' : 'bg-orange-500')
+            !isHexColor && (accent === 'purple' ? '' : accent === 'cyan' ? '' : 'bg-orange-500')
           )}
           style={isHexColor ? { backgroundColor: color } : {}}
         />
@@ -111,7 +111,7 @@ export const EliteBookingBlock = ({
         // --- 极限微缩态 (15-25 分钟)：绝对居中，只有服务名称，超小字体，隐藏多余元素 ---
         <div className="flex items-center justify-center relative z-10 w-full truncate">
           <span 
-            className={cn("text-[10px] leading-none font-black uppercase tracking-tighter shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+            className={cn("text-[10px] leading-none font-mono font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
           >
             {title}
           </span>
@@ -120,28 +120,19 @@ export const EliteBookingBlock = ({
         // --- 紧凑态 (30-40 分钟)：单行居中排版 ---
         <div className="flex items-center justify-center gap-2 relative z-10 w-full truncate px-2">
           <span 
-            className={cn("text-xs font-black uppercase tracking-tighter shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+            className={cn("text-xs font-mono font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
           >
             {title}
           </span>
           {client && (
             <>
               <span className="text-white/40 text-[10px] shrink-0">-</span>
-              <span className={cn("text-xs font-black tracking-wider truncate", (isCheckedOut || isNoShow) ? "text-white/40" : "text-white/90")}>
+              <span className={cn("text-[11px] font-mono tracking-widest opacity-80 antialiased truncate", (isCheckedOut || isNoShow) ? "text-white/40" : "text-white/90")}>
                 {client}
               </span>
             </>
           )}
-          {/* 右上角绝对定位的小圆点 (已过时则不再显示) - 已移除高频闪烁 animate-pulse */}
-          {!isCheckedOut && !isPast && !isNoShow && (
-            <div 
-              className={cn(
-                "absolute top-0 right-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor]", 
-                !isHexColor && color.replace('text-', 'bg-')
-              )}
-              style={isHexColor ? { backgroundColor: color, color: color } : {}}
-            />
-          )}
+          {/* 右上角绝对定位的小圆点已根据极简法则移除 */}
         </div>
       ) : (
         // --- 充足空间：两行经典排版 ---
@@ -149,32 +140,23 @@ export const EliteBookingBlock = ({
           <div className="flex flex-col gap-1 relative z-10 w-full">
             <div className="flex justify-between items-start">
               <span 
-                className={cn("text-xs md:text-sm font-black uppercase tracking-tighter leading-none line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+                className={cn("text-xs md:text-[13px] font-mono font-medium antialiased tracking-widest uppercase leading-tight line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
               >
                 {title}
               </span>
               {delayMins > 0 && !isCheckedOut && !isNoShow && (
-                <div className="flex items-center justify-center bg-red-600/90 border border-red-400 px-1.5 rounded-sm shrink-0 ml-1 shadow-[0_0_10px_rgba(239,68,68,0.8)] backdrop-blur-md">
-                  <span className="text-[10px] text-white font-black animate-pulse tracking-wider">+{delayMins}m</span>
+                <div className="flex items-center justify-center bg-red-600/90 border border-red-400 px-1.5 rounded-sm shrink-0 ml-1 ">
+                  <span className="text-[10px] text-white font-mono font-medium antialiased animate-pulse tracking-wider">+{delayMins}m</span>
                 </div>
               )}
             </div>
           </div>
 
           <div className="flex items-center justify-between mt-1 relative z-10 w-full">
-            <span className={cn("text-[10px] font-black tracking-wider truncate max-w-[60%]", (isCheckedOut || isNoShow) ? "text-white/40" : "text-white/90")}>
+            <span className={cn("text-[10px] font-mono tracking-widest opacity-80 antialiased truncate max-w-[60%]", (isCheckedOut || isNoShow) ? "text-white/40" : "text-white/90")}>
               {client}
             </span>
-            {/* 右下角绝对定位的小圆点 (已过时则不再显示) - 已移除高频闪烁 animate-pulse */}
-            {!isCheckedOut && !isPast && !isNoShow && (
-              <div 
-                className={cn(
-                  "w-2 h-2 rounded-full shadow-[0_0_5px_currentColor]", 
-                  !isHexColor && color.replace('text-', 'bg-')
-                )}
-                style={isHexColor ? { backgroundColor: color, color: color } : {}}
-              />
-            )}
+            {/* 右下角绝对定位的小圆点已根据极简法则移除 */}
           </div>
         </>
       )}
