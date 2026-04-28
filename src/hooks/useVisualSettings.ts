@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS: VisualSettings = {
   showNebula: true,
   wallpaperOpacity: 100, // 强制100%不透明
   calendarBgIndex: 1, // 默认浅色壁纸 B3
-  frontendBgIndex: 0, // 前端默认深色跑车 A1
+  frontendBgIndex: 1, // 前端默认浅色壁纸 B3
   timelineColorTheme: 'blackgold', // 默认跟随极简白主题的黑金线
   staffNameColorTheme: 'coreblack',
   headerTitleColorTheme: 'coreblack',
@@ -71,7 +71,7 @@ class VisualSettingsStore {
           if (parsed.timelineColorTheme === 'purewhite') parsed.timelineColorTheme = 'whitegold';
           if (parsed.timelineColorTheme === 'coreblack') parsed.timelineColorTheme = 'blackgold';
           if (parsed.calendarBgIndex === undefined) parsed.calendarBgIndex = 1; // 补充日历壁纸缓存为默认的 B3 (1)
-          if (parsed.frontendBgIndex === undefined) parsed.frontendBgIndex = 0; // 补充前端壁纸缓存为默认的 A1 (0)
+          if (parsed.frontendBgIndex === undefined) parsed.frontendBgIndex = 1; // 补充前端壁纸缓存为默认的 B3 (1)
           if (parsed.wallpaperOpacity !== undefined) parsed.wallpaperOpacity = 100; // 强制100%不透明
 
           this.settings = { ...DEFAULT_SETTINGS, ...parsed };

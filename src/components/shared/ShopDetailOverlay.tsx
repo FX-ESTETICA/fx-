@@ -98,6 +98,7 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
               storeStatus={storeStatus}
               hours={hours}
               variant="full"
+              hideContent={isAiOpen}
             />
           </div>
         </div>
@@ -106,13 +107,19 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
         {/* 悬浮关闭按钮 (位于独立滚动层之上，不受滚动影响) */}
         <button
           onClick={onClose}
-          className="absolute top-[var(--sat)] right-6 p-3 rounded-full bg-black/40 border border-white/10 text-white/80 hover:text-white hover:bg-black/60 transition-all z-50 "
+          className={cn(
+            "absolute top-[var(--sat)] right-6 p-3 rounded-full bg-black/40 border border-white/10 text-white hover:text-white hover:bg-black/60 transition-all duration-500 z-50",
+            isAiOpen && "opacity-0 pointer-events-none"
+          )}
         >
           <X className="w-6 h-6" />
         </button>
 
-        {/* 绝对底部的吸附预约按钮 (移动端吸附底部，PC端悬浮右下角) */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 pb-[env(safe-area-inset-bottom,24px)] md:left-auto md:w-auto md:right-12 md:bottom-8 md:p-0 bg-gradient-to-t from-black via-black/90 to-transparent md:bg-none z-50 pointer-events-none">
+        {/* 绝对底部的吸附预约按钮 (多端智能自适应：统一避开底部导航栏的高度，宽屏悬浮右下角) */}
+        <div className={cn(
+          "absolute bottom-[calc(80px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-6 md:left-auto md:w-auto md:right-12 md:p-0 z-[100] pointer-events-none transition-opacity duration-500",
+          isAiOpen && "opacity-0"
+        )}>
           <button
             onClick={() => {
               if (storeStatus === 'open') {
@@ -121,10 +128,10 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
             }}
             disabled={storeStatus !== 'open'}
             className={cn(
-              "w-full md:w-auto md:px-10 py-5 rounded-full font-bold text-base tracking-[0.2em] flex items-center justify-center gap-3 transition-transform pointer-events-auto",
+              "w-full md:w-auto md:px-10 py-4 rounded-full font-bold text-base tracking-[0.2em] flex items-center justify-center gap-3 transition-transform pointer-events-auto",
               storeStatus === 'open' 
-                ? "bg-gradient-to-r  to-blue-500 text-black hover:scale-[1.05] "
-                : "bg-white/10 text-white/40 cursor-not-allowed border border-white/10"
+                ? "text-blue-400 hover:scale-[1.05] hover:text-blue-300 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                : "text-white cursor-not-allowed"
             )}
           >
             {storeStatus === 'open' && <Sparkles className="w-5 h-5" />}

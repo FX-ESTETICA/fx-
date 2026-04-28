@@ -30,7 +30,7 @@ export const GracePeriodBanner = ({ remainingTime, remainingMilliseconds, isRead
             </span>
           ) : (
             <>
-              <span className="text-white/60 text-xs font-medium uppercase tracking-wider">
+              <span className="text-white text-xs font-medium uppercase tracking-wider">
                 {isGracePeriodActive ? '紧急调度额度' : '试用倒计时'}
               </span>
               <span className={cn(

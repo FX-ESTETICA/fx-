@@ -17,41 +17,6 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
   const { settings } = useVisualSettings();
   const isLight = settings.frontendBgIndex !== 0;
 
-  
-  // 闲置渐隐状态控制
-  const [isIdle, setIsIdle] = useState(false);
-
-  // 监听全屏交互重置 3 秒闲置定时器
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    const resetIdleTimer = () => {
-      setIsIdle(false);
-      clearTimeout(timeoutId);
-      // 3秒无任何操作进入幽灵渐隐态
-      timeoutId = setTimeout(() => setIsIdle(true), 3000);
-    };
-
-    // 绑定绝大多数能代表用户“活跃”的事件
-    window.addEventListener("mousemove", resetIdleTimer);
-    window.addEventListener("touchstart", resetIdleTimer);
-    window.addEventListener("touchmove", resetIdleTimer);
-    window.addEventListener("keydown", resetIdleTimer);
-    window.addEventListener("scroll", resetIdleTimer, true); // 捕获所有容器的滚动
-
-    // 初始启动计时器
-    resetIdleTimer();
-
-    return () => {
-      window.removeEventListener("mousemove", resetIdleTimer);
-      window.removeEventListener("touchstart", resetIdleTimer);
-      window.removeEventListener("touchmove", resetIdleTimer);
-      window.removeEventListener("keydown", resetIdleTimer);
-      window.removeEventListener("scroll", resetIdleTimer, true);
-      clearTimeout(timeoutId);
-    };
-  }, [pathname]); // 路由切换也重置
-
   // 缝合聊天大枢纽入口
   const tabRoutes: { id: TabId, label: string, icon: any }[] = [
     { id: "home", label: t('nav_home'), icon: Home },
@@ -63,15 +28,10 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
   return (
     <div 
       className={cn(
-        "z-50 pointer-events-none transition-opacity duration-1000",
-        isIdle ? "opacity-0" : "opacity-100",
+        "z-50 pointer-events-none",
         className
       )}
     >
-      <div 
-        className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" 
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0, 0.9) 0%, rgba(0,0,0, 0) 100%)' }} 
-      />
       <div className="w-full px-4 pb-[env(safe-area-inset-bottom)] relative pointer-events-auto">
         <div className="flex items-center justify-around p-2 bg-transparent">
           {tabRoutes.map(({ id, label, icon: Icon }) => {
@@ -96,7 +56,7 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
                   "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all",
                   active 
                     ? (isLight ? "text-black" : "text-white") 
-                    : (isLight ? "text-black/40 hover:text-black/70" : "text-white/40 hover:text-white/70")
+                    : (isLight ? "text-black hover:text-black" : "text-white hover:text-white")
                 )}
               >
                 <Icon className="w-5 h-5" />

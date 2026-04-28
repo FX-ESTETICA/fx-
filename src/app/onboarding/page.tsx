@@ -35,7 +35,7 @@ export default function OnboardingPage() {
       <div className="max-w-4xl mx-auto px-6 py-24 relative z-10">
         <button 
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-white/40  transition-colors mb-12 group"
+          className="flex items-center gap-2 text-white  transition-colors mb-12 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span className="text-xs font-mono uppercase tracking-widest">{t('txt_7513ca')}</span>
@@ -66,7 +66,7 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-white/40 text-lg max-w-xl leading-relaxed"
+              className="text-white text-lg max-w-xl leading-relaxed"
             >
               {t('txt_ed5102')}</motion.p>
           </header>
@@ -81,10 +81,10 @@ export default function OnboardingPage() {
               >
                 <GlassCard className="h-full p-8 border-white/5 space-y-4 group  transition-all duration-500">
                   <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center  transition-colors">
-                    <b.icon className="w-6 h-6 text-white/40  transition-colors" />
+                    <b.icon className="w-6 h-6 text-white  transition-colors" />
                   </div>
                   <h3 className="text-lg font-bold">{b.title}</h3>
-                  <p className="text-sm text-white/30 leading-relaxed">{b.desc}</p>
+                  <p className="text-sm text-white leading-relaxed">{b.desc}</p>
                 </GlassCard>
               </motion.div>
             ))}
@@ -104,7 +104,7 @@ export default function OnboardingPage() {
               {t('txt_f9c0f6')}<ArrowRight className="w-5 h-5" />
             </Link>
             
-            <div className="flex items-center gap-4 text-white/20">
+            <div className="flex items-center gap-4 text-white">
               <div className="w-12 h-px bg-white/10" />
               <span className="text-[10px] font-mono uppercase tracking-[0.3em]">{t('txt_f1bdcd')}</span>
               <div className="w-12 h-px bg-white/10" />

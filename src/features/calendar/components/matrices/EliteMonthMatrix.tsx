@@ -75,7 +75,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
       <div className="grid grid-cols-7 h-12 bg-transparent">
         {DAYS_OF_WEEK.map((day, idx) => (
           <div key={idx} className="flex items-center justify-center">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-white/40">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-white">
               {day}
             </span>
           </div>
@@ -95,7 +95,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
                 "rounded-2xl border p-3 flex flex-col gap-2 transition-all cursor-pointer group hover:bg-white/[0.05]",
                 cell.isCurrentMonth 
                   ? "bg-white/[0.02] border-white/5" 
-                  : "bg-transparent border-transparent opacity-30",
+                  : "bg-transparent border-transparent ",
                 isToday && "border-[#FDF5E6]/30 bg-[#FDF5E6]/5"
               )}
             >
@@ -132,7 +132,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
                     <div 
                       key={res.id}
                       title={res.name}
-                      className="w-2 h-2 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
+                      className="w-2 h-2 rounded-full  group-hover:opacity-100 transition-opacity"
                       style={{ 
                         backgroundColor: res.themeColor || '#fff', 
                         boxShadow: `0 0 8px ${res.themeColor || '#fff'}80` 

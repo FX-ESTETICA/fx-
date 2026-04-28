@@ -193,7 +193,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                 <h2 className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
                   {t('txt_fb8804')} / {t('txt_4b9210')}
                 </h2>
-                <p className="text-sm text-white/40 font-mono">HIGH_RES_CAPTURE_MODE</p>
+                <p className="text-sm text-white font-mono">HIGH_RES_CAPTURE_MODE</p>
               </div>
 
               <div className="grid grid-cols-2 gap-6 w-full max-w-sm">
@@ -227,9 +227,9 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                   className="flex flex-col items-center justify-center gap-4 aspect-square rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10  transition-all group"
                 >
                   <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <ImageIcon className="w-8 h-8 text-white/80 " />
+                    <ImageIcon className="w-8 h-8 text-white " />
                   </div>
-                  <span className="text-xs font-bold tracking-widest text-white/60 group-hover:text-white uppercase">{t('txt_fb8804')}</span>
+                  <span className="text-xs font-bold tracking-widest text-white group-hover:text-white uppercase">{t('txt_fb8804')}</span>
                 </button>
 
                 <button 
@@ -239,20 +239,20 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                   <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <div className="w-6 h-6 rounded-full border-2 border-white/80 group-hover:border-red-500 group-hover:bg-red-500/20" />
                   </div>
-                  <span className="text-xs font-bold tracking-widest text-white/60 group-hover:text-white uppercase">{t('txt_4b9210')}</span>
+                  <span className="text-xs font-bold tracking-widest text-white group-hover:text-white uppercase">{t('txt_4b9210')}</span>
                 </button>
               </div>
 
               <button 
                 onClick={() => galleryInputRef.current?.click()}
-                className="mt-8 px-8 py-3 rounded-full bg-white/5 text-white/60 hover:text-white hover:bg-white/10 text-xs font-bold tracking-widest uppercase transition-all"
+                className="mt-8 px-8 py-3 rounded-full bg-white/5 text-white hover:text-white hover:bg-white/10 text-xs font-bold tracking-widest uppercase transition-all"
               >
                 {t('txt_b2ee45')}</button>
 
               {/* Close Button */}
               <button 
                 onClick={handleClose} 
-                className="absolute top-12 right-8 w-10 h-10 flex items-center justify-center rounded-full bg-white/10  text-white/80 hover:text-white transition-colors"
+                className="absolute top-12 right-8 w-10 h-10 flex items-center justify-center rounded-full bg-white/10  text-white hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -285,7 +285,7 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
               <div className="relative z-10 flex justify-between items-center p-6 pt-[calc(var(--sat)+24px)]">
                 <button 
                   onClick={() => { setStep("camera"); setFile(null); setPreviewUrl(null); }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20  text-white/80 hover:text-white transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20  text-white hover:text-white transition-colors"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
@@ -300,14 +300,14 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={t('txt_e4205f')}
                     disabled={uploading}
-                    className="w-full bg-transparent border-b border-white/20 pb-4 text-xl font-bold text-white placeholder:text-white/40 focus:outline-none  transition-colors"
+                    className="w-full bg-transparent border-b border-white/20 pb-4 text-xl font-bold text-white placeholder:text-white focus:outline-none  transition-colors"
                   />
                 </div>
 
                 {error && <p className="text-xs text-red-400 font-mono">{error}</p>}
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-white/40">
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-white">
                     <span className="px-2 py-1 bg-white/10 rounded-md  uppercase">
                       {file.type.startsWith("video/") ? "VIDEO" : "PHOTO"}
                     </span>

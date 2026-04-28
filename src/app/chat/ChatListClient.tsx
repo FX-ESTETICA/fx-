@@ -149,14 +149,14 @@ export default function ChatListPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white/30 z-10"
+                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white z-10"
               >
                 <div className="w-24 h-24 mb-6 rounded-full border border-white/10 flex items-center justify-center relative">
-                  <div className="absolute inset-0 rounded-full border-t  animate-spin opacity-50" />
+                  <div className="absolute inset-0 rounded-full border-t  animate-spin " />
                   <span className="text-4xl">📡</span>
                 </div>
                 <p className="text-sm tracking-[0.2em] uppercase font-mono">{t('txt_71f8fd')}</p>
-                <p className="text-xs text-white/20 mt-2">{t('txt_d9d041')}</p>
+                <p className="text-xs text-white mt-2">{t('txt_d9d041')}</p>
               </motion.div>
             )}
           </AnimatePresence>

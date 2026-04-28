@@ -33,7 +33,7 @@ export default function MePage() {
           <GlassCard className="p-8 flex flex-col items-center justify-center gap-6 text-center border-white/5 bg-black/20 ">
             <div className="space-y-2">
               <div className="text-lg font-bold tracking-widest">{t('txt_146ea7')}</div>
-              <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Join GX Membership</div>
+              <div className="text-[10px] font-mono text-white uppercase tracking-widest">Join GX Membership</div>
             </div>
             <Link href="/login?next=%2Fdashboard" className="inline-flex w-full" prefetch={false}>
               <Button variant="ghost" glow={false} className="w-full gap-2 text-xs uppercase tracking-widest border border-white/10 hover:bg-white/5">

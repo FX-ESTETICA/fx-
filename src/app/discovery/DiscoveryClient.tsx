@@ -18,7 +18,7 @@ import Image from "next/image";
 import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
 import { useTranslations } from "next-intl";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
-import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
 
@@ -112,7 +112,7 @@ const VideoPlayer = ({ videoId, coverUrl }: { videoId: string, coverUrl: string 
       {!isPlaying && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300 z-10 pointer-events-none">
           <div className="w-20 h-20 rounded-full bg-black/40  flex items-center justify-center border border-white/20 text-white">
-            <Play className="w-8 h-8 ml-1 fill-white opacity-80" />
+            <Play className="w-8 h-8 ml-1 fill-white " />
           </div>
         </div>
       )}
@@ -134,8 +134,8 @@ export default function DiscoveryPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [posts, setPosts] = useState<DiscoveryPost[]>([]);
 
-  const { settings } = useVisualSettings();
-  const isLight = settings.frontendBgIndex !== 0;
+  // 引入 session 作为核心共振锚点，解决首次加载 Token 未就绪导致的无数据问题
+  const { session } = useAuth();
 
   const registerBack = useHardwareBack(state => state.register);
   const unregisterBack = useHardwareBack(state => state.unregister);
@@ -187,10 +187,10 @@ export default function DiscoveryPage() {
     }
   }, []);
 
-  // 页面加载时自动拉取
+  // 页面加载时及 session 变化时自动拉取，利用依赖实现 0 秒静默重试
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts]);
+  }, [fetchPosts, session]);
 
   const handleUploadSuccess = () => {
     // 成功后重新拉取数据库最新内容，替代过去的伪造内存数据
@@ -207,7 +207,7 @@ export default function DiscoveryPage() {
         <div className="pointer-events-auto mt-2">
           <button 
             onClick={() => window.dispatchEvent(new Event('gx-return-home'))}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40  border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-black/40  border border-white/10 text-white hover:text-white hover:bg-white/10 transition-all active:scale-95"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -217,14 +217,14 @@ export default function DiscoveryPage() {
         <div className="absolute left-1/2 -translate-x-1/2 top-4 pt-safe md:pt-8 flex items-center gap-6 pointer-events-auto mt-2">
           <button 
             onClick={() => setFilter("near")}
-            className={cn("text-[17px] font-bold transition-all text-white", filter === "near" ? "scale-110" : "opacity-50")}
+            className={cn("text-[17px] font-bold transition-all text-white", filter === "near" ? "scale-110" : "")}
           >
             {t('txt_6688f2')}
           </button>
           <div className="w-[1px] h-3 bg-white/30" />
           <button 
             onClick={() => setFilter("hot")}
-            className={cn("text-[17px] font-bold transition-all text-white", filter === "hot" ? "scale-110" : "opacity-50")}
+            className={cn("text-[17px] font-bold transition-all text-white", filter === "hot" ? "scale-110" : "")}
           >
             {t('txt_4d2d97')}
           </button>
@@ -277,13 +277,13 @@ export default function DiscoveryPage() {
                         {t('txt_5cd3c9')}</button>
                     )}
                   </div>
-                  <p className="text-[14px] leading-relaxed text-white/90 line-clamp-3 mb-3">
+                  <p className="text-[14px] leading-relaxed text-white line-clamp-3 mb-3">
                     {post.title}
                   </p>
                   {post.tags && post.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {post.tags.map((tag: string) => (
-                        <span key={tag} className="text-[13px] font-bold text-white/80">
+                        <span key={tag} className="text-[13px] font-bold text-white">
                           {tag}
                         </span>
                       ))}
@@ -329,7 +329,7 @@ export default function DiscoveryPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-white">@{post.author}</h3>
-                      <p className="text-xs text-white/40 font-mono">GX verified</p>
+                      <p className="text-xs text-white font-mono">GX verified</p>
                     </div>
                   </div>
                   <button className="px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-sm font-bold text-white transition-colors">
@@ -338,7 +338,7 @@ export default function DiscoveryPage() {
 
                 {/* 描述流 */}
                 <div className="py-4 space-y-3 flex-1 overflow-y-auto no-scrollbar">
-                  <p className="text-[15px] leading-relaxed text-white/90">
+                  <p className="text-[15px] leading-relaxed text-white">
                     {post.title}
                   </p>
                   {post.tags && post.tags.length > 0 && (
@@ -352,11 +352,11 @@ export default function DiscoveryPage() {
                   )}
                   {post.merchantId && (
                     <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-colors">
-                      <div className="flex items-center gap-2 text-white/80">
+                      <div className="flex items-center gap-2 text-white">
                         <Navigation className="w-4 h-4 text-white" />
                         <span className="text-sm font-bold">{t('txt_342d42')}</span>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-white transition-colors" />
+                      <ArrowRight className="w-4 h-4 text-white group-hover:text-white transition-colors" />
                     </div>
                   )}
                 </div>
@@ -367,13 +367,13 @@ export default function DiscoveryPage() {
                     <div className="p-3 bg-white/5 rounded-full group-hover:bg-white/10 transition-colors">
                       <Heart className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-[11px] font-bold text-white/60">{post.likes}</span>
+                    <span className="text-[11px] font-bold text-white">{post.likes}</span>
                   </button>
                   <button className="flex flex-col items-center gap-1 group transition-transform active:scale-95">
                     <div className="p-3 bg-white/5 rounded-full group-hover:bg-white/10 transition-colors">
                       <MessageCircle className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-[11px] font-bold text-white/60">{post.comments}</span>
+                    <span className="text-[11px] font-bold text-white">{post.comments}</span>
                   </button>
                 </div>
               </div>

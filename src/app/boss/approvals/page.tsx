@@ -184,19 +184,19 @@ export default function BossApprovalsPage() {
               <h1 className="text-2xl font-bold tracking-tighter text-red-500 flex items-center gap-3">
                 <ShieldAlert className="w-6 h-6" />
                 {t('txt_f79337')}</h1>
-              <p className="text-[10px] font-mono tracking-[0.2em] text-white/40 mt-1 uppercase">Ascension Command Center // NEXUS</p>
+              <p className="text-[10px] font-mono tracking-[0.2em] text-white mt-1 uppercase">Ascension Command Center // NEXUS</p>
             </div>
           </div>
         </header>
 
         {isLoading ? (
-          <div className="flex justify-center py-20 text-white/40 text-xs font-mono animate-pulse">
+          <div className="flex justify-center py-20 text-white text-xs font-mono animate-pulse">
             SYNCING WITH MATRIX...
           </div>
         ) : applications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
-            <CheckCircle2 className="w-12 h-12 text-white/20 mb-4" />
-            <p className="text-sm text-white/40 font-mono tracking-widest">{t('txt_772970')}</p>
+            <CheckCircle2 className="w-12 h-12 text-white mb-4" />
+            <p className="text-sm text-white font-mono tracking-widest">{t('txt_772970')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
@@ -205,13 +205,13 @@ export default function BossApprovalsPage() {
                 key={app.id} 
                 className={cn(
                   "p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all",
-                  app.status === 'pending' ? "border-red-500/30 " : "border-white/5 opacity-50"
+                  app.status === 'pending' ? "border-red-500/30 " : "border-white/5 "
                 )}
               >
                 <div className="flex items-start gap-4">
                   <div className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border",
-                    app.industry === 'enterprise' ? "  " : "bg-white/5 border-white/10 text-white/60"
+                    app.industry === 'enterprise' ? "  " : "bg-white/5 border-white/10 text-white"
                   )}>
                     {app.industry === 'enterprise' ? <Building2 className="w-6 h-6" /> : <Store className="w-6 h-6" />}
                   </div>
@@ -220,30 +220,30 @@ export default function BossApprovalsPage() {
                       <h3 className="text-xl font-bold tracking-tight">{app.brand_name}</h3>
                       <span className={cn(
                         "px-2 py-0.5 rounded text-[9px] font-mono tracking-widest uppercase border",
-                        app.industry === 'enterprise' ? "  " : "bg-white/10 text-white/60 border-white/20"
+                        app.industry === 'enterprise' ? "  " : "bg-white/10 text-white border-white/20"
                       )}>
                         {app.industry === 'enterprise' ? '企业联邦' : `独立节点 - ${app.industry}`}
                       </span>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mt-3">
-                      <p className="text-xs text-white/60 font-mono">
-                        <span className="text-white/30 mr-2">APPLICANT:</span> 
-                        {app.profiles?.name || 'Unknown'} <span className="text-white/30">({app.profiles?.gx_id})</span>
+                      <p className="text-xs text-white font-mono">
+                        <span className="text-white mr-2">APPLICANT:</span> 
+                        {app.profiles?.name || 'Unknown'} <span className="text-white">({app.profiles?.gx_id})</span>
                       </p>
-                      <p className="text-xs text-white/60 font-mono">
-                        <span className="text-white/30 mr-2">CONTACT:</span> 
+                      <p className="text-xs text-white font-mono">
+                        <span className="text-white mr-2">CONTACT:</span> 
                         {app.contact_phone}
                       </p>
                       {app.maps_link && (
-                        <p className="text-xs text-white/60 font-mono">
-                          <span className="text-white/30 mr-2">COORDINATES:</span> 
+                        <p className="text-xs text-white font-mono">
+                          <span className="text-white mr-2">COORDINATES:</span> 
                           <a href={app.maps_link} target="_blank" className=" hover:underline">View Map</a>
                         </p>
                       )}
                       {app.nexus_code && (
                         <p className="text-xs font-mono text-gx-gold">
-                          <span className="text-white/30 mr-2">NEXUS LINK:</span> 
+                          <span className="text-white mr-2">NEXUS LINK:</span> 
                           {app.nexus_code}
                         </p>
                       )}
@@ -257,7 +257,7 @@ export default function BossApprovalsPage() {
                       <button 
                         onClick={() => handleReject(app.id)}
                         disabled={processingId === app.id}
-                        className="px-4 py-2 rounded-lg bg-black border border-white/10 text-white/60 hover:text-white hover:bg-white/5 transition-all text-xs font-bold tracking-widest uppercase disabled:opacity-50"
+                        className="px-4 py-2 rounded-lg bg-black border border-white/10 text-white hover:text-white hover:bg-white/5 transition-all text-xs font-bold tracking-widest uppercase disabled:opacity-50"
                       >
                         {t('txt_325254')}</button>
                       <button 
@@ -269,7 +269,7 @@ export default function BossApprovalsPage() {
                         {t('txt_b20cc6')}</button>
                     </>
                   ) : (
-                    <div className="px-4 py-2 rounded text-xs font-mono tracking-widest text-white/30 border border-white/5 bg-black/50">
+                    <div className="px-4 py-2 rounded text-xs font-mono tracking-widest text-white border border-white/5 bg-black/50">
                       {app.status.toUpperCase()}
                     </div>
                   )}

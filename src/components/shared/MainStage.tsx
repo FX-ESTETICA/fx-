@@ -109,16 +109,16 @@ export const MainStage = () => {
     return (
       <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-between">
         {/* 顶部环境光模糊占位 */}
-        <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent animate-pulse" />
+        <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent" />
         
         {/* 核心能量场模糊占位 */}
-        <div className="flex-1 flex items-center justify-center opacity-20">
-          <div className="w-32 h-32 rounded-full bg-white/10  animate-pulse" />
+        <div className="flex-1 flex items-center justify-center ">
+          <div className="w-32 h-32 rounded-full bg-white/10" />
         </div>
         
-        {/* 底导栏物理轮廓呼吸灯锚定 (防止页面初载时下方太空) */}
-        <div className="w-full h-[84px] border-t border-white/5 bg-black/40  flex justify-around items-center px-6 pb-safe z-50">
-          {[1,2,3,4].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />)}
+        {/* 底导栏物理轮廓锚定 (防止页面初载时下方太空) */}
+        <div className="w-full h-[84px] border-t border-white/5 bg-black/40 flex justify-around items-center px-6 pb-safe z-50">
+          {[1,2,3,4].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10" />)}
         </div>
       </div>
     );
@@ -153,7 +153,7 @@ export const MainStage = () => {
         {/* 3. 日历 */}
         {mountedTabs.has('calendar') && (
           <TabContainer active={activeTab === 'calendar'}>
-            <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+            <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-white">Loading Calendar...</div>}>
               <IndustryCalendar initialIndustry={tabProps['calendar']?.industry || "beauty"} mode="admin" />
             </Suspense>
           </TabContainer>

@@ -110,7 +110,7 @@ export const TodayOverrideController = ({
                   </option>
                 ))}
               </select>
-              <span className={cn("text-xs font-light", isLight ? "text-black/30" : "text-white/30")}>—</span>
+              <span className={cn("text-xs font-light", isLight ? "text-black" : "text-white")}>—</span>
               <select 
                 value={hour.end}
                 onChange={(e) => onUpdate(hour.id, 'end', e.target.value)}
@@ -124,7 +124,7 @@ export const TodayOverrideController = ({
               </select>
             </div>
             {hoursList.length > 1 && (
-              <button type="button" onClick={() => onRemove(hour.id)} className={cn("transition-colors p-1 opacity-0 group-hover:opacity-100", isLight ? "text-black/30 hover:text-red-500" : "text-white/30 hover:text-red-500")}>
+              <button type="button" onClick={() => onRemove(hour.id)} className={cn("transition-colors p-1 opacity-0 group-hover:opacity-100", isLight ? "text-black hover:text-red-500" : "text-white hover:text-red-500")}>
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -148,12 +148,14 @@ export const TodayOverrideController = ({
         <div className="absolute top-0 left-0 w-1 h-full " />
         <div className="flex items-center justify-between pl-4">
           <div className="flex items-center gap-4">
-            <span className={cn("text-xs font-bold", isLight ? "text-black/80" : "text-white/80")}>今日营业时间</span>
+            <span className={cn("text-xs font-bold", isLight ? "text-black" : "text-white")}>今日营业时间</span>
             <button 
               type="button"
               onClick={() => handleToggleClosedToday(isEffectiveClosed)}
               className={cn("px-2 py-0.5 text-[9px] font-bold tracking-widest rounded-sm transition-colors", 
-                isEffectiveClosed ? "bg-red-500/10 text-red-400" : " "
+                isEffectiveClosed 
+                  ? "bg-red-500/10 text-red-400" 
+                  : isLight ? "bg-black/5 text-black hover:bg-black/10" : "bg-white/10 text-white hover:bg-white/20"
               )}
             >
               {isEffectiveClosed ? '关门' : '营业'}
@@ -164,7 +166,7 @@ export const TodayOverrideController = ({
               <button 
                 type="button" 
                 onClick={handleAddEffectiveHour} 
-                className={cn("text-[10px] font-bold flex items-center gap-1 transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}
+                className={cn("text-[10px] font-bold flex items-center gap-1 transition-colors", isLight ? "text-black hover:text-black" : "text-white hover:text-white")}
               >
                 <Plus className="w-3 h-3" /> 添加
               </button>
@@ -180,13 +182,13 @@ export const TodayOverrideController = ({
               handleRemoveEffectiveHour
             )
           ) : (
-            <div className={cn("flex items-center justify-center py-2 mt-2 border-t opacity-50 relative", isLight ? "border-black/5" : "border-white/5")}>
-              <span className={cn("text-[10px] font-bold tracking-widest", isLight ? "text-black/40" : "text-white/40")}>无营业时段</span>
+            <div className={cn("flex items-center justify-center py-2 mt-2 border-t  relative", isLight ? "border-black/5" : "border-white/5")}>
+              <span className={cn("text-[10px] font-bold tracking-widest", isLight ? "text-black" : "text-white")}>无营业时段</span>
             </div>
           )
         ) : (
           <div className="relative group cursor-pointer mt-2">
-            <div className={cn("flex items-center justify-center py-2 border-t transition-all opacity-50 hover:opacity-100", isLight ? "border-black/5" : "border-white/5")}>
+            <div className={cn("flex items-center justify-center py-2 border-t transition-all  hover:opacity-100", isLight ? "border-black/5" : "border-white/5")}>
               <span className="text-[10px] font-bold text-red-500 tracking-widest">今日休息</span>
               <div className={cn("absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity -[1px]", isLight ? "bg-white/40" : "bg-black/40")} onClick={() => handleToggleClosedToday(isEffectiveClosed)}>
                 <span className="text-[10px] font-bold tracking-widest ">点击恢复营业</span>

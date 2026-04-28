@@ -13,7 +13,7 @@ const NAVIGATION_LINKS = [
   { id: "03", label: "入驻审批台", icon: <ShieldAlert className="w-5 h-5" />, href: "/boss/approvals", glow: "text-red-500", status: "需要操作" },
   { id: "04", label: "联邦权限署", icon: <Lock className="w-5 h-5" />, href: "/auth", glow: "text-yellow-500", status: "已锁定" },
   { id: "05", label: "物理节点", icon: <Box className="w-5 h-5" />, href: "/discovery", glow: "text-white", status: "待机" },
-  { id: "06", label: "深渊协议", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white/40", status: "机密" },
+  { id: "06", label: "深渊协议", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white", status: "机密" },
   { id: "07", label: "日历设计舱", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "", status: "设计模式" },
   { id: "08", label: "沙盒实验区", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "", status: "测试中" },
 ];
@@ -156,7 +156,7 @@ export default function Home() {
 
           {/* 底部提示 */}
           <div className="absolute bottom-4 flex flex-col items-center gap-4">
-            <div className="flex items-center gap-6 text-[10px] font-mono text-white/20 tracking-[0.5em]">
+            <div className="flex items-center gap-6 text-[10px] font-mono text-white tracking-[0.5em]">
               <span>← SWIPE</span>
               <div className="w-12 h-[1px] bg-white/10" />
               <span>NAVIGATE →</span>
@@ -253,7 +253,7 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
       )}
     >
       <div className="flex justify-between items-start mb-auto">
-        <span className="text-4xl font-bold font-mono tracking-tighter text-white/20">{link.id}</span>
+        <span className="text-4xl font-bold font-mono tracking-tighter text-white">{link.id}</span>
         <div className={cn("px-2 py-1 rounded text-[10px] font-mono tracking-widest border bg-black/50", link.glow, link.glow.replace('text-', 'border-').replace('/40', '/20'))}>
           {link.status}
         </div>
@@ -265,7 +265,7 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
         </div>
         <div>
           <h2 className="text-xl md:text-2xl font-bold tracking-tighter mb-2">{link.label}</h2>
-          <p className="text-xs text-white/40 font-mono">SYSTEM_LINK // {link.href}</p>
+          <p className="text-xs text-white font-mono">SYSTEM_LINK // {link.href}</p>
         </div>
       </div>
 
@@ -275,7 +275,7 @@ const CardItem = ({ link, index, total, springRotation, isActive, isMobile }: Ca
             onPointerDownCapture={(e) => e.stopPropagation()} // 终极护盾：防止 Framer Motion 拦截点击事件
             className={cn(
             "w-full py-3 rounded-lg text-xs font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2",
-            isActive ? "bg-white text-black hover:bg-white/90" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+            isActive ? "bg-white text-black hover:bg-white/90" : "bg-white/5 text-white hover:bg-white/10 hover:text-white"
           )}>
             {t('txt_a70c9c')}<ChevronLeft className="w-4 h-4 rotate-180" />
           </button>

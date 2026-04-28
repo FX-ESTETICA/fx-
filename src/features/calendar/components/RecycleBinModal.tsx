@@ -53,7 +53,7 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
             <Trash2 className="w-5 h-5 text-red-400 " />
             <span className="text-lg font-bold tracking-widest uppercase text-white ">{t('txt_494437')}</span>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
+          <button onClick={onClose} className="text-white hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -65,9 +65,9 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
               <div className="w-8 h-8 border-2 border-white/10  rounded-full animate-spin" />
             </div>
           ) : voidedBookings.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-white/20 gap-4">
-              <Trash2 className="w-16 h-16 opacity-30 " />
-              <span className="font-mono tracking-widest text-xs uppercase opacity-60">{t('txt_7d246f')}</span>
+            <div className="h-full flex flex-col items-center justify-center text-white gap-4">
+              <Trash2 className="w-16 h-16  " />
+              <span className="font-mono tracking-widest text-xs uppercase ">{t('txt_7d246f')}</span>
             </div>
           ) : (
             voidedBookings.map(b => (
@@ -77,15 +77,15 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
                     <span className="font-bold text-white text-sm tracking-wide">
                       {(b.customerName as string) || ((b.data as Record<string, any>)?.customerName as string) || '散客'}
                     </span>
-                    <span className="text-[10px] font-mono text-white/40 px-2 py-0.5 rounded border border-white/10 bg-black/40">
+                    <span className="text-[10px] font-mono text-white px-2 py-0.5 rounded border border-white/10 bg-black/40">
                       {b.date} {b.startTime}
                     </span>
                   </div>
-                  <span className="text-xs text-white/50 tracking-wider">
+                  <span className="text-xs text-white tracking-wider">
                     {(b.serviceName as string) || ((b.data as Record<string, any>)?.serviceName as string) || '未命名服务'}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 opacity-80 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-3  group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => handleRestore(b.id as string)} 
                     className="px-4 py-2 rounded-lg border    transition-colors text-[10px] font-mono font-bold tracking-widest flex items-center gap-2 "

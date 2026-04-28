@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { CALENDAR_BACKGROUNDS, FRONTEND_BACKGROUNDS } from "@/hooks/useBackground";
 import { useActiveTab } from "@/hooks/useActiveTab";
-import Image from "next/image";
 
 // 【物理级静音】拦截底层 R3F 引擎由于内部使用 THREE.Clock 产生的无意义警告，保持控制台绝对全绿。
 if (typeof console !== "undefined") {
@@ -39,7 +38,7 @@ function MobileNebulaFallback({ rotation }: { rotation: number }) {
       />
       {/* 增强星星层可见度 */}
       <div 
-        className="absolute inset-0 opacity-30"
+        className="absolute inset-0 "
         style={{
           backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 0)`,
           backgroundSize: '32px 32px',
@@ -160,7 +159,6 @@ export function NebulaParticles({ rotation }: { rotation: number }) {
 // --- 主入口：3D 星云控制器 ---
 export function NebulaBackground({ rotation }: { rotation?: number }) {
   const [hasError, setHasError] = useState(false);
-  const [imageError, setImageError] = useState(false); // 渲染层动态自愈探针
   const { settings } = useVisualSettings();
   const activeTab = useActiveTab();
   
@@ -171,33 +169,22 @@ export function NebulaBackground({ rotation }: { rotation?: number }) {
     ? CALENDAR_BACKGROUNDS[settings.calendarBgIndex] || CALENDAR_BACKGROUNDS[0]
     : FRONTEND_BACKGROUNDS[settings.frontendBgIndex] || FRONTEND_BACKGROUNDS[0];
 
-  // 2. 切换背景时重置错误状态
+  // 2. 动态同步 React 状态到原生 body 层，确保设置变更时壁纸实时更新
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setImageError(false);
+    if (typeof window !== 'undefined') {
+      const actualSource = displayBgSource === 'starry' ? '/images/backgrounds/A1.jpg' : displayBgSource;
+      document.body.style.backgroundImage = `url("${actualSource}")`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.body.style.backgroundRepeat = 'no-repeat';
+    }
   }, [displayBgSource]);
 
   const rot = rotation || 0;
 
   return (
-    <div className="fixed inset-0 z-0 bg-black pointer-events-none">
-      {/* 静态壁纸层 (自愈架构) */}
-      {!imageError && (
-        <div 
-          className="absolute inset-0 z-0 transition-opacity duration-1000"
-          style={{ opacity: settings.wallpaperOpacity / 100 }}
-        >
-          <Image
-            src={displayBgSource === 'starry' ? '/images/backgrounds/A1.jpg' : displayBgSource}
-            alt="Global Background"
-            fill
-            className="object-cover"
-            priority
-            onError={() => setImageError(true)} // 捕获 404 瞬间静默销毁
-          />
-        </div>
-      )}
-
+    <div className="fixed inset-0 z-0 pointer-events-none bg-transparent">
       {/* 3D 星云层 */}
       {settings.showNebula && (
         <AnimatePresence mode="wait">

@@ -162,7 +162,7 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
         "w-full h-[1px] transition-all duration-500",
         isWarning 
           ? "bg-gradient-to-r from-red-400 via-white to-transparent bg-[length:100%_auto] animate-[gradient_0.5s_linear_infinite]  opacity-100" 
-          : "bg-gradient-to-r from-red-500  to-transparent bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] opacity-80"
+          : "bg-gradient-to-r from-red-500  to-transparent bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] "
       )} />
     </div>
   );
@@ -771,10 +771,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                 <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
                   {node.hour!.toString().padStart(2, '0')}
                 </span>
-                <span className={cn("text-[10px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black/40" : "text-white/30")}>
+                <span className={cn("text-[10px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
                   :
                 </span>
-                <span className={cn("opacity-80", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                <span className={cn("", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                   00
                 </span>
                   </div>
@@ -876,7 +876,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                     <h2 className="text-2xl font-bold tracking-widest mb-2 text-red-500">
                       {dayNode.dateStr === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') ? "今日关门" : "休息 CLOSED"}
                     </h2>
-                    <p className="text-red-400/80 font-mono text-sm">
+                    <p className="text-red-400 font-mono text-sm">
                       暂停营业与一切排班预约操作
                     </p>
                   </div>
@@ -1274,7 +1274,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                     const assignedEmpId = splitServiceAssignments[svc.id];
                                     
                                     // 确定显示的基础颜色
-                                    let itemColor = '#666';
+                                    let itemColor = isLight ? '#000000' : '#FFFFFF';
                                     if (assignedEmpId) {
                                       if (assignedEmpId === 'UNASSIGNED_POOL') {
                                         itemColor = '#00f0ff';
@@ -1323,7 +1323,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                         }}
                                         className={cn(
                                           "text-left px-2 py-2 rounded-lg text-xs font-bold transition-all border shrink-0 relative",
-                                          splitActiveEmployeeId ? "cursor-pointer" : "opacity-50 cursor-not-allowed",
+                                          splitActiveEmployeeId ? "cursor-pointer" : " cursor-not-allowed",
                                           isAssigned ? "scale-[1.02]" : ""
                                         )}
                                         style={{ 
@@ -1340,7 +1340,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                                           <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: previewColor, boxShadow: `0 0 8px ${previewColor}` }} />
                                         )}
                                         <div className={cn("truncate pr-3", isLight ? "text-black" : "text-white")} title={svc.name || svc.serviceName}>{svc.name || svc.serviceName}</div>
-                                        <div className={cn("text-[9px]", isLight ? "text-black/50" : "text-white/50")}>{svc.duration || 60}m</div>
+                                        <div className={cn("text-[9px]", isLight ? "text-black" : "text-white")}>{svc.duration || 60}m</div>
                                       </button>
                                     );
                                   })}
@@ -1398,7 +1398,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                       "text-sm font-bold tracking-widest",
                       visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"
                     )}>销毁当前</span>
-                    <span className={cn("text-[9px] uppercase tracking-widest mt-1", isLight ? "text-black/40" : "text-white/40")}>Single</span>
+                    <span className={cn("text-[9px] uppercase tracking-widest mt-1", isLight ? "text-black" : "text-white")}>Single</span>
                   </button>
                   
                   {/* 摧毁全部 (级联) */}
@@ -1407,7 +1407,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
                     className="w-32 h-32 rounded-full border-2 border-red-500/50 bg-black/90 flex flex-col items-center justify-center  hover:bg-red-500/30 hover:scale-105 transition-all"
                   >
                     <span className="text-red-400 text-sm font-bold tracking-widest ">摧毁全部</span>
-                    <span className={cn("text-[9px] uppercase tracking-widest mt-1", isLight ? "text-black/40" : "text-white/40")}>All Linked</span>
+                    <span className={cn("text-[9px] uppercase tracking-widest mt-1", isLight ? "text-black" : "text-white")}>All Linked</span>
                   </button>
                 </div>
               ) : (

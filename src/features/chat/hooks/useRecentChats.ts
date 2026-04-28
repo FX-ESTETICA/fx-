@@ -10,6 +10,7 @@ export interface RecentChat {
   avatar: string;
   unread: boolean;
   isGroup: boolean;
+  isOnline?: boolean;
   isCityChannel?: boolean;
   isPhantom?: boolean; // 标记是否为量子幻影（还没有真实聊天记录）
 }
@@ -27,6 +28,10 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
     .limit(100);
 
   if (error) {
+    // 物理拦截: 忽略因为组件卸载或页面跳转导致的 Abort/Fetch 错误，实现 0 报错控制台
+    if (error.message?.includes('Failed to fetch') || error.message?.includes('AbortError')) {
+      return [];
+    }
     console.error('拉取最近聊天失败:', error);
     throw new Error(error.message);
   }
@@ -64,10 +69,26 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
         // 获取此对话的本地清空时间戳 (降维打击：物理拦截被清空的历史)
         let clearedAt = 0;
         let deletedIds: string[] = [];
+        let isChatDeleted = false;
+        
         if (typeof window !== 'undefined') {
+          const delChatKey = `gx_deleted_chat_${currentUserId}_${targetId}`;
+          const deletedStr = localStorage.getItem(delChatKey);
+          if (deletedStr) {
+            isChatDeleted = true;
+            // 如果存储的是时间戳(新逻辑)，用它作比较；否则用0(旧逻辑)
+            const deletedTime = parseInt(deletedStr, 10);
+            if (!isNaN(deletedTime)) {
+              clearedAt = deletedTime; // 复用 clearedAt 变量作为阻断时间
+            }
+          }
+
           const key = `gx_cleared_${currentUserId}_${targetId}`;
           const stored = localStorage.getItem(key);
-          if (stored) clearedAt = parseInt(stored, 10);
+          if (stored) {
+             const clearTime = parseInt(stored, 10);
+             if (clearTime > clearedAt) clearedAt = clearTime; // 取最晚的时间作为清理阈值
+          }
 
           const delKey = `gx_deleted_msgs_${currentUserId}`;
           try {
@@ -77,6 +98,20 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
         }
         
         const msgDate = new Date(msg.created_at);
+
+        // 如果用户右键删除了聊天框，且之后没有新消息，则从列表中抹除
+        // 如果有新消息（消息时间 > 清除时间），则解除删除状态，让聊天框重新浮出水面
+        if (isChatDeleted) {
+          if (clearedAt > 0 && msgDate.getTime() <= clearedAt) {
+            return; // 历史消息，继续拦截
+          } else if (msgDate.getTime() > clearedAt) {
+            // 对方发来了新消息，破除"已删除"状态
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(`gx_deleted_chat_${currentUserId}_${targetId}`);
+            }
+            isChatDeleted = false; // 允许新消息展示
+          }
+        }
         // 跳过单向删除的消息
         if (deletedIds.includes(msg.id)) {
           return; // 继续找下一条未删除的消息作为 lastMessage
@@ -176,7 +211,9 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
       .in('id', validUuids);
 
     if (profileErr) {
-      console.error('批量查询档案失败:', profileErr);
+      if (!profileErr.message?.includes('Failed to fetch') && !profileErr.message?.includes('AbortError')) {
+        console.error('批量查询档案失败:', profileErr);
+      }
     }
 
     if (profiles) {
@@ -239,10 +276,19 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
       )
       .subscribe();
 
+    // 【核心修复】：挂载底层 Auth 监听。一旦监听到 Token 真正就绪（INITIAL_SESSION 或 SIGNED_IN），
+    // 强制静默拉取数据，打破因 0 秒抢跑导致的空数据锁死。
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        mutate();
+      }
+    });
+
     return () => {
       window.removeEventListener('gx_chat_cleared', handleUpdate);
       window.removeEventListener('gx_chat_message_deleted', handleUpdate);
       supabase.removeChannel(channel);
+      subscription.unsubscribe();
     };
   }, [currentUserId, mutate]); // 依赖 mutate，移除 activeChatId 依赖
 

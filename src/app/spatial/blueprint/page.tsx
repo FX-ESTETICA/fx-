@@ -15,7 +15,7 @@ const INDUSTRIES: { id: IndustryType; label: string; icon: LucideIcon; color: st
   { id: "hotel", label: "住宿", icon: Hotel, color: "" },
   { id: "expert", label: "专家", icon: Briefcase, color: "text-blue-400" },
   { id: "fitness", label: "健身", icon: Dumbbell, color: "" },
-  { id: "other", label: "常规", icon: CalendarIcon, color: "text-white/60" },
+  { id: "other", label: "常规", icon: CalendarIcon, color: "text-white" },
 ];
 
 export default function BlueprintPage() {
@@ -31,7 +31,7 @@ export default function BlueprintPage() {
         className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4"
       >
         <Link href="/spatial" prefetch={false}>
-          <button className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 hover:border-white/30 transition-all">
+          <button className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:text-white hover:bg-white/10 hover:border-white/30 transition-all">
             <ArrowLeft className="w-4 h-4" />
           </button>
         </Link>
@@ -46,7 +46,7 @@ export default function BlueprintPage() {
                 onClick={() => setActiveIndustry(ind.id)}
                 className={cn(
                   "relative flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300",
-                  isActive ? "bg-white text-black" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                  isActive ? "bg-white text-black" : "text-white hover:text-white hover:bg-white/5"
                 )}
               >
                 <Icon className={cn("w-4 h-4", isActive ? "text-black" : ind.color)} />
@@ -65,7 +65,7 @@ export default function BlueprintPage() {
 
       {/* 核心日历矩阵 (使用 key 强制重新挂载以重置状态) */}
       <div className="h-full w-full">
-        <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+        <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white">Loading Calendar...</div>}>
           <IndustryCalendar key={activeIndustry} initialIndustry={activeIndustry} mode="admin" />
         </Suspense>
       </div>

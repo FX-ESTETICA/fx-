@@ -67,7 +67,7 @@ export const EliteBookingBlock = ({
       {/* 跑马灯动画边框 (只有待确认状态才渲染) */}
       {isPending && (
         <div 
-          className="absolute inset-x-1.5 top-0 z-[5] rounded-2xl p-[2px] pointer-events-none opacity-80"
+          className="absolute inset-x-1.5 top-0 z-[5] rounded-2xl p-[2px] pointer-events-none "
           style={{ height: height === "100%" ? "100%" : height }}
         >
           <div className="absolute inset-0 rounded-2xl bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3,#ff0000)] bg-[length:200%_auto] animate-[shimmer_2s_linear_infinite]" />
@@ -111,7 +111,7 @@ export const EliteBookingBlock = ({
         // --- 极限微缩态 (15-25 分钟)：绝对居中，只有服务名称，超小字体，隐藏多余元素 ---
         <div className="flex items-center justify-center relative z-10 w-full truncate">
           <span 
-            className={cn("text-[10px] leading-none font-mono font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+            className={cn("text-[10px] leading-none font-mono font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
           >
             {title}
           </span>
@@ -120,14 +120,14 @@ export const EliteBookingBlock = ({
         // --- 紧凑态 (30-40 分钟)：单行居中排版 ---
         <div className="flex items-center justify-center gap-2 relative z-10 w-full truncate px-2">
           <span 
-            className={cn("text-xs font-mono font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+            className={cn("text-xs font-mono font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
           >
             {title}
           </span>
           {client && (
             <>
-              <span className="text-white/40 text-[10px] shrink-0">-</span>
-              <span className={cn("text-[11px] font-mono tracking-widest opacity-80 antialiased truncate", (isCheckedOut || isNoShow) ? "text-white/40" : "text-white/90")}>
+              <span className="text-white text-[10px] shrink-0">-</span>
+              <span className={cn("text-[11px] font-mono tracking-widest  antialiased truncate", (isCheckedOut || isNoShow) ? "text-white" : "text-white")}>
                 {client}
               </span>
             </>
@@ -140,7 +140,7 @@ export const EliteBookingBlock = ({
           <div className="flex flex-col gap-1 relative z-10 w-full">
             <div className="flex justify-between items-start">
               <span 
-                className={cn("text-xs md:text-[13px] font-mono font-medium antialiased tracking-widest uppercase leading-tight line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "opacity-40" : "opacity-100")}
+                className={cn("text-xs md:text-[13px] font-mono font-medium antialiased tracking-widest uppercase leading-tight line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
               >
                 {title}
               </span>
@@ -153,7 +153,7 @@ export const EliteBookingBlock = ({
           </div>
 
           <div className="flex items-center justify-between mt-1 relative z-10 w-full">
-            <span className={cn("text-[10px] font-mono tracking-widest opacity-80 antialiased truncate max-w-[60%]", (isCheckedOut || isNoShow) ? "text-white/40" : "text-white/90")}>
+            <span className={cn("text-[10px] font-mono tracking-widest  antialiased truncate max-w-[60%]", (isCheckedOut || isNoShow) ? "text-white" : "text-white")}>
               {client}
             </span>
             {/* 右下角绝对定位的小圆点已根据极简法则移除 */}

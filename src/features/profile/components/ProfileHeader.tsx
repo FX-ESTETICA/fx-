@@ -189,7 +189,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
   const getGenderColorInfo = (isLight?: boolean) => {
     return {
-      className: isLight ? "text-black/60" : "text-white/60",
+      className: isLight ? "text-black" : "text-white",
       color: isLight ? "rgba(0, 0, 0, 0.6)" : "rgba(255, 255, 255, 0.6)"
     };
   };
@@ -353,7 +353,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleEnterEditName}
-                        className={cn("flex items-center justify-center transition-all duration-300 text-[10px] tracking-widest cursor-pointer border rounded px-1.5 py-0.5 whitespace-nowrap", isLight ? "bg-black/40 text-black/70 hover:text-black hover:bg-black/10 border-black/20" : isLight ? "bg-black/40" : "bg-white/40", isLight ? "text-black/70" : "text-white/70", isLight ? "hover:text-black" : "hover:text-white", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "border-black/20" : "border-white/20")}
+                        className={cn("flex items-center justify-center transition-all duration-300 text-[10px] tracking-widest cursor-pointer border rounded px-1.5 py-0.5 whitespace-nowrap", isLight ? "bg-black/40 text-black hover:text-black hover:bg-black/10 border-black/20" : isLight ? "bg-black/40" : "bg-white/40", isLight ? "text-black" : "text-white", isLight ? "hover:text-black" : "hover:text-white", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "border-black/20" : "border-white/20")}
                       >
                         {t('rename') || '改名'}
                       </motion.div>
@@ -372,10 +372,10 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   className={cn("bg-transparent border-b focus:outline-none text-[18px] md:text-[24px] font-black tracking-widest leading-none w-[140px] sm:w-[180px] md:w-[240px] transition-colors pb-0.5", isLight ? "border-black/50 focus:border-black text-black placeholder-black/20" : "border-white/50 focus:border-white placeholder-white/20", isLight ? "text-black" : isLight ? "text-black" : "text-white")}
                 />
                 <div className="ml-3 flex items-center gap-3">
-                  <button onClick={handleSaveName} className={cn("transition-colors hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black/70" : "hover:text-white/70", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
+                  <button onClick={handleSaveName} className={cn("transition-colors hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black" : "hover:text-white", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
                     <Check className="w-5 h-5" strokeWidth={3} />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className={cn("transition-colors hover:scale-110 active:scale-95", isLight ? "text-black/40 hover:text-black" : isLight ? "text-black/40" : "text-white/40", isLight ? "hover:text-black" : "hover:text-white")}>
+                  <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className={cn("transition-colors hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black" : isLight ? "text-black" : "text-white", isLight ? "hover:text-black" : "hover:text-white")}>
                     <span className="text-[14px] font-bold">✕</span>
                   </button>
                 </div>
@@ -398,7 +398,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             <div 
               className={cn(
                 "relative flex items-center text-[10px] font-mono tracking-widest transition-all duration-500 cursor-pointer group leading-none pointer-events-auto mt-0.5",
-                profile.id !== "GX-GUEST-0000" && "hover:opacity-100 opacity-70"
+                profile.id !== "GX-GUEST-0000" && "hover:opacity-100 "
               )}
               onMouseEnter={() => copyState === "idle" && setCopyState("hover")}
               onMouseLeave={() => copyState === "hover" && setCopyState("idle")}
@@ -418,7 +418,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 <div className={cn(
                   "flex items-center gap-1 transition-all duration-300 font-bold",
                   copyState === "copied" ? (isLight ? "opacity-100 relative text-black" : "opacity-100 relative", isLight ? "text-black" : "text-white") : "opacity-0 absolute",
-                  copyState === "hover" && (isLight ? "text-black/80" : "text-white")
+                  copyState === "hover" && (isLight ? "text-black" : "text-white")
                 )}>
                   {copyState === "copied" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                   {copyState === "copied" ? t('copied') : t('copy')}
@@ -434,8 +434,8 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                   (remainingMilliseconds ?? 0) < 5 * 60 * 1000 
                     ? "animate-pulse " + (isLight ? "text-black font-bold" : "text-white font-bold") 
                     : (remainingMilliseconds ?? 0) < 24 * 60 * 60 * 1000
-                      ? (isLight ? "text-black/80" : "text-white/80")
-                      : (isLight ? "text-black/40" : "text-white/40")
+                      ? (isLight ? "text-black" : "text-white")
+                      : (isLight ? "text-black" : "text-white")
                 )}
               >
                 {subscription.subscriptionTier} 剩余 {remainingTime}
@@ -444,7 +444,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
           </div>
 
           {/* 全息阵列 (围绕在头像背后) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 pointer-events-none z-0 opacity-30">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 pointer-events-none z-0 ">
             <motion.div 
               animate={{ rotate: 360 }} 
               transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
@@ -488,7 +488,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             
             {/* 性别能量环 (双边框外环) */}
             <div 
-              className="absolute inset-[-5px] rounded-full border-[1.5px] pointer-events-none z-0 transition-all duration-500 opacity-80"
+              className="absolute inset-[-5px] rounded-full border-[1.5px] pointer-events-none z-0 transition-all duration-500 "
               style={{
                 borderColor: genderColorInfo.color,
               }}
@@ -537,9 +537,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               ) : profile.role === "boss" ? (
                 <ShieldCheck className="w-16 h-16 text-red-500" />
               ) : profile.role === "merchant" ? (
-                <ShieldCheck className={`w-16 h-16 ${isLight ? "text-black/80" : "text-white/80"}`} />
+                <ShieldCheck className={`w-16 h-16 ${isLight ? "text-black" : "text-white"}`} />
               ) : (
-                <User className={`w-16 h-16 ${isLight ? "text-black/60 group-hover:text-black" : "text-white/60 group-hover:text-white"} transition-colors`} />
+                <User className={`w-16 h-16 ${isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white"} transition-colors`} />
               )}
             </div>
 
@@ -609,8 +609,8 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
               key={stat.label}
               className={`px-4 py-2 rounded-xl ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/5" : "border-white/5"} flex flex-col items-center min-w-[80px]`}
             >
-              <span className={`text-[10px] ${isLight ? "text-black/20" : "text-white/20"} uppercase tracking-tighter`}>{stat.label}</span>
-              <span className={`text-lg font-mono font-bold ${isLight ? "text-black/80" : "text-white/80"}`}>{stat.value}</span>
+              <span className={`text-[10px] ${isLight ? "text-black" : "text-white"} uppercase tracking-tighter`}>{stat.label}</span>
+              <span className={`text-lg font-mono font-bold ${isLight ? "text-black" : "text-white"}`}>{stat.value}</span>
             </div>
           ))}
         </div>

@@ -84,7 +84,7 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
           </div>
         </div>
         <div className="flex items-center gap-3 relative z-10">
-          <button className="px-6 py-2.5 rounded-xl bg-white/5 text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all ">
+          <button className="px-6 py-2.5 rounded-xl bg-white/5 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all ">
             {t('txt_154261')}</button>
           <button className="px-6 py-2.5 rounded-xl bg-[#FDF5E6]/5 text-[#FDF5E6] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-[#FDF5E6] hover:text-black transition-all ">
             {industry === 'dining' ? '智能寻位' : '智能排班'} / Smart Search
@@ -130,18 +130,18 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
                       {timeIdx === 2 && table.id === 'T1' && (
                         <div className="absolute inset-1 rounded-lg bg-red-500/10 flex flex-col items-center justify-center gap-1  group-hover:bg-red-500/20 transition-all">
                           <span className="text-[9px] font-bold text-red-400">{t('txt_65f899')}</span>
-                          <span className="text-[7px] font-mono text-red-400/60">{t('txt_c1b815')}</span>
+                          <span className="text-[7px] font-mono text-red-400">{t('txt_c1b815')}</span>
                         </div>
                       )}
                       {timeIdx === 5 && table.id === 'T3' && (
                         <div className="absolute inset-1 rounded-lg bg-orange-500/10 flex flex-col items-center justify-center gap-1  group-hover:bg-orange-500/20 transition-all">
                           <span className="text-[9px] font-bold text-orange-400">{t('txt_44209e')}</span>
-                          <span className="text-[7px] font-mono text-orange-400/60">{t('txt_c71976')}</span>
+                          <span className="text-[7px] font-mono text-orange-400">{t('txt_c71976')}</span>
                         </div>
                       )}
                       {/* 空位引导 */}
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus className="w-4 h-4 text-[#FDF5E6]/20" />
+                        <Plus className="w-4 h-4 text-[#FDF5E6]" />
                       </div>
                     </div>
                   ))}

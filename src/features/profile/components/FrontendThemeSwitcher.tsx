@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
+import { useShop } from "@/features/shop/ShopContext";
 
 interface Props {
   className?: string;
@@ -13,6 +14,7 @@ interface Props {
 
 export function FrontendThemeSwitcher({ className }: Props) {
   const { settings, updateSettings, isLoaded } = useVisualSettings();
+  const { updateShopConfig, isShopConfigLoaded } = useShop();
   const t = useTranslations('NebulaConfigHub'); // Use NebulaConfigHub for translation "背景设定"
 
   if (!isLoaded) return null;
@@ -23,7 +25,7 @@ export function FrontendThemeSwitcher({ className }: Props) {
     <div className={cn("w-full space-y-3", className)}>
       <h3 className={cn(
         "text-[10px] font-bold uppercase tracking-widest text-center",
-        isLight ? "text-black/40" : "text-white/40"
+        isLight ? "text-black" : "text-white"
       )}>
         {t('txt_203d7a')} {/* 背景设定 */}
       </h3>
@@ -34,12 +36,32 @@ export function FrontendThemeSwitcher({ className }: Props) {
           return (
             <div 
               key={`frontend-bg-${index}`}
-              onClick={() => updateSettings({ frontendBgIndex: index })}
+              onClick={() => {
+                const bgPath = FRONTEND_BACKGROUNDS[index];
+                const filename = bgPath.split('/').pop() || '';
+                const updates: any = { frontendBgIndex: index };
+                
+                if (filename.startsWith('A') || filename.startsWith('a')) {
+                  updates.headerTitleColorTheme = 'purewhite';
+                  updates.staffNameColorTheme = 'purewhite';
+                  updates.timelineColorTheme = 'whitegold';
+                } else if (filename.startsWith('B') || filename.startsWith('b')) {
+                  updates.headerTitleColorTheme = 'coreblack';
+                  updates.staffNameColorTheme = 'coreblack';
+                  updates.timelineColorTheme = 'blackgold';
+                }
+                
+                updateSettings(updates);
+                
+                if (updateShopConfig && isShopConfigLoaded) {
+                  updateShopConfig('visualSettings', { ...settings, ...updates });
+                }
+              }}
               className={cn(
                 "relative shrink-0 w-16 h-10 rounded-lg cursor-pointer transition-all overflow-hidden border-2",
                 isActive 
                   ? (isLight ? "border-black opacity-100" : "border-white opacity-100")
-                  : cn("opacity-40 hover:opacity-80", isLight ? "border-black/10" : "border-white/10")
+                  : cn(" hover:opacity-80", isLight ? "border-black/10" : "border-white/10")
               )}
             >
               <Image 

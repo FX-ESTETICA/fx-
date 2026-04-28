@@ -238,6 +238,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const initLock = useRef(false);
 
+  // 4. 全局在线状态心跳与监听 (Global Presence)
+  // 将在线状态监听提权至全局，只要用户登录，无论在哪个页面都保持在线状态
+  useEffect(() => {
+    if (isMockMode) return;
+    if (!user || !user.id) return;
+    
+    // 创建全局 Presence 频道并绑定当前用户的身份标识
+    const presenceChannel = supabase.channel('global_presence', {
+      config: {
+        presence: {
+          key: user.id,
+        },
+      },
+    });
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        // 全局心跳同步，向浏览器广播原生事件
+        const state = presenceChannel.presenceState();
+        window.dispatchEvent(new CustomEvent('gx_presence_sync', { detail: state }));
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        window.dispatchEvent(new CustomEvent('gx_presence_join', { detail: { key, newPresences } }));
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        window.dispatchEvent(new CustomEvent('gx_presence_leave', { detail: { key, leftPresences } }));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // 成功订阅后立即广播自己的在线状态
+          await presenceChannel.track({
+            online_at: new Date().toISOString(),
+            user_id: user.id,
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [user?.id]);
+
   useEffect(() => {
     // 兼容历史版本残留，直接清除
     localStorage.removeItem("gx_guest_mode");

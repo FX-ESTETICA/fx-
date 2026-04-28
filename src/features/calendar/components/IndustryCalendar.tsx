@@ -190,21 +190,21 @@ const CyberClock = () => {
           "text-5xl font-mono font-bold tracking-tighter transition-colors",
           isBlack
             ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]"
-            : "bg-gradient-to-br from-white via-gray-300 to-gray-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            : "bg-gradient-to-br from-white via-gray-300 to-gray-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_#FFFFFF]"
         )}>
           {realTime.getHours().toString().padStart(2, '0')}:
           {realTime.getMinutes().toString().padStart(2, '0')}
         </span>
         <span className={cn(
           "text-lg font-mono animate-pulse transition-colors",
-          isBlack ? "text-black/80 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-gray-400"
+          isBlack ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white"
         )}>
           {realTime.getSeconds().toString().padStart(2, '0')}
         </span>
       </div>
       <span className={cn(
         "text-[10px] font-mono uppercase tracking-[0.3em] mt-3 transition-colors",
-        isBlack ? "text-black/80 font-bold [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/40"
+        isBlack ? "text-black font-bold [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white"
       )}>
         System Time (Local)
       </span>
@@ -911,7 +911,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       type: "other",
       pivot: "resource",
       label: "常规",
-      themeColor: "text-white/60",
+      themeColor: "text-white",
       accent: "none",
       icon: "CalendarIcon",
       iconComp: CalendarIcon,
@@ -1128,7 +1128,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
             {currentUserRole === 'user' && (
               <div className="space-y-1 relative">
-                <div className={cn("flex flex-col gap-1 text-[9px] font-mono uppercase tracking-widest ml-4 mb-2 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/30" : "text-white/20")}>
+                <div className={cn("flex flex-col gap-1 text-[9px] font-mono uppercase tracking-widest ml-4 mb-2 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>
                   <div className="flex items-center gap-2"><div className={cn("w-1 h-1 rounded-full transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/20" : "bg-white/20")}/>{t('txt_c145c6')}</div>
                   <div className="flex items-center gap-2"><div className={cn("w-1 h-1 rounded-full transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/20" : "bg-white/20")}/>{t('txt_b08822')}</div>
                 </div>
@@ -1159,7 +1159,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   </div>
                   <div>
                     <div className={cn("text-xs font-bold uppercase transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{userName || 'STAFF'}</div>
-                    <div className={cn("text-[9px] font-mono tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/40" : "text-white/40")}>EXECUTIVE_UNIT</div>
+                    <div className={cn("text-[9px] font-mono tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>EXECUTIVE_UNIT</div>
                   </div>
                 </div>
               </div>
@@ -1233,19 +1233,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <>
                     {/* 原生卡片 1：今日预约 */}
                     <div className="p-3 transition-all bg-transparent">
-                      <span className={cn("text-[9px] font-mono font-bold uppercase tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/80 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/60")}>{t('txt_3353f0') || '今日预约'}</span>
+                      <span className={cn("text-[9px] font-mono font-bold uppercase tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white")}>{t('txt_3353f0') || '今日预约'}</span>
                       <div className="flex items-end justify-between mt-1">
                         <span className={cn("text-xl font-bold tracking-tighter transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>{todayBookingsCount.toString().padStart(2, '0')}</span>
-                        <span className={cn("text-[8px] font-mono font-bold mb-1 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/40")}>{t('txt_fb852f')}</span>
+                        <span className={cn("text-[8px] font-mono font-bold mb-1 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white")}>{t('txt_fb852f')}</span>
                       </div>
                     </div>
 
                     {/* 原生卡片 2：今日待处理 (业务待服务) */}
-                    <div className="p-3 transition-all opacity-80 bg-transparent">
-                      <span className={cn("text-[9px] font-mono font-bold uppercase tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/80 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/60")}>{t('txt_047109') || '待处理'}</span>
+                    <div className="p-3 transition-all  bg-transparent">
+                      <span className={cn("text-[9px] font-mono font-bold uppercase tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white")}>{t('txt_047109') || '待处理'}</span>
                       <div className="flex items-end justify-between mt-1">
-                        <span className={cn("text-xl font-bold tracking-tighter transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black font-bold [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/60")}>{todayPendingCount.toString().padStart(2, '0')}</span>
-                        <span className={cn("text-[8px] font-mono font-bold mb-1 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60 [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/40")}>{t('txt_65dd9e')}</span>
+                        <span className={cn("text-xl font-bold tracking-tighter transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black font-bold [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white")}>{todayPendingCount.toString().padStart(2, '0')}</span>
+                        <span className={cn("text-[8px] font-mono font-bold mb-1 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white")}>{t('txt_65dd9e')}</span>
                       </div>
                     </div>
 
@@ -1278,7 +1278,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                             )}>
                               <span className={cn("w-1.5 h-1.5 rounded-full animate-ping transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`)} />
                               {t('txt_7708f1')}</span>
-                            <span className={cn("text-[8px] mt-0.5 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]/60" : "text-[#FDF5E6]/60"}`)}>{t('txt_9874b3')}</span>
+                            <span className={cn("text-[8px] mt-0.5 transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>{t('txt_9874b3')}</span>
                           </div>
                           <div className="flex items-end gap-2">
                             <span className={cn(
@@ -1353,9 +1353,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               )}
             >
               <div className="flex items-center gap-3 relative z-10">
-                <span className={cn("text-xs font-bold tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/90 group-hover:text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white/70 group-hover:text-white")}>AI 财务核算</span>
+                <span className={cn("text-xs font-bold tracking-widest transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black group-hover:text-black [text-shadow:0_1px_0_rgba(255,255,255,0.8)]" : "text-white group-hover:text-white")}>AI 财务核算</span>
               </div>
-              <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity relative z-10">
+              <div className="flex items-center gap-1  group-hover:opacity-100 transition-opacity relative z-10">
                 <div className={cn("w-0.5 h-3 rounded-full animate-[pulse_1s_ease-in-out_infinite]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
                 <div className={cn("w-0.5 h-4 rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
                 <div className={cn("w-0.5 h-2 rounded-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
@@ -1364,12 +1364,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           </div>
 
           {/* 动态当前时间显示区 (居中置底) */}
-          <div className="mt-auto p-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity relative w-full">
+          <div className="mt-auto p-8 flex flex-col items-center justify-center  hover:opacity-100 transition-opacity relative w-full">
             {isMounted ? (
               <CyberClock />
             ) : (
               <div className="h-[88px] flex items-center justify-center">
-                <span className={cn("text-xs font-mono animate-pulse transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/30" : "text-white/20")}>SYNCING...</span>
+                <span className={cn("text-xs font-mono animate-pulse transition-colors", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>SYNCING...</span>
               </div>
             )}
           </div>
@@ -1463,7 +1463,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                   <div className="flex items-center gap-0.5 md:gap-2">
                     <button 
                       onClick={() => handleNavigate('prev')}
-                      className="p-1 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
+                      className="p-1 md:p-2 rounded-lg transition-all  hover:opacity-100"
                       style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                     >
                       <ChevronLeft className="w-4 h-4 md:w-4 md:h-4" />
@@ -1474,7 +1474,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         setCurrentDate(now);
                         setPhantomDate(now);
                       }}
-                      className="px-1.5 md:px-4 py-1 md:py-2 text-[10px] font-bold rounded-lg transition-all tracking-widest opacity-80 hover:opacity-100 flex items-center justify-center"
+                      className="px-1.5 md:px-4 py-1 md:py-2 text-[10px] font-bold rounded-lg transition-all tracking-widest  hover:opacity-100 flex items-center justify-center"
                       style={{ 
                         color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
                         textShadow: visualSettings.headerTitleColorTheme === 'purewhite' || visualSettings.headerTitleColorTheme === 'coreblack' ? 'none' : `0 0 10px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}80` 
@@ -1485,7 +1485,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                     </button>
                     <button 
                       onClick={() => handleNavigate('next')}
-                      className="p-1 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100"
+                      className="p-1 md:p-2 rounded-lg transition-all  hover:opacity-100"
                       style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                     >
                       <ChevronRight className="w-4 h-4 md:w-4 md:h-4" />
@@ -1496,14 +1496,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       <div className="flex items-center ml-0.5 md:ml-2 gap-0.5 md:gap-1">
                         <button 
                           onClick={() => setIsRecycleBinOpen(true)}
-                          className="p-1.5 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100 hover:bg-red-500/10 group flex items-center justify-center text-red-400"
+                          className="p-1.5 md:p-2 rounded-lg transition-all  hover:opacity-100 hover:bg-red-500/10 group flex items-center justify-center text-red-400"
                           title={t('txt_6508a1')}
                         >
                           <Trash2 className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" />
                         </button>
                         <button 
                           onClick={() => setIsConfigOpen(true)}
-                          className="p-1.5 md:p-2 rounded-lg transition-all opacity-60 hover:opacity-100 group flex items-center justify-center"
+                          className="p-1.5 md:p-2 rounded-lg transition-all  hover:opacity-100 group flex items-center justify-center"
                           style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
                           title={t('txt_677a64')}
                         >
@@ -1532,7 +1532,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                       className="flex h-full w-full"
                     >
                       {resources.map(res => (
-                        <div key={res.id} className={cn("flex-1 min-w-0 h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? 'opacity-50' : '')}>
+                        <div key={res.id} className={cn("flex-1 min-w-0 h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? '' : '')}>
                           <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1 gap-1">
                             <div 
                               className={cn(
@@ -1574,7 +1574,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               )}
               {viewMode !== 'day' && dna.pivot === 'resource' && (
                 <div className="flex bg-transparent px-6 py-4 items-center gap-4 overflow-x-auto no-scrollbar">
-                  <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest shrink-0">{t('txt_8b62d9')}</span>
+                  <span className="text-[10px] font-mono text-white uppercase tracking-widest shrink-0">{t('txt_8b62d9')}</span>
                   {resources.map(res => (
                     <button
                       key={res.id}
@@ -1589,7 +1589,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
                         "px-3 py-1.5 rounded-full text-[10px] font-bold tracking-widest transition-all shrink-0 flex items-center gap-2",
                         selectedStaffIds.includes(res.id) 
                           ? "text-white" 
-                          : "text-white/40 opacity-50"
+                          : "text-white "
                       )}
                     >
                       <div 
@@ -1677,7 +1677,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
               
               {/* 非日视图且非资源类型时回退到网格 */}
               {viewMode !== "day" && dna.pivot !== "timeline" && dna.pivot !== "resource" && (
-                <div className="p-12 h-full flex items-center justify-center text-white/5 font-bold text-4xl uppercase tracking-[1em] relative z-20">
+                <div className="p-12 h-full flex items-center justify-center text-white font-bold text-4xl uppercase tracking-[1em] relative z-20">
                   {t('txt_0aece4')}</div>
               )}
             </div>

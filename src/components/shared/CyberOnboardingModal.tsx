@@ -162,7 +162,7 @@ export const CyberOnboardingModal = () => {
                     <h2 className="text-2xl font-bold tracking-tighter text-white mb-2">
                       请选择您的使用身份
                     </h2>
-                    <p className="text-xs text-white/40 tracking-widest">
+                    <p className="text-xs text-white tracking-widest">
                       选择后可随时在系统中更改或升级
                     </p>
                   </div>
@@ -174,11 +174,11 @@ export const CyberOnboardingModal = () => {
                       className="group relative p-6 rounded-2xl border border-white/10 bg-black/20 hover:bg-white/5 hover:border-white/30 transition-all flex flex-col items-center gap-4 text-center"
                     >
                       <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                        <UserCircle className="w-8 h-8 text-white/60 group-hover:text-white transition-colors" />
+                        <UserCircle className="w-8 h-8 text-white group-hover:text-white transition-colors" />
                       </div>
                       <div>
                         <div className="font-bold text-white tracking-widest mb-1 text-lg">生活</div>
-                        <div className="text-[10px] text-white/40 tracking-wider">预约服务 · 探索周边门店</div>
+                        <div className="text-[10px] text-white tracking-wider">预约服务 · 探索周边门店</div>
                       </div>
                     </button>
 
@@ -214,7 +214,7 @@ export const CyberOnboardingModal = () => {
                     <button 
                       type="button" 
                       onClick={() => setStep('role')} 
-                      className="w-10 h-10 rounded-full flex items-center justify-center bg-black/20 border border-white/5 hover:bg-white/10 hover:border-white/20 text-white/60 hover:text-white transition-all"
+                      className="w-10 h-10 rounded-full flex items-center justify-center bg-black/20 border border-white/5 hover:bg-white/10 hover:border-white/20 text-white hover:text-white transition-all"
                     >
                       <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -222,7 +222,7 @@ export const CyberOnboardingModal = () => {
                       <h2 className="text-xl font-bold tracking-tighter text-white">
                         {roleSelection === 'merchant' ? '创建数字门店' : '填写会员信息'}
                       </h2>
-                      <p className="text-[10px] text-white/40 tracking-widest mt-1">
+                      <p className="text-[10px] text-white tracking-widest mt-1">
                         {roleSelection === 'merchant' ? '只需两步，即可开启智能日历' : '极简身份核验'}
                       </p>
                     </div>
@@ -236,7 +236,7 @@ export const CyberOnboardingModal = () => {
                   <div className="space-y-4">
                     {/* Name */}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-mono text-white/60 tracking-widest flex items-center gap-2">
+                      <label className="text-[10px] font-mono text-white tracking-widest flex items-center gap-2">
                         <UserCircle className="w-3 h-3" />
                         {t('txt_60d045')}
                       </label>
@@ -245,13 +245,13 @@ export const CyberOnboardingModal = () => {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder={t('txt_ab4b97')}
-                        className="h-12 bg-black/50 text-white placeholder:text-white/20 border-white/10 "
+                        className="h-12 bg-black/50 text-white placeholder:text-white border-white/10 "
                       />
                     </div>
 
                     {/* Gender (Custom Cyber Radio) */}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-mono text-white/60 tracking-widest flex items-center gap-2">
+                      <label className="text-[10px] font-mono text-white tracking-widest flex items-center gap-2">
                         <Activity className="w-3 h-3" />
                         {t('txt_787b56')}
                       </label>
@@ -268,7 +268,7 @@ export const CyberOnboardingModal = () => {
                             className={`h-10 rounded-lg text-xs font-bold tracking-widest transition-all border ${
                               formData.gender === g.id 
                                 ? "bg-white/10 border-white text-white" 
-                                : "bg-black/50 border-white/5 text-white/40 hover:bg-white/5"
+                                : "bg-black/50 border-white/5 text-white hover:bg-white/5"
                             }`}
                           >
                             {g.label}
@@ -279,7 +279,7 @@ export const CyberOnboardingModal = () => {
 
                     {/* Birthday (Custom Dropdowns) */}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-mono text-white/60 tracking-widest flex items-center gap-2">
+                      <label className="text-[10px] font-mono text-white tracking-widest flex items-center gap-2">
                         <Calendar className="w-3 h-3" />
                         {t('txt_abbe4b')}
                       </label>
@@ -298,7 +298,7 @@ export const CyberOnboardingModal = () => {
                               <option key={year} value={year} className=" text-white">{year}</option>
                             ))}
                           </select>
-                          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">年</div>
+                          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white text-xs">年</div>
                         </div>
 
                         {/* Month */}
@@ -315,7 +315,7 @@ export const CyberOnboardingModal = () => {
                               <option key={month} value={month.toString().padStart(2, '0')} className=" text-white">{month}</option>
                             ))}
                           </select>
-                          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">月</div>
+                          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white text-xs">月</div>
                         </div>
 
                         {/* Day */}
@@ -332,7 +332,7 @@ export const CyberOnboardingModal = () => {
                               <option key={day} value={day.toString().padStart(2, '0')} className=" text-white">{day}</option>
                             ))}
                           </select>
-                          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">日</div>
+                          <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white text-xs">日</div>
                         </div>
                       </div>
                     </div>
@@ -344,7 +344,7 @@ export const CyberOnboardingModal = () => {
                         className="space-y-4 pt-4 border-t border-white/10"
                       >
                         <div className="space-y-2">
-                          <label className="text-[10px] font-mono text-white/60 tracking-widest flex items-center gap-2">
+                          <label className="text-[10px] font-mono text-white tracking-widest flex items-center gap-2">
                             <Store className="w-3 h-3" />
                             店铺名称
                           </label>
@@ -353,12 +353,12 @@ export const CyberOnboardingModal = () => {
                             value={formData.brandName}
                             onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
                             placeholder="请输入您的店铺或品牌名称"
-                            className="h-12 bg-black/50 text-white placeholder:text-white/20 border-white/10 "
+                            className="h-12 bg-black/50 text-white placeholder:text-white border-white/10 "
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-mono text-white/60 tracking-widest flex items-center gap-2">
+                          <label className="text-[10px] font-mono text-white tracking-widest flex items-center gap-2">
                             <Activity className="w-3 h-3" />
                             行业分类
                           </label>
@@ -374,7 +374,7 @@ export const CyberOnboardingModal = () => {
                               <option value="fitness">健身 / 瑜伽普拉提</option>
                               <option value="expert">专家 / 独立顾问</option>
                             </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white text-xs">▼</div>
                           </div>
                         </div>
                       </motion.div>
@@ -401,7 +401,7 @@ export const CyberOnboardingModal = () => {
                   <p className=" font-bold tracking-widest text-lg">
                     {t('txt_6da9ee')}
                   </p>
-                  <p className="text-xs font-mono text-white/40 tracking-[0.2em] animate-pulse uppercase">
+                  <p className="text-xs font-mono text-white tracking-[0.2em] animate-pulse uppercase">
                     {t('txt_22fc92')}
                   </p>
                 </motion.div>

@@ -39,7 +39,7 @@ export const NexusSwitcher = () => {
             className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-64 bg-black/80 border border-white/10 backdrop-blur-xl rounded-xl p-2 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
           >
             <div className="px-3 py-2 border-b border-white/5 mb-2">
-              <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">{t('txt_e628fe')}</span>
+              <span className="text-[10px] text-white uppercase tracking-widest font-bold">{t('txt_e628fe')}</span>
             </div>
             <div className="space-y-1 max-h-[50vh] overflow-y-auto scrollbar-hide">
               {availableShops.map((shop) => (
@@ -53,14 +53,14 @@ export const NexusSwitcher = () => {
                     "w-full flex items-center justify-between p-3 rounded-lg text-left transition-all",
                     activeShopId === shop.shopId 
                       ? "bg-gx-cyan/10 border border-gx-cyan/30 text-white" 
-                      : "hover:bg-white/5 border border-transparent text-white/60 hover:text-white"
+                      : "hover:bg-white/5 border border-transparent text-white hover:text-white"
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <Store className={cn("w-4 h-4", activeShopId === shop.shopId ? "text-gx-cyan" : "text-white/40")} />
+                    <Store className={cn("w-4 h-4", activeShopId === shop.shopId ? "text-gx-cyan" : "text-white")} />
                     <div className="flex flex-col">
                       <span className="text-xs font-bold truncate max-w-[120px]">{shop.shopName || "未知节点"}</span>
-                      <span className="text-[9px] font-mono text-white/30 uppercase">{shop.role} | {shop.industry}</span>
+                      <span className="text-[9px] font-mono text-white uppercase">{shop.role} | {shop.industry}</span>
                     </div>
                   </div>
                   {activeShopId === shop.shopId && <CheckCircle2 className="w-4 h-4 text-gx-cyan drop-shadow-[0_0_5px_rgba(0,242,255,0.5)]" />}

@@ -34,7 +34,7 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
         
         <div className="space-y-2">
           <h2 className="text-4xl font-bold tracking-tight">{t('txt_b179be')}</h2>
-          <p className="text-white/40 text-lg">{t('txt_1e93c8')}</p>
+          <p className="text-white text-lg">{t('txt_1e93c8')}</p>
         </div>
       </div>
 
@@ -42,8 +42,8 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
         <div className="space-y-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-white/5">
             <div className="space-y-1 text-left">
-              <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em]">BOOKING_ID</p>
-              <p className="text-xl font-mono text-white/80 uppercase">
+              <p className="text-[10px] font-mono text-white uppercase tracking-[0.3em]">BOOKING_ID</p>
+              <p className="text-xl font-mono text-white uppercase">
                 {bookingId}
               </p>
             </div>
@@ -60,13 +60,13 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
           <div className="grid grid-cols-2 gap-8 text-left">
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest flex items-center gap-2">
+                <p className="text-[10px] font-mono text-white uppercase tracking-widest flex items-center gap-2">
                   <Calendar className="w-3 h-3" /> DATE
                 </p>
                 <p className="text-sm font-medium">{details.date}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest flex items-center gap-2">
+                <p className="text-[10px] font-mono text-white uppercase tracking-widest flex items-center gap-2">
                   <Clock className="w-3 h-3" /> TIME
                 </p>
                 <p className="text-sm font-mono">{details.timeSlot}</p>
@@ -74,13 +74,13 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest flex items-center gap-2">
+                <p className="text-[10px] font-mono text-white uppercase tracking-widest flex items-center gap-2">
                   <CheckCircle className="w-3 h-3" /> SERVICE
                 </p>
                 <p className="text-sm font-medium">{details.serviceName}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest flex items-center gap-2">
+                <p className="text-[10px] font-mono text-white uppercase tracking-widest flex items-center gap-2">
                   <CheckCircle className="w-3 h-3" /> CONTACT
                 </p>
                 <p className="text-sm">{details.customerName}</p>
@@ -107,7 +107,7 @@ export const BookingSuccess = ({ details, onDone }: BookingSuccessProps) => {
         </div>
       </GlassCard>
 
-      <div className="space-y-4 text-white/10 font-mono text-[9px] uppercase tracking-[0.5em]">
+      <div className="space-y-4 text-white font-mono text-[9px] uppercase tracking-[0.5em]">
         <p>SYSTEM_ID // GX_CORE_V1_2026</p>
         <p>SECURED_TRANSACTION_ID // ENCRYPTED_AUTH</p>
       </div>

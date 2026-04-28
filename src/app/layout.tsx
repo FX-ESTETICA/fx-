@@ -109,6 +109,41 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
     >
       <head>
+        {/* 0毫秒瞬间注入原生壁纸，彻底消灭 React 渲染延迟与二次闪烁 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('gx_visual_settings');
+                  var bgIndex = 1; // 默认前端 B3
+                  var calBgIndex = 1; // 默认日历 B3
+                  if (saved) {
+                    var parsed = JSON.parse(saved);
+                    if (parsed.frontendBgIndex !== undefined) bgIndex = parsed.frontendBgIndex;
+                    if (parsed.calendarBgIndex !== undefined) calBgIndex = parsed.calendarBgIndex;
+                  }
+                  
+                  var isCalendar = window.location.pathname.indexOf('/calendar') !== -1;
+                  var activeIndex = isCalendar ? calBgIndex : bgIndex;
+                  
+                  var bgs = [
+                    '/images/backgrounds/A1.jpg',
+                    '/images/backgrounds/B3.jpg',
+                    '/images/backgrounds/B4.jpg',
+                    '/images/backgrounds/B6.jpg'
+                  ];
+                  var bgUrl = bgs[activeIndex] || bgs[1];
+                  if (bgUrl === 'starry') bgUrl = '/images/backgrounds/A1.jpg';
+                  
+                  var style = document.createElement('style');
+                  style.innerHTML = 'body { background-image: url("' + bgUrl + '"); background-size: cover; background-position: center; background-attachment: fixed; background-repeat: no-repeat; }';
+                  document.head.appendChild(style);
+                } catch(e) {}
+              })();
+            `
+          }}
+        />
         {/* 终极防线：0毫秒瞬间拦截 PWA 白屏/资源丢失的死锁状态 */}
         <script
           dangerouslySetInnerHTML={{
@@ -170,7 +205,7 @@ export default async function RootLayout({
           <WeChatBrowserGuard />
           {/* Native environment bridge */}
           <NativeBridgeProvider />
-          <div className="fixed inset-0 z-[-1] pointer-events-none bg-black">
+          <div className="fixed inset-0 z-[-1] pointer-events-none bg-transparent">
             <NebulaBackground />
           </div>
           <AuthProvider>

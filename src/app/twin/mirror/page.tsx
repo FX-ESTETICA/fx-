@@ -440,7 +440,7 @@ export default function MirrorSandboxPage() {
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-50 pointer-events-none">
         <button 
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors pointer-events-auto"
+          className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white hover:text-white transition-colors pointer-events-auto"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Exit Mirror</span>
@@ -467,7 +467,7 @@ export default function MirrorSandboxPage() {
           {/* Action: Skin */}
           <button 
             onClick={() => setActiveMenu(activeMenu === 'skin' ? null : 'skin')}
-            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'skin' ? '' : 'text-white/60 hover:text-white'}`}
+            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'skin' ? '' : 'text-white hover:text-white'}`}
           >
             <div className={`p-3 rounded-full border transition-all ${activeMenu === 'skin' ? ' ' : 'border-transparent group-hover:border-white/20 group-hover:bg-white/5'}`}>
               <Palette className="w-5 h-5" />
@@ -480,7 +480,7 @@ export default function MirrorSandboxPage() {
           {/* Action: Hair */}
           <button 
             onClick={() => setActiveMenu(activeMenu === 'hair' ? null : 'hair')}
-            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'hair' ? '' : 'text-white/60 hover:text-white'}`}
+            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'hair' ? '' : 'text-white hover:text-white'}`}
           >
             <div className={`p-3 rounded-full border transition-all ${activeMenu === 'hair' ? ' ' : 'border-transparent group-hover:border-white/20 group-hover:bg-white/5'}`}>
               <Scissors className="w-5 h-5" />
@@ -493,7 +493,7 @@ export default function MirrorSandboxPage() {
           {/* Action: Wardrobe */}
           <button 
             onClick={() => setActiveMenu(activeMenu === 'wardrobe' ? null : 'wardrobe')}
-            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'wardrobe' ? '' : 'text-white/60 hover:text-white'}`}
+            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'wardrobe' ? '' : 'text-white hover:text-white'}`}
           >
             <div className={`p-3 rounded-full border transition-all ${activeMenu === 'wardrobe' ? ' ' : 'border-transparent group-hover:border-white/20 group-hover:bg-white/5'}`}>
               <Shirt className="w-5 h-5" />
@@ -506,7 +506,7 @@ export default function MirrorSandboxPage() {
           {/* Action: Animations */}
           <button 
             onClick={() => setActiveMenu(activeMenu === 'animations' ? null : 'animations')}
-            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'animations' ? '' : 'text-white/60 hover:text-white'}`}
+            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'animations' ? '' : 'text-white hover:text-white'}`}
           >
             <div className={`p-3 rounded-full border transition-all ${activeMenu === 'animations' ? ' ' : 'border-transparent group-hover:border-white/20 group-hover:bg-white/5'}`}>
               <Activity className="w-5 h-5" />
@@ -519,7 +519,7 @@ export default function MirrorSandboxPage() {
           {/* Action: Bikini */}
           <button 
             onClick={() => setActiveMenu(activeMenu === 'bikini' ? null : 'bikini')}
-            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'bikini' ? '' : 'text-white/60 hover:text-white'}`}
+            className={`flex flex-col items-center gap-2 group transition-all ${activeMenu === 'bikini' ? '' : 'text-white hover:text-white'}`}
           >
             <div className={`p-3 rounded-full border transition-all ${activeMenu === 'bikini' ? ' ' : 'border-transparent group-hover:border-white/20 group-hover:bg-white/5'}`}>
               <Shirt className="w-5 h-5" />
@@ -551,7 +551,7 @@ export default function MirrorSandboxPage() {
               {activeMenu === 'skin' && (
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-4">
-                    <div className="flex justify-between text-xs text-white/50">
+                    <div className="flex justify-between text-xs text-white">
                       <span>Pale</span>
                       <span>Dark</span>
                     </div>
@@ -566,7 +566,7 @@ export default function MirrorSandboxPage() {
                         background: `linear-gradient(to right, #fce2c4 0%, #e6b981 33%, #8d5524 66%, #1a0c06 100%)`
                       }}
                     />
-                    <p className="text-[10px] text-white/40 text-center mt-2 leading-relaxed">
+                    <p className="text-[10px] text-white text-center mt-2 leading-relaxed">
                       Physical Based Rendering (PBR)<br/>
                       Real-time Melanin Simulation
                     </p>
@@ -576,17 +576,17 @@ export default function MirrorSandboxPage() {
 
                   {/* AI Face Reconstruct */}
                   <button className="relative w-full overflow-hidden group p-4 rounded-xl border border-white/10 bg-white/5   transition-all flex flex-col items-center justify-center gap-2">
-                    <Sparkles className="w-5 h-5 text-white/60  mb-1 transition-colors" />
-                    <span className="text-xs text-white/80  font-medium tracking-wide transition-colors">AI Face Grafting</span>
-                    <span className="text-[9px] text-white/40  text-center transition-colors">Upload selfie to extract<br/>facial features to 3D</span>
+                    <Sparkles className="w-5 h-5 text-white  mb-1 transition-colors" />
+                    <span className="text-xs text-white  font-medium tracking-wide transition-colors">AI Face Grafting</span>
+                    <span className="text-[9px] text-white  text-center transition-colors">Upload selfie to extract<br/>facial features to 3D</span>
                   </button>
                 </div>
               )}
 
               {activeMenu === 'hair' && (
                 <div className="text-center p-4 border border-white/5 rounded-xl bg-white/5">
-                  <p className="text-xs text-white/60">Hair assets required.</p>
-                  <p className="text-[9px] text-white/40 mt-2">Import .glb hair models with physics to enable this section.</p>
+                  <p className="text-xs text-white">Hair assets required.</p>
+                  <p className="text-[9px] text-white mt-2">Import .glb hair models with physics to enable this section.</p>
                 </div>
               )}
 
@@ -602,7 +602,7 @@ export default function MirrorSandboxPage() {
                           : 'border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20'
                       }`}
                     >
-                      <span className="text-sm font-light tracking-wide text-white/80">Original (Bikini)</span>
+                      <span className="text-sm font-light tracking-wide text-white">Original (Bikini)</span>
                       {currentWardrobe === 0 && <div className="w-2 h-2 rounded-full  " />}
                     </button>
 
@@ -614,7 +614,7 @@ export default function MirrorSandboxPage() {
                           : 'border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20'
                       }`}
                     >
-                      <span className="text-sm font-light tracking-wide text-white/80">Wrapped Skirt (AI)</span>
+                      <span className="text-sm font-light tracking-wide text-white">Wrapped Skirt (AI)</span>
                       {currentWardrobe === 2 && <div className="w-2 h-2 rounded-full  " />}
                     </button>
                   </div>
@@ -640,10 +640,10 @@ export default function MirrorSandboxPage() {
                               <img src={garm.previewUrl} alt="Garment" className="w-8 h-8 rounded-lg object-cover border border-white/10" />
                             ) : (
                               <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                                <Shirt className="w-4 h-4 text-white/30" />
+                                <Shirt className="w-4 h-4 text-white" />
                               </div>
                             )}
-                            <span className="text-sm font-light tracking-wide text-white/80">{garm.name}</span>
+                            <span className="text-sm font-light tracking-wide text-white">{garm.name}</span>
                           </div>
                           {currentWardrobe === garm.id && <div className="w-2 h-2 rounded-full   mr-2" />}
                         </button>
@@ -721,7 +721,7 @@ export default function MirrorSandboxPage() {
                             : 'border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20'
                         }`}
                       >
-                        <span className="text-sm font-light tracking-wide text-white/80">{actionName}</span>
+                        <span className="text-sm font-light tracking-wide text-white">{actionName}</span>
                         {(currentAction === actionName || (currentAction === 'idle' && actionName === availableActions[0])) && (
                           <div className="w-2 h-2 rounded-full  " />
                         )}
@@ -729,8 +729,8 @@ export default function MirrorSandboxPage() {
                     ))
                   ) : (
                     <div className="text-center p-4 border border-white/5 rounded-xl bg-white/5">
-                      <p className="text-xs text-white/60">No actions found.</p>
-                      <p className="text-[9px] text-white/40 mt-2">The loaded model does not contain Mixamo animations.</p>
+                      <p className="text-xs text-white">No actions found.</p>
+                      <p className="text-[9px] text-white mt-2">The loaded model does not contain Mixamo animations.</p>
                     </div>
                   )}
                 </div>
@@ -740,7 +740,7 @@ export default function MirrorSandboxPage() {
               {activeMenu === 'bikini' && (
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/60 text-xs tracking-wider">胸衣颜色 (BRA)</span>
+                    <span className="text-white text-xs tracking-wider">胸衣颜色 (BRA)</span>
                     <div className="flex flex-wrap gap-2 justify-end">
                       {["#1a1a1a", "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#f87171", "#ffffff"].map(c => (
                         <button
@@ -753,7 +753,7 @@ export default function MirrorSandboxPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-white/60 text-xs tracking-wider">内裤颜色 (PANTIES)</span>
+                    <span className="text-white text-xs tracking-wider">内裤颜色 (PANTIES)</span>
                     <div className="flex flex-wrap gap-2 justify-end">
                       {["#1a1a1a", "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#f87171", "#ffffff"].map(c => (
                         <button

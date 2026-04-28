@@ -76,14 +76,14 @@ export const NebulaCore = () => {
           )}
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tighter uppercase">{currentLevel.name}</h2>
-            <p className="text-[10px] font-mono text-white/40 tracking-[0.2em]">
+            <p className="text-[10px] font-mono text-white tracking-[0.2em]">
               STATUS: {currentLevel.type.toUpperCase()} // ACTIVE_NODES: {currentLevel.children?.length || 0}
             </p>
           </div>
         </div>
         
         <div className="flex gap-4">
-          <Button variant="ghost" size="sm" className="gap-2 text-white/40">
+          <Button variant="ghost" size="sm" className="gap-2 text-white">
             <Maximize2 className="w-4 h-4" />
             {t('txt_b02de4')}</Button>
         </div>
@@ -108,7 +108,7 @@ export const NebulaCore = () => {
             <div className="w-48 h-48 rounded-full bg-black border-2  flex flex-col items-center justify-center gap-2  transition-all duration-500 cursor-default">
               <Activity className="w-8 h-8  animate-pulse" />
               <div className="text-center">
-                <div className="text-sm font-mono text-white/40 uppercase">{t('txt_6ee5ac')}</div>
+                <div className="text-sm font-mono text-white uppercase">{t('txt_6ee5ac')}</div>
                 <div className="text-2xl font-bold text-white tracking-tighter">{currentLevel.value}</div>
               </div>
             </div>
@@ -136,7 +136,7 @@ export const NebulaCore = () => {
                   onClick={() => handleDrillDown(child)}
                   className={cn(
                     "w-32 h-32 rounded-2xl bg-black/40  border border-white/10 flex flex-col items-center justify-center gap-2 transition-all duration-300",
-                    child.children && child.children.length > 0 ? "cursor-pointer  " : "cursor-default opacity-80"
+                    child.children && child.children.length > 0 ? "cursor-pointer  " : "cursor-default "
                   )}
                 >
                   {child.type === "branch" ? (
@@ -145,8 +145,8 @@ export const NebulaCore = () => {
                     <div className="w-2 h-2 rounded-full " />
                   )}
                   <div className="text-center px-2">
-                    <div className="text-[10px] font-bold text-white/80 line-clamp-1">{child.name}</div>
-                    <div className="text-[10px] font-mono text-white/40">{child.value}</div>
+                    <div className="text-[10px] font-bold text-white line-clamp-1">{child.name}</div>
+                    <div className="text-[10px] font-mono text-white">{child.value}</div>
                   </div>
                 </div>
                 {/* 连接线 */}

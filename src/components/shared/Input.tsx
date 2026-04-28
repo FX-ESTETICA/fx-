@@ -18,7 +18,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1.5 w-full">
         {label && (
-          <label className="text-xs font-mono text-white/60 uppercase tracking-widest ml-1">
+          <label className="text-xs font-mono text-white uppercase tracking-widest ml-1">
             {label}
           </label>
         )}
@@ -26,7 +26,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              "w-full px-4 py-3 text-white placeholder:text-white/20 outline-none transition-all duration-300 disabled:opacity-50",
+              "w-full px-4 py-3 text-white placeholder:text-white outline-none transition-all duration-300 disabled:opacity-50",
               variant === 'default' && "bg-white/5 border border-white/10 rounded-xl  focus:bg-white/10 ",
               variant === 'ghost' && "bg-white/[0.02] border-b border-white/20 rounded-none px-2  focus:bg-white/5 ",
               error && "border-gx-red/50 focus:border-gx-red/50 ",

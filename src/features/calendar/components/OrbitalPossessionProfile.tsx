@@ -153,11 +153,11 @@ export const OrbitalPossessionProfile = ({
           </div>
           <div>
             <div className={cn("text-xs font-bold uppercase transition-colors", isBlack ? "text-black" : "text-white")}>{bossData.name}</div>
-            <div className={cn("text-[9px] font-mono tracking-widest transition-colors", isBlack ? "text-black/40" : "text-white/40")}>{bossData.id}</div>
+            <div className={cn("text-[9px] font-mono tracking-widest transition-colors", isBlack ? "text-black" : "text-white")}>{bossData.id}</div>
           </div>
         </div>
         {shopName && (
-          <div className={cn("flex items-center gap-2 mt-2 ml-4 text-[10px] font-mono transition-colors", isBlack ? "text-black/40 font-bold" : "text-white/40")}>
+          <div className={cn("flex items-center gap-2 mt-2 ml-4 text-[10px] font-mono transition-colors", isBlack ? "text-black font-bold" : "text-white")}>
             <div className={cn("w-px h-4 transition-colors", isBlack ? "bg-black/20" : "bg-white/20")} />
             <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>
           </div>
@@ -255,8 +255,8 @@ export const OrbitalPossessionProfile = ({
             className={cn(
               "text-xs font-bold uppercase tracking-wider transition-all duration-500",
               isBlack 
-                ? (isBossActive ? "text-black " : "text-black/60")
-                : (isBossActive ? "text-white" : "text-white/60")
+                ? (isBossActive ? "text-black " : "text-black")
+                : (isBossActive ? "text-white" : "text-white")
             )}
           >
             {activeProfile.name}
@@ -268,8 +268,8 @@ export const OrbitalPossessionProfile = ({
             className={cn(
               "text-[9px] font-mono tracking-widest transition-all duration-500",
               isBlack
-                ? (isBossActive ? "text-black  font-bold" : "text-black/40")
-                : (isBossActive ? "text-white/60" : "text-white/30")
+                ? (isBossActive ? "text-black  font-bold" : "text-black")
+                : (isBossActive ? "text-white" : "text-white")
             )}
           >
             {activeProfile.id}
@@ -281,7 +281,7 @@ export const OrbitalPossessionProfile = ({
       {shopName && (
         <div className={cn(
           "flex items-center gap-2 mt-1 ml-6 text-[10px] font-mono transition-colors",
-          isBlack ? "text-black/60 font-bold" : "text-white/40"
+          isBlack ? "text-black font-bold" : "text-white"
         )}>
           <div className={cn("w-px h-4", isBlack ? "bg-black/20" : "bg-white/20")} />
           <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>

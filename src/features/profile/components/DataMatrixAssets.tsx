@@ -72,7 +72,7 @@ export const DataMatrixAssets = () => {
             transition={{ duration: 0.8, ease: "easeInOut" }}
             className="flex items-center justify-center px-4 w-full"
           >
-            <span className={cn("text-[11px] tracking-wider font-light line-clamp-1 max-w-[80%]", isLight ? "text-black/70" : "text-white/70")}>
+            <span className={cn("text-[11px] tracking-wider font-light line-clamp-1 max-w-[80%]", isLight ? "text-black" : "text-white")}>
               {echoes[currentIndex].content}
             </span>
           </motion.div>
@@ -111,10 +111,10 @@ export const DataMatrixAssets = () => {
             >
               {/* 标题头 */}
               <div className="flex flex-col items-center justify-center pb-12 shrink-0">
-                <h2 className={cn("text-xl font-bold tracking-[0.2em] uppercase", isLight ? "text-black/90" : "text-white/90")}>
+                <h2 className={cn("text-xl font-bold tracking-[0.2em] uppercase", isLight ? "text-black" : "text-white")}>
                   ECHOES
                 </h2>
-                <p className={cn("text-[10px] font-mono tracking-[0.3em] mt-2 uppercase", isLight ? "text-black/50" : "text-white/50")}>
+                <p className={cn("text-[10px] font-mono tracking-[0.3em] mt-2 uppercase", isLight ? "text-black" : "text-white")}>
                   {echoes.length} Records Synchronized
                 </p>
               </div>
@@ -134,13 +134,13 @@ export const DataMatrixAssets = () => {
                     >
                       {/* 影响值 (移除多余英文时间，只保留 IMP 属性) */}
                       <div className="flex items-center gap-3 md:w-24 shrink-0">
-                        <span className={cn("text-[9px] font-mono tracking-widest uppercase", isLight ? "text-black/40" : "text-white/30")}>
+                        <span className={cn("text-[9px] font-mono tracking-widest uppercase", isLight ? "text-black" : "text-white")}>
                           IMP:{echo.impact}
                         </span>
                       </div>
                       
                       {/* 内容 */}
-                      <p className={cn("text-sm font-light tracking-wide flex-1", isLight ? "text-black/80" : "text-white/80")}>
+                      <p className={cn("text-sm font-light tracking-wide flex-1", isLight ? "text-black" : "text-white")}>
                         {echo.content}
                       </p>
                       
@@ -149,7 +149,7 @@ export const DataMatrixAssets = () => {
                         onClick={() => handleDelete(echo.id)}
                         className={cn(
                           "absolute right-0 top-1/2 -translate-y-1/2 hover:text-red-500 transition-colors md:opacity-0 md:group-hover:opacity-100",
-                          isLight ? "text-black/20 hover:text-red-500" : "text-white/10 hover:text-red-500"
+                          isLight ? "text-black hover:text-red-500" : "text-white hover:text-red-500"
                         )}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -161,7 +161,7 @@ export const DataMatrixAssets = () => {
                 {echoes.length === 0 && (
                   <motion.div 
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className={cn("text-center text-sm font-mono tracking-widest uppercase pt-10", isLight ? "text-black/30" : "text-white/20")}
+                    className={cn("text-center text-sm font-mono tracking-widest uppercase pt-10", isLight ? "text-black" : "text-white")}
                   >
                     No Records Found
                   </motion.div>
@@ -174,7 +174,7 @@ export const DataMatrixAssets = () => {
                   onClick={() => setIsModalOpen(false)}
                   className={cn(
                     "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300",
-                    isLight ? "text-black/40 hover:text-black hover:bg-black/5" : "text-white/30 hover:text-white hover:bg-white/5"
+                    isLight ? "text-black hover:text-black hover:bg-black/5" : "text-white hover:text-white hover:bg-white/5"
                   )}
                 >
                   <X className="w-5 h-5" />

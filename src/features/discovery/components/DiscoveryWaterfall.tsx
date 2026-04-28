@@ -21,15 +21,36 @@ const VirtualCardWrapper = ({ item, children }: { item: DiscoveryItem, children:
 
   useEffect(() => {
     if (!ref.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // 扩大缓冲区域，提前加载，防止滑动过快出现白块
-        setIsVisible(entry.isIntersecting);
-      },
-      { rootMargin: "600px" } 
-    );
-    observer.observe(ref.current);
-    return () => observer.disconnect();
+    
+    // 强制先显示，防止首次进入时由于 display: none 到 block 的切换导致 Observer 失效
+    // 使用 requestAnimationFrame 确保 DOM 已经完全挂载并渲染
+    const rAF = requestAnimationFrame(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          // 扩大缓冲区域，提前加载，防止滑动过快出现白块
+          // 只有在明确离开视口很远时才卸载，进入视口或靠近视口时都保持渲染
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+          }
+        },
+        { rootMargin: "600px" } 
+      );
+      
+      if (ref.current) {
+        observer.observe(ref.current);
+      }
+      
+      // 保存 observer 以便清理
+      ref.current.dataset.observerAttached = 'true';
+      ref.current._observer = observer;
+    });
+
+    return () => {
+      cancelAnimationFrame(rAF);
+      if (ref.current && ref.current._observer) {
+        ref.current._observer.disconnect();
+      }
+    };
   }, []);
 
   return (
@@ -136,11 +157,11 @@ const DiscoveryCard = ({ item, onClick }: { item: DiscoveryItem; onClick?: () =>
 
       {/* 基础信息 */}
       <div className="p-3 space-y-2">
-        <h4 className={cn("text-xs font-bold leading-snug line-clamp-2 transition-colors", isLight ? "text-black/90 group-hover:text-black" : "text-white/90 group-hover:text-white")}>
+        <h4 className={cn("text-xs font-bold leading-snug line-clamp-2 transition-colors", isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white")}>
           {item.title}
         </h4>
         
-        <div className={cn("flex items-center justify-between text-[10px] font-mono", isLight ? "text-black/40" : "text-white/30")}>
+        <div className={cn("flex items-center justify-between text-[10px] font-mono", isLight ? "text-black" : "text-white")}>
           <div className="flex items-center gap-3">
             <div className={cn("flex items-center gap-1 transition-colors", isLight ? "hover:text-black" : "hover:text-white")}>
               <Heart className="w-3 h-3" />

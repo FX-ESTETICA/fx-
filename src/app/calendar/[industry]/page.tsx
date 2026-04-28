@@ -48,13 +48,13 @@ export default function ImmersiveCalendarPage({
       <div className="w-full h-[100dvh] flex flex-col relative z-10">
         {/* 核心日历组件 (Immersive / Admin Mode 动态判定) */}
         <div className="flex-1 overflow-hidden">
-          <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white/50">Loading Calendar...</div>}>
+          <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white">Loading Calendar...</div>}>
             <IndustryCalendar initialIndustry={currentIndustry} mode={mode} />
           </Suspense>
         </div>
 
         {/* 极简底部 - 仅管理员可见的返回入口(Mock) */}
-        <footer className="absolute bottom-4 left-6 flex items-center text-[8px] font-mono text-white/5 uppercase tracking-[0.4em] hover:text-white/20 transition-all cursor-default">
+        <footer className="absolute bottom-4 left-6 flex items-center text-[8px] font-mono text-white uppercase tracking-[0.4em] hover:text-white transition-all cursor-default">
           <div className="flex gap-4">
             <span>SECURE_SESSION: {industry.toUpperCase()}_LOCK</span>
             <span>GX_SYNC_ENGINE // 2026</span>

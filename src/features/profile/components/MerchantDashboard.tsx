@@ -49,7 +49,7 @@ const normalizeStatus = (value?: string): BookingDetails["status"] => {
 const StatsCard = ({ label, value, isLight }: { label: string; value: number | string; isLight?: boolean }) => {
   return (
     <div className="flex flex-col items-center justify-center p-4 md:p-6 transition-colors hover:bg-white/[0.02] text-center">
-      <span className={`text-[10px] font-mono ${isLight ? "text-black/40" : "text-white/40"} uppercase tracking-widest mb-1`}>{label}</span>
+      <span className={`text-[10px] font-mono ${isLight ? "text-black" : "text-white"} uppercase tracking-widest mb-1`}>{label}</span>
       <span className={cn("text-2xl md:text-3xl font-black font-mono tracking-tight", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>{value}</span>
     </div>
   );
@@ -232,7 +232,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 animate-in fade-in duration-700">
         <div className={`w-10 h-10 border-2 ${isLight ? "border-black" : "border-white"} border-t-transparent rounded-full animate-spin`}></div>
-        <p className={`text-sm ${isLight ? "text-black/40" : "text-white/40"} tracking-widest uppercase font-mono`}>RECALIBRATING MATRIX...</p>
+        <p className={`text-sm ${isLight ? "text-black" : "text-white"} tracking-widest uppercase font-mono`}>RECALIBRATING MATRIX...</p>
       </div>
     );
   }
@@ -286,7 +286,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
               {/* 门店统御区 */}
             <div className="flex flex-col relative items-center w-full">
               <h3 
-                className={`text-sm md:text-lg font-bold tracking-tight ${isLight ? "text-black/80" : "text-white/80"} ${isLight ? "hover:text-black" : "hover:text-white"} transition-colors flex items-center justify-center gap-2 cursor-pointer w-full`}
+                className={`text-sm md:text-lg font-bold tracking-tight ${isLight ? "text-black" : "text-white"} ${isLight ? "hover:text-black" : "hover:text-white"} transition-colors flex items-center justify-center gap-2 cursor-pointer w-full`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -295,11 +295,11 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
               >
                 <div className="truncate max-w-[100px] md:max-w-[150px] text-center">{activeShopName}</div>
                 <div className={cn(
-                  "text-[8px] md:text-[10px] flex items-center justify-center w-4 h-4 rounded-full transition-all shrink-0", isLight ? "text-black/30 hover:bg-black/10 hover:text-black" : isLight ? "text-black/30" : "text-white/30", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "hover:text-black" : "hover:text-white",
+                  "text-[8px] md:text-[10px] flex items-center justify-center w-4 h-4 rounded-full transition-all shrink-0", isLight ? "text-black hover:bg-black/10 hover:text-black" : isLight ? "text-black" : "text-white", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "hover:text-black" : "hover:text-white",
                   isDropdownOpen && "rotate-180", isLight ? "bg-black/10 text-black" : isLight ? "bg-black/10" : "bg-white/10", isLight ? "text-black" : "text-white"
                 )}>▼</div>
               </h3>
-              <div className={`${isLight ? "text-black/40" : "text-white/40"} text-[8px] md:text-[10px] uppercase tracking-widest font-mono ${isLight ? "group-hover:text-black/60" : "group-hover:text-white/60"} transition-colors mt-0.5 text-center w-full truncate`}>
+              <div className={`${isLight ? "text-black" : "text-white"} text-[8px] md:text-[10px] uppercase tracking-widest font-mono ${isLight ? "group-hover:text-black" : "group-hover:text-white"} transition-colors mt-0.5 text-center w-full truncate`}>
                 <div>多门店切换</div>
               </div>
 
@@ -312,13 +312,13 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                   {/* 模糊搜索框 (门店大于3家时自动浮现) */}
                   {availableShops.length > 3 && (
                     <div className={`p-3 border-b ${isLight ? "border-black/5" : "border-white/5"} relative`}>
-                      <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? "text-black/30" : "text-white/30"}`} />
+                      <Search className={`absolute left-5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? "text-black" : "text-white"}`} />
                       <input 
                         type="text" 
                         placeholder={t('txt_096cda')} 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/5" : "border-white/5"} rounded-lg py-1.5 pl-8 pr-3 text-xs ${isLight ? "text-black" : "text-white"} placeholder:text-white/30 focus:outline-none ${isLight ? "focus:border-black/50" : "focus:border-white/50"} transition-colors`}
+                        className={`w-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/5" : "border-white/5"} rounded-lg py-1.5 pl-8 pr-3 text-xs ${isLight ? "text-black" : "text-white"} placeholder:text-white focus:outline-none ${isLight ? "focus:border-black/50" : "focus:border-white/50"} transition-colors`}
                       />
                     </div>
                   )}
@@ -338,7 +338,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                             "px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between",
                             shop.shopId === activeShopId 
                               ? (isLight ? "bg-black/10 text-black font-bold" : "font-bold", isLight ? "bg-black/10" : "bg-white/10", isLight ? "text-black" : "text-white")
-                              : (isLight ? "text-black/60 hover:bg-black/5 hover:text-black" : "text-white/60 hover:bg-white/5 hover:text-white")
+                              : (isLight ? "text-black hover:bg-black/5 hover:text-black" : "text-white hover:bg-white/5 hover:text-white")
                           )}
                         >
                           <span className="truncate">{shop.shopName || "未知门店"}</span>
@@ -348,7 +348,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                         </div>
                       ))
                     ) : (
-                      <div className={`px-4 py-3 text-xs ${isLight ? "text-black/30" : "text-white/30"} text-center`}>
+                      <div className={`px-4 py-3 text-xs ${isLight ? "text-black" : "text-white"} text-center`}>
                         {t('txt_386390')}
                       </div>
                     )}
@@ -363,7 +363,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
             <div className="flex justify-center w-full mt-4">
               <button 
                 onClick={handleNavigateToStudio}
-                className={`flex items-center justify-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} ${isLight ? "hover:bg-black/10 hover:border-black/30 hover:text-black" : "hover:bg-white/10 hover:border-white/30 hover:text-white"} transition-all text-[9px] md:text-[11px] font-mono tracking-widest ${isLight ? "text-black/60" : "text-white/60"} w-full max-w-[120px]`}
+                className={`flex items-center justify-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} ${isLight ? "hover:bg-black/10 hover:border-black/30 hover:text-black" : "hover:bg-white/10 hover:border-white/30 hover:text-white"} transition-all text-[9px] md:text-[11px] font-mono tracking-widest ${isLight ? "text-black" : "text-white"} w-full max-w-[120px]`}
               >
                 <MonitorSmartphone className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
                 <span className="truncate">装修门店</span>
@@ -395,18 +395,18 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div className="text-center">
-                  <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black/90" : "text-white/90"} group-hover:text-white transition-colors`}>{t('txt_b170b6')}</h3>
-                  <p className={`${isLight ? "text-black/40" : "text-white/40"} text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block`}>{t('txt_a75625')}</p>
+                  <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black" : "text-white"} group-hover:text-white transition-colors`}>{t('txt_b170b6')}</h3>
+                  <p className={`${isLight ? "text-black" : "text-white"} text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block`}>{t('txt_a75625')}</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="py-2 flex flex-col items-center justify-center gap-3 opacity-50 cursor-not-allowed">
-              <div className={`w-10 h-10 rounded-xl ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} flex items-center justify-center ${isLight ? "text-black/40" : "text-white/40"}`}>
+            <div className="py-2 flex flex-col items-center justify-center gap-3  cursor-not-allowed">
+              <div className={`w-10 h-10 rounded-xl ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} flex items-center justify-center ${isLight ? "text-black" : "text-white"}`}>
                 <Calendar className="w-5 h-5" />
               </div>
               <div className="text-center">
-                <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black/50" : "text-white/50"}`}>{t('txt_b170b6')}</h3>
+                <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black" : "text-white"}`}>{t('txt_b170b6')}</h3>
               </div>
             </div>
           )}
@@ -418,8 +418,8 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                 <Sparkles className="w-5 h-5" />
               </div>
               <div className="text-center">
-                <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black/90" : "text-white/90"} group-hover:text-white transition-colors`}>{t('txt_9f7256')}</h3>
-                <p className={`${isLight ? "text-black/40" : "text-white/40"} text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block`}>{t('txt_66cf43')}</p>
+                <h3 className={`text-sm font-bold tracking-tight ${isLight ? "text-black" : "text-white"} group-hover:text-white transition-colors`}>{t('txt_9f7256')}</h3>
+                <p className={`${isLight ? "text-black" : "text-white"} text-[9px] uppercase tracking-widest font-mono mt-1 hidden sm:block`}>{t('txt_66cf43')}</p>
               </div>
             </div>
           </div>
@@ -429,11 +429,11 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
       {/* 数字印记 (Digital Footprints) - 0成本动态横滑列表 */}
       <div className="w-full space-y-3">
         <div className="flex items-center justify-between px-2">
-          <div className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest ${isLight ? "text-black/50" : "text-white/50"}`}>
+          <div className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest ${isLight ? "text-black" : "text-white"}`}>
             <div className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-black/20" : "bg-white/20"}`} />
             <span>{t('txt_999d5c')}</span>
           </div>
-          <button className={`text-[9px] font-mono uppercase tracking-widest ${isLight ? "text-black/70 hover:text-black" : "text-white/70 hover:text-white"} transition-colors`}>
+          <button className={`text-[9px] font-mono uppercase tracking-widest ${isLight ? "text-black hover:text-black" : "text-white hover:text-white"} transition-colors`}>
             {t('txt_0467cc')}</button>
         </div>
 
@@ -449,28 +449,28 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                 <img 
                   src={video.cover} 
                   alt={video.title}
-                  className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                  className="absolute inset-0 w-full h-full object-cover  group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                 />
                 
                 {/* 底部信息遮罩层 */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
 
                 {/* 中央播放诱导元件 */}
-                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40  flex items-center justify-center border ${isLight ? "border-black/20" : "border-white/20"} group-hover:scale-110 ${isLight ? "group-hover:bg-black/20 group-hover:border-black/50" : "group-hover:bg-white/20 group-hover:border-white/50"} transition-all duration-300`}>
-                  <Play className={`w-3.5 h-3.5 ${isLight ? "text-black" : "text-white"} ml-0.5`} fill="currentColor" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center border border-white/20 group-hover:scale-110 group-hover:bg-white/20 group-hover:border-white/50 transition-all duration-300">
+                  <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" />
                 </div>
 
                 {/* 数据锚点挂载区 */}
                 <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1.5 pointer-events-none">
-                  <span className={`text-[10px] font-bold ${isLight ? "text-black" : "text-white"} leading-tight line-clamp-1`}>
+                  <span className="text-[10px] font-bold text-white leading-tight line-clamp-1">
                     {video.title}
                   </span>
-                  <div className={`flex items-center justify-between text-[9px] font-mono ${isLight ? "text-black/70" : "text-white/70"}`}>
+                  <div className="flex items-center justify-between text-[9px] font-mono text-white">
                     <div className="flex items-center gap-1">
                       <Eye className="w-2.5 h-2.5" />
                       <span>{video.views}</span>
                     </div>
-                    <span className={`bg-black/50 px-1 rounded  border ${isLight ? "border-black/10" : "border-white/10"}`}>
+                    <span className="bg-black/50 px-1 rounded border border-white/20">
                       {video.duration}
                     </span>
                   </div>

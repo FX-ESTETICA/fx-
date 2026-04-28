@@ -198,7 +198,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
       <div className="fixed inset-0 z-[99999] bg-black flex overflow-hidden font-sans">
         {/* 左轨：愿景丰碑 (大屏展示) */}
         <div className={`hidden lg:flex w-2/5 relative p-12 xl:p-20 flex-col justify-between border-r ${isLight ? "border-black/10" : "border-white/10"} bg-gradient-to-b ${isLight ? "from-black/10" : "from-white/10"} to-black`}>
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-luminosity" />
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center  mix-blend-luminosity" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
           
           <div className="relative z-10 space-y-6">
@@ -206,7 +206,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
             <h2 className={`text-4xl xl:text-5xl font-black tracking-tighter leading-tight ${isLight ? "text-black" : "text-white"}`}>
               {t('txt_d3a60f')}<br />{t('txt_697bfe')}
             </h2>
-            <p className={`${isLight ? "text-black/40" : "text-white/40"} text-sm xl:text-base leading-relaxed max-w-sm`}>
+            <p className={`${isLight ? "text-black" : "text-white"} text-sm xl:text-base leading-relaxed max-w-sm`}>
               {t('txt_d946ba')}
             </p>
           </div>
@@ -222,7 +222,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
           </div>
           <button 
             onClick={() => setShowMerchantPortal(false)} 
-            className={`w-10 h-10 rounded-full ${isLight ? "bg-black/10 text-black/60 hover:text-black hover:bg-black/20" : "bg-white/10 text-white/60 hover:text-white hover:bg-white/20"} flex items-center justify-center transition-all pointer-events-auto `}
+            className={`w-10 h-10 rounded-full ${isLight ? "bg-black/10 text-black hover:text-black hover:bg-black/20" : "bg-white/10 text-white hover:text-white hover:bg-white/20"} flex items-center justify-center transition-all pointer-events-auto `}
           >
             <X className="w-5 h-5" />
           </button>
@@ -231,7 +231,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         {/* 大屏关闭按钮 */}
         <button 
           onClick={() => setShowMerchantPortal(false)} 
-          className={`hidden lg:flex absolute top-12 right-12 w-12 h-12 rounded-full ${isLight ? "bg-black/5 text-black/40 hover:text-black hover:bg-black/10" : "bg-white/5 text-white/40 hover:text-white hover:bg-white/10"} items-center justify-center transition-all z-50 `}
+          className={`hidden lg:flex absolute top-12 right-12 w-12 h-12 rounded-full ${isLight ? "bg-black/5 text-black hover:text-black hover:bg-black/10" : "bg-white/5 text-white hover:text-white hover:bg-white/10"} items-center justify-center transition-all z-50 `}
         >
           <X className="w-6 h-6" />
         </button>
@@ -240,7 +240,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         <div className="flex-1 relative overflow-y-auto custom-scrollbar scroll-smooth bg-black/90 lg:bg-transparent">
           {/* 小屏底层视差背景 */}
           <div className="lg:hidden fixed inset-0 z-0 pointer-events-none">
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-luminosity" />
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center  mix-blend-luminosity" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-black/60" />
           </div>
 
@@ -273,7 +273,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                         "flex-1 py-3 text-xs font-bold tracking-widest transition-all rounded-lg",
                         ascensionMode === "indie"
                           ? cn("pointer-events-none", isLight ? "bg-black text-white" : "bg-white text-black")
-                          : cn("transition-all", isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
+                          : cn("transition-all", isLight ? "text-black hover:text-black" : "text-white hover:text-white")
                       )}
                     >
                       {t('txt_1d078b')}</button>
@@ -281,7 +281,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
                   {/* Brand Name */}
                   <div className="space-y-2">
-                    <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>
+                    <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>
                       {t('txt_d4b097')}</label>
                     <Input 
                       placeholder={t('txt_f3ef2d')}
@@ -297,7 +297,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
                   {/* Contact */}
                   <div className="space-y-2">
-                    <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>{t('txt_9e1660')}</label>
+                    <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>{t('txt_9e1660')}</label>
                     <div className="flex gap-2">
                       <div className="relative w-28 shrink-0">
                         <select
@@ -329,7 +329,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
 
                   {/* Industry - 已去除判断条件，因为只有门店一种模式 */}
                   <div className="space-y-2">
-                    <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>{t('txt_09ab42')}</label>
+                    <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>{t('txt_09ab42')}</label>
                     <div className="relative">
                       <select
                         value={formData.industry}
@@ -357,17 +357,17 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                 </div>
                 
                 <div className="space-y-4">
-                  <label className={`text-xs ${isLight ? "text-black/40" : "text-white/40"} tracking-widest`}>{t('txt_40223b')}</label>
+                  <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>{t('txt_40223b')}</label>
                   <Input 
                     placeholder={t('txt_95cd99')} 
                     value={formData.nexusCode}
                     onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
-                    className={`font-mono tracking-widest text-base h-14 text-center focus:outline-none focus:ring-1 transition-all ${isLight ? "bg-black/10 border-black/20 focus:border-black text-black placeholder:text-black/20 focus:ring-black" : "bg-white/10 border-white/20 focus:border-white text-white placeholder:text-white/20 focus:ring-white"}`}
+                    className={`font-mono tracking-widest text-base h-14 text-center focus:outline-none focus:ring-1 transition-all ${isLight ? "bg-black/10 border-black/20 focus:border-black text-black placeholder:text-black focus:ring-black" : "bg-white/10 border-white/20 focus:border-white text-white placeholder:text-white focus:ring-white"}`}
                   />
                   <div className={`mt-6 p-4 rounded-xl border ${isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/5"}`}>
-                    <p className={`text-xs ${isLight ? "text-black/50" : "text-white/50"} leading-relaxed tracking-widest`}>
+                    <p className={`text-xs ${isLight ? "text-black" : "text-white"} leading-relaxed tracking-widest`}>
                       {t('txt_509c2e')}<br/><br/>
-                      <span className={`font-bold ${isLight ? "text-black/80" : "text-white/80"}`}>{t('txt_292fbd')}</span>
+                      <span className={`font-bold ${isLight ? "text-black" : "text-white"}`}>{t('txt_292fbd')}</span>
                     </p>
                   </div>
                 </div>
@@ -385,7 +385,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                 >
                   {applicationStatus === "submitting" ? "解析中..." : "提交申请"}
                 </Button>
-                <p className={`text-center text-[10px] ${isLight ? "text-black/30" : "text-white/30"} mt-6 tracking-widest`}>
+                <p className={`text-center text-[10px] ${isLight ? "text-black" : "text-white"} mt-6 tracking-widest`}>
                   {t('txt_a2e766')}</p>
               </div>
             </div>
@@ -439,7 +439,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
             </div>
             <div>
               <h3 className={`text-xs font-bold tracking-widest ${isLight ? "text-black" : "text-white"}`}>{t('txt_58d6be')}</h3>
-              <p className={`text-[10px] font-mono ${isLight ? "text-black/50" : "text-white/50"} mt-0.5 tracking-widest`}>[{formData.brandName || "未知名称"}]</p>
+              <p className={`text-[10px] font-mono ${isLight ? "text-black" : "text-white"} mt-0.5 tracking-widest`}>[{formData.brandName || "未知名称"}]</p>
             </div>
           </div>
         </div>
@@ -451,7 +451,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
             </div>
             <div>
               <h3 className={`text-xs font-bold tracking-widest ${isLight ? "text-black" : "text-white"}`}>{t('txt_f50e9d')}</h3>
-              <p className={`text-[10px] font-mono mt-1 ${isLight ? "text-black/60" : "text-white/60"}`}>{t('txt_43ea07')}</p>
+              <p className={`text-[10px] font-mono mt-1 ${isLight ? "text-black" : "text-white"}`}>{t('txt_43ea07')}</p>
             </div>
         </div>
       ) : applicationStatus === "approved" ? (
@@ -496,11 +496,11 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
       {/* 数字印记 (Digital Footprints) - 0成本动态横滑列表 */}
       <motion.div layout className="w-full pt-4 space-y-3">
         <div className="flex items-center justify-between px-2">
-          <div className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest ${isLight ? "text-black/50" : "text-white/50"}`}>
+          <div className={`flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest ${isLight ? "text-black" : "text-white"}`}>
             <div className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-black/20" : "bg-white/20"}`} />
             <span>{t('txt_999d5c')}</span>
           </div>
-          <button className={`text-[9px] font-mono uppercase tracking-widest transition-colors ${isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white"}`}>
+          <button className={`text-[9px] font-mono uppercase tracking-widest transition-colors ${isLight ? "text-black hover:text-black" : "text-white hover:text-white"}`}>
             {t('txt_0467cc')}</button>
         </div>
 
@@ -516,7 +516,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                 <img 
                   src={video.cover} 
                   alt={video.title}
-                  className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                  className="absolute inset-0 w-full h-full object-cover  group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                 />
                 
                 {/* 底部信息遮罩层 */}
@@ -532,7 +532,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
                   <span className="text-[10px] font-bold text-white leading-tight line-clamp-1">
                     {video.title}
                   </span>
-                  <div className="flex items-center justify-between text-[9px] font-mono text-white/70">
+                  <div className="flex items-center justify-between text-[9px] font-mono text-white">
                     <div className="flex items-center gap-1">
                       <Eye className="w-2.5 h-2.5" />
                       <span>{video.views}</span>
@@ -560,7 +560,7 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         <Button
           variant="ghost"
           size="sm"
-          className={`text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1.5 ${isLight ? "text-black/30 hover:text-black/70" : "text-white/30 hover:text-white/70"}`}
+          className={`text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1.5 ${isLight ? "text-black hover:text-black" : "text-white hover:text-white"}`}
           onClick={async () => {
             await signOut();
             window.location.href = "/login";

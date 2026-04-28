@@ -134,17 +134,17 @@ export const GlobalWormholeCapsule = () => {
                           : "bg-transparent border-white/10 hover:border-white/30 hover:bg-white/5"
                     )}
                   >
-                    <Store className={cn("w-4 h-4 transition-colors", isSelected ? itemTextColor : (isLight ? "text-black/40 group-hover:text-black/70" : "text-white/30 group-hover:text-white/60"))} />
+                    <Store className={cn("w-4 h-4 transition-colors", isSelected ? itemTextColor : (isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white"))} />
                     <div className="flex flex-col items-start text-left">
                       <span className={cn(
                         "text-xs font-bold tracking-wider truncate max-w-[120px]", 
                         isSelected 
                           ? itemTextColor 
-                          : (isLight ? "text-black/60 group-hover:text-black" : "text-white/60 group-hover:text-white")
+                          : (isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white")
                       )}>
                         {shop.shopName || "未知节点"}
                       </span>
-                      <span className={cn("text-[9px] font-mono uppercase mt-0.5", isSelected ? itemTextColor : (isLight ? "text-black/40" : "text-white/30"))}>
+                      <span className={cn("text-[9px] font-mono uppercase mt-0.5", isSelected ? itemTextColor : (isLight ? "text-black" : "text-white"))}>
                         {shop.industry || 'UNKNOWN'}
                       </span>
                     </div>
@@ -183,7 +183,7 @@ export const GlobalWormholeCapsule = () => {
         <div 
           className={cn(
             "absolute inset-0 rounded-full",
-            isLight ? "opacity-20" : "opacity-40",
+            isLight ? "" : "",
             isEmergency ? "animate-ping" : (isLight ? "animate-none" : "animate-pulse")
           )}
           style={isLight && !isEmergency ? undefined : { boxShadow: `0 0 20px ${glowColorHex}` }}

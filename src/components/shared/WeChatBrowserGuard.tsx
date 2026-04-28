@@ -55,18 +55,18 @@ export function WeChatBrowserGuard() {
           
           <div className="space-y-2">
             <h2 className="text-xl font-mono tracking-widest font-bold ">{t('txt_8b2cab')}</h2>
-            <p className="text-xs text-white/60 uppercase tracking-[0.2em]">{t('txt_285d0c')}</p>
+            <p className="text-xs text-white uppercase tracking-[0.2em]">{t('txt_285d0c')}</p>
           </div>
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-          <p className="text-sm text-white/80 leading-relaxed font-light">
+          <p className="text-sm text-white leading-relaxed font-light">
             {t('txt_1bc292')}<br />
             {t('txt_a6fbe5')}<strong className="text-white">···</strong> {t('txt_bd26e0')}<br />
             {t('txt_153fa6')}<span className=" font-bold tracking-widest px-1">{t('txt_475860')}</span>
           </p>
           
-          <div className="flex items-center gap-2 text-xs text-white/40 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+          <div className="flex items-center gap-2 text-xs text-white bg-white/5 px-4 py-2 rounded-full border border-white/10">
             <ExternalLink className="w-3 h-3" />
             <span>SAFARI / CHROME REQUIRED</span>
           </div>

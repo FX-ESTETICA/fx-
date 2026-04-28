@@ -147,12 +147,12 @@ export default function DashboardClient() {
                  <Link href="/spatial" prefetch={false} className="md:col-span-2 lg:col-span-3">
                   <GlassCard className="p-8 group cursor-pointer relative overflow-hidden transition-all duration-500 hover:scale-[1.01] h-full">
                     <div className="flex items-center gap-6">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isLight ? "bg-black/5 border border-black/10 text-black/60 group-hover:text-black" : "bg-white/5 border border-white/10 text-white/60 group-hover:text-white"} transition-colors`}>
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isLight ? "bg-black/5 border border-black/10 text-black group-hover:text-black" : "bg-white/5 border border-white/10 text-white group-hover:text-white"} transition-colors`}>
                         <LayoutDashboard className="w-8 h-8" />
                       </div>
                       <div>
                         <h3 className="text-2xl font-bold tracking-tighter">{t('txt_cbfd59')}</h3>
-                        <p className="text-white/40 text-sm mt-2">{t('txt_ec7573')}</p>
+                        <p className="text-white text-sm mt-2">{t('txt_ec7573')}</p>
                       </div>
                     </div>
                   </GlassCard>
@@ -165,11 +165,11 @@ export default function DashboardClient() {
                 <GlassCard className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-white/50" />
+                      <Mail className="w-5 h-5 text-white" />
                     </div>
                     <div>
                       <div className="text-sm font-bold">{t('txt_8f0aa2')}</div>
-                      <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{currentProfile.email}</div>
+                      <div className="text-[10px] font-mono text-white uppercase tracking-widest">{currentProfile.email}</div>
                     </div>
                   </div>
                   <Button
@@ -184,11 +184,11 @@ export default function DashboardClient() {
                 <GlassCard className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                      <Key className="w-5 h-5 text-white/50" />
+                      <Key className="w-5 h-5 text-white" />
                     </div>
                     <div>
                       <div className="text-sm font-bold">{t('txt_913aff')}</div>
-                      <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                      <div className="text-[10px] font-mono text-white uppercase tracking-widest">
                         {showAdminPwd ? adminPassword : "•".repeat(Math.max(8, adminPassword.length || 8))}
                       </div>
                     </div>

@@ -45,7 +45,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
           <h3 className="text-xl font-bold tracking-tighter flex items-center gap-2">
             <Sparkles className="w-5 h-5 " />
             {t('txt_414a0a')}</h3>
-          <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+          <span className="text-[10px] font-mono text-white uppercase tracking-widest">
             Live Sync: 200ms
           </span>
         </div>
@@ -63,7 +63,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
                   <div className="flex items-center gap-3">
                     <PlatformIcon platform={metric.platform} />
                     <div className="space-y-0.5">
-                      <p className="text-[10px] text-white/40 uppercase font-mono">{metric.metricName}</p>
+                      <p className="text-[10px] text-white uppercase font-mono">{metric.metricName}</p>
                       <p className="text-xl font-bold tracking-tight">{metric.value}</p>
                     </div>
                   </div>
@@ -71,7 +71,7 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
                     "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border",
                     metric.status === "growing" ? "  " :
                     metric.status === "declining" ? "text-gx-red border-gx-red/20 bg-gx-red/5" :
-                    "text-white/40 border-white/10 bg-white/5"
+                    "text-white border-white/10 bg-white/5"
                   )}>
                     {metric.status === "growing" ? <TrendingUp className="w-3 h-3" /> :
                      metric.status === "declining" ? <TrendingDown className="w-3 h-3" /> :
@@ -111,9 +111,9 @@ export const AnalyticsDashboard = ({ metrics, insights }: AnalyticsDashboardProp
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     {insight.source.map(s => <PlatformIcon key={s} platform={s} />)}
-                    <span className="text-[10px] font-mono text-white/40">Confidence: {insight.confidence}%</span>
+                    <span className="text-[10px] font-mono text-white">Confidence: {insight.confidence}%</span>
                   </div>
-                  <p className="text-sm leading-relaxed text-white/80">
+                  <p className="text-sm leading-relaxed text-white">
                     {insight.content}
                   </p>
                 </div>

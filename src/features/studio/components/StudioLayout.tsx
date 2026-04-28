@@ -340,7 +340,7 @@ export function StudioLayout() {
         onClick={() => {
           if (typeof window !== 'undefined') window.history.back();
         }}
-        className="absolute top-6 left-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
+        className="absolute top-6 left-6 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
@@ -361,12 +361,12 @@ export function StudioLayout() {
             <section>
               <div className="mb-4">
                 <h2 className="text-sm font-bold tracking-wide text-white">{t('txt_ae4cab')}</h2>
-                <p className="text-[10px] text-white/40 font-mono mt-0.5">{t('txt_de150e')}</p>
+                <p className="text-[10px] text-white font-mono mt-0.5">{t('txt_de150e')}</p>
               </div>
               <div className="space-y-5 bg-white/5 border border-white/10 p-6 rounded-2xl">
                 {/* Store Name */}
                 <div className="space-y-2">
-                  <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_d4b097')}</label>
+                  <label className="text-[10px] text-white font-mono tracking-widest">{t('txt_d4b097')}</label>
                   <input 
                     type="text" 
                     placeholder={t('txt_5d7e2c')}
@@ -378,9 +378,9 @@ export function StudioLayout() {
 
                 {/* Search Location */}
                 <div className="space-y-2 relative">
-                  <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_e06494')}</label>
+                  <label className="text-[10px] text-white font-mono tracking-widest">{t('txt_e06494')}</label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white" />
                     <input 
                       type="text" 
                       placeholder={t('txt_430141')}
@@ -399,7 +399,7 @@ export function StudioLayout() {
                   {!selectedLocation && searchQuery.length > 2 && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-[#111] border border-white/10 rounded-lg overflow-hidden z-50 ">
                       {isSearching ? (
-                        <div className="p-4 text-center text-xs text-white/40 font-mono flex items-center justify-center gap-2">
+                        <div className="p-4 text-center text-xs text-white font-mono flex items-center justify-center gap-2">
                           <div className="w-3 h-3 border-2  border-t-transparent rounded-full animate-spin" />
                           {t('txt_a63e13')}</div>
                       ) : autocompleteResults.length > 0 ? (
@@ -409,15 +409,15 @@ export function StudioLayout() {
                             onClick={() => handleSelectLocation(res.place_id, res.description)}
                             className="p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 flex items-start gap-3 transition-colors"
                           >
-                            <MapPin className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
+                            <MapPin className="w-4 h-4 text-white mt-0.5 shrink-0" />
                             <div>
                               <div className="text-sm text-white font-medium">{res.structured_formatting?.main_text || res.description.split(',')[0]}</div>
-                              <div className="text-xs text-white/40 mt-0.5">{res.structured_formatting?.secondary_text || res.description}</div>
+                              <div className="text-xs text-white mt-0.5">{res.structured_formatting?.secondary_text || res.description}</div>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="p-4 text-center text-xs text-white/40 font-mono">
+                        <div className="p-4 text-center text-xs text-white font-mono">
                           {t('txt_092e00')}</div>
                       )}
                     </div>
@@ -432,14 +432,14 @@ export function StudioLayout() {
             <section>
               <div className="mb-4">
                 <h2 className="text-sm font-bold tracking-wide text-white">{t('txt_13d73f')}</h2>
-                <p className="text-[10px] text-white/40 font-mono mt-0.5">{t('txt_3dfdf1')}</p>
+                <p className="text-[10px] text-white font-mono mt-0.5">{t('txt_3dfdf1')}</p>
               </div>
               <div className="space-y-6 bg-white/5 border border-white/10 p-6 rounded-2xl">
                 {/* Slogan */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_041052')}</label>
-                    <span className="text-[10px] font-mono text-white/30">{slogan.length}/20</span>
+                    <label className="text-[10px] text-white font-mono tracking-widest">{t('txt_041052')}</label>
+                    <span className="text-[10px] font-mono text-white">{slogan.length}/20</span>
                   </div>
                   <input 
                     type="text" 
@@ -454,8 +454,8 @@ export function StudioLayout() {
                 {/* Cover Images */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_c32326')}</label>
-                    <span className="text-[10px] font-mono text-white/30">{coverImages.length}/3</span>
+                    <label className="text-[10px] text-white font-mono tracking-widest">{t('txt_c32326')}</label>
+                    <span className="text-[10px] font-mono text-white">{coverImages.length}/3</span>
                   </div>
                   
                   <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2 w-full">
@@ -493,14 +493,14 @@ export function StudioLayout() {
                           <div className="w-5 h-5 border-2   rounded-full animate-spin" />
                         ) : (
                           <>
-                            <ImagePlus className="w-5 h-5 text-white/40" />
-                            <span className="text-[10px] font-mono text-white/40">{t('txt_ce6855')}</span>
+                            <ImagePlus className="w-5 h-5 text-white" />
+                            <span className="text-[10px] font-mono text-white">{t('txt_ce6855')}</span>
                           </>
                         )}
                       </button>
                     )}
                   </div>
-                  <p className="text-[10px] text-white/30 leading-relaxed">
+                  <p className="text-[10px] text-white leading-relaxed">
                     {t('txt_3f3a6c')}</p>
                 </div>
               </div>
@@ -512,13 +512,13 @@ export function StudioLayout() {
             <section>
               <div className="mb-4">
                 <h2 className="text-sm font-bold tracking-wide text-white">{t('txt_574c4b')}</h2>
-                <p className="text-[10px] text-white/40 font-mono mt-0.5">{t('txt_4bde96')}</p>
+                <p className="text-[10px] text-white font-mono mt-0.5">{t('txt_4bde96')}</p>
               </div>
               <div className="space-y-6 bg-white/5 border border-white/10 p-6 rounded-2xl">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-white/40 font-mono tracking-widest">{t('txt_0a55cf')}</label>
-                    <span className="text-[10px] font-mono text-white/30">{capsules.length}/3</span>
+                    <label className="text-[10px] text-white font-mono tracking-widest">{t('txt_0a55cf')}</label>
+                    <span className="text-[10px] font-mono text-white">{capsules.length}/3</span>
                   </div>
                   
                   {/* 已添加的胶囊 */}
@@ -528,12 +528,12 @@ export function StudioLayout() {
                         <div key={cap.id} className="flex items-center justify-between p-3 rounded-lg border   group">
                           <div>
                             <div className="text-sm font-bold text-white">{cap.name} <span className=" ml-2 font-mono">{cap.price}</span></div>
-                            <div className="text-[10px] text-white/40 font-mono mt-0.5 flex items-center gap-1">
+                            <div className="text-[10px] text-white font-mono mt-0.5 flex items-center gap-1">
                               <Clock className="w-3 h-3" /> {cap.duration} {t('txt_399619')}</div>
                           </div>
                           <button 
                             onClick={(e) => { e.stopPropagation(); removeCapsule(cap.id); }}
-                            className="text-white/20 hover:text-red-400 transition-colors"
+                            className="text-white hover:text-red-400 transition-colors"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -563,7 +563,7 @@ export function StudioLayout() {
                           />
                         </div>
                         <div className="relative flex-1">
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 font-mono text-[10px]">{t('txt_3a17b7')}</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white font-mono text-[10px]">{t('txt_3a17b7')}</span>
                           <input 
                             type="number" 
                             placeholder={t('txt_39f137')}
@@ -591,7 +591,7 @@ export function StudioLayout() {
             <button 
               disabled={!storeName || !selectedLocation || !slogan || coverImages.length === 0 || isDeploying}
               onClick={handleDeploy}
-              className="w-full py-5 rounded-2xl  text-black font-bold tracking-widest  transition-all disabled:bg-white/5 disabled:text-white/20  disabled:cursor-not-allowed border border-white/5 flex items-center justify-center gap-2"
+              className="w-full py-5 rounded-2xl  text-black font-bold tracking-widest  transition-all disabled:bg-white/5 disabled:text-white  disabled:cursor-not-allowed border border-white/5 flex items-center justify-center gap-2"
             >
               {isDeploying ? (
                 <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> {t('txt_ce59cd')}</>

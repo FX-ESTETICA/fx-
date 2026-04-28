@@ -477,7 +477,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
       <main className={cn(
         "min-h-[100dvh] bg-transparent relative overflow-x-hidden pb-6 transition-all duration-500",
         isLight ? "text-black" : "text-white",
-        selectedShop && "scale-95  opacity-50 pointer-events-none"
+        selectedShop && "scale-95   pointer-events-none"
       )}>
         
         <div className="w-full px-[clamp(16px,4vw,64px)] pt-[var(--sat)] relative z-10 space-y-[clamp(24px,4vw,40px)]">
@@ -518,13 +518,13 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
             )} />
             <span className={cn(
               "text-[clamp(12px,2.5vw,16px)] whitespace-nowrap truncate font-bold transition-colors",
-              isLocationDenied ? "text-red-500/80 group-hover:text-red-400" : (isLight ? "text-black/60 group-hover:text-black" : "text-white/60 group-hover:text-white")
+              isLocationDenied ? "text-red-500 group-hover:text-red-400" : (isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white")
             )}>
               {locationName}
             </span>
             <ChevronRight className={cn(
               "w-[clamp(12px,2vw,16px)] h-[clamp(12px,2vw,16px)] shrink-0 transition-colors",
-              isLight ? "text-black/40 group-hover:text-black" : "text-white/40 group-hover:text-white"
+              isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white"
             )} />
           </motion.div>
         </div>
@@ -539,13 +539,13 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
           >
             {/* 极简边框层 */}
             <div 
-              className={cn("absolute inset-0 rounded-full opacity-60 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none border", isLight ? "border-black/30" : "border-white/30")}
+              className={cn("absolute inset-0 rounded-full  group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none border", isLight ? "border-black/30" : "border-white/30")}
             />
 
             {/* 物理内容层 - 彻底没有任何 bg 色，纯通透 */}
             <div className="relative flex items-center h-[44px] px-2 z-10 bg-transparent">
               <div className="flex items-center flex-1 h-full pl-4">
-                <Search className={cn("w-4 h-4 transition-colors", isLight ? "text-black/30 group-focus-within:text-black" : "text-white/30 group-focus-within:text-white")} />
+                <Search className={cn("w-4 h-4 transition-colors", isLight ? "text-black group-focus-within:text-black" : "text-white group-focus-within:text-white")} />
                 <input 
                   type="text" 
                   value={inputValue}
@@ -556,7 +556,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                     }
                   }}
                   placeholder={t("searchPlaceholder")} 
-                  className={cn("flex-1 bg-transparent h-full pl-3 pr-4 text-sm font-light focus:outline-none", isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/30")}
+                  className={cn("flex-1 bg-transparent h-full pl-3 pr-4 text-sm font-light focus:outline-none", isLight ? "text-black placeholder:text-black" : "text-white placeholder:text-white")}
                 />
               </div>
               
@@ -611,14 +611,14 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               }}
               className={cn(
                 "relative flex flex-col items-center gap-1 group transition-all duration-500 shrink-0",
-                activeTab === "merchant" ? "scale-105" : "opacity-50 hover:opacity-100"
+                activeTab === "merchant" ? "scale-105" : "scale-100 hover:scale-105"
               )}
             >
               <span className={cn(
-                "text-[clamp(14px,3.5vw,18px)] font-black tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
+                "text-[clamp(14px,3.5vw,18px)] tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
                 activeTab === "merchant" 
-                  ? (isLight ? "text-black" : "text-white")
-                  : (isLight ? "text-black/60" : "text-white/80")
+                  ? (isLight ? "text-black font-black" : "text-white font-black")
+                  : (isLight ? "text-black font-normal" : "text-white font-normal")
               )}>
                 {t("tabs.merchant")}
               </span>
@@ -637,15 +637,15 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               onClick={() => setActiveTab('gx_pro')}
               className={cn(
                 "relative flex flex-col items-center gap-1 group transition-all duration-500 shrink-0",
-                activeTab === "gx_pro" ? "scale-105" : "opacity-60 hover:opacity-100"
+                activeTab === "gx_pro" ? "scale-105" : "scale-100 hover:scale-105"
               )}
             >
               <div className="flex items-center gap-1.5">
                 <span className={cn(
-                  "text-[clamp(14px,3.5vw,18px)] font-black tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
+                  "text-[clamp(14px,3.5vw,18px)] tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
                   activeTab === "gx_pro"
-                    ? (isLight ? "text-black" : "text-white")
-                    : (isLight ? "text-black/60" : "text-white/80")
+                    ? (isLight ? "text-black font-black" : "text-white font-black")
+                    : (isLight ? "text-black font-normal" : "text-white font-normal")
                 )}>
                   {t("tabs.service")}
                 </span>
@@ -653,7 +653,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                   "w-[clamp(12px,3vw,14px)] h-[clamp(12px,3vw,14px)] shrink-0 transition-all duration-500",
                   activeTab === "gx_pro"
                     ? (isLight ? "text-black" : "text-white")
-                    : (isLight ? "text-black/40" : "text-white/50")
+                    : (isLight ? "text-black" : "text-white")
                 )} />
               </div>
               {isActive && activeTab === "gx_pro" && (
@@ -671,14 +671,14 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               onClick={() => setActiveTab("service")}
               className={cn(
                 "relative flex flex-col items-center gap-1 group transition-all duration-500 shrink-0",
-                activeTab === "service" ? "scale-105" : "opacity-50 hover:opacity-100"
+                activeTab === "service" ? "scale-105" : "scale-100 hover:scale-105"
               )}
             >
               <span className={cn(
-                "text-[clamp(14px,3.5vw,18px)] font-black tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
+                "text-[clamp(14px,3.5vw,18px)] tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap transition-all duration-500",
                 activeTab === "service" 
-                  ? (isLight ? "text-black" : "text-white")
-                  : (isLight ? "text-black/60" : "text-white/80")
+                  ? (isLight ? "text-black font-black" : "text-white font-black")
+                  : (isLight ? "text-black font-normal" : "text-white font-normal")
               )}>
                 {t("tabs.third")}
               </span>
@@ -733,7 +733,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                     "flex-shrink-0 flex flex-col items-center justify-center gap-2 min-w-[56px] h-[46px] rounded-xl transition-all duration-500 relative group/btn",
                     activeCategory === cat.id 
                       ? (isLight ? "text-black" : "text-white")
-                      : (isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")
+                      : (isLight ? "text-black hover:scale-105" : "text-white hover:scale-105")
                   )}
                   style={{ transformStyle: "preserve-3d" }}
                 >
@@ -747,14 +747,14 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                       "w-6 h-6 transition-all duration-500 relative z-10",
                       activeCategory === cat.id 
                         ? (isLight ? "text-black scale-110" : "text-white scale-110")
-                        : (isLight ? "text-black/60 group-hover/btn:text-black" : "text-white/60 group-hover/btn:text-white")
+                        : (isLight ? "text-black scale-100 group-hover/btn:scale-110" : "text-white scale-100 group-hover/btn:scale-110")
                     )} />
                   </div>
                   <span className={cn(
-                    "text-[10px] font-bold tracking-widest whitespace-nowrap transition-all duration-500 relative z-10",
+                    "text-[10px] tracking-widest whitespace-nowrap transition-all duration-500 relative z-10",
                     activeCategory === cat.id 
-                      ? (isLight ? "text-black" : "text-white")
-                      : (isLight ? "text-black/60 group-hover/btn:text-black" : "text-white/60 group-hover/btn:text-white")
+                      ? (isLight ? "text-black font-bold" : "text-white font-bold")
+                      : (isLight ? "text-black font-normal" : "text-white font-normal")
                   )}>
                     {cat.id === "all" && activeTab === "gx_pro" ? "全部" : t(`categories.${cat.id}`)}
                   </span>
@@ -802,7 +802,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               </div>
               
               {listRealShops.length === 0 && (
-                <div className={cn("p-12 flex items-center justify-center font-mono text-sm tracking-widest mt-10", isLight ? "text-black/30" : "text-white/30")}>
+                <div className={cn("p-12 flex items-center justify-center font-mono text-sm tracking-widest mt-10", isLight ? "text-black" : "text-white")}>
                   NO GX PRO NODES FOUND
                 </div>
               )}
@@ -874,12 +874,12 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                           <div className="relative w-full h-full shrink-0 snap-start bg-transparent">
                             {place.image === "HOLOGRAPHIC_PLACEHOLDER" ? (
                               <div className="absolute inset-0 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-all duration-700 bg-white/5">
-                                <div className="flex flex-col items-center gap-2 z-10 opacity-60 group-hover:opacity-100 transition-opacity">
+                                <div className="flex flex-col items-center gap-2 z-10  group-hover:opacity-100 transition-opacity">
                                   <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-black/40 border-white/30">
                                     <Sparkles className="w-5 h-5 animate-pulse text-white" />
                                   </div>
                                   <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-white">{t('txt_fc724a')}</span>
-                                  <span className="text-[8px] font-mono tracking-widest text-white/40">{t('txt_2fa2bd')}</span>
+                                  <span className="text-[8px] font-mono tracking-widest text-white">{t('txt_2fa2bd')}</span>
                                 </div>
                               </div>
                             ) : (
@@ -893,7 +893,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                                   unoptimized={place.isRealGooglePhoto} // 针对动态 query 参数图片关闭内置优化以避免报错
                                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                   className={cn(
-                                    "object-cover transition-all duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100", // 恢复高不透明度，追求全彩高清的电影感
+                                    "object-cover transition-all duration-700 group-hover:scale-105  group-hover:opacity-100", // 恢复高不透明度，追求全彩高清的电影感
                                     place.isRealGooglePhoto && "saturate-[0.95]" // 极轻微的降饱和，保持真实感
                                   )}
                                   priority={idx < 4} // 前几个卡片优先加载
@@ -917,7 +917,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                                 alt={`${place.name} UGC`}
                                 fill
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                className="object-cover opacity-50 group-hover:opacity-80 transition-opacity duration-700"
+                                className="object-cover  group-hover:opacity-80 transition-opacity duration-700"
                               />
                               <div className="absolute top-4 left-4 px-2 py-1 rounded border flex items-center gap-1.5 z-10 pointer-events-none bg-black/20 border-white/10">
                                 <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-white" />
@@ -935,23 +935,23 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                             }}
                           >
                              <div className="w-12 h-12 rounded-full border flex items-center justify-center mb-3 transition-all duration-500 bg-white/5 border-white/10 group-hover/upload:bg-white/10 group-hover/upload:border-white/30">
-                                <Camera className="w-5 h-5 transition-colors text-white/50 group-hover/upload:text-white" />
+                                <Camera className="w-5 h-5 transition-colors text-white group-hover/upload:text-white" />
                              </div>
-                             <span className="text-[10px] font-bold tracking-widest transition-colors uppercase text-white/50 group-hover/upload:text-white">{t("uploadRealPhoto")}</span>
-                             <span className="text-[8px] font-mono mt-1 text-white/30">{t('txt_de7277')}</span>
+                             <span className="text-[10px] font-bold tracking-widest transition-colors uppercase text-white group-hover/upload:text-white">{t("uploadRealPhoto")}</span>
+                             <span className="text-[8px] font-mono mt-1 text-white">{t('txt_de7277')}</span>
                           </div>
                         </div>
 
                         {/* Swipe Hint */}
                         <div className="absolute top-4 left-4 flex items-center gap-1.5 px-2 py-1 rounded border pointer-events-none bg-black/40 border-white/10">
-                          <span className="text-[8px] font-mono tracking-widest text-white/80">◂ SWIPE</span>
+                          <span className="text-[8px] font-mono tracking-widest text-white">◂ SWIPE</span>
                         </div>
                         
                         {/* 顶部标签 */}
                         <div className="absolute top-4 right-4 flex gap-2 pointer-events-none">
                           <div className={cn(
                             "px-3 py-1 rounded-full text-[9px] font-bold tracking-widest border",
-                            place.status === "OPEN" ? "bg-white/10 border-white/20 text-white" : "bg-black/40 border-white/20 text-white/60"
+                            place.status === "OPEN" ? "bg-white/10 border-white/20 text-white" : "bg-black/40 border-white/20 text-white"
                           )}>
                             {place.status === "OPEN" ? "🟢 OPEN" : "CLOSED"}
                           </div>
@@ -968,7 +968,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                                 <div className="flex items-center gap-1 text-sm font-bold text-white">
                                   <span>★</span>
                                   <span>{place.rating}</span>
-                                  <span className="text-[10px] font-normal text-white/70">({place.user_ratings_total})</span>
+                                  <span className="text-[10px] font-normal text-white">({place.user_ratings_total})</span>
                                 </div>
                                 <div className="w-1 h-1 rounded-full bg-white/40" />
                                 <div className="flex items-center gap-1 text-[10px] font-mono text-white">
@@ -981,10 +981,10 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                           
                           {/* 行动栏 - 完美融入 */}
                           <div className="flex items-center justify-between mt-1 pt-3 border-t relative z-10 pointer-events-auto border-white/10">
-                            <span className="text-[9px] font-mono uppercase tracking-widest text-white/50">
+                            <span className="text-[9px] font-mono uppercase tracking-widest text-white">
                               {place.category} / GOOGLE MAPS
                             </span>
-                            <div className="flex items-center gap-2 text-[10px] font-mono opacity-60 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 text-white">
+                            <div className="flex items-center gap-2 text-[10px] font-mono  group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 text-white">
                               <span>{t('txt_306058')}</span>
                               <ArrowUpRight className="w-4 h-4" />
                             </div>
@@ -998,12 +998,12 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
               {/* 极致降噪版无限加载底座：嵌入卡片与横幅缝隙的隐形文字 */}
               <div ref={loadMoreRef} className="w-full flex justify-center py-2 relative z-10">
-                <span className={cn("text-[9px] font-mono tracking-[0.3em] uppercase font-bold transition-colors cursor-default", isLight ? "text-black/20" : "text-white/20")}>
+                <span className={cn("text-[9px] font-mono tracking-[0.3em] uppercase font-bold transition-colors cursor-default", isLight ? "text-black" : "text-white")}>
                   {t('txt_d5b619')}<span>{t('txt_afb9fb')}</span>
                 </span>
                 {/* 极简加载状态指示器 (仅在还有数据时显示) */}
                 {displayCount < aggregatedPlaces.length && (
-                  <div className={cn("absolute top-1/2 -translate-y-1/2 right-[calc(50%-110px)] w-3 h-3 border rounded-full animate-spin opacity-50", isLight ? "border-black/10 border-t-black/50" : "border-white/10 border-t-white/50")} />
+                  <div className={cn("absolute top-1/2 -translate-y-1/2 right-[calc(50%-110px)] w-3 h-3 border rounded-full animate-spin ", isLight ? "border-black/10 border-t-black/50" : "border-white/10 border-t-white/50")} />
                 )}
               </div>
               
@@ -1034,8 +1034,8 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
         {/* 原有 Service Tab 内容保留空白或后续开发 */}
         {activeTab === "service" && (
-          <div className={cn("py-20 text-center font-mono text-sm tracking-widest flex flex-col items-center gap-4", isLight ? "text-black/30" : "text-white/30")}>
-            <Zap className={cn("w-12 h-12 mb-4 animate-pulse", isLight ? "text-black/40" : "text-white/40")} />
+          <div className={cn("py-20 text-center font-mono text-sm tracking-widest flex flex-col items-center gap-4", isLight ? "text-black" : "text-white")}>
+            <Zap className={cn("w-12 h-12 mb-4 animate-pulse", isLight ? "text-black" : "text-white")} />
             <p>{t('txt_6821d6')}</p>
             <p className="text-[10px]">{t('txt_c76b02')}</p>
           </div>
@@ -1062,7 +1062,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
               
               <button 
                 onClick={() => setShowRecoveryModal(false)}
-                className={cn("absolute top-4 right-4 transition-colors", isLight ? "text-black/40 hover:text-black" : "text-white/40 hover:text-white")}
+                className={cn("absolute top-4 right-4 transition-colors", isLight ? "text-black hover:text-black" : "text-white hover:text-white")}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1092,7 +1092,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                   </div>
 
                   {/* 绝对居中区：域名文本 */}
-                  <span className={cn("text-xs font-mono tracking-wider", isLight ? "text-black/30" : "text-white/30")}>
+                  <span className={cn("text-xs font-mono tracking-wider", isLight ? "text-black" : "text-white")}>
                     fx-rapallo.vercel.app
                   </span>
                 </div>
@@ -1104,7 +1104,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", times: [0, 0.2, 0.8, 1] }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={cn("text-[11px] flex items-center gap-2", isLight ? "text-black/80" : "text-white/80")}>
+                    <span className={cn("text-[11px] flex items-center gap-2", isLight ? "text-black" : "text-white")}>
                       <MapPin className="w-3 h-3" />
                       {t('txt_6f7f8f')}
                     </span>
@@ -1116,7 +1116,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
                 </motion.div>
               </div>
 
-              <p className={cn("text-xs font-mono tracking-widest mb-6", isLight ? "text-black/60" : "text-white/60")}>
+              <p className={cn("text-xs font-mono tracking-widest mb-6", isLight ? "text-black" : "text-white")}>
                 {t('txt_15c54d')}
               </p>
 

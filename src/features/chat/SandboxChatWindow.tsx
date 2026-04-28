@@ -59,15 +59,15 @@ export default function SandboxChatWindow({ currentUserId, receiverId, roomId }:
                 {msg.image_url && (
                   <div className="mt-2 relative rounded-xl overflow-hidden ">
                     {/* 如果存在 Blurhash，先铺一层极低成本的色彩占位符 */}
-                    {msg.blurhash && (
-                       <Blurhash
-                         hash={msg.blurhash}
+                    {msg.hash && (
+                      <Blurhash
+                        hash={msg.hash}
                          width={200}
                          height={150}
                          resolutionX={32}
                          resolutionY={32}
                          punch={1}
-                         className="absolute inset-0 z-0 opacity-50"
+                         className="absolute inset-0 z-0 "
                        />
                     )}
                     {/* 等真实图片加载完毕后覆盖在上方 (由于被压成了 100KB，加载速度极快) */}
@@ -80,7 +80,7 @@ export default function SandboxChatWindow({ currentUserId, receiverId, roomId }:
                     
                     {/* 降维话术：坦诚 Web 端的缓存易失性 */}
                     <div className="absolute bottom-2 right-2 z-20">
-                       <span className="text-[10px] text-white/50 bg-black/60 px-2 py-1 rounded-full ">
+                       <span className="text-[10px] text-white bg-black/60 px-2 py-1 rounded-full ">
                          {t('txt_b0a14d')}</span>
                     </div>
                   </div>

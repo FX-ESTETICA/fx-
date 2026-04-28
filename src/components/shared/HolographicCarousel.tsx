@@ -85,7 +85,7 @@ const CarouselCard = ({ item, offset, dragX, onClick }: { item: any; offset: num
             <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-white  uppercase tracking-tighter mb-1 line-clamp-1">
               {item.name}
             </h2>
-            <p className="text-[9px] sm:text-[10px] font-mono text-white/70 tracking-widest line-clamp-1 uppercase">
+            <p className="text-[9px] sm:text-[10px] font-mono text-white tracking-widest line-clamp-1 uppercase">
               {slogan}
             </p>
           </div>

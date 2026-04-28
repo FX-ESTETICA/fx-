@@ -8,6 +8,7 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { usePathname } from "next/navigation";
 import { useActiveTab } from "@/hooks/useActiveTab";
 import { cn } from "@/utils/cn";
+import { useAtomicPresence } from '../hooks/useAtomicPresence';
 
 export interface ChatListUIProps {
   currentUserId: string;
@@ -49,6 +50,12 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 本地已读状态记录，用于点击后立刻清除未读提示
+  const [readChatIds, setReadChatIds] = useState<Set<string>>(new Set());
+
+  // 引入终极视口级在线感知系统
+  const { observeNode } = useAtomicPresence(currentUserId);
+
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, targetId: string } | null>(null);
 
@@ -57,12 +64,23 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
     setContextMenu({ x: e.clientX, y: e.clientY, targetId });
   };
 
-  const handleClearHistory = () => {
+  const handleDeleteChat = () => {
     if (!contextMenu?.targetId) return;
     
-    const key = `gx_cleared_${currentUserId}_${contextMenu.targetId}`;
-    localStorage.setItem(key, Date.now().toString());
-    
+    // 写入物理标识，从列表中抹除（仅删除聊天框，不删除历史记录）
+    // 存储当前时间戳，如果后续有新消息(时间戳大于此时间)，则重新显示该聊天框
+    const delChatKey = `gx_deleted_chat_${currentUserId}_${contextMenu.targetId}`;
+    localStorage.setItem(delChatKey, Date.now().toString());
+
+    // 触发更新事件，让列表重新渲染
+    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId } }));
+    setContextMenu(null);
+  };
+
+  const handleClearHistory = () => {
+    if (!contextMenu?.targetId) return;
+    const clearKey = `gx_cleared_${currentUserId}_${contextMenu.targetId}`;
+    localStorage.setItem(clearKey, Date.now().toString());
     window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId } }));
     setContextMenu(null);
   };
@@ -190,7 +208,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           id: chat.id,
           name: chat.name,
           avatar: chat.avatar,
-          isOnline: true, // 假设近期的都活跃
+          isOnline: chat.isOnline === true, // 初始默认离线，交给 useAtomicPresence 原子接管
           isGroup: chat.isGroup,
           isCityChannel: false
         });
@@ -271,6 +289,8 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           {starTrackContacts.map((contact) => (
             <div 
               key={contact.id} 
+              id={`chat-card-radar-${contact.id}`}
+              ref={(contact.isGroup || contact.isCityChannel) ? undefined : observeNode}
               className="flex flex-col items-center space-y-2 cursor-pointer shrink-0"
               onClick={() => onChatSelect({
                 id: contact.id,
@@ -281,22 +301,24 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             >
               <div className="relative w-[52px] h-[52px] rounded-full p-[2px]">
                 {/* 在线流光边框 / 同城频道特殊边框 */}
-                {contact.isOnline && (
-                  <div 
-                    className="absolute inset-0 rounded-full pointer-events-none"
-                    style={{
-                      background: contact.isCityChannel 
-                        ? 'linear-gradient(90deg, #bc13fe, #ff00ea, #bc13fe)' // 同城频道：专属紫粉色爆亮光环
-                        : 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)', // 普通好友七彩光环
-                      backgroundSize: '200% 100%',
-                      animation: 'shimmer 3s linear infinite',
-                      WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                      WebkitMaskComposite: 'xor',
-                      maskComposite: 'exclude',
-                      padding: '2px' // 统一边框粗细，保持秩序感
-                    }}
-                  />
-                )}
+                <div 
+                  id={`radar-presence-${contact.id}`}
+                  className={cn(
+                    "absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300",
+                    (contact.isGroup || contact.isCityChannel || contact.isOnline) ? "opacity-100" : "opacity-0"
+                  )}
+                  style={{
+                    background: contact.isCityChannel 
+                      ? 'linear-gradient(90deg, #bc13fe, #ff00ea, #bc13fe)' // 同城频道：专属紫粉色爆亮光环
+                      : 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)', // 普通好友七彩光环
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 3s linear infinite',
+                    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                    WebkitMaskComposite: 'xor',
+                    maskComposite: 'exclude',
+                    padding: '2px' // 统一边框粗细，保持秩序感
+                  }}
+                />
                 {/* 头像本体 (降级显示首字母) */}
                 {contact.avatar ? (
                   <img 
@@ -304,40 +326,26 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                     alt={contact.name}
                     className={cn(
                       "w-full h-full rounded-full object-cover border-[1.5px]",
-                      isLight ? "border-black" : "border-white",
-                      !contact.isOnline && "grayscale opacity-40",
-                      !contact.isOnline && (isLight ? "border-black/20" : "border-white/20")
+                      isLight ? "border-black" : "border-white"
                     )}
                   />
                 ) : (
                   <div 
                     className={cn(
                       "w-full h-full rounded-full flex items-center justify-center border-[1.5px] bg-gradient-to-br font-bold text-xl",
-                      isLight ? "border-black text-black" : "border-white text-white",
-                      !contact.isOnline && "opacity-40",
-                      !contact.isOnline && (isLight ? "border-black/20" : "border-white/20")
+                      isLight ? "border-black text-black" : "border-white text-white"
                     )}
                   >
                     {contact.name ? contact.name.charAt(0).toUpperCase() : '?'}
                   </div>
                 )}
-                {/* 在线绿点 / 同城雷达点 */}
-                {contact.isCityChannel ? (
-                   <div className={cn("absolute -bottom-1 -right-1 w-4 h-4 border-2 rounded-full flex items-center justify-center animate-pulse", isLight ? "border-white" : "border-black")}>
-                     <div className={cn("w-1.5 h-1.5 rounded-full", isLight ? "bg-black" : "bg-white")} />
-                   </div>
-                ) : contact.isOnline ? (
-                  <div className={cn("absolute bottom-0 right-0 w-3 h-3 border-2 rounded-full", isLight ? "border-white bg-black" : "border-black bg-white")} />
-                ) : null}
               </div>
               {/* 名字 */}
               <span 
                 className={cn(
                   "text-[10px] truncate w-14 text-center tracking-wider uppercase",
                   contact.isCityChannel && "font-bold",
-                  contact.isOnline && !contact.isCityChannel 
-                    ? (isLight ? "text-black" : "text-white") 
-                    : (isLight ? "text-black/60" : "text-white/60")
+                  isLight ? "text-black" : "text-white"
                 )}
               >
                 {contact.name}
@@ -483,61 +491,61 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                 {t('txt_8fc78c')}</div>
             )}
             
-            {recentChats.map((chat) => (
-              <div
-                key={chat.id}
-                onClick={() => onChatSelect({
-                  id: chat.id,
-                  name: chat.name,
-                  isGroup: chat.isGroup,
-                })}
+            {recentChats.map((chat) => {
+              const isUnread = chat.unread && !readChatIds.has(chat.id);
+              // 如果数据中没有明确指定 isOnline，默认值为 false（离线），由底层的 useAtomicPresence 动态接管真实状态
+              const isOnline = chat.isOnline === true; 
+              
+              return (
+               <div
+                 key={chat.id}
+                 id={`chat-card-list-${chat.id}`}
+                 ref={(chat.isGroup || chat.isCityChannel) ? undefined : observeNode}
+                 onClick={() => {
+                  setReadChatIds(prev => new Set(prev).add(chat.id));
+                  onChatSelect({
+                    id: chat.id,
+                    name: chat.name,
+                    isGroup: chat.isGroup,
+                  });
+                }}
                 onContextMenu={(e) => handleContextMenu(e, chat.id)}
                 className={cn(
                   "relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 bg-transparent",
-                  chat.unread 
-                    ? "border border-transparent" // 未读：底部光晕 + 透明占位边框(防止高度塌陷)
-                    : (isLight ? "border border-black/10" : "border border-white/10") // 已读：极度安静的冷线框
+                  isLight ? "border border-black/10" : "border border-white/10"
                 )}
               >
-                {/* 未读状态的七彩流光边框 (绝对定位覆盖) */}
-                {chat.unread && (
-                  <div 
-                    className="absolute inset-0 rounded-3xl pointer-events-none p-[1px] overflow-hidden"
-                    style={{
-                      background: 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)',
-                      backgroundSize: '200% 100%',
-                      animation: 'shimmer 3s linear infinite',
-                      WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                      WebkitMaskComposite: 'xor',
-                      maskComposite: 'exclude',
-                    }}
-                  />
-                )}
-
                 {/* 头像 (左) */}
-                <div className="relative shrink-0 mr-4">
-                  {chat.avatar ? (
+                 <div className="relative shrink-0 mr-4 w-[58px] h-[58px] rounded-full p-[2px]">
+                   {/* 在线流光边框 (跑马灯) */}
+                   <div 
+                     id={`list-presence-${chat.id}`}
+                     className={cn(
+                       "absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300",
+                       (chat.isGroup || chat.isCityChannel || isOnline) ? "opacity-100" : "opacity-0"
+                     )}
+                     style={{
+                       background: 'linear-gradient(90deg, #00f2ff, #bc13fe, #ff00ea, #00f2ff)',
+                       backgroundSize: '200% 100%',
+                       animation: 'shimmer 3s linear infinite',
+                       WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                       WebkitMaskComposite: 'xor',
+                       maskComposite: 'exclude',
+                       padding: '2px'
+                     }}
+                   />
+                   {chat.avatar ? (
                     <img
                       src={chat.avatar}
                       alt={chat.name}
-                      className={cn("w-14 h-14 rounded-full object-cover border", isLight ? "border-black/20" : "border-white/20")}
+                      className={cn("w-full h-full rounded-full object-cover border-[1.5px]", isLight ? "border-black" : "border-white")}
                     />
                   ) : (
                     <div className={cn(
-                      "w-14 h-14 rounded-full flex items-center justify-center border bg-gradient-to-br font-bold text-xl",
-                      isLight ? "border-black/20 text-black" : "border-white/20 text-white"
+                      "w-full h-full rounded-full flex items-center justify-center border-[1.5px] bg-gradient-to-br font-bold text-xl",
+                      isLight ? "border-black text-black" : "border-white text-white"
                     )}>
                       {chat.name ? chat.name.charAt(0).toUpperCase() : '?'}
-                    </div>
-                  )}
-                  {/* WhatsApp 卫星节点标识 / 或群聊小标签 */}
-                  {chat.id.startsWith('wa_') ? (
-                    <div className="absolute -bottom-1 -right-1 bg-black border  rounded-full p-0.5">
-                      <MessageCircle className="w-3.5 h-3.5 text-[#25D366] " />
-                    </div>
-                  ) : chat.isGroup && (
-                    <div className="absolute -bottom-1 -right-1 bg-black border  rounded-full p-0.5">
-                      <div className="w-2.5 h-2.5  rounded-full animate-pulse " />
                     </div>
                   )}
                 </div>
@@ -545,58 +553,68 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                 {/* 文字信息区 (中) */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
                   <div className="flex items-center justify-between">
-                    <span
-                      className={cn(
-                        "truncate text-lg font-medium tracking-wide flex items-center gap-2",
-                        chat.unread 
-                          ? (isLight ? "text-black" : "text-white") 
-                          : (isLight ? "text-black/60" : "text-white/60")
-                      )}
-                    >
-                      {chat.name}
-                      {chat.isPhantom && (
-                        <span className={cn(
-                          "text-[9px] px-1.5 py-0.5 rounded border font-mono tracking-widest whitespace-nowrap",
-                          isLight ? "border-black/10 text-black/60" : "border-white/10 text-white/60"
+                    <div className="flex flex-col">
+                      <span
+                        className={cn(
+                          "truncate text-lg font-medium tracking-wide flex items-center gap-2",
+                          isLight ? "text-black" : "text-white"
+                        )}
+                      >
+                        {chat.name}
+                        {chat.isPhantom && (
+                          <span className={cn(
+                            "text-[9px] px-1.5 py-0.5 rounded border font-mono tracking-widest whitespace-nowrap",
+                            isLight ? "border-black/10 text-black/60" : "border-white/10 text-white/60"
+                          )}>
+                            CONNECTING
+                          </span>
+                        )}
+                      </span>
+                      
+                      <div className="flex items-center space-x-1.5 mt-1">
+                        {/* 已读状态标记 (双蓝勾/灰勾) */}
+                        {!isUnread && (
+                          <CheckCheck className={cn("w-4 h-4 shrink-0", isLight ? "text-black/40" : "text-white/40")} />
+                        )}
+                        
+                        <p
+                          className={cn(
+                            "truncate text-[14px]",
+                            isUnread 
+                              ? (isLight ? "text-black/90 font-medium" : "text-white/90 font-medium") 
+                              : (isLight ? "text-black/60" : "text-white/60")
+                          )}
+                        >
+                          {chat.lastMessage}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* 时间和未读数 (右) */}
+                    <div className="shrink-0 flex flex-col items-end space-y-1 ml-2">
+                      <span
+                        className={cn(
+                          "text-xs",
+                          isUnread 
+                            ? (isLight ? "text-black" : "text-white") 
+                            : (isLight ? "text-black/40" : "text-white/40")
+                        )}
+                      >
+                        {chat.time}
+                      </span>
+                      {isUnread && (
+                        <div className={cn(
+                          "px-1.5 py-0.5 min-w-[20px] text-center rounded-full text-[10px] font-bold",
+                          isLight ? "bg-black text-white" : "bg-white text-black"
                         )}>
-                          CONNECTING
-                        </span>
+                          {typeof chat.unread === 'number' ? chat.unread : 1}
+                        </div>
                       )}
-                    </span>
-                    
-                    {/* 时间 (右) */}
-                    <span
-                      className={cn(
-                        "shrink-0 text-xs ml-2",
-                        chat.unread 
-                          ? (isLight ? "text-black" : "text-white") 
-                          : (isLight ? "text-black/40" : "text-white/40")
-                      )}
-                    >
-                      {chat.time}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-1.5">
-                    {/* 已读状态标记 (双蓝勾/灰勾) */}
-                    {!chat.unread && (
-                      <CheckCheck className={cn("w-4 h-4 shrink-0", isLight ? "text-black/40" : "text-white/40")} />
-                    )}
-                    
-                    <p
-                      className={cn(
-                        "truncate text-[14px]",
-                        chat.unread 
-                          ? (isLight ? "text-black/90 font-medium" : "text-white/90 font-medium") 
-                          : (isLight ? "text-black/60" : "text-white/60")
-                      )}
-                    >
-                      {chat.lastMessage}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </>
         )}
       </div>
@@ -628,11 +646,24 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
               }}
               className={cn(
                 "w-full px-4 py-3 flex items-center gap-3 transition-colors group",
+                isLight ? "text-black/80 hover:bg-black/5" : "text-white/80 hover:bg-white/5"
+              )}
+            >
+              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-medium tracking-wide">删除聊天记录</span>
+            </button>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteChat();
+              }}
+              className={cn(
+                "w-full px-4 py-3 flex items-center gap-3 transition-colors group",
                 isLight ? "text-red-600 hover:bg-red-500/10" : "text-red-400 hover:bg-red-500/10"
               )}
             >
               <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-medium tracking-wide">清空聊天记录</span>
+              <span className="text-sm font-medium tracking-wide">删除聊天</span>
             </button>
           </div>
         </>

@@ -55,12 +55,12 @@ export default function AnalyticsPage() {
               <span className="text-[10px] font-mono uppercase tracking-[0.4em]">{t('txt_268892')}</span>
             </div>
             <h1 className="text-4xl font-bold tracking-tighter">{t('txt_8b6bfc')}</h1>
-            <p className="text-white/40 text-sm max-w-xl">
+            <p className="text-white text-sm max-w-xl">
               {t('txt_aec6ef')}</p>
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="gap-2 text-white/40">
+            <Button variant="ghost" size="sm" className="gap-2 text-white">
               <RefreshCw className="w-3 h-3" />
               {t('txt_5ad1a2')}</Button>
             <Button variant="cyan" size="sm" className="gap-2">
@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
         <AnalyticsDashboard metrics={mockMetrics} insights={mockInsights} />
 
         {/* 底部导航 */}
-        <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white/10 uppercase tracking-[0.4em]">
+        <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white uppercase tracking-[0.4em]">
           <Link href="/dashboard" className=" transition-colors flex items-center gap-2" prefetch={false}>
             <LayoutGrid className="w-3 h-3" />
             {t('txt_7468bb')}</Link>

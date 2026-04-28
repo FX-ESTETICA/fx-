@@ -161,7 +161,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                 <span className={cn("text-[10px] font-bold uppercase tracking-widest transition-colors", isToday ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : `text-white ${visualSettings.timelineColorTheme === 'blackgold' ? "group-hover:text-[#8B7355]" : "group-hover:text-[#FDF5E6]"}`)}>
                   {DAYS_OF_WEEK[idx]}
                 </span>
-                <span className={cn("text-[20px] font-mono font-bold mt-1 transition-colors", isToday ? "text-white " : "text-white group-hover:text-white/80")}>
+                <span className={cn("text-[20px] font-mono font-bold mt-1 transition-colors", isToday ? "text-white " : "text-white group-hover:text-white")}>
                   {date.getDate().toString().padStart(2, '0')}
                 </span>
               </div>
@@ -188,8 +188,8 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                   <span className={cn(slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                     {slot.hour.toString().padStart(2, '0')}
                   </span>
-                  <span className={cn("text-[11px] mx-[3px] animate-pulse", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"} opacity-40` : visualSettings.timelineColorTheme === 'blackgold' ? "text-black/40" : `opacity-40 ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && visualSettings.timelineColorTheme !== 'blackgold' ? (CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex : undefined }}>:</span>
-                  <span className={cn("opacity-80", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+                  <span className={cn("text-[11px] mx-[3px] animate-pulse", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"} ` : visualSettings.timelineColorTheme === 'blackgold' ? "text-black" : ` ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && visualSettings.timelineColorTheme !== 'blackgold' ? (CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex : undefined }}>:</span>
+                  <span className={cn("", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
                     00
                   </span>
                 </div>
@@ -242,7 +242,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
                           return (
                             <div 
                               key={res.id} 
-                              className="w-full h-[6px] rounded-full opacity-80 hover:opacity-100 transition-opacity"
+                              className="w-full h-[6px] rounded-full  hover:opacity-100 transition-opacity"
                               style={{ 
                                 backgroundColor: res.themeColor || '#fff',
                                 boxShadow: `0 0 10px ${res.themeColor || '#fff'}40`

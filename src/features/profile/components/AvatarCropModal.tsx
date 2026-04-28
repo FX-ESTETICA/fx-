@@ -54,12 +54,12 @@ export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: Avata
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/50 z-10">
-              <span className="text-sm font-bold tracking-widest uppercase text-white/80">
+              <span className="text-sm font-bold tracking-widest uppercase text-white">
                 {t('txt_aeabe1')}</span>
               <button 
                 onClick={onClose}
                 disabled={isProcessing}
-                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -87,7 +87,7 @@ export const AvatarCropModal = ({ isOpen, imageSrc, onClose, onComplete }: Avata
             {/* Controls */}
             <div className="p-6 bg-black/80 border-t border-white/5 z-10 space-y-6">
               <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-white/40">{t('txt_05853d')}</span>
+                <span className="text-xs font-mono text-white">{t('txt_05853d')}</span>
                 <input
                   type="range"
                   value={zoom}

@@ -499,7 +499,7 @@ export default function ScannerSandboxPage() {
 
       {/* Top Bar (Absolute, spans both sides) */}
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-50 pointer-events-none">
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors pointer-events-auto">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white hover:text-white transition-colors pointer-events-auto">
           <X className="w-4 h-4" />
           <span>Exit Scanner</span>
         </button>
@@ -548,7 +548,7 @@ export default function ScannerSandboxPage() {
                 {scanPhase === 'scanning' && (
                   <>
                     {/* AR Silhouette Guide */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                    <div className="absolute inset-0 flex items-center justify-center ">
                       <div className="w-[30%] h-[70%] border-2 border-dashed  rounded-[100px]  animate-pulse" />
                     </div>
                     
@@ -567,7 +567,7 @@ export default function ScannerSandboxPage() {
                       <div className="relative w-32 h-32 rounded-full border-2  flex items-center justify-center bg-black/40 ">
                         {/* Radar Sweep */}
                         <div 
-                          className="absolute inset-0 rounded-full border-t-2  opacity-50 transition-transform duration-100"
+                          className="absolute inset-0 rounded-full border-t-2   transition-transform duration-100"
                           style={{ transform: `rotate(${currentAngle}deg)` }}
                         >
                           <div className="absolute top-0 left-1/2 w-1 h-1/2 bg-gradient-to-b  to-transparent -translate-x-1/2 origin-bottom" />
@@ -619,12 +619,12 @@ export default function ScannerSandboxPage() {
                 {/* Calibration HUD & Input Panel */}
                 <div className="absolute top-24 left-6 right-6 flex justify-between items-start">
                   {/* Left Side: Physical Input Panel */}
-                  <div className={`flex flex-col gap-4 pointer-events-auto bg-black/40  p-4 rounded-xl border  w-48  transition-opacity ${scanPhase !== 'idle' ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                  <div className={`flex flex-col gap-4 pointer-events-auto bg-black/40  p-4 rounded-xl border  w-48  transition-opacity ${scanPhase !== 'idle' ? ' pointer-events-none' : 'opacity-100'}`}>
                     <div className="flex flex-col gap-1 border-b  pb-2 mb-2">
                       <span className="text-xs  tracking-[0.2em] font-bold">
                         HYBRID ENGINE
                       </span>
-                      <span className="text-[9px] text-white/50 uppercase tracking-wider leading-relaxed">
+                      <span className="text-[9px] text-white uppercase tracking-wider leading-relaxed">
                         Abolish physical targets.<br/>Inject absolute data.
                       </span>
                     </div>
@@ -710,8 +710,8 @@ export default function ScannerSandboxPage() {
             </div>
             
             <div className="flex flex-col gap-2">
-              <h2 className="text-xl font-mono text-white/80 tracking-widest uppercase">Waiting for Scan Data</h2>
-              <p className="text-xs text-white/40 leading-relaxed tracking-wider">
+              <h2 className="text-xl font-mono text-white tracking-widest uppercase">Waiting for Scan Data</h2>
+              <p className="text-xs text-white leading-relaxed tracking-wider">
                 The legacy static mesh has been purged. 
                 The engine is now standing by to receive Hybrid BMI parameters and generate a 1:1 parametric SMPL-X body.
               </p>
@@ -762,7 +762,7 @@ export default function ScannerSandboxPage() {
                           <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))]  via-transparent to-transparent animate-pulse" />
                         </div>
                       ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center ">
                           <ScanFace className={`w-6 h-6 ${isCapturing ? ' animate-spin' : ''} mb-2`} />
                           <span className="text-[10px] font-mono ">{isCapturing ? 'MAPPING' : 'PENDING'}</span>
                         </div>
@@ -853,7 +853,7 @@ export default function ScannerSandboxPage() {
         )}
 
         {/* Ambient Grid Background */}
-        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
+        <div className="absolute inset-0 z-0  pointer-events-none" 
              style={{ backgroundImage: 'linear-gradient(#06b6d4 1px, transparent 1px), linear-gradient(90deg, #06b6d4 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
         </div>
       </div>

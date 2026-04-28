@@ -137,17 +137,17 @@ export const AppPlatformGuard = () => {
           className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
         >
           <div className="relative rounded-2xl bg-black/80  border border-white/20 p-5 text-center ">
-            <button onClick={handleDismiss} className="absolute top-3 right-3 text-white/40 hover:text-white transition-colors">
+            <button onClick={handleDismiss} className="absolute top-3 right-3 text-white hover:text-white transition-colors">
               <X className="w-4 h-4" />
             </button>
             
             <div className="space-y-4">
               <div className="mx-auto w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                <Share className="w-5 h-5 text-white/80" />
+                <Share className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white tracking-widest mb-1">{t('txt_b3de79')}</h3>
-                <p className="text-xs text-white/50 leading-relaxed">
+                <p className="text-xs text-white leading-relaxed">
                   {t('txt_391968')}<span className="text-white font-bold mx-1">{t('txt_c31f48')}</span> {t('txt_55165d')}<br/>
                   {t('txt_153fa6')}<span className="text-white font-bold mx-1">{t('txt_2d94a4')}</span> {t('txt_2fbaf0')}</p>
               </div>
@@ -178,7 +178,7 @@ export const AppPlatformGuard = () => {
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-sm font-bold text-white tracking-widest leading-none mb-1">{t('txt_c5d070')}</span>
-                <span className="text-[10px] text-white/60 font-mono leading-none">{t('txt_e66fa2')}</span>
+                <span className="text-[10px] text-white font-mono leading-none">{t('txt_e66fa2')}</span>
               </div>
             </div>
 
@@ -188,7 +188,7 @@ export const AppPlatformGuard = () => {
                 className=" text-black text-xs font-bold px-4 py-2 rounded-full  active:scale-95 transition-transform whitespace-nowrap"
               >
                 {t('txt_f3dda5')}</button>
-              <button onClick={handleDismiss} className="text-white/40 hover:text-white p-2 shrink-0 flex items-center justify-center">
+              <button onClick={handleDismiss} className="text-white hover:text-white p-2 shrink-0 flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>

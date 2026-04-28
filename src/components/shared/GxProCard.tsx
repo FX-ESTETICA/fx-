@@ -32,7 +32,7 @@ export function GxProCard({ shop, onClick, index = 0 }: GxProCardProps) {
         alt={shop.name || "GX PRO 节点"}
         fill
         sizes="(max-width: 768px) 100vw, 800px"
-        className="object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-700 group-hover:scale-105"
+        className="object-cover  group-hover:opacity-100 transition-opacity duration-700 group-hover:scale-105"
         priority={index < 4}
         loading={index < 4 ? "eager" : "lazy"}
       />
@@ -54,7 +54,7 @@ export function GxProCard({ shop, onClick, index = 0 }: GxProCardProps) {
           <h3 className="text-2xl sm:text-3xl font-bold tracking-tighter uppercase  text-white line-clamp-1">
             {shop.name}
           </h3>
-          <p className="text-xs font-mono text-white/70 tracking-widest line-clamp-1 uppercase">
+          <p className="text-xs font-mono text-white tracking-widest line-clamp-1 uppercase">
             {slogan}
           </p>
         </div>

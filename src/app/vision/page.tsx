@@ -156,9 +156,9 @@ export default function VisionPage() {
                   <div className="p-3 rounded-xl bg-black border border-white/10 ">
                     {feat.icon}
                   </div>
-                  <h3 className="text-2xl lg:text-3xl font-bold text-white/90">{feat.title}</h3>
+                  <h3 className="text-2xl lg:text-3xl font-bold text-white">{feat.title}</h3>
                 </div>
-                <p className="text-lg lg:text-xl text-white/50 leading-relaxed pl-16">
+                <p className="text-lg lg:text-xl text-white leading-relaxed pl-16">
                   {feat.desc}
                 </p>
               </motion.div>
@@ -197,7 +197,7 @@ export default function VisionPage() {
                  // Tablet 剪影
                  <div className="w-[80%] h-[70%] rounded-xl border border-white/20 bg-black  relative overflow-hidden transform rotate-2">
                    <div className="absolute left-0 top-0 bottom-0 w-2 bg-white/10 border-r border-white/10" />
-                   <img src="https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=1969&auto=format&fit=crop" alt="Tablet Mockup" className="absolute inset-0 w-full h-full object-cover opacity-60 ml-2" />
+                   <img src="https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=1969&auto=format&fit=crop" alt="Tablet Mockup" className="absolute inset-0 w-full h-full object-cover  ml-2" />
                  </div>
                )}
                {feat.id === 1 && (
@@ -206,14 +206,14 @@ export default function VisionPage() {
                    <div className="h-4 w-full bg-white/10 border-b border-white/10 flex items-center justify-center">
                      <div className="w-1 h-1 rounded-full bg-white/30" />
                    </div>
-                   <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop" alt="PC Mockup" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                   <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop" alt="PC Mockup" className="absolute inset-0 w-full h-full object-cover " />
                  </div>
                )}
                {feat.id === 2 && (
                  // Mobile 剪影
                  <div className="w-[50%] h-[90%] rounded-[2rem] border-2 border-white/20 bg-black  relative overflow-hidden transform -rotate-2">
                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-black rounded-full z-10 border border-white/10" />
-                   <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop" alt="Mobile Mockup" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                   <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop" alt="Mobile Mockup" className="absolute inset-0 w-full h-full object-cover " />
                  </div>
                )}
             </div>
@@ -224,9 +224,9 @@ export default function VisionPage() {
                 <div className="p-2 rounded-lg bg-black border border-white/10 ">
                   {feat.icon}
                 </div>
-                <h3 className="text-lg font-bold text-white/90">{feat.title}</h3>
+                <h3 className="text-lg font-bold text-white">{feat.title}</h3>
               </div>
-              <p className="text-sm text-white/50 leading-relaxed">
+              <p className="text-sm text-white leading-relaxed">
                 {feat.desc}
               </p>
             </div>

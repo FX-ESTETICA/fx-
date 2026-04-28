@@ -53,7 +53,7 @@ export const MapRouterModal = ({ isOpen, onChoice }: MapRouterModalProps) => {
             
             <button
               onClick={() => onChoice('cancel', false)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-white hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -64,7 +64,7 @@ export const MapRouterModal = ({ isOpen, onChoice }: MapRouterModalProps) => {
               </div>
               
               <h2 className="text-xl font-bold text-white mb-2">{t('txt_4dffc7')}</h2>
-              <p className="text-sm text-white/50 mb-6">
+              <p className="text-sm text-white mb-6">
                 {t('txt_979a49')}
               </p>
 
@@ -86,14 +86,14 @@ export const MapRouterModal = ({ isOpen, onChoice }: MapRouterModalProps) => {
                   onClick={() => onChoice('web', remember)}
                   className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
                 >
-                  <div className="flex items-center gap-3 text-white/70">
+                  <div className="flex items-center gap-3 text-white">
                     <Globe className="w-5 h-5" />
                     <span className="font-medium">{t('txt_d484e5')}</span>
                   </div>
                 </button>
               </div>
 
-              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-white/40 cursor-pointer" onClick={() => setRemember(!remember)}>
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-white cursor-pointer" onClick={() => setRemember(!remember)}>
                 <div className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-colors ${remember ? ' ' : 'border-white/20'}`}>
                   {remember && <ShieldCheck className="w-3 h-3 " />}
                 </div>

@@ -180,7 +180,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
           <div className="flex flex-col items-center justify-center pt-8 md:pt-12 pb-6 md:pb-8 px-4 md:px-6 relative shrink-0">
             <button 
               onClick={onClose}
-              className="absolute top-4 right-4 md:top-6 md:right-6 text-white/40 hover:text-white transition-colors z-10"
+              className="absolute top-4 right-4 md:top-6 md:right-6 text-white hover:text-white transition-colors z-10"
             >
               <X className="w-5 h-5 md:w-6 md:h-6" />
             </button>
@@ -193,7 +193,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               {isExpiredWarning ? '您的订阅已到期' : isUpgradeIntent ? '星际算力网络' : '公司数量上限'}
             </h2>
             
-            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3 text-xs md:text-sm text-white/60 tracking-widest font-mono text-center">
+            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3 text-xs md:text-sm text-white tracking-widest font-mono text-center">
               <div className="flex items-center gap-2">
                 <span>您当前的订阅为</span>
                 <span className="px-2 py-0.5 rounded bg-gx-gold/20 text-gx-gold border border-gx-gold/30 font-bold">
@@ -205,7 +205,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               )}
             </div>
             
-            <p className="mt-2 md:mt-4 text-xs md:text-sm text-white/40 tracking-wider text-center">
+            <p className="mt-2 md:mt-4 text-xs md:text-sm text-white tracking-wider text-center">
               {isExpiredWarning ? '您的全功能体验时间已耗尽，日历已进入只读模式。' : '如需扩张新的公司，请升级订阅。'}
             </p>
 
@@ -221,7 +221,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
           {/* Pricing Matrix 算力矩阵 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 md:p-8 bg-white/[0.02] border-t border-white/5 relative flex-1 overflow-y-auto scrollbar-hide">
             {/* Background Grid Pattern */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none" 
+            <div className="absolute inset-0  pointer-events-none" 
                  style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '30px 30px' }} 
             />
 
@@ -242,7 +242,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
                         onStartGracePeriod();
                         onClose();
                       }}
-                      className="text-[10px] text-white/30  transition-colors font-mono tracking-widest uppercase whitespace-nowrap"
+                      className="text-[10px] text-white  transition-colors font-mono tracking-widest uppercase whitespace-nowrap"
                     >
                       或开启最后 15 次紧急额度
                     </button>
@@ -254,7 +254,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
                     "w-full py-2.5 md:py-3 rounded-xl font-bold tracking-widest uppercase border transition-all text-xs md:text-sm",
                     currentTier === 'FREE'
                       ? "   hover:text-black "
-                      : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10 hover:text-white"
+                      : "bg-white/5 text-white border-white/10 hover:bg-white/10 hover:text-white"
                   )}
                 >
                   {currentTier === 'FREE' ? '续费' : '升级订阅'}
@@ -322,7 +322,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
               currentTier === 'ENTERPRISE' ? "border-[#FFD700] bg-[#FFD700]/5 " : "border-white/10 hover:border-[#FFD700]/50"
             )}>
               <h3 className="text-xl font-bold tracking-widest text-[#FFD700] mb-1 md:mb-2 ">集团</h3>
-              <p className="text-xs text-[#FFD700]/60 tracking-wider mb-6 md:mb-8">无上限</p>
+              <p className="text-xs text-[#FFD700] tracking-wider mb-6 md:mb-8">无上限</p>
               
               <div className="mt-auto pt-4 md:pt-6 border-t border-white/5">
                 <button 
@@ -331,7 +331,7 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
                     "w-full py-2.5 md:py-3 rounded-xl font-bold tracking-widest uppercase border transition-all text-xs md:text-sm",
                     currentTier === 'ENTERPRISE'
                       ? "bg-[#FFD700]/10 text-[#FFD700] border-[#FFD700]/30 hover:bg-[#FFD700] hover:text-black "
-                      : "bg-[#FFD700]/5 text-[#FFD700]/60 border-[#FFD700]/20 hover:bg-[#FFD700]/20 hover:text-[#FFD700]"
+                      : "bg-[#FFD700]/5 text-[#FFD700] border-[#FFD700]/20 hover:bg-[#FFD700]/20 hover:text-[#FFD700]"
                   )}
                 >
                   {currentTier === 'ENTERPRISE' ? '续费' : '升级订阅'}

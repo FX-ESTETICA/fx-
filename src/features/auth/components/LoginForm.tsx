@@ -208,7 +208,7 @@ export const LoginForm = () => {
             <button
               type="button"
               onClick={() => setMode(mode === "otp" ? "password" : "otp")}
-              className="text-[10px] font-mono uppercase tracking-widest text-white/30  transition-colors"
+              className="text-[10px] font-mono uppercase tracking-widest text-white  transition-colors"
             >
               {mode === "otp" ? t("switchToPassword") : t("switchToOtp")}
             </button>
@@ -243,7 +243,7 @@ export const LoginForm = () => {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-white/10"></div>
           </div>
-          <span className="relative px-4 text-[10px] text-white/40 font-mono uppercase tracking-widest  rounded-full">
+          <span className="relative px-4 text-[10px] text-white font-mono uppercase tracking-widest  rounded-full">
             {t("or")}
           </span>
         </div>
