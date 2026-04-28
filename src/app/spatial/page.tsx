@@ -15,7 +15,6 @@ const NAVIGATION_LINKS = [
   { id: "05", label: "物理节点", icon: <Box className="w-5 h-5" />, href: "/discovery", glow: "text-white", status: "待机" },
   { id: "06", label: "深渊协议", icon: <Terminal className="w-5 h-5" />, href: "/analytics", glow: "text-white", status: "机密" },
   { id: "07", label: "日历设计舱", icon: <PenTool className="w-5 h-5" />, href: "/spatial/blueprint", glow: "", status: "设计模式" },
-  { id: "08", label: "沙盒实验区", icon: <FlaskConical className="w-5 h-5" />, href: "/sandbox/booking", glow: "", status: "测试中" },
 ];
 
 type NavigationLink = typeof NAVIGATION_LINKS[number];
