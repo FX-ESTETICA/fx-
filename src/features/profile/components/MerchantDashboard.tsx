@@ -25,6 +25,7 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 // import { useRouter } from "next/navigation";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 import { FrontendThemeSwitcher } from "./FrontendThemeSwitcher";
+import { PrivacySettings } from "./PrivacySettings";
 
 interface MerchantDashboardProps {
   merchantId: string;
@@ -337,7 +338,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
                           className={cn(
                             "px-4 py-2.5 text-sm cursor-pointer transition-all flex items-center justify-between",
                             shop.shopId === activeShopId 
-                              ? (isLight ? "bg-black/10 text-black font-bold" : "font-bold", isLight ? "bg-black/10" : "bg-white/10", isLight ? "text-black" : "text-white")
+                              ? (isLight ? "bg-black/10 text-black font-bold" : "bg-white/10 text-white font-bold")
                               : (isLight ? "text-black hover:bg-black/5 hover:text-black" : "text-white hover:bg-white/5 hover:text-white")
                           )}
                         >
@@ -486,9 +487,16 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
         {/* 前端专属壁纸切换器 */}
         <FrontendThemeSwitcher />
 
-        <div className="flex flex-row items-center gap-4 w-full justify-center max-w-sm whitespace-nowrap">
-          <PhoneAuthBar initialPhone={profile?.phone || ""} className="max-w-none mx-0 w-auto" />
+        <div className="flex flex-row items-center gap-4 w-full justify-center max-w-sm whitespace-nowrap">{/* 融合胶囊组件 */}
+         <PhoneAuthBar 
+           initialPhone={(profile as any)?.merchant_phone || ""} 
+           className="max-w-none mx-0 w-auto" 
+           mode="merchant"
+         />
         </div>
+
+        {/* 隐私防御网关 */}
+        <PrivacySettings />
       </div>
     </div>
   );

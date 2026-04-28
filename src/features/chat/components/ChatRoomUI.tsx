@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Blurhash } from 'react-blurhash';
-import { ArrowLeft, X, MoreHorizontal, Camera, SendHorizontal, Loader2, Sparkles, Mic, Keyboard, CornerUpLeft, Languages, ArrowRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, X, MoreHorizontal, Camera, SendHorizontal, Loader2, Sparkles, Mic, Keyboard, CornerUpLeft, Languages, ArrowRight, Trash2, UserPlus } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
@@ -10,18 +10,42 @@ import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { useTranslations } from "next-intl";
 import { supabase } from '@/lib/supabase';
 import { LoginForm } from "@/features/auth/components/LoginForm"; // 复用系统现有的安全体系
+import { useVisualSettings } from '@/hooks/useVisualSettings';
+import { usePathname } from 'next/navigation';
+import { useActiveTab } from '@/hooks/useActiveTab';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface ChatRoomUIProps {
   currentUserId: string;
+  currentRole: string;
   receiverId?: string; // 1v1 私聊
+  receiverRole?: string; // 对方身份
   roomId?: string; // 商家群聊或同城频道
   roomName?: string; // 显示在顶部的名称
   onBack?: () => void; // 退回聊天列表
 }
 
-export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName = '加密频道', onBack }: ChatRoomUIProps) {
+export default function ChatRoomUI({ currentUserId, currentRole, receiverId, receiverRole, roomId, roomName = '加密频道', onBack }: ChatRoomUIProps) {
   const t = useTranslations('ChatRoomUI');
-  const { messages, isSending, sendMessage, deleteMessageForMe, deleteMessageForEveryone } = useChatEngine(currentUserId, roomId, receiverId);
+  const { user } = useAuth();
+  const { settings } = useVisualSettings();
+  const pathname = usePathname();
+  const activeTab = useActiveTab();
+  
+  const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+  const isLight = isCalendar 
+    ? settings.calendarBgIndex !== 0 
+    : settings.frontendBgIndex !== 0;
+
+  const myAvatar = currentRole === 'boss' ? (user as any)?.boss_avatar_url || (user as any)?.avatar : 
+                   currentRole === 'merchant' ? (user as any)?.merchant_avatar_url || (user as any)?.avatar : 
+                   (user as any)?.avatar;
+  const myName = currentRole === 'boss' ? (user as any)?.boss_name || (user as any)?.name || 'BOSS' : 
+                 currentRole === 'merchant' ? (user as any)?.merchant_name || (user as any)?.name || '智控' : 
+                 (user as any)?.name || '生活';
+
+  // 修复：如果是在聊天框中（当前用户与别人私聊），这里传入的 receiver_id 就是别人的 gxId
+  const { messages, isLoading, isSending, sendMessage, deleteMessageForMe, deleteMessageForEveryone } = useChatEngine(currentUserId, currentRole, roomId, receiverId, receiverRole);
   const [inputText, setTextInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +54,76 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
   const isGroupChat = !!roomId;
   
+  // 陌生人防骚扰网关状态 (Anti-Spam Gateway)
+  const [isAntiSpamLocked, setIsAntiSpamLocked] = useState(false);
+  const [isFriend, setIsFriend] = useState(false);
+  const [allowStrangerMsgs, setAllowStrangerMsgs] = useState(false);
+
+  useEffect(() => {
+    if (!roomId && receiverId && currentUserId) {
+      // 拦截非 UUID 的查询，防止报错
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!UUID_REGEX.test(receiverId) || !UUID_REGEX.test(currentUserId)) {
+        setIsFriend(false);
+        setAllowStrangerMsgs(true); // 游客或外部账号直接放行，不锁死
+        return;
+      }
+
+      // 查询是否是好友，以及对方是否允许陌生人随意发消息
+      const checkRelationAndPrivacy = async () => {
+        // 检查好友关系 (由于是双向强制插入，查单向即可，加入身份隔离)
+        const { data: friendData } = await supabase
+          .from('friendships')
+          .select('user_id')
+          .match({ 
+            user_id: currentUserId, 
+            user_role: currentRole,
+            friend_id: receiverId,
+            friend_role: receiverRole || 'user'
+          })
+          .maybeSingle();
+        
+        setIsFriend(!!friendData);
+
+        // 检查对方的隐私设置
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('allow_stranger_messages')
+          .eq('id', receiverId)
+          .maybeSingle();
+          
+        if (profileData) {
+          setAllowStrangerMsgs(!!profileData.allow_stranger_messages);
+        }
+      };
+      checkRelationAndPrivacy();
+    }
+  }, [currentUserId, currentRole, receiverId, receiverRole, roomId]);
+
+  useEffect(() => {
+    // 仅在 1v1 私聊时启用防骚扰网关
+    if (!roomId && receiverId && messages.length > 0) {
+      // 如果是好友，或者对方允许陌生人随意发消息，则永不锁定
+      if (isFriend || allowStrangerMsgs) {
+        setIsAntiSpamLocked(false);
+        return;
+      }
+
+      const myMessagesCount = messages.filter(m => m.sender_id === currentUserId && (m.sender_role || 'user') === currentRole).length;
+      const theirMessagesCount = messages.filter(m => m.sender_id === receiverId && (m.sender_role || 'user') === (receiverRole || 'user')).length;
+
+      // 物理级防骚扰：如果我已发送 >= 1 条消息，且对方 0 回复，强制锁定输入框
+      // 注意：这里需要检查对方是否给我发过消息（如果对方先发，我回复，不应该被锁定）
+      if (myMessagesCount >= 1 && theirMessagesCount === 0) {
+        setIsAntiSpamLocked(true);
+      } else {
+        setIsAntiSpamLocked(false);
+      }
+    } else {
+      setIsAntiSpamLocked(false);
+    }
+  }, [messages, currentUserId, receiverId, roomId, isFriend, allowStrangerMsgs]);
+
   // 内源绑定状态 (游客转正)
   const [showBindModal, setShowBindModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -66,12 +160,20 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         const fetchProfile = async () => {
           const { data } = await supabase
             .from('profiles')
-            .select('name, avatar_url')
+            .select('name, avatar_url, merchant_name, merchant_avatar_url, boss_name, boss_avatar_url, merchant_gx_id, gx_id')
             .eq('id', receiverId)
             .maybeSingle();
           if (data) {
-            if (data.name) setTrueRoomName(data.name);
-            if (data.avatar_url) setTrueAvatar(data.avatar_url);
+            if (receiverRole === 'merchant') {
+              setTrueRoomName(data.merchant_name || `智控 ${data.merchant_gx_id?.substring(data.merchant_gx_id.length - 4) || ''}`);
+              setTrueAvatar(data.merchant_avatar_url || data.avatar_url || null);
+            } else if (receiverRole === 'boss') {
+              setTrueRoomName(data.boss_name || data.name || 'BOSS');
+              setTrueAvatar(data.boss_avatar_url || data.avatar_url || null);
+            } else {
+              setTrueRoomName(data.name || `信号源 ${data.gx_id?.substring(data.gx_id.length - 4) || ''}`);
+              setTrueAvatar(data.avatar_url || null);
+            }
           }
         };
         fetchProfile();
@@ -285,10 +387,10 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
     >
       
       {/* 1. 顶部：导航与雷达仪 */}
-      <div className="px-4 py-3 shrink-0 flex items-center justify-between z-20 border-b border-white/10  bg-black/20">
+      <div className="px-4 py-3 shrink-0 flex items-center justify-between z-20">
         <button 
           onClick={onBack}
-          className="p-2 -ml-2 text-white/70  transition-colors flex items-center gap-1 group"
+          className={`p-2 -ml-2 transition-colors flex items-center gap-1 group ${isLight ? 'text-black/70 hover:text-black' : 'text-white/70 hover:text-white'}`}
         >
           <X className="w-6 h-6  hidden md:block group-hover:rotate-90 transition-transform" />
           <ArrowLeft className="w-6 h-6  md:hidden" />
@@ -297,13 +399,13 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         <div className="flex flex-col items-center flex-1">
           <div className="flex items-center gap-2">
             {trueAvatar ? (
-              <img src={trueAvatar} alt="avatar" className="w-6 h-6 rounded-full border border-white/20 object-cover " />
+              <img src={trueAvatar} alt="avatar" className={`w-6 h-6 rounded-full border object-cover ${isLight ? 'border-black/20' : 'border-white/20'}`} />
             ) : (
-              <div className="w-6 h-6 rounded-full border border-white/20 flex items-center justify-center bg-gradient-to-br   text-[10px] font-bold text-white ">
+              <div className={`w-6 h-6 rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/20 text-black' : 'border-white/20 text-white'}`}>
                 {trueRoomName ? trueRoomName.charAt(0).toUpperCase() : '?'}
               </div>
             )}
-            <span className="text-white font-bold tracking-widest  uppercase flex items-center gap-2">
+            <span className={`font-bold tracking-widest uppercase flex items-center gap-2 ${isLight ? 'text-black' : 'text-white'}`}>
               {trueRoomName}
               {isWhatsApp && <span className="w-2 h-2 rounded-full bg-[#25D366]  animate-pulse" />}
             </span>
@@ -312,7 +414,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
           {(currentUserId.startsWith('phone_') || currentUserId.startsWith('guest_')) && (
             <button 
               onClick={() => setShowBindModal(true)}
-              className="text-[10px] font-mono  mt-1  tracking-widest  px-2 py-0.5 rounded-full border "
+              className={`text-[10px] font-mono mt-1 tracking-widest px-2 py-0.5 rounded-full border ${isLight ? 'border-black/20 text-black/50' : 'border-white/20 text-white/50'}`}
             >
               [ 永久保存档案 ]
             </button>
@@ -322,7 +424,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
         <div className="relative">
           <button 
             onClick={() => setShowMoreMenu(!showMoreMenu)}
-            className="p-2 -mr-2 text-white/50 hover:text-white transition-colors"
+            className={`p-2 -mr-2 transition-colors ${isLight ? 'text-black/50 hover:text-black' : 'text-white/50 hover:text-white'}`}
           >
             <MoreHorizontal className="w-6 h-6" />
           </button>
@@ -334,7 +436,29 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                 className="fixed inset-0 z-[100]" 
                 onClick={() => setShowMoreMenu(false)}
               />
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl   border border-white/10  z-[110] overflow-hidden py-1">
+              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl   border border-white/10  z-[110] overflow-hidden py-1 bg-black/90 backdrop-blur-md">
+                {!isFriend && !roomId && receiverId && (
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await supabase.from('friend_requests').insert({
+                          sender_id: currentUserId,
+                          receiver_id: receiverId,
+                          message: '请求添加你为好友'
+                        });
+                        alert('好友申请已发送');
+                      } catch (e) {
+                        console.error(e);
+                        alert('发送失败');
+                      }
+                      setShowMoreMenu(false);
+                    }}
+                    className={`w-full px-4 py-3 flex items-center gap-3 transition-colors group ${isLight ? 'text-black hover:bg-black/5' : 'text-white hover:bg-white/10'}`}
+                  >
+                    <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm font-medium tracking-wide">添加好友</span>
+                  </button>
+                )}
                 <button 
                   onClick={handleClearHistory}
                   className="w-full px-4 py-3 flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-colors group"
@@ -350,17 +474,17 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
 
       {/* 内源绑定 Modal (借力打力，0 验证码注册) */}
       {showBindModal && (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 ">
-          <div className="relative w-full max-w-sm bg-black border border-white/10 rounded-3xl overflow-hidden  p-6">
+        <div className={`absolute inset-0 z-[200] flex items-center justify-center p-4 ${isLight ? 'bg-white/80' : 'bg-black/80'}`}>
+          <div className={`relative w-full max-w-sm rounded-3xl overflow-hidden p-6 border ${isLight ? 'bg-white border-black/10 shadow-xl' : 'bg-black border-white/10'}`}>
             <button 
               onClick={() => setShowBindModal(false)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              className={`absolute top-4 right-4 transition-colors ${isLight ? 'text-black/40 hover:text-black' : 'text-white/40 hover:text-white'}`}
             >
               <ArrowLeft className="w-5 h-5 rotate-180" />
             </button>
             <div className="text-center mb-6">
-              <h3 className="text-lg font-bold text-white tracking-widest uppercase mb-2">安全授权通道</h3>
-              <p className="text-xs text-white/40 font-mono">
+              <h3 className={`text-lg font-bold tracking-widest uppercase mb-2 ${isLight ? 'text-black' : 'text-white'}`}>安全授权通道</h3>
+              <p className={`text-xs font-mono ${isLight ? 'text-black/40' : 'text-white/40'}`}>
                 绑定您的真实邮箱/Google账号，<br/>永久保存当前所有聊天记录与特权。
               </p>
             </div>
@@ -377,7 +501,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
       {isRecording && (
         <div className="absolute inset-0 z-[100] pointer-events-none flex flex-col justify-end pb-[120px] rounded-r-3xl overflow-hidden">
           {/* 结界背景遮罩 (带微弱渐变) */}
-          <div className="absolute inset-0 bg-black/60  transition-opacity" />
+          <div className={`absolute inset-0 transition-opacity ${isLight ? 'bg-white/80' : 'bg-black/60'}`} />
 
           {/* 雷达指示区 */}
           <div className="relative w-full h-[300px] flex items-end justify-center px-8">
@@ -387,7 +511,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               ${recordStatus === 'canceling' ? 'scale-110' : 'scale-100 opacity-60'}
             `}>
               <div className={`flex flex-col items-center justify-center w-24 h-24 rounded-full transition-all
-                ${recordStatus === 'canceling' ? 'bg-red-500 ' : 'bg-white/10 '}
+                ${recordStatus === 'canceling' ? 'bg-red-500 ' : isLight ? 'bg-black/5 ' : 'bg-white/10 '}
               `}>
                 <CornerUpLeft className={`w-8 h-8 mb-1 ${recordStatus === 'canceling' ? 'text-white' : 'text-red-400'}`} />
                 <span className={`text-[10px] font-bold tracking-widest ${recordStatus === 'canceling' ? 'text-white' : 'text-red-400'}`}>
@@ -401,10 +525,10 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               ${recordStatus === 'converting' ? 'scale-110' : 'scale-100 opacity-60'}
             `}>
               <div className={`flex flex-col items-center justify-center w-24 h-24 rounded-full transition-all
-                ${recordStatus === 'converting' ? ' ' : 'bg-white/10 '}
+                ${recordStatus === 'converting' ? ' ' : isLight ? 'bg-black/5 ' : 'bg-white/10 '}
               `}>
-                <Languages className={`w-8 h-8 mb-1 ${recordStatus === 'converting' ? 'text-white' : ''}`} />
-                <span className={`text-[10px] font-bold tracking-widest ${recordStatus === 'converting' ? 'text-white' : ''}`}>
+                <Languages className={`w-8 h-8 mb-1 ${recordStatus === 'converting' ? (isLight ? 'text-black' : 'text-white') : (isLight ? 'text-black/60' : 'text-white/60')}`} />
+                <span className={`text-[10px] font-bold tracking-widest ${recordStatus === 'converting' ? (isLight ? 'text-black' : 'text-white') : (isLight ? 'text-black/60' : 'text-white/60')}`}>
                   转文字
                 </span>
               </div>
@@ -416,13 +540,13 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
             `}>
               {/* 这里可以放一个更炫酷的大波形，目前先用文字和简易波形替代 */}
               <div className="flex items-center gap-1 mb-4">
-                <div className="w-1.5 h-6  rounded-full animate-pulse" />
-                <div className="w-1.5 h-10  rounded-full animate-pulse delay-75" />
-                <div className="w-1.5 h-14  rounded-full animate-pulse delay-150" />
-                <div className="w-1.5 h-8  rounded-full animate-pulse delay-300" />
-                <div className="w-1.5 h-4  rounded-full animate-pulse delay-[450ms]" />
+                <div className={`w-1.5 h-6 rounded-full animate-pulse ${isLight ? 'bg-black/50' : 'bg-white/50'}`} />
+                <div className={`w-1.5 h-10 rounded-full animate-pulse delay-75 ${isLight ? 'bg-black/60' : 'bg-white/60'}`} />
+                <div className={`w-1.5 h-14 rounded-full animate-pulse delay-150 ${isLight ? 'bg-black/80' : 'bg-white/80'}`} />
+                <div className={`w-1.5 h-8 rounded-full animate-pulse delay-300 ${isLight ? 'bg-black/60' : 'bg-white/60'}`} />
+                <div className={`w-1.5 h-4 rounded-full animate-pulse delay-[450ms] ${isLight ? 'bg-black/50' : 'bg-white/50'}`} />
               </div>
-              <span className=" font-bold tracking-widest text-lg ">
+              <span className={`font-bold tracking-widest text-lg ${isLight ? 'text-black' : 'text-white'}`}>
                 上滑 取消/转文字
               </span>
             </div>
@@ -432,10 +556,14 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
       )}
 
       {/* 2. 战场核心：全息字幕气泡区 */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6 z-10 no-scrollbar">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-2 py-6 space-y-1 z-10 no-scrollbar">
 
-
-        {messages.map((msg, index) => {
+        {isLoading && messages.length === 0 ? (
+          <div className="flex justify-center items-center h-full">
+            <Loader2 className={`w-8 h-8 animate-spin ${isLight ? 'text-black/50' : 'text-white/50'}`} />
+          </div>
+        ) : (
+          messages.map((msg, index) => {
           const isMe = msg.sender_id === currentUserId;
           const prevMsg = index > 0 ? messages[index - 1] : null;
           
@@ -482,53 +610,63 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
             <div key={msg.id} className="flex flex-col w-full">
               {/* 时间锚点 (Time Anchor) */}
               {showTimeAnchor && (
-                <div className="w-full flex justify-center my-4">
-                  <span className="text-[11px] text-white/40 bg-white/5 px-3 py-1 rounded-full  tracking-wider font-medium">
+                <div className="w-full flex justify-center my-2">
+                  <span className={`text-[11px] tracking-wider font-medium ${isLight ? 'text-black/30' : 'text-white/30'}`}>
                     {timeAnchorText}
                   </span>
                 </div>
               )}
               
-              <div className={`flex w-full mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex w-full mt-0.5 gap-1.5 items-center ${isMe ? 'justify-end' : 'justify-start'}`}>
                 
+                {/* 对方头像 */}
+                {!isMe && (
+                  <div className="flex-shrink-0">
+                    {trueAvatar ? (
+                      <img src={trueAvatar} alt="avatar" className={`w-[25px] h-[25px] rounded-full border object-cover ${isLight ? 'border-black/10' : 'border-white/10'}`} />
+                    ) : (
+                      <div className={`w-[25px] h-[25px] rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}>
+                        {trueRoomName ? trueRoomName.charAt(0).toUpperCase() : '?'}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div 
                   onContextMenu={(e) => handleMsgContextMenu(e, msg.id, isMe)}
                   className={`
-                  relative max-w-[80%] rounded-2xl p-3.5 
-                  bg-transparent /* 禁用实心背景 */
-                  ${isMe 
-                    ? 'border   rounded-tr-sm' 
-                    : 'border border-white/15 rounded-tl-sm'
-                  }
+                  relative max-w-[85%] px-1.5 py-0 flex items-center
+                  bg-transparent
                 `}>
+                
                 {/* 特殊指令拦截：一键引流魔法卡片渲染 */}
                 {msg.content && msg.content.includes("欢迎连接 GX 星云。您的专属体验舱已就绪") && msg.content.includes("https://app.gx.com/invite/") ? (
                   <div className="flex flex-col gap-3 w-full sm:w-[320px]">
-                    <span className={`text-[15px] leading-relaxed tracking-wide ${isMe ? ' ' : 'text-white '}`}>
+                    <span className={`text-[15px] ${isLight ? 'text-black' : 'text-white'}`}>
                       欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：
                     </span>
                     <a 
                       href={msg.content.match(/https:\/\/app\.gx\.com\/invite\/\w+/)?.[0] || "https://app.gx.com"} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="block relative overflow-hidden rounded-xl bg-gradient-to-br  to-black border  p-4   transition-all group no-underline"
+                      className={`block relative overflow-hidden rounded-xl bg-gradient-to-br ${isLight ? 'to-black/5' : 'to-black'} border ${isLight ? 'border-black/10' : ''} p-4 transition-all group no-underline`}
                     >
-                      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
-                      <div className="absolute top-0 right-0 w-24 h-24  rounded-bl-full  pointer-events-none  transition-colors" />
+                      <div className={`absolute inset-0 bg-[url('/noise.png')] ${isLight ? 'opacity-5' : 'opacity-10'} mix-blend-overlay pointer-events-none`} />
+                      <div className={`absolute top-0 right-0 w-24 h-24 rounded-bl-full pointer-events-none transition-colors ${isLight ? 'bg-black/5' : ''}`} />
                       
                       <div className="relative z-10 flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-black border  flex items-center justify-center shrink-0 ">
-                          <Sparkles className="w-5 h-5 " />
+                        <div className={`w-10 h-10 rounded-lg ${isLight ? 'bg-black/5 border-black/10' : 'bg-black border'} flex items-center justify-center shrink-0`}>
+                          <Sparkles className={`w-5 h-5 ${isLight ? 'text-black' : ''}`} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className=" font-bold text-[15px] mb-1 tracking-wide truncate">GX 专属全息通行证</h4>
-                          <p className=" text-[10px] font-mono tracking-widest uppercase">Click to activate Nexus</p>
+                        <div className={`flex-1 min-w-0 ${isLight ? 'text-black' : 'text-white'}`}>
+                          <h4 className="font-bold text-[15px] mb-1 tracking-wide truncate">GX 专属全息通行证</h4>
+                          <p className={`text-[10px] font-mono tracking-widest uppercase ${isLight ? 'text-black/50' : ''}`}>Click to activate Nexus</p>
                         </div>
                       </div>
                       
-                      <div className="relative z-10 mt-4 flex items-center justify-between border-t  pt-3">
-                        <span className="text-[10px]  font-mono tracking-widest">SECURE LINK</span>
-                        <div className="flex items-center gap-1  text-xs font-bold uppercase tracking-widest  transition-colors">
+                      <div className={`relative z-10 mt-4 flex items-center justify-between border-t ${isLight ? 'border-black/10' : ''} pt-3`}>
+                        <span className={`text-[10px] font-mono tracking-widest ${isLight ? 'text-black/50' : ''}`}>SECURE LINK</span>
+                        <div className={`flex items-center gap-1 text-xs font-bold uppercase tracking-widest transition-colors ${isLight ? 'text-black' : ''}`}>
                           立即进入 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
@@ -537,36 +675,35 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                 ) : (
                   /* 文本渲染 (高亮字幕悬浮) */
                   msg.content && (
-                    <p className={`
-                      text-[15px] leading-relaxed tracking-wide break-words
-                      ${isMe 
-                        ? ' ' // 我的消息：带青色高光
-                        : 'text-white ' // 对方消息：纯白高光
-                      }
-                    `}>
+                    <p 
+                      className={`
+                        text-[16px] font-light leading-none break-words translate-y-[1px]
+                        ${isLight ? 'text-black' : 'text-white'}
+                      `}
+                    >
                       {msg.content}
                     </p>
                   )
                 )}
 
-                {/* 语音渲染 */}
+                {/* 语音消息 */}
                 {msg.audio_url && (
-                  <VoiceMessagePlayer audioUrl={msg.audio_url} duration={msg.audio_duration || 0} />
+                  <VoiceMessagePlayer audioUrl={msg.audio_url} duration={msg.audio_duration || 0} isLight={isLight} />
                 )}
 
                 {/* 图片渲染 (Blurhash 预加载与极速降解标签) */}
                 {msg.image_url && (
-                  <div className="relative mt-1 rounded-xl overflow-hidden border border-white/10 group">
+                  <div className={`relative mt-1 rounded-xl overflow-hidden border group ${isLight ? 'border-black/10' : 'border-white/10'}`}>
                     {/* Blurhash 占位层 */}
-                    {msg.blurhash && (
+                    {msg.hash && (
                       <Blurhash
-                        hash={msg.blurhash}
+                        hash={msg.hash}
                         width={300}
                         height={200}
                         resolutionX={32}
                         resolutionY={32}
                         punch={1}
-                        className="absolute inset-0 z-0 opacity-40  w-full h-full object-cover"
+                        className="absolute inset-0 z-0 opacity-40 w-full h-full object-cover"
                       />
                     )}
                     {/* 真实图片 (加载极快，因为只有 100KB) */}
@@ -578,9 +715,9 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                     />
                     {/* 赛博朋克极速降解标签 */}
                     <div className="absolute bottom-2 right-2 z-20 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-black/60  border  px-2 py-1 rounded-md flex items-center space-x-1.5 ">
+                      <div className={`border px-2 py-1 rounded-md flex items-center space-x-1.5 backdrop-blur-md ${isLight ? 'bg-white/80 border-black/20' : 'bg-black/60 border-white/20'}`}>
                         <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                        <span className="text-[9px] text-white/90 font-mono tracking-widest">30d BURN</span>
+                        <span className={`text-[9px] font-mono tracking-widest ${isLight ? 'text-black/90' : 'text-white/90'}`}>30d BURN</span>
                       </div>
                     </div>
                   </div>
@@ -594,20 +731,33 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div> */}
               </div>
+
+              {/* 我方头像 */}
+              {isMe && (
+                <div className="flex-shrink-0">
+                  {myAvatar ? (
+                    <img src={myAvatar} alt="avatar" className={`w-[25px] h-[25px] rounded-full border object-cover ${isLight ? 'border-black/10' : 'border-white/10'}`} />
+                  ) : (
+                    <div className={`w-[25px] h-[25px] rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}>
+                      {myName ? myName.charAt(0).toUpperCase() : '?'}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           );
-        })}
+        }))}
         <div ref={messagesEndRef} />
       </div>
 
       {/* 3. 底部：量子指令台 (Quantum Input Bar) */}
-      <div className="px-4 pb-safe-bottom pt-2 shrink-0 z-20 bg-gradient-to-t from-black via-black/80 to-transparent">
+      <div className="px-4 pb-safe-bottom pt-2 shrink-0 z-20">
 
         {/* 图片预览与撤销 */}
         {selectedFile && (
-          <div className="flex items-center justify-between mb-3 p-2   rounded-xl border  w-fit max-w-[80%]">
-            <span className="text-xs  truncate tracking-wide mr-4">📎 {selectedFile.name}</span>
+          <div className={`flex items-center justify-between mb-3 p-2 rounded-xl border w-fit max-w-[80%] ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+            <span className={`text-xs truncate tracking-wide mr-4 ${isLight ? 'text-black' : 'text-white'}`}>📎 {selectedFile.name}</span>
             <button onClick={() => setSelectedFile(null)} className="text-red-400 hover:text-red-300 text-xs font-bold">✕</button>
           </div>
         )}
@@ -625,171 +775,180 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
               if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
             }} 
           />
-          {/* 悬浮输入舱 - 输入框容器 */}
-          <div className="flex-1 relative group h-11">
-            <div className={`absolute inset-0 rounded-full border transition-all pointer-events-none
-              border-white/15  
-              `} 
-            />
-            
-            {/* 三态量子离合器：根据模式切换渲染 */}
-            {inputMode === 'text' ? (
-              <textarea
-                value={inputText}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder={t('txt_0bbdcf')}
-                rows={1}
-                className={`w-full h-full bg-transparent outline-none focus:outline-none rounded-full border-none focus:ring-0 text-[15px] leading-[44px] py-0 pl-4 pr-12 resize-none no-scrollbar relative z-0
-                  text-white placeholder:text-white/30
-                `}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-              />
-            ) : (
-              // 录音按压舱 (Press-to-Talk Pod)
-              <div 
-                ref={buttonRef}
-                className={`
-                  w-full h-full flex items-center justify-center rounded-full select-none
-                  ${isRecording 
-                    ? recordStatus === 'canceling' 
-                      ? 'bg-red-500/20  transition-all'
-                      : recordStatus === 'converting'
-                        ? '  transition-all'
-                        : '  transition-all'
-                    : 'bg-white/5 hover:bg-white/10 transition-colors'
-                  }
-                `}
-                style={{
-                  touchAction: 'none', // 物理级结界：彻底禁止该区域的滚动与缩放
-                  WebkitTouchCallout: 'none', // 杀掉 iOS 默认长按菜单
-                }}
-                onPointerDown={handleStartRecord}
-                onPointerUp={handleStopRecord}
-                onPointerCancel={handleStopRecord}
-                onPointerLeave={handleStopRecord}
-                onPointerMove={handleTouchMove}
-              >
-                {isRecording ? (
-                  <div className="flex items-center gap-2">
-                    {/* 赛博波形指示器 (简易版) */}
-                    <div className="flex items-center gap-0.5">
-                      {recordStatus === 'canceling' ? (
-                        <div className="w-2 h-2 bg-red-500 rounded-full" />
-                      ) : recordStatus === 'converting' ? (
-                        <div className="w-2 h-2  rounded-full" />
-                      ) : (
-                        <>
-                          <div className="w-1 h-3  rounded-full animate-pulse" />
-                          <div className="w-1 h-5  rounded-full animate-pulse delay-75" />
-                          <div className="w-1 h-2  rounded-full animate-pulse delay-150" />
-                        </>
-                      )}
-                    </div>
-                    
-                    {/* 实时语音转文字的显化区 */}
-                    <div className="flex flex-col items-center justify-center max-w-[60%] overflow-hidden">
-                      {isSpeechSupported && (transcript || interimTranscript) ? (
-                        <span className="text-white text-sm truncate w-full text-center tracking-wide">
-                          {transcript} <span className="text-white/60">{interimTranscript}</span>
-                        </span>
-                      ) : (
-                        <span className={`font-mono font-bold tracking-widest ${
-                          recordStatus === 'canceling' ? 'text-red-500' :
-                          recordStatus === 'converting' ? '' :
-                          ''
+
+          {/* 防骚扰网关：强制锁定状态 */}
+          {isAntiSpamLocked ? (
+            <div className={`flex-1 relative group h-11 flex items-center justify-center border rounded-full cursor-not-allowed select-none ${isLight ? 'border-black/10 bg-black/5' : 'border-white/10 bg-white/5'}`}>
+              <span className={`text-xs tracking-widest uppercase font-mono ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                对方回复后解锁发送权限
+              </span>
+            </div>
+          ) : (
+            <>
+              {/* 悬浮输入舱 - 输入框容器 */}
+              <div className="flex-1 relative group h-11">
+                <div className={`absolute inset-0 rounded-full border transition-all pointer-events-none ${isLight ? 'border-black/15' : 'border-white/15'}`} />
+                
+                {/* 三态量子离合器：根据模式切换渲染 */}
+                {inputMode === 'text' ? (
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder={t('txt_0bbdcf')}
+                    rows={1}
+                    className={`w-full h-full bg-transparent outline-none focus:outline-none rounded-full border-none focus:ring-0 text-[16px] font-light leading-[44px] py-0 pl-4 pr-12 resize-none no-scrollbar relative z-0
+                      ${isLight ? 'text-black placeholder:text-black/30' : 'text-white placeholder:text-white/30'}
+                    `}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                  />
+                ) : (
+                  // 录音按压舱 (Press-to-Talk Pod)
+                  <div 
+                    ref={buttonRef}
+                    className={`
+                      w-full h-full flex items-center justify-center rounded-full select-none
+                      ${isRecording 
+                        ? recordStatus === 'canceling' 
+                          ? 'bg-red-500/20 transition-all'
+                          : recordStatus === 'converting'
+                            ? ' transition-all'
+                            : ' transition-all'
+                        : isLight ? 'bg-black/5 hover:bg-black/10 transition-colors' : 'bg-white/5 hover:bg-white/10 transition-colors'
+                      }
+                    `}
+                    style={{
+                      touchAction: 'none', // 物理级结界：彻底禁止该区域的滚动与缩放
+                      WebkitTouchCallout: 'none', // 杀掉 iOS 默认长按菜单
+                    }}
+                    onPointerDown={handleStartRecord}
+                    onPointerUp={handleStopRecord}
+                    onPointerCancel={handleStopRecord}
+                    onPointerLeave={handleStopRecord}
+                    onPointerMove={handleTouchMove}
+                  >
+                    {isRecording ? (
+                      <div className="flex items-center gap-2">
+                        {/* 赛博波形指示器 (简易版) */}
+                        <div className="flex items-center gap-0.5">
+                          {recordStatus === 'canceling' ? (
+                            <div className="w-2 h-2 bg-red-500 rounded-full" />
+                          ) : recordStatus === 'converting' ? (
+                            <div className="w-2 h-2  rounded-full" />
+                          ) : (
+                            <>
+                              <div className="w-1 h-3  rounded-full animate-pulse" />
+                              <div className="w-1 h-5  rounded-full animate-pulse delay-75" />
+                              <div className="w-1 h-2  rounded-full animate-pulse delay-150" />
+                            </>
+                          )}
+                        </div>
+                        
+                        {/* 实时语音转文字的显化区 */}
+                        <div className="flex flex-col items-center justify-center max-w-[60%] overflow-hidden">
+                          {isSpeechSupported && (transcript || interimTranscript) ? (
+                            <span className={`text-sm truncate w-full text-center tracking-wide ${isLight ? 'text-black' : 'text-white'}`}>
+                              {transcript} <span className={`${isLight ? 'text-black/60' : 'text-white/60'}`}>{interimTranscript}</span>
+                            </span>
+                          ) : (
+                            <span className={`font-mono font-bold tracking-widest ${
+                              recordStatus === 'canceling' ? 'text-red-500' :
+                              recordStatus === 'converting' ? '' :
+                              ''
+                            }`}>
+                              00:{recordDuration.toString().padStart(2, '0')}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <span className={`text-xs ml-2 tracking-widest uppercase ${
+                          recordStatus === 'canceling' ? 'text-red-500 animate-pulse font-bold' :
+                          recordStatus === 'converting' ? ' animate-pulse font-bold' :
+                          ' animate-pulse'
                         }`}>
-                          00:{recordDuration.toString().padStart(2, '0')}
+                          {recordStatus === 'canceling' ? '松开取消' :
+                           recordStatus === 'converting' ? '松开转文字' :
+                           '松开结束'}
                         </span>
-                      )}
-                    </div>
-                    
-                    <span className={`text-xs ml-2 tracking-widest uppercase ${
-                      recordStatus === 'canceling' ? 'text-red-500 animate-pulse font-bold' :
-                      recordStatus === 'converting' ? ' animate-pulse font-bold' :
-                      ' animate-pulse'
-                    }`}>
-                      {recordStatus === 'canceling' ? '松开取消' :
-                       recordStatus === 'converting' ? '松开转文字' :
-                       '松开结束'}
-                    </span>
+                      </div>
+                    ) : (
+                      <span className={`font-bold tracking-widest uppercase ${isLight ? 'text-black/70' : 'text-white/70'}`}>按住 说话</span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-white/70 font-bold tracking-widest uppercase">按住 说话</span>
+                )}
+
+                {/* 内嵌的相机/图片上传入口 (仅在文本模式显示) */}
+                {inputMode === 'text' && (
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`absolute right-1 top-1/2 -translate-y-1/2 p-2 transition-colors z-10 ${isLight ? 'text-black/40 hover:text-black/70' : 'text-white/40 hover:text-white/70'}`}
+                    title="拍照或发送图片"
+                  >
+                    <Camera className="w-[22px] h-[22px]" />
+                  </button>
                 )}
               </div>
-            )}
 
-            {/* 内嵌的相机/图片上传入口 (仅在文本模式显示) */}
-            {inputMode === 'text' && (
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-white/40  transition-colors z-10 "
-                title="拍照或发送图片"
-              >
-                <Camera className="w-[22px] h-[22px]" />
-              </button>
-            )}
-          </div>
-
-          {/* 引擎点火发送键 & 语音切换键 */}
-          <div className="flex flex-col gap-2 shrink-0">
-            {/* 一键引流魔法 (仅 WhatsApp 且未超时显示) */}
-            {isWhatsApp && (
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={() => {
-                     // 自动发送通行证链接
-                     sendMessage("欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：https://app.gx.com/invite/123", undefined);
-                  }}
-                  className="w-11 h-8 rounded-xl flex items-center justify-center border   transition-all group relative shrink-0"
-                  title="发送全息通行证"
-                >
-                  <Sparkles className="w-4 h-4 " />
-                  <span className="absolute -top-6 right-0 text-[9px] whitespace-nowrap  opacity-0 group-hover:opacity-100 transition-opacity bg-black/80 px-2 py-0.5 rounded border ">一键引流</span>
-                </button>
-              </div>
-            )}
-
-            {/* 群聊禁用语音功能判断 */}
-            {!isGroupChat || (inputText.trim() || selectedFile) ? (
-              <button 
-                onClick={() => {
-                  // 如果有文字或图片，执行发送
-                  if (inputText.trim() || selectedFile) {
-                    handleSend();
-                  } else {
-                    // 否则执行模式切换 (Text <-> Voice)
-                    if (!isGroupChat) setInputMode(prev => prev === 'text' ? 'voice' : 'text');
-                  }
-                }}
-                disabled={isSending}
-                className={`
-                  w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300
-                  ${isSending 
-                    ? 'bg-transparent border ' 
-                    : (inputText.trim() || selectedFile)
-                      ? '  text-black scale-100' 
-                      : 'bg-white/10 hover:bg-white/20 text-white/50 hover:text-white scale-100' // 空状态下作为模式切换键
-                  }
-                `}
-              >
-                {isSending ? (
-                  <Loader2 className="w-5 h-5  animate-spin" />
-                ) : (inputText.trim() || selectedFile) ? (
-                  <SendHorizontal className="w-5 h-5 ml-0.5" />
-                ) : inputMode === 'text' ? (
-                  <Mic className="w-5 h-5" />
-                ) : (
-                  <Keyboard className="w-5 h-5" />
+              {/* 引擎点火发送键 & 语音切换键 */}
+              <div className="flex flex-col gap-2 shrink-0">
+                {/* 一键引流魔法 (仅 WhatsApp 且未超时显示) */}
+                {isWhatsApp && (
+                  <div className="flex flex-col gap-2">
+                    <button 
+                      onClick={() => {
+                         // 自动发送通行证链接
+                         sendMessage("欢迎连接 GX 星云。您的专属体验舱已就绪，点击激活全息服务：https://app.gx.com/invite/123", undefined);
+                      }}
+                      className={`w-11 h-8 rounded-xl flex items-center justify-center border transition-all group relative shrink-0 ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}
+                      title="发送全息通行证"
+                    >
+                      <Sparkles className="w-4 h-4 " />
+                      <span className={`absolute -top-6 right-0 text-[9px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity px-2 py-0.5 rounded border ${isLight ? 'bg-white/80 border-black/10 text-black' : 'bg-black/80 border-white/10 text-white'}`}>一键引流</span>
+                    </button>
+                  </div>
                 )}
-              </button>
-            ) : null}
-          </div>
+
+                {/* 群聊禁用语音功能判断 */}
+                {!isGroupChat || (inputText.trim() || selectedFile) ? (
+                  <button 
+                    onClick={() => {
+                      // 如果有文字或图片，执行发送
+                      if (inputText.trim() || selectedFile) {
+                        handleSend();
+                      } else {
+                        // 否则执行模式切换 (Text <-> Voice)
+                        if (!isGroupChat) setInputMode(prev => prev === 'text' ? 'voice' : 'text');
+                      }
+                    }}
+                    disabled={isSending}
+                    className={`
+                      w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300
+                      ${isSending 
+                        ? 'bg-transparent border' 
+                        : (inputText.trim() || selectedFile)
+                          ? isLight ? 'bg-black text-white scale-100' : 'bg-white text-black scale-100' 
+                          : isLight ? 'bg-black/5 hover:bg-black/10 text-black/50 hover:text-black scale-100' : 'bg-white/10 hover:bg-white/20 text-white/50 hover:text-white scale-100' // 空状态下作为模式切换键
+                      }
+                    `}
+                  >
+                    {isSending ? (
+                      <Loader2 className="w-5 h-5  animate-spin" />
+                    ) : (inputText.trim() || selectedFile) ? (
+                      <SendHorizontal className="w-5 h-5 ml-0.5" />
+                    ) : inputMode === 'text' ? (
+                      <Mic className="w-5 h-5" />
+                    ) : (
+                      <Keyboard className="w-5 h-5" />
+                    )}
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
 
         </div>
       </div>
@@ -803,7 +962,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
             onContextMenu={(e) => { e.preventDefault(); setMsgContextMenu(null); }}
           />
           <div 
-            className="fixed w-48 rounded-xl   border border-white/10  z-[110] overflow-hidden py-1"
+            className={`fixed w-48 rounded-xl border z-[110] overflow-hidden py-1 shadow-2xl backdrop-blur-xl ${isLight ? 'bg-white/90 border-black/10' : 'bg-black/90 border-white/10'}`}
             style={{ 
               left: `${msgContextMenu.x}px`, 
               top: `${msgContextMenu.y}px`,
@@ -816,7 +975,7 @@ export default function ChatRoomUI({ currentUserId, receiverId, roomId, roomName
                 deleteMessageForMe(msgContextMenu.msgId);
                 setMsgContextMenu(null);
               }}
-              className="w-full px-4 py-3 flex items-center gap-3 text-white/80 hover:bg-white/10 transition-colors group"
+              className={`w-full px-4 py-3 flex items-center gap-3 transition-colors group ${isLight ? 'text-black/80 hover:bg-black/5' : 'text-white/80 hover:bg-white/10'}`}
             >
               <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
               <span className="text-sm font-medium tracking-wide">单向删除</span>

@@ -99,11 +99,18 @@ export default function DashboardClient() {
   // 严格映射当前角色与头像
   const currentProfile: UserProfile = {
     id: (sUser && 'gxId' in sUser && sUser.gxId) ? sUser.gxId : getMockIdForRole(activeRole as UserRole),
+    gx_id: (sUser && 'base_gx_id' in sUser && sUser.base_gx_id) ? sUser.base_gx_id : undefined,
+    merchant_gx_id: (sUser && 'merchant_gx_id' in sUser && sUser.merchant_gx_id) ? sUser.merchant_gx_id : undefined,
     name: (sUser && 'name' in sUser && sUser.name) ? sUser.name : "未知实体",
     email: sUser?.email || "unknown@gx.com",
     phone: (sUser && 'phone' in sUser) ? sUser.phone : undefined,
+    merchant_phone: (sUser && 'merchant_phone' in sUser) ? sUser.merchant_phone as string : undefined,
     role: activeRole as UserRole,
     avatar: sUser?.avatar || undefined, // 修复：确保直接读取全局 user.avatar
+    merchant_name: (sUser && 'merchant_name' in sUser && sUser.merchant_name) ? sUser.merchant_name : undefined,
+    merchant_avatar_url: (sUser && 'merchant_avatar_url' in sUser && sUser.merchant_avatar_url) ? sUser.merchant_avatar_url : undefined,
+    boss_name: (sUser && 'boss_name' in sUser && sUser.boss_name) ? sUser.boss_name : undefined,
+    boss_avatar_url: (sUser && 'boss_avatar_url' in sUser && sUser.boss_avatar_url) ? sUser.boss_avatar_url : undefined,
     createdAt: sUser?.created_at || "2024-01-01T00:00:00Z",
     gender: sUser?.gender || undefined,
     birthday: sUser?.birthday || undefined,
@@ -159,7 +166,10 @@ export default function DashboardClient() {
                 </Link>
 
                 <div className="md:col-span-2 lg:col-span-3">
-                  <PhoneAuthBar className="w-full" />
+                  <PhoneAuthBar 
+                    mode={activeRole === 'boss' ? 'boss' : activeRole === 'merchant' ? 'merchant' : 'life'} 
+                    className="w-full" 
+                  />
                 </div>
 
                 <GlassCard className="p-6 flex items-center justify-between">

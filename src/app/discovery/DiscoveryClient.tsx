@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { 
   Heart, 
@@ -11,7 +11,8 @@ import {
   VolumeX,
   Plus,
   ChevronLeft,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
@@ -19,6 +20,7 @@ import { UGCUploadModal } from "@/features/discovery/components/UGCUploadModal";
 import { useTranslations } from "next-intl";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import useSWR from "swr";
 
 const STREAM_BASE = process.env.NEXT_PUBLIC_BUNNY_STREAM_BASE || "";
 
@@ -134,8 +136,19 @@ export default function DiscoveryPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [posts, setPosts] = useState<DiscoveryPost[]>([]);
 
-  // 引入 session 作为核心共振锚点，解决首次加载 Token 未就绪导致的无数据问题
-  const { session } = useAuth();
+  // 【Local-First 引擎】：从本地硬盘光速读取缓存，实现物理级冷启动秒开
+  const getCachedPosts = () => {
+    if (typeof window === 'undefined') return undefined;
+    try {
+      const cached = localStorage.getItem('gx_discovery_posts_hot');
+      return cached ? JSON.parse(cached) : undefined;
+    } catch (e) {
+      return undefined;
+    }
+  };
+
+  // 引入 useAuth 确保客户端状态被正确初始化
+  useAuth();
 
   const registerBack = useHardwareBack(state => state.register);
   const unregisterBack = useHardwareBack(state => state.unregister);
@@ -152,9 +165,10 @@ export default function DiscoveryPage() {
     return () => unregisterBack('discovery-upload');
   }, [isUploadOpen, registerBack, unregisterBack]);
 
-  // 核心拉取逻辑
-  const fetchPosts = useCallback(async () => {
-    try {
+  // 引入 SWR 实现缓存秒开，并挂载 Local-First 硬盘备份引擎
+  const { data: swrPosts, isLoading, mutate } = useSWR(
+    'discovery_posts_hot', // 暂时写死热点
+    async () => {
       const { data, error } = await supabase
         .from('ugc_posts')
         .select(`
@@ -164,10 +178,16 @@ export default function DiscoveryPage() {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
+      if (error) {
+        // 断网防御：如果报错是因为网络问题，且本地有缓存，直接抛出错误让 SWR 保留 fallbackData
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('AbortError')) {
+          throw error;
+        }
+        throw error;
+      }
 
       // 映射为前端所需的数据结构
-      const formattedPosts: DiscoveryPost[] = (data || []).map((p: any) => ({
+      return (data || []).map((p: any) => ({
         id: p.id,
         type: p.media_type,
         title: p.title || "分享内容",
@@ -179,22 +199,31 @@ export default function DiscoveryPage() {
         comments: (p.comments_count || 0).toString(),
         tags: p.tags || [],
         merchantId: p.merchant_id || ""
-      }));
-
-      setPosts(formattedPosts);
-    } catch (err) {
-      console.error("Failed to fetch discovery posts:", err);
+      })) as DiscoveryPost[];
+    },
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 10000,
+      keepPreviousData: true,
+      fallbackData: getCachedPosts(), // 物理秒开：0毫秒同步灌入上次硬盘缓存
+      onSuccess: (data) => {
+        // 成功拉取到最新数据后，静默覆写到本地硬盘，供下次秒开
+        if (typeof window !== 'undefined' && data && data.length > 0) {
+          localStorage.setItem('gx_discovery_posts_hot', JSON.stringify(data));
+        }
+      }
     }
-  }, []);
+  );
 
-  // 页面加载时及 session 变化时自动拉取，利用依赖实现 0 秒静默重试
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts, session]);
+    if (swrPosts) {
+      setPosts(swrPosts);
+    }
+  }, [swrPosts]);
 
   const handleUploadSuccess = () => {
-    // 成功后重新拉取数据库最新内容，替代过去的伪造内存数据
-    fetchPosts();
+    // 成功后触发 SWR 重新验证
+    mutate();
   };
 
   return (
@@ -241,7 +270,12 @@ export default function DiscoveryPage() {
 
       {/* 沉浸式滑动容器 */}
       <div className="w-full h-full snap-y snap-mandatory overflow-y-scroll overflow-x-hidden no-scrollbar flex flex-col items-center">
-        {posts.map((post) => (
+        {isLoading && posts.length === 0 ? (
+          <div className="flex justify-center items-center h-full w-full">
+            <Loader2 className="w-8 h-8 animate-spin text-white/50" />
+          </div>
+        ) : (
+        posts.map((post) => (
           <div 
             key={post.id} 
             className="w-full h-full snap-start snap-always relative shrink-0 flex justify-center items-center"
@@ -379,7 +413,7 @@ export default function DiscoveryPage() {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* UGC 发布弹窗 */}

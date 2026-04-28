@@ -15,7 +15,7 @@ test.describe('Extreme Navigation Stress Test', () => {
 
     // 获取初始内存
     let metrics = await client.send('Performance.getMetrics');
-    let initialHeap = metrics.metrics.find(m => m.name === 'JSHeapUsedSize')?.value || 0;
+    const initialHeap = metrics.metrics.find(m => m.name === 'JSHeapUsedSize')?.value || 0;
     console.log(`📊 初始 JS 堆内存: ${(initialHeap / 1024 / 1024).toFixed(2)} MB`);
 
     const iterations = 50; // 进行 50 次极速切换
@@ -50,7 +50,7 @@ test.describe('Extreme Navigation Stress Test', () => {
 
     // 获取结束时的内存
     metrics = await client.send('Performance.getMetrics');
-    let finalHeap = metrics.metrics.find(m => m.name === 'JSHeapUsedSize')?.value || 0;
+    const finalHeap = metrics.metrics.find(m => m.name === 'JSHeapUsedSize')?.value || 0;
     console.log(`📊 最终 JS 堆内存: ${(finalHeap / 1024 / 1024).toFixed(2)} MB`);
     
     const diffMB = ((finalHeap - initialHeap) / 1024 / 1024).toFixed(2);

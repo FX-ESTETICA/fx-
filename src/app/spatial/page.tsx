@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useMotionValue, useTransform, useSpring, animate, useMotionValueEvent, type MotionValue, type PanInfo } from "framer-motion";
-import { Database, Network, ShieldAlert, Lock, Box, Terminal, ChevronLeft, PenTool, FlaskConical } from "lucide-react";
+import { Database, Network, ShieldAlert, Lock, Box, Terminal, ChevronLeft, PenTool } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/utils/cn";

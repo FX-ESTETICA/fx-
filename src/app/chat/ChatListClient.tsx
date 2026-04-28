@@ -5,19 +5,31 @@ import ChatListUI from '@/features/chat/components/ChatListUI';
 import ChatRoomUI from '@/features/chat/components/ChatRoomUI';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useChatStore } from '@/store/useChatStore';
-import { useTranslations } from "next-intl";
 import { BottomNavBar } from '@/components/shared/BottomNavBar';
 import { useEffect, useRef, useState } from 'react';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSearchParams } from 'next/navigation';
 
+import { useVisualSettings } from '@/hooks/useVisualSettings';
+import { usePathname } from 'next/navigation';
+import { useActiveTab } from '@/hooks/useActiveTab';
+
 export default function ChatListPage() {
-  const t = useTranslations('chat');
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const searchParams = useSearchParams();
   
   const tokenParam = searchParams.get('t'); // 新增：监听加密 Token
   const shopIdParam = searchParams.get('shopId');
+  
+  // 引入主题嗅探系统
+  const { settings } = useVisualSettings();
+  const pathname = usePathname();
+  const activeTab = useActiveTab();
+  
+  const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+  const isLight = isCalendar 
+    ? settings.calendarBgIndex !== 0 
+    : settings.frontendBgIndex !== 0;
   
   // 核心逻辑 1：设备钢印与无感身份赋予
   // 我们利用闭包和 useState 确保只有在客户端渲染时才生成或读取 device_id，防止水合报错
@@ -103,6 +115,7 @@ export default function ChatListPage() {
           <div className="flex-1 overflow-hidden">
             <ChatListUI 
               currentUserId={currentUserId}
+              currentRole={activeRole}
               onChatSelect={(chat) => setActiveChat(chat)} 
             />
           </div>
@@ -121,14 +134,14 @@ export default function ChatListPage() {
               将毛玻璃层提升为静态兄弟节点，仅控制 opacity，彻底消灭 GPU 重建渲染层导致的黑场闪烁。
           */}
           <div 
-            className={`absolute inset-0 w-full h-full bg-black/40  pointer-events-none transition-opacity duration-300 ${activeChat ? 'opacity-100 z-0' : 'opacity-0 -z-10'}`}
+            className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-300 ${activeChat ? 'opacity-100 z-0' : 'opacity-0 -z-10'} ${isLight ? 'bg-white/50' : 'bg-black/50'}`}
             style={{ willChange: 'opacity' }}
           />
 
           <AnimatePresence initial={false} mode="wait">
             {activeChat ? (
               <motion.div
-                key={activeChat.id}
+                key={activeChat.isGroup ? activeChat.id : `${activeChat.id}_${activeChat.targetRole || 'user'}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -137,7 +150,9 @@ export default function ChatListPage() {
               >
                 <ChatRoomUI 
                   currentUserId={currentUserId} 
+                  currentRole={activeRole}
                   receiverId={activeChat.isGroup ? undefined : activeChat.id} 
+                  receiverRole={activeChat.targetRole}
                   roomId={activeChat.isGroup ? activeChat.id : undefined}
                   roomName={activeChat.name} 
                   onBack={() => setActiveChat(null)}
@@ -149,14 +164,11 @@ export default function ChatListPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white z-10"
+                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center z-10"
               >
-                <div className="w-24 h-24 mb-6 rounded-full border border-white/10 flex items-center justify-center relative">
-                  <div className="absolute inset-0 rounded-full border-t  animate-spin " />
-                  <span className="text-4xl">📡</span>
-                </div>
-                <p className="text-sm tracking-[0.2em] uppercase font-mono">{t('txt_71f8fd')}</p>
-                <p className="text-xs text-white mt-2">{t('txt_d9d041')}</p>
+                <p className={`text-sm tracking-[0.2em] font-light ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                  开启新聊天
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

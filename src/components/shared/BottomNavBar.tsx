@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/cn";
 import { Home, Compass, User, MessageSquare } from "lucide-react";
-import { useState, useEffect } from "react";
+
 import { useTranslations } from "next-intl";
 import { useViewStack, TabId } from "@/hooks/useViewStack";
 import { useActiveTab } from "@/hooks/useActiveTab";

@@ -17,6 +17,7 @@ interface DiscoveryWaterfallProps {
 // 虚拟卡片包裹器：通过 IntersectionObserver 动态卸载屏幕外的重型 DOM
 const VirtualCardWrapper = ({ item, children }: { item: DiscoveryItem, children: React.ReactNode }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -38,17 +39,17 @@ const VirtualCardWrapper = ({ item, children }: { item: DiscoveryItem, children:
       
       if (ref.current) {
         observer.observe(ref.current);
+        ref.current.dataset.observerAttached = 'true';
       }
       
       // 保存 observer 以便清理
-      ref.current.dataset.observerAttached = 'true';
-      ref.current._observer = observer;
+      observerRef.current = observer;
     });
 
     return () => {
       cancelAnimationFrame(rAF);
-      if (ref.current && ref.current._observer) {
-        ref.current._observer.disconnect();
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
   }, []);

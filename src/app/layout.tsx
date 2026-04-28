@@ -106,7 +106,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-black`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full subpixel-antialiased bg-black`}
     >
       <head>
         {/* 0毫秒瞬间注入原生壁纸，彻底消灭 React 渲染延迟与二次闪烁 */}

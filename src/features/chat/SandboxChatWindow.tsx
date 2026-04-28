@@ -15,7 +15,7 @@ interface SandboxChatProps {
  */
 export default function SandboxChatWindow({ currentUserId, receiverId, roomId }: SandboxChatProps) {
     const t = useTranslations('SandboxChatWindow');
-  const { messages, isSending, sendMessage } = useChatEngine(currentUserId, roomId, receiverId);
+  const { messages, isSending, sendMessage } = useChatEngine(currentUserId, 'user', roomId, receiverId, 'user');
   const [textInput, setTextInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 

@@ -77,14 +77,14 @@ const MOCK_IMAGES = {
 };
 
 // 模拟的 Google Places 返回数据 (用于前期 UI 验证，后续替换为真实 API 调用)
-export function getMockPlaces(t: any): Array<PlacesApiPlace & { distance: string }> {
+export function getMockPlaces(): Array<PlacesApiPlace & { distance: string }> {
   return [
-    { id: "gp_1", name: t('place_1_name'), rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
-    { id: "gp_2", name: t('place_2_name'), rating: 4.9, user_ratings_total: 128, distance: "1.2km", status: "OPEN", category: "dining" },
-    { id: "gp_3", name: t('place_3_name'), rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
-    { id: "gp_4", name: t('place_4_name'), rating: 5.0, user_ratings_total: 64, distance: "1.5km", status: "OPEN", category: "beauty" },
-    { id: "gp_5", name: t('place_5_name'), rating: 4.7, user_ratings_total: 210, distance: "3.1km", status: "OPEN", category: "beauty" },
-    { id: "gp_6", name: t('place_6_name'), rating: 4.6, user_ratings_total: 1205, distance: "4.2km", status: "OPEN", category: "hotel" },
+    { id: "gp_1", name: "Cyber Cafe", rating: 4.8, user_ratings_total: 342, distance: "0.8km", status: "OPEN", category: "dining" },
+    { id: "gp_2", name: "Neon Bar", rating: 4.9, user_ratings_total: 128, distance: "1.2km", status: "OPEN", category: "dining" },
+    { id: "gp_3", name: "Sushi Blade", rating: 4.5, user_ratings_total: 856, distance: "2.5km", status: "READY", category: "dining" },
+    { id: "gp_4", name: "Quantum Salon", rating: 5.0, user_ratings_total: 64, distance: "1.5km", status: "OPEN", category: "beauty" },
+    { id: "gp_5", name: "Aero Spa", rating: 4.7, user_ratings_total: 210, distance: "3.1km", status: "OPEN", category: "beauty" },
+    { id: "gp_6", name: "Nexus Hotel", rating: 4.6, user_ratings_total: 1205, distance: "4.2km", status: "OPEN", category: "hotel" },
   ];
 }
 
@@ -173,7 +173,30 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
   };
   
   const [activeTab, setActiveTab] = useState<"merchant" | "gx_pro" | "service">("gx_pro");
-  const [realShops, setRealShops] = useState<any[]>(initialRealShops);
+  
+  // 【Local-First 引擎】：从本地硬盘光速读取大厅商户缓存
+  const getCachedRealShops = () => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const cached = localStorage.getItem('gx_home_real_shops');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const [realShops, setRealShops] = useState<any[]>(() => {
+    // 如果 SSR 提供了数据，优先使用 SSR 数据，并静默更新本地缓存
+    if (initialRealShops && initialRealShops.length > 0) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('gx_home_real_shops', JSON.stringify(initialRealShops));
+      }
+      return initialRealShops;
+    }
+    // 否则尝试从本地硬盘光速读取缓存
+    return getCachedRealShops();
+  });
+
   const [selectedShop, setSelectedShop] = useState<any | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -205,11 +228,24 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
             return config && config.coverImages && config.coverImages.length > 0;
           });
           setRealShops(validShops);
+          // 成功拉取后，静默更新本地硬盘缓存，供下次秒开
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('gx_home_real_shops', JSON.stringify(validShops));
+          }
+        } else if (error) {
+          // 断网防御：如果获取失败且本地有缓存，静默失败，保留已有缓存
+          if (error.message?.includes('Failed to fetch') || error.message?.includes('AbortError')) {
+            console.warn("[Local-First Shield] Network offline, preserving cached real shops data.");
+          } else {
+            throw error;
+          }
         }
       } catch (err) {
         console.error("Failed to fetch real shops", err);
       }
     };
+    // 只有在 SSR 没数据，且本地缓存也没有数据的情况下，或者为了强制更新，才去请求
+    // 这里我们保持原逻辑：如果 initialRealShops 为空就去请求兜底
     if (initialRealShops.length === 0) {
       fetchRealShops();
     }
@@ -247,7 +283,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
             // 当列数发生变化时，重新计算目标显示数量，确保符合“最低6个且铺满”的绝对底线
             setTargetCount(currentCount => {
               // 1. 基础逻辑：至少需要显示 6 个
-              let minRequired = Math.max(6, currentCount);
+              const minRequired = Math.max(6, currentCount);
               // 2. 铺满逻辑：必须是当前列数的整数倍（向上取整）
               return Math.ceil(minRequired / cols) * cols;
             });
@@ -411,7 +447,18 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
     return `/api/places?${params.toString()}`;
   }, [userLocation, activeTab, activeCategory, activeSubCategory, sortBy, searchQuery]);
 
-  // 3. SWR 核心接管：并发请求与 Edge Cache 支持
+  // 【Local-First 引擎】：从本地硬盘光速读取附近商家缓存
+  const getCachedPlacesData = (key: string | null) => {
+    if (typeof window === 'undefined' || !key) return undefined;
+    try {
+      const cached = localStorage.getItem(`gx_places_${key}`);
+      return cached ? JSON.parse(cached) : undefined;
+    } catch (e) {
+      return undefined;
+    }
+  };
+
+  // 3. SWR 核心接管：并发请求与 Edge Cache 支持，并挂载 Local-First 硬盘备份引擎
   const { data: placesData, error: placesError, isLoading: isPlacesLoading } = useSWR(
     queryKey,
     fetcher,
@@ -419,6 +466,19 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
       revalidateOnFocus: false, // 防止切换窗口时过度刷新
       dedupingInterval: 60000, // 1分钟内相同的请求会被去重
       keepPreviousData: true, // 在请求新数据时保留旧数据，防止闪烁
+      fallbackData: getCachedPlacesData(queryKey), // 物理秒开：0毫秒同步灌入上次硬盘缓存
+      onSuccess: (data) => {
+        // 成功拉取到最新数据后，静默覆写到本地硬盘，供下次秒开
+        if (typeof window !== 'undefined' && data && queryKey) {
+          localStorage.setItem(`gx_places_${queryKey}`, JSON.stringify(data));
+        }
+      },
+      onError: (err) => {
+        // 断网防御：如果报错是因为网络问题，且本地有缓存，静默忽略以保留 fallbackData
+        if (err.message?.includes('Failed to fetch') || err.message?.includes('AbortError')) {
+          console.warn("[Local-First Shield] Network offline, preserving cached places data.");
+        }
+      }
     }
   );
 
@@ -460,7 +520,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
       setIsMockMode(false);
     } else if (placesError) {
       console.error("Error fetching Google Places via SWR:", placesError);
-      const fallbackPlaces: AggregatedPlace[] = getMockPlaces(t).map((p) => ({
+      const fallbackPlaces: AggregatedPlace[] = getMockPlaces().map((p) => ({
         ...p,
         image: MOCK_IMAGES.all[0],
         isRealGooglePhoto: false,

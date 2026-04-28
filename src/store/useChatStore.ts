@@ -7,6 +7,7 @@ interface ChatStore {
     name: string;
     isGroup: boolean;
     isCityChannel?: boolean;
+    targetRole?: string; // 对方的身份角色
   } | null;
   setActiveChat: (chat: ChatStore['activeChat']) => void;
 }

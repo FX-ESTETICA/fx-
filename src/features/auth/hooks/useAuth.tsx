@@ -24,6 +24,15 @@ export interface SandboxUser extends Omit<User, 'created_at'> {
   birthday?: string | null;
   // 核心升级：申请状态引擎，用于全站卡片隐藏与意图保持
   applicationStatus?: 'idle' | 'pending' | 'approved' | 'rejected';
+  // 双ID架构：同时存储两个物理锚点
+  base_gx_id?: string | null;
+  merchant_gx_id?: string | null;
+  merchant_name?: string | null;
+  merchant_avatar_url?: string | null;
+  merchant_phone?: string | null;
+  boss_name?: string | null;
+  boss_avatar_url?: string | null;
+  boss_phone?: string | null;
 }
 
 type ShopBindingRow = {
@@ -96,17 +105,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const deviceId = getDeviceId();
     if (!deviceId) return;
     
-    // 仅记录设备在线状态（Upsert），不再执行任何的 window_id 检查或互踢逻辑 (Option A)
-    const { error } = await supabase
-      .from('device_sessions')
-      .upsert({ 
-        device_id: deviceId, 
-        user_id: currentSession.user.id, 
-        updated_at: new Date().toISOString() 
-      }, { onConflict: 'device_id,user_id' });
-
-    if (error) {
-      console.error("[AuthProvider] Device session upsert error:", error);
+    try {
+      // 仅记录设备在线状态（Upsert），不再执行任何的 window_id 检查或互踢逻辑 (Option A)
+      await supabase
+        .from('device_sessions')
+        .upsert({ 
+          device_id: deviceId, 
+          user_id: currentSession.user.id, 
+          updated_at: new Date().toISOString() 
+        }, { onConflict: 'device_id,user_id' });
+        
+      // 静默处理网络拦截或表不存在的报错，遵循 0 报错法则
+      // if (error) console.warn("Device session sync skipped.");
+    } catch (err) {
+      // 物理屏蔽 Failed to fetch 等网络层面抛出的崩溃红字
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getDeviceId, hasConfirmedSession]);
@@ -132,22 +144,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           isBoss ? supabase.from('shops').select('id, name, industry').limit(100) : Promise.resolve({ data: null, error: null })
         ]);
 
-        const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
-        const appData = appStatusResult.status === 'fulfilled' ? appStatusResult.value.data : null;
-        let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = appData ? (appData.status as 'pending' | 'approved' | 'rejected') : 'idle';
-        const oldBindings = oldBindingsResult.status === 'fulfilled' ? oldBindingsResult.value.data : null;
-        const ownedShops = bossShopsResult.status === 'fulfilled' ? bossShopsResult.value.data : null;
+        // 核心修复：检查 profileResult 是否因断网失败
+        const isProfileFetchFailed = profileResult.status === 'fulfilled' && profileResult.value.error;
+        const profile = profileResult.status === 'fulfilled' && !profileResult.value.error ? profileResult.value.data : null;
+        
+        const appData = appStatusResult.status === 'fulfilled' && !appStatusResult.value.error ? appStatusResult.value.data : null;
+        const appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = appData ? (appData.status as 'pending' | 'approved' | 'rejected') : 'idle';
+        const oldBindings = oldBindingsResult.status === 'fulfilled' && !oldBindingsResult.value.error ? oldBindingsResult.value.data : null;
+        const ownedShops = bossShopsResult.status === 'fulfilled' && !bossShopsResult.value.error ? bossShopsResult.value.data : null;
 
         let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
 
         // 如果存在 profile.gx_id，才去拉取最新的 bindings
         if (profile?.gx_id) {
-          const { data: newBindings } = await supabase
+          const { data: newBindings, error: newBindingsError } = await supabase
             .from('bindings')
             .select('shop_id, role, shops(id, name, industry)')
             .eq('principal_id', profile.gx_id);
           
-          if (newBindings && newBindings.length > 0) {
+          if (!newBindingsError && newBindings && newBindings.length > 0) {
             shopBindings = mapShopBindings(newBindings as ShopBindingRow[]);
           }
         }
@@ -167,15 +182,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
           const actualName = profile.name || nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name;
           const actualAvatar = profile.avatar_url || nextSession.user.user_metadata?.avatar_url;
-          const actualId = isBoss ? "GX88888888" : profile.gx_id;
+          // 核心修复：根据当前实际角色提取对应的物理锚点 ID
+          const actualId = isBoss ? "GX88888888" : 
+                           (localViewRole === "merchant" || (actualRole === "merchant" && !localViewRole)) 
+                             ? (profile.merchant_gx_id || profile.gx_id) 
+                             : profile.gx_id;
           const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
           const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
 
           const extendedUser = {
           ...nextSession.user,
           gxId: actualId,
+          base_gx_id: profile.gx_id, // 永远记录原始生活ID
+          merchant_gx_id: profile.merchant_gx_id, // 永远记录原始智控ID
           role: actualRole,
           avatar: actualAvatar,
+          merchant_name: profile.merchant_name,
+          merchant_avatar_url: profile.merchant_avatar_url,
+          merchant_phone: profile.merchant_phone,
+          boss_name: profile.boss_name,
+          boss_avatar_url: profile.boss_avatar_url,
+          boss_phone: profile.boss_phone,
           phone: profile.phone,
           name: actualName,
           gender: profile.gender || nextSession.user.user_metadata?.gender || "unknown",
@@ -190,14 +217,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         setActiveRoleState(effectiveRole as UserRole);
         await syncDeviceSession(nextSession);
+        } else if (isProfileFetchFailed) {
+          // 【断网防御屏障】：如果是因为网络断开（fetch 失败但并不是真的没有这个人）
+          // 绝对不能强行刷 PENDING，必须直接中断并保留原有的缓存数据！
+          console.warn("[AuthProvider] Hydrate: Network disconnected or fetch failed, preserving existing cache.");
+          return; // 立即撤退，保留上方的 initAuth 从 localStorage 加载出来的高保真 User 状态
         } else {
-          // 【终极防爆兜底】：如果底层 profile 触发器失效导致记录为空，从 Metadata 提取降级档案
+          // 【终极防爆兜底】：只有当网络畅通，但底层 profile 真的为空（触发器失效）时，才执行降级档案
           const fallbackRole = isBoss ? "boss" : "user";
           const fallbackUser = {
           ...nextSession.user,
           gxId: "PENDING",
           role: fallbackRole,
           avatar: nextSession.user.user_metadata?.avatar_url,
+          merchant_name: null,
+          merchant_avatar_url: null,
+          boss_name: null,
+          boss_avatar_url: null,
           name: nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name,
           gender: nextSession.user.user_metadata?.gender || "unknown",
           birthday: nextSession.user.user_metadata?.birthday || null,
@@ -220,6 +256,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           gxId: "PENDING",
           role: fallbackRole,
           avatar: nextSession.user.user_metadata?.avatar_url,
+          merchant_name: null,
+          merchant_avatar_url: null,
+          boss_name: null,
+          boss_avatar_url: null,
           name: nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name,
           gender: nextSession.user.user_metadata?.gender || "unknown",
           birthday: nextSession.user.user_metadata?.birthday || null,
@@ -404,22 +444,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isBoss ? supabase.from('shops').select('id, name, industry').limit(100) : Promise.resolve({ data: null, error: null })
       ]);
 
-      const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : null;
-      const appData = appStatusResult.status === 'fulfilled' ? appStatusResult.value.data : null;
-      let appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = appData ? (appData.status as 'pending' | 'approved' | 'rejected') : 'idle';
-      const oldBindings = oldBindingsResult.status === 'fulfilled' ? oldBindingsResult.value.data : null;
-      const ownedShops = bossShopsResult.status === 'fulfilled' ? bossShopsResult.value.data : null;
+      // 核心修复：检查 profileResult 是否因断网失败
+      const isProfileFetchFailed = profileResult.status === 'fulfilled' && profileResult.value.error;
+      const profile = profileResult.status === 'fulfilled' && !profileResult.value.error ? profileResult.value.data : null;
+      
+      const appData = appStatusResult.status === 'fulfilled' && !appStatusResult.value.error ? appStatusResult.value.data : null;
+      const appStatus: 'idle' | 'pending' | 'approved' | 'rejected' = appData ? (appData.status as 'pending' | 'approved' | 'rejected') : 'idle';
+      const oldBindings = oldBindingsResult.status === 'fulfilled' && !oldBindingsResult.value.error ? oldBindingsResult.value.data : null;
+      const ownedShops = bossShopsResult.status === 'fulfilled' && !bossShopsResult.value.error ? bossShopsResult.value.data : null;
 
       let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
 
       // 如果存在 profile.gx_id，才去拉取最新的 bindings
       if (profile?.gx_id) {
-        const { data: newBindings } = await supabase
+        const { data: newBindings, error: newBindingsError } = await supabase
           .from('bindings')
           .select('shop_id, role, shops(id, name, industry)')
           .eq('principal_id', profile.gx_id);
         
-        if (newBindings && newBindings.length > 0) {
+        if (!newBindingsError && newBindings && newBindings.length > 0) {
           shopBindings = mapShopBindings(newBindings as ShopBindingRow[]);
         }
       }
@@ -435,19 +478,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (profile) {
-        const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
-        const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
-        const actualName = profile.name || activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name;
-        const actualAvatar = profile.avatar_url || activeSession.user.user_metadata?.avatar_url;
-        const actualId = isBoss ? "GX88888888" : profile.gx_id;
-        const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
-        const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
+          const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
+          const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
+          const actualName = profile.name || activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name;
+          const actualAvatar = profile.avatar_url || activeSession.user.user_metadata?.avatar_url;
+          // 核心修复：根据当前实际角色提取对应的物理锚点 ID
+          const actualId = isBoss ? "GX88888888" : 
+                           (localViewRole === "merchant" || (actualRole === "merchant" && !localViewRole)) 
+                             ? (profile.merchant_gx_id || profile.gx_id) 
+                             : profile.gx_id;
+          const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
+          const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
 
         const extendedUser = {
           ...activeSession.user,
           gxId: actualId,
+          base_gx_id: profile.gx_id, // 永远记录原始生活ID
+          merchant_gx_id: profile.merchant_gx_id, // 永远记录原始智控ID
           role: actualRole,
           avatar: actualAvatar,
+          merchant_name: profile.merchant_name,
+          merchant_avatar_url: profile.merchant_avatar_url,
+          merchant_phone: profile.merchant_phone,
+          boss_name: profile.boss_name,
+          boss_avatar_url: profile.boss_avatar_url,
+          boss_phone: profile.boss_phone,
           phone: profile.phone,
           name: actualName,
           gender: profile.gender || activeSession.user.user_metadata?.gender || "unknown",
@@ -459,6 +514,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(extendedUser);
         localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
         setActiveRoleState(effectiveRole as UserRole);
+      } else if (isProfileFetchFailed) {
+        // 【断网防御屏障】
+        console.warn("[AuthProvider] Refresh User Data: Network disconnected or fetch failed, preserving existing cache.");
+        return;
       } else {
         // 【终极防爆兜底：refreshUserData 同样支持 Metadata 降级提取】
         const fallbackRole = isBoss ? "boss" : "user";
@@ -467,6 +526,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           gxId: "PENDING",
           role: fallbackRole,
           avatar: activeSession.user.user_metadata?.avatar_url,
+          merchant_name: null,
+          merchant_avatar_url: null,
+          boss_name: null,
+          boss_avatar_url: null,
           name: activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name,
           gender: activeSession.user.user_metadata?.gender || "unknown",
           birthday: activeSession.user.user_metadata?.birthday || null,
@@ -589,6 +652,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLocalViewRole(role);
     if (typeof window !== "undefined") {
       localStorage.setItem("gx_view_role", role);
+      
+      // 核心修复：执行内存级的 ID 瞬间跳动，绝不查库
+      if (user && (user as SandboxUser).base_gx_id) {
+        const sUser = user as SandboxUser;
+        const newId = role === 'boss' ? 'GX88888888' :
+                      role === 'merchant' ? (sUser.merchant_gx_id || sUser.base_gx_id) :
+                      sUser.base_gx_id;
+                      
+        if (newId && newId !== sUser.gxId) {
+          const updatedUser = { ...sUser, gxId: newId };
+          setUser(updatedUser);
+          localStorage.setItem("gx_cached_user", JSON.stringify(updatedUser));
+        }
+      }
     }
   };
 

@@ -19,7 +19,7 @@ async function testWithRealUser() {
   console.log('Testing with user:', userId);
   
   const start = Date.now();
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('messages')
     .select('*')
     .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)

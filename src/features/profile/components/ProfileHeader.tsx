@@ -32,15 +32,30 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
-  const [localAvatar, setLocalAvatar] = useState<string | undefined>(profile.avatar);
+  // 根据角色动态获取头像和名字
+  const getRoleSpecificAvatar = () => {
+    if (activeRole === 'boss') return (profile as any).boss_avatar_url || profile.avatar;
+    if (activeRole === 'merchant') return (profile as any).merchant_avatar_url || profile.avatar;
+    return profile.avatar;
+  };
+
+  const getRoleSpecificName = () => {
+    if (activeRole === 'boss') return (profile as any).boss_name || profile.name;
+    if (activeRole === 'merchant') return (profile as any).merchant_name || profile.name;
+    return profile.name;
+  };
+
+  const currentAvatar = getRoleSpecificAvatar();
+  const [localAvatar, setLocalAvatar] = useState<string | undefined>(currentAvatar);
   const isLocalAvatar = localAvatar?.startsWith("data:") || localAvatar?.startsWith("blob:");
 
-  // 当外部 profile 变化时，同步本地 avatar
+  // 当外部 profile 变化或角色切换时，同步本地 avatar
   useEffect(() => {
-    setLocalAvatar(profile.avatar);
+    const newAvatar = getRoleSpecificAvatar();
+    setLocalAvatar(newAvatar);
     // 重置加载状态，除非没有头像
-    setImageLoaded(!profile.avatar);
-  }, [profile.avatar]);
+    setImageLoaded(!newAvatar);
+  }, [profile.avatar, (profile as any).merchant_avatar_url, (profile as any).boss_avatar_url, activeRole]);
   
   const roleLabels = {
     user: { zh: t('role_user'), color: isLight ? "text-black" : "text-white" },
@@ -76,7 +91,8 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
   const handleCopyName = async () => {
     if (isEditingName) return;
-    if (!profile.name) return;
+    const currentName = getRoleSpecificName();
+    if (!currentName) return;
     
     const proceedWithUI = () => {
       setNameCopyState("copied");
@@ -87,7 +103,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     };
 
     // 物理级降维防崩溃复制
-    await safeCopyToClipboard(profile.name);
+    await safeCopyToClipboard(currentName);
     proceedWithUI(); // 无论底层是用的哪种方案，都执行 UI 反馈
   };
 
@@ -96,20 +112,34 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
     if (nameTimeoutRef.current) clearTimeout(nameTimeoutRef.current);
     setNameCopyState("idle");
     setIsEditingName(true);
-    setEditNameValue(profile.name || "");
+    setEditNameValue(getRoleSpecificName() || "");
   };
 
   const handleSaveName = async (e?: React.MouseEvent | React.FormEvent<HTMLFormElement>) => {
     if (e) e.stopPropagation();
-    if (!editNameValue.trim() || editNameValue.trim() === profile.name) {
+    
+    // 如果是商户模式，判断新名字和现在的商户名字是否一致
+    const currentName = getRoleSpecificName();
+    
+    const newName = editNameValue.trim();
+    if (!newName || newName === currentName) {
       setIsEditingName(false);
       return;
     }
     
     try {
+      const updateData: any = {};
+      if (activeRole === 'boss') {
+        updateData.boss_name = newName;
+      } else if (activeRole === 'merchant') {
+        updateData.merchant_name = newName;
+      } else {
+        updateData.name = newName;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({ name: editNameValue.trim() })
+        .update(updateData)
         .eq('id', user?.id);
         
       if (error) throw error;
@@ -235,9 +265,18 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
       // 4. 更新真实环境：更新 public.profiles 表
       if (user) {
+        const updateData: any = {};
+        if (activeRole === 'boss') {
+          updateData.boss_avatar_url = urlWithTimestamp;
+        } else if (activeRole === 'merchant') {
+          updateData.merchant_avatar_url = urlWithTimestamp;
+        } else {
+          updateData.avatar_url = urlWithTimestamp;
+        }
+
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ avatar_url: urlWithTimestamp })
+          .update(updateData)
           .eq('id', user.id);
           
         if (updateError) throw updateError;
@@ -323,20 +362,19 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
             }}
           >
             {/* 名字投影 - 点击展开、复制与修改 */}
-            {!isEditingName ? (
-              <div 
-                onClick={handleCopyName}
-                className={cn(
-                  "text-[18px] md:text-[24px] font-black tracking-widest select-none leading-none mb-1 transition-all duration-500 cursor-pointer pr-2 flex items-center group",
-                  nameCopyState === "copied" 
-                    ? "whitespace-nowrap max-w-none" 
-                    : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:opacity-80",
-                  isLight ? "text-black" : isLight ? "text-black" : "text-white"
-                )}
-              >
-                {profile.name}
-                
-                {/* 复制成功指示器 & 改名按钮 */}
+          {!isEditingName ? (
+            <div 
+              onClick={handleCopyName}
+              className={cn(
+                "text-[18px] md:text-[24px] font-black tracking-widest select-none leading-none mb-1 transition-all duration-500 cursor-pointer pr-2 flex items-center group",
+                nameCopyState === "copied" 
+                  ? "whitespace-nowrap max-w-none" 
+                  : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:opacity-80",
+                isLight ? "text-black" : "text-white"
+              )}
+            >
+              {getRoleSpecificName()}
+            {/* 复制成功指示器 & 改名按钮 */}
                 <AnimatePresence>
                   {nameCopyState === "copied" && (
                     <motion.div
@@ -417,7 +455,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 {/* 复制反馈状态 - 保持高亮白/青色 */}
                 <div className={cn(
                   "flex items-center gap-1 transition-all duration-300 font-bold",
-                  copyState === "copied" ? (isLight ? "opacity-100 relative text-black" : "opacity-100 relative", isLight ? "text-black" : "text-white") : "opacity-0 absolute",
+                  copyState === "copied" ? (isLight ? "opacity-100 relative text-black" : "opacity-100 relative text-white") : "opacity-0 absolute",
                   copyState === "hover" && (isLight ? "text-black" : "text-white")
                 )}>
                   {copyState === "copied" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
@@ -522,6 +560,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
               {localAvatar ? (
                 <Image
+                  key={localAvatar} // 物理探针：强制 React 根据 URL 变化重构 DOM，打破浏览器缓存竞态死锁
                   src={localAvatar}
                   alt="avatar"
                   fill
@@ -531,8 +570,9 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                     imageLoaded ? "opacity-100" : "opacity-0"
                   )}
                   unoptimized={isLocalAvatar}
-                  priority={false}
+                  priority={true} // 提升优先级，确保快速渲染
                   onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageLoaded(true)} // 错误降级：如果图片加载失败，强制解除遮罩，防止无限转圈
                 />
               ) : profile.role === "boss" ? (
                 <ShieldCheck className="w-16 h-16 text-red-500" />

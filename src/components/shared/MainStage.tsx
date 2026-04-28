@@ -69,7 +69,7 @@ export const MainStage = () => {
     // 初始化时，把当前 URL 对应的 Tab 加入已挂载集合
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMountedTabs(prev => new Set(prev).add(initialTab));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setMounted(true);
   }, []);
 

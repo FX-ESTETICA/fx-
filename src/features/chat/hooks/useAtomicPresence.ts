@@ -3,34 +3,30 @@ import { supabase } from '@/lib/supabase';
 
 // 世界顶端架构：视口级动态感知与原子渲染 (Viewport-Aware Atomic Presence)
 export function useAtomicPresence(currentUserId: string | undefined) {
-  const visibleUsersRef = useRef<Set<string>>(new Set());
+  // 记录每个 DOM 节点 (radar-xxx 或 list-xxx) 是否在视口内
+  const visibleNodesRef = useRef<Set<string>>(new Set());
+  // 核心！记录每个用户的真实在线状态（Single Source of Truth）
+  const realPresenceCacheRef = useRef<Map<string, boolean>>(new Map());
   
   // 核心物理级渲染器：绕过 React，直接操作 DOM
-  const renderAtomicPresence = useCallback((userId: string, isOnline: boolean) => {
-    // 同时渲染聊天列表 (list-presence) 和 顶部星轨 (radar-presence)
-    const listNode = document.getElementById(`list-presence-${userId}`);
-    const radarNode = document.getElementById(`radar-presence-${userId}`);
+  // 【重构】：分离节点渲染。不再“连坐”同时修改 radar 和 list，而是根据节点在视口的状态和用户的真实在线状态，单独控制每个节点
+  const renderAtomicPresence = useCallback((userId: string) => {
+    const isOnline = realPresenceCacheRef.current.get(userId) || false;
+
+    // 获取所有标记了 data-presence-id 的光环节点 (不分 list 还是 radar，全部接管)
+    const nodes = document.querySelectorAll(`[data-presence-id="${userId}"]`);
     
-    // 物理注入/剥离 CSS 类，0 重新渲染
-    if (listNode) {
-      if (isOnline) {
-        listNode.classList.remove('opacity-0');
-        listNode.classList.add('opacity-100');
+    nodes.forEach(node => {
+      const targetAuraId = node.id;
+      // 只有当节点在视口内 且 用户真实在线时，才点亮光环
+      if (visibleNodesRef.current.has(targetAuraId) && isOnline) {
+        node.classList.remove('opacity-0');
+        node.classList.add('opacity-100');
       } else {
-        listNode.classList.remove('opacity-100');
-        listNode.classList.add('opacity-0');
+        node.classList.remove('opacity-100');
+        node.classList.add('opacity-0');
       }
-    }
-    
-    if (radarNode) {
-      if (isOnline) {
-        radarNode.classList.remove('opacity-0');
-        radarNode.classList.add('opacity-100');
-      } else {
-        radarNode.classList.remove('opacity-100');
-        radarNode.classList.add('opacity-0');
-      }
-    }
+    });
   }, []);
 
   // 根据当前视口内的用户，向服务器动态同步状态
@@ -38,18 +34,17 @@ export function useAtomicPresence(currentUserId: string | undefined) {
   // 我们不再尝试自己去 getChannels 并挂载回调，而是直接通过原生的 window.addEventListener
   // 监听来自全局 AuthProvider 广播出来的 'gx_presence_sync/join/leave' 事件
   const syncPresenceSubscription = useCallback(() => {
-    if (!currentUserId || visibleUsersRef.current.size === 0) {
-      return;
-    }
+    if (!currentUserId) return; // 移除 visibleUsersRef.current.size 检查，因为我们需要全局初始化缓存
 
     // 主动抓取一次现有状态用于初次渲染
-    const existingChannel = supabase.getChannels().find(c => c.topic === 'realtime:global_presence');
+    const existingChannel = supabase.getChannels().find(c => c.topic === 'realtime:global_presence' || c.topic === 'global_presence');
     if (existingChannel && existingChannel.state === 'joined') {
       const state = existingChannel.presenceState();
-      visibleUsersRef.current.forEach(userId => {
-        const isOnline = !!state[userId] && Object.keys(state[userId]).length > 0;
-        renderAtomicPresence(userId, isOnline);
-      });
+      for (const [key, presences] of Object.entries(state)) {
+        const isOnline = !!presences && presences.length > 0;
+        realPresenceCacheRef.current.set(key, isOnline);
+        renderAtomicPresence(key);
+      }
     }
   }, [currentUserId, renderAtomicPresence]);
 
@@ -59,26 +54,25 @@ export function useAtomicPresence(currentUserId: string | undefined) {
     const handleSync = (e: Event) => {
       const customEvent = e as CustomEvent;
       const state = customEvent.detail;
-      visibleUsersRef.current.forEach(userId => {
-        const isOnline = !!state[userId] && Object.keys(state[userId]).length > 0;
-        renderAtomicPresence(userId, isOnline);
-      });
+      for (const [key, presences] of Object.entries(state)) {
+        const isOnline = !!presences && (presences as any[]).length > 0;
+        realPresenceCacheRef.current.set(key, isOnline);
+        renderAtomicPresence(key);
+      }
     };
 
     const handleJoin = (e: Event) => {
       const customEvent = e as CustomEvent;
       const { key } = customEvent.detail;
-      if (visibleUsersRef.current.has(key)) {
-        renderAtomicPresence(key, true);
-      }
+      realPresenceCacheRef.current.set(key, true);
+      renderAtomicPresence(key);
     };
 
     const handleLeave = (e: Event) => {
       const customEvent = e as CustomEvent;
       const { key } = customEvent.detail;
-      if (visibleUsersRef.current.has(key)) {
-        renderAtomicPresence(key, false);
-      }
+      realPresenceCacheRef.current.set(key, false);
+      renderAtomicPresence(key);
     };
 
     window.addEventListener('gx_presence_sync', handleSync);
@@ -97,23 +91,31 @@ export function useAtomicPresence(currentUserId: string | undefined) {
     let hasChanges = false;
     
     entries.forEach(entry => {
-      // 约定 ID 格式为 "chat-card-radar-USER_ID" 或 "chat-card-list-USER_ID"
-      const targetId = entry.target.id.replace('chat-card-radar-', '').replace('chat-card-list-', '');
-      if (!targetId) return;
+      // 获取节点的唯一 ID (例如 chat-card-list-123_merchant 或 chat-card-radar-123_user)
+      // 注意：这里的 entry.target 是我们传递给 observe 的节点
+      const nodeId = entry.target.id;
+      // 提取出包含身份后缀的复合标识 (例如 123_merchant)
+      const extracted = nodeId.replace('chat-card-radar-', '').replace('chat-card-list-', '');
+      // 提取出真正的 userId (即 "_" 前面的 UUID)
+      const userId = extracted.split('_')[0];
+      // 根据规则，将外层卡片容器 ID 精准映射为内部光环节点的 ID
+      const targetAuraId = nodeId.replace('chat-card-radar-', 'radar-presence-').replace('chat-card-list-', 'list-presence-');
+      
+      if (!userId || !targetAuraId) return;
 
       if (entry.isIntersecting) {
-        if (!visibleUsersRef.current.has(targetId)) {
-          visibleUsersRef.current.add(targetId);
+        if (!visibleNodesRef.current.has(targetAuraId)) {
+          visibleNodesRef.current.add(targetAuraId);
           hasChanges = true;
+          // 进入视口时，点亮（如果在线）
+          renderAtomicPresence(userId);
         }
       } else {
-        if (visibleUsersRef.current.has(targetId)) {
-          // 移出视口时，我们不一定立刻从 set 里删除，为了做 over-scan 缓冲，
-          // 可以保留一段时间，但严格版就是直接删除并熄灭（为了演示极限性能）
-          visibleUsersRef.current.delete(targetId);
-          // 离开视口后，物理级重置其状态，防止缓存脏数据
-          renderAtomicPresence(targetId, false);
+        if (visibleNodesRef.current.has(targetAuraId)) {
+          visibleNodesRef.current.delete(targetAuraId);
           hasChanges = true;
+          // 离开视口时，物理级熄灭光环，防止 GPU 渲染，但不改变用户的真实在线状态
+          renderAtomicPresence(userId);
         }
       }
     });

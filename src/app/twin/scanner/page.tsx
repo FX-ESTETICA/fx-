@@ -299,7 +299,7 @@ export default function ScannerSandboxPage() {
         mediaRecorder.start(100); // collect 100ms chunks
         
         // Start 15s recording timer for progress bar
-        let startTime = Date.now();
+        const startTime = Date.now();
         const duration = 15000; // 15 seconds
         
         const updateProgress = () => {
@@ -411,7 +411,7 @@ export default function ScannerSandboxPage() {
           const dx = rightShoulder.x - leftShoulder.x;
           const dz = leftShoulder.z - rightShoulder.z; 
           
-          let angleRad = Math.atan2(dz, dx);
+          const angleRad = Math.atan2(dz, dx);
           let angleDeg = Math.round((angleRad * 180) / Math.PI);
           
           // Normalize to 0-360 degrees
@@ -793,7 +793,7 @@ export default function ScannerSandboxPage() {
               <div className="w-full h-[60vh] md:h-[80vh] relative animate-in fade-in zoom-in duration-1000">
                 <ErrorBoundary>
                   <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-8 h-8  animate-spin" /></div>}>
-                    <Canvas s={{ type: THREE.PCFShadowMap }} 
+                    <Canvas shadows={{ type: THREE.PCFShadowMap }} 
                       camera={{ position: [0, 0.5, 3.5], fov: 50 }}
                       gl={{ preserveDrawingBuffer: true, powerPreference: "high-performance", antialias: true }}
                       onCreated={({ gl }) => {

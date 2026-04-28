@@ -8,24 +8,25 @@ export interface RecentChat {
   lastMessage: string;
   time: string;
   avatar: string;
-  unread: boolean;
+  unread: number;
   isGroup: boolean;
   isOnline?: boolean;
   isCityChannel?: boolean;
   isPhantom?: boolean; // 标记是否为量子幻影（还没有真实聊天记录）
+  targetRole?: string; // 对方的身份角色
 }
 
 // 封装专门用于获取最近聊天的 fetcher 函数
-const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]> => {
+const fetchRecentChatsData = async (currentUserId: string, currentRole: string): Promise<RecentChat[]> => {
   if (!currentUserId) return [];
 
-  // 拉取最近 100 条与自己相关的消息
+  // 拉取最近 500 条与自己相关的消息（为了能够统计准确的未读数，适当扩大查询范围）
   const { data: messages, error } = await supabase
     .from('messages')
     .select('*')
-    .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
+    .or(`and(sender_id.eq.${currentUserId},sender_role.eq.${currentRole}),and(receiver_id.eq.${currentUserId},receiver_role.eq.${currentRole})`)
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(500);
 
   if (error) {
     // 物理拦截: 忽略因为组件卸载或页面跳转导致的 Abort/Fetch 错误，实现 0 报错控制台
@@ -42,6 +43,7 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
   if (messages) {
     messages.forEach((msg) => {
       let targetId = '';
+      let targetRole = '';
       let isGroup = false;
       let name = '';
       let avatar = '';
@@ -57,22 +59,30 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
           : 'https://i.pravatar.cc/150?img=50';
         if (msg.room_id === 'city_current') isCityChannel = true;
       } else {
-        targetId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id;
+        if (msg.sender_id === currentUserId && msg.sender_role === currentRole) {
+          targetId = msg.receiver_id;
+          targetRole = msg.receiver_role;
+        } else {
+          targetId = msg.sender_id;
+          targetRole = msg.sender_role;
+        }
         isGroup = false;
         name = `信号源 ${targetId?.substring(0, 4) || '未知'}`; // 临时假名字，后面会被覆盖
         avatar = ''; // 移除 Dicebear，使用空字符串触发首字母渲染
         userIdsToFetch.add(targetId); // 记录下真实的 targetId，准备去 profiles 表里反查
       }
 
-      // 如果 Map 里还没有这个 targetId，说明这是最新的一条（因为数据已经是倒序的了）
-      if (!chatMap.has(targetId) && targetId) {
+      // 如果 Map 里还没有这个复合键 (targetId_targetRole)，说明这是最新的一条
+      const mapKey = isGroup ? targetId : `${targetId}_${targetRole}`;
+      if (!chatMap.has(mapKey) && targetId) {
         // 获取此对话的本地清空时间戳 (降维打击：物理拦截被清空的历史)
         let clearedAt = 0;
         let deletedIds: string[] = [];
         let isChatDeleted = false;
+        let lastReadTime = 0;
         
         if (typeof window !== 'undefined') {
-          const delChatKey = `gx_deleted_chat_${currentUserId}_${targetId}`;
+          const delChatKey = isGroup ? `gx_deleted_chat_${currentUserId}_${targetId}` : `gx_deleted_chat_${currentUserId}_${targetId}_${targetRole}`;
           const deletedStr = localStorage.getItem(delChatKey);
           if (deletedStr) {
             isChatDeleted = true;
@@ -83,7 +93,7 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
             }
           }
 
-          const key = `gx_cleared_${currentUserId}_${targetId}`;
+          const key = isGroup ? `gx_cleared_${currentUserId}_${targetId}` : `gx_cleared_${currentUserId}_${targetId}_${targetRole}`;
           const stored = localStorage.getItem(key);
           if (stored) {
              const clearTime = parseInt(stored, 10);
@@ -95,6 +105,15 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
             const delStored = localStorage.getItem(delKey);
             if (delStored) deletedIds = JSON.parse(delStored);
           } catch(e) {}
+
+          const readKey = isGroup ? `gx_last_read_${currentUserId}_${targetId}` : `gx_last_read_${currentUserId}_${targetId}_${targetRole}`;
+          const readStored = localStorage.getItem(readKey);
+          if (readStored) {
+            const parsedReadTime = parseInt(readStored, 10);
+            if (!isNaN(parsedReadTime)) {
+              lastReadTime = parsedReadTime;
+            }
+          }
         }
         
         const msgDate = new Date(msg.created_at);
@@ -124,49 +143,91 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
           if (msg.image_url) lastMessageStr = '[图片流]';
           if (msg.audio_url) lastMessageStr = '[语音流]';
   
-          chatMap.set(targetId, {
+          // 计算未读数量：如果当前消息是对方发的，且时间晚于最后阅读时间，则算 1 条
+          const isUnread = msg.sender_id !== currentUserId && msgDate.getTime() > lastReadTime;
+          const unreadCount = isUnread ? 1 : 0;
+
+          chatMap.set(mapKey, {
             id: targetId,
             name,
             lastMessage: lastMessageStr,
             time: timeStr,
             avatar,
-            unread: msg.sender_id !== currentUserId, // 简单模拟：如果最新一条不是自己发的，就是未读
+            unread: unreadCount,
             isGroup,
             isCityChannel,
+            targetRole,
           });
         } else {
           // 被清空的会话：依然留在列表中，但显示空状态，不再往回找更老的消息
-          chatMap.set(targetId, {
+          chatMap.set(mapKey, {
             id: targetId,
             name,
             lastMessage: '', // 留空
             time: '',
             avatar,
-            unread: false,
+            unread: 0,
             isGroup,
             isCityChannel,
+            targetRole,
           });
+        }
+      } else if (chatMap.has(mapKey) && targetId) {
+        // 如果已经存在该聊天（处理该聊天的历史消息，用于累加未读数）
+        const chat = chatMap.get(mapKey)!;
+        const msgDate = new Date(msg.created_at);
+        
+        let lastReadTime = 0;
+        if (typeof window !== 'undefined') {
+          const readKey = isGroup ? `gx_last_read_${currentUserId}_${targetId}` : `gx_last_read_${currentUserId}_${targetId}_${targetRole}`;
+          const readStored = localStorage.getItem(readKey);
+          if (readStored) {
+            const parsedReadTime = parseInt(readStored, 10);
+            if (!isNaN(parsedReadTime)) {
+              lastReadTime = parsedReadTime;
+            }
+          }
+        }
+
+        // 如果这条历史消息是对方发的，并且时间晚于最后阅读时间，且晚于被清空的时间，则未读数 +1
+        let clearedAt = 0;
+        if (typeof window !== 'undefined') {
+          const clearKey = isGroup ? `gx_cleared_${currentUserId}_${targetId}` : `gx_cleared_${currentUserId}_${targetId}_${targetRole}`;
+          const storedClear = localStorage.getItem(clearKey);
+          if (storedClear) {
+             const clearTime = parseInt(storedClear, 10);
+             if (!isNaN(clearTime)) clearedAt = clearTime;
+          }
+        }
+
+        if (
+          msg.sender_id !== currentUserId && 
+          msgDate.getTime() > lastReadTime && 
+          msgDate.getTime() > clearedAt
+        ) {
+          chat.unread += 1;
         }
       }
     });
   }
 
   // ==========================================
-  // 【全真数据反查引擎】(加入 UUID 防御与身份路由)
-  // 批量查询所有单聊对象的真实姓名和真实头像
+  // 【全真数据反查引擎】(双ID隔离架构：从 profiles 表查询 gx_id / merchant_gx_id)
   // ==========================================
-  const profilesMap = new Map<string, { name: string, avatar: string }>();
-  const validUuids: string[] = [];
+  const profilesMap = new Map<string, any>();
+  const validGxIds: string[] = [];
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // 支持解析我们的业务编号 GX-UR-xxx, GX-MC-xxx
+  const GX_ID_REGEX = /^GX-(UR|MC)-[A-F0-9]+$/i;
 
   Array.from(userIdsToFetch).forEach(id => {
     // 防御保护：如果 id 不存在，直接跳过
     if (!id) return;
     
-    if (UUID_REGEX.test(id)) {
-      validUuids.push(id);
+    if (UUID_REGEX.test(id) || GX_ID_REGEX.test(id) || id === 'GX88888888') {
+      validGxIds.push(id);
     } else {
-      // 物理拦截非 UUID (如 phone_3937, guest_001)，直接在内存赋予身份
+      // 物理拦截非 UUID/GX_ID (如 phone_3937, guest_001)，直接在内存赋予身份
       if (id.startsWith('wa_')) {
         // 兼容历史老数据
         profilesMap.set(id, {
@@ -204,11 +265,13 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
     }
   });
 
-  if (validUuids.length > 0) {
+  if (validGxIds.length > 0) {
+    // 【核心重构】：同时去匹配 gx_id 和 merchant_gx_id
+    // 如果消息的 sender/receiver 是 merchant_gx_id，这里需要反查商户信息
     const { data: profiles, error: profileErr } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url')
-      .in('id', validUuids);
+      .select('id, gx_id, merchant_gx_id, name, avatar_url, merchant_name, merchant_avatar_url, boss_name, boss_avatar_url')
+      .or(`id.in.(${validGxIds.map(id => `"${id}"`).join(',')}),gx_id.in.(${validGxIds.map(id => `"${id}"`).join(',')}),merchant_gx_id.in.(${validGxIds.map(id => `"${id}"`).join(',')})`);
 
     if (profileErr) {
       if (!profileErr.message?.includes('Failed to fetch') && !profileErr.message?.includes('AbortError')) {
@@ -218,10 +281,15 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
 
     if (profiles) {
       profiles.forEach(p => {
-        profilesMap.set(p.id, { 
-          name: p.name || `用户 ${p.id.substring(0,4)}`, 
-          avatar: p.avatar_url || '' // 使用空字符串，交由 UI 渲染首字母
-        });
+        // 为不同的 ID 键值存储完整的 profile 引用，以便后面根据 role 取值
+        if (p.gx_id) {
+          profilesMap.set(p.gx_id, p);
+        }
+        if (p.merchant_gx_id) {
+          profilesMap.set(p.merchant_gx_id, p);
+        }
+        // 兼容老数据（如果有的消息还是用的 UUID）
+        profilesMap.set(p.id, p);
       });
     }
   }
@@ -231,24 +299,57 @@ const fetchRecentChatsData = async (currentUserId: string): Promise<RecentChat[]
     if (!chat.isGroup) {
       const realProfile = profilesMap.get(chat.id);
       if (realProfile) {
-        chat.name = realProfile.name;
-        chat.avatar = realProfile.avatar;
+        // 如果是老逻辑（如 wa_、phone_ 等），profilesMap 里存的只有 name 和 avatar，没有 id 属性
+        if (!realProfile.id) {
+          chat.name = realProfile.name;
+          chat.avatar = realProfile.avatar;
+        } else {
+          // 如果是数据库查出来的 profiles 记录，则根据 role 动态显示名称和头像
+          if (chat.targetRole === 'merchant') {
+            chat.name = realProfile.merchant_name || `智控 ${realProfile.merchant_gx_id?.substring(realProfile.merchant_gx_id.length - 4) || ''}`;
+            chat.avatar = realProfile.merchant_avatar_url || realProfile.avatar_url || '';
+          } else if (chat.targetRole === 'boss') {
+            chat.name = realProfile.boss_name || realProfile.name || 'BOSS';
+            chat.avatar = realProfile.boss_avatar_url || realProfile.avatar_url || '';
+          } else {
+            chat.name = realProfile.name || `信号源 ${realProfile.gx_id?.substring(realProfile.gx_id.length - 4) || ''}`;
+            chat.avatar = realProfile.avatar_url || '';
+          }
+        }
       }
     }
     return chat;
   });
 };
 
-// 升级版：接入现代 useSWR 架构，防死锁，防竞态
-export function useRecentChats(currentUserId: string, activeChatId?: string) {
-  // SWR 核心接管：提供缓存、去重、并发安全
+// 升级版：接入现代 useSWR 架构，防死锁，防竞态，并挂载 Local-First 引擎
+export function useRecentChats(currentUserId: string, currentRole: string, activeChatId?: string, activeChatRole?: string) {
+  // 【Local-First 引擎】：从本地硬盘光速读取聊天列表缓存
+  const getCachedRecentChats = (userId: string, role: string) => {
+    if (typeof window === 'undefined' || !userId) return undefined;
+    try {
+      const cached = localStorage.getItem(`gx_recent_chats_${userId}_${role}`);
+      return cached ? JSON.parse(cached) : undefined;
+    } catch (e) {
+      return undefined;
+    }
+  };
+
+  // SWR 核心接管：提供缓存、去重、并发安全，并挂载 Local-First 硬盘备份引擎
   const { data: recentChats = [], isLoading, mutate } = useSWR(
-    currentUserId ? `recentChats_${currentUserId}` : null,
-    () => fetchRecentChatsData(currentUserId),
+    currentUserId ? `recentChats_${currentUserId}_${currentRole}` : null,
+    () => fetchRecentChatsData(currentUserId, currentRole),
     {
       revalidateOnFocus: true, // 焦点回到窗口时刷新
       dedupingInterval: 5000,  // 5秒内的重复请求去重
-      keepPreviousData: true   // 保持旧数据防闪烁
+      keepPreviousData: true,  // 保持旧数据防闪烁
+      fallbackData: getCachedRecentChats(currentUserId, currentRole) || [], // 物理秒开：0毫秒同步灌入上次硬盘缓存
+      onSuccess: (data) => {
+        // 成功拉取到最新数据后，静默覆写到本地硬盘，供下次秒开
+        if (typeof window !== 'undefined' && data && currentUserId) {
+          localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(data));
+        }
+      }
     }
   );
 
@@ -261,6 +362,7 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
     };
     window.addEventListener('gx_chat_cleared', handleUpdate);
     window.addEventListener('gx_chat_message_deleted', handleUpdate);
+    window.addEventListener('gx_chat_read_updated', handleUpdate);
 
     // 监听新消息到达，更新列表 (化假为真的关键)
     // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state
@@ -287,6 +389,7 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
     return () => {
       window.removeEventListener('gx_chat_cleared', handleUpdate);
       window.removeEventListener('gx_chat_message_deleted', handleUpdate);
+      window.removeEventListener('gx_chat_read_updated', handleUpdate);
       supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
@@ -296,13 +399,13 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
   // 【动态置顶与幻影注入】(仅在前端内存中进行，不触发网络请求)
   // ==========================================
   const finalProcessedChats = useMemo(() => {
-    let result = [...recentChats];
+    const result = [...recentChats];
 
     // 如果当前选中的聊天不在历史列表中（如从 URL 进来的 wa_ 客户），就在内存中伪造一个
     if (activeChatId && !result.some(c => c.id === activeChatId)) {
       const isGroup = activeChatId === 'city_current' || activeChatId.startsWith('group_');
       let name = '正在连接...';
-      let avatar = '';
+      const avatar = '';
       
       if (activeChatId.startsWith('wa_')) {
         name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
@@ -319,7 +422,7 @@ export function useRecentChats(currentUserId: string, activeChatId?: string) {
         lastMessage: '[系统] 正在建立全息加密通道...',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         avatar,
-        unread: false,
+        unread: 0,
         isGroup,
         isCityChannel: activeChatId === 'city_current',
         isPhantom: true

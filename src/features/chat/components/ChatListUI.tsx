@@ -9,16 +9,19 @@ import { usePathname } from "next/navigation";
 import { useActiveTab } from "@/hooks/useActiveTab";
 import { cn } from "@/utils/cn";
 import { useAtomicPresence } from '../hooks/useAtomicPresence';
+import { ContactsUI } from './ContactsUI';
 
 export interface ChatListUIProps {
   currentUserId: string;
-  onChatSelect: (chat: { id: string; name: string; isGroup: boolean; isCityChannel?: boolean }) => void;
+  currentRole: string;
+  onChatSelect: (chat: { id: string; name: string; isGroup: boolean; isCityChannel?: boolean; targetRole?: string }) => void;
 }
 
 // ------------------------------------------------------------------------
 // 多轨雷达搜索结果类型定义
 // ------------------------------------------------------------------------
 type SearchTrack = 'profiles' | 'bookings' | 'none';
+type IdentityRole = 'life' | 'merchant' | 'boss'; // 身份降维
 
 interface SearchResult {
   track: SearchTrack;
@@ -27,13 +30,65 @@ interface SearchResult {
   avatar: string;
   gx_id: string;
   phone: string;
+  identity?: IdentityRole; // 标记当前卡片展示的是什么身份
 }
 
-export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIProps) {
+export default function ChatListUI({ currentUserId, currentRole, onChatSelect }: ChatListUIProps) {
   const t = useTranslations('ChatListUI');
   const { activeChat } = useChatStore();
-  const { recentChats, isLoading } = useRecentChats(currentUserId, activeChat?.id);
+  const { recentChats } = useRecentChats(currentUserId, currentRole, activeChat?.id, activeChat?.targetRole);
   
+  // 顶级 IM 极简交友架构：动态获取物理双向好友映射
+  const [friendsList, setFriendsList] = useState<string[]>([]);
+  useEffect(() => {
+    if (!currentUserId) return;
+    
+    const fetchFriends = async () => {
+      const { data, error } = await supabase
+        .from('friendships')
+        .select('friend_id, friend_role')
+        .eq('user_id', currentUserId)
+        .eq('user_role', currentRole);
+        
+      if (!error && data) {
+        // 提取所有对方的 ID 与角色，构建纯净的熟人白名单 (利用双向插入物理特性)
+        const friends = data.map(f => `${f.friend_id}_${f.friend_role}`);
+        setFriendsList(friends);
+      }
+    };
+    
+    fetchFriends();
+    
+    // 监听实时破冰：当触发器瞬间融合后，前端光速更新列表，实现无感体验
+    const channel = supabase.channel('friendships_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friendships' }, (payload) => {
+        const newFriend = payload.new as any;
+        if (newFriend.user_id === currentUserId && newFriend.user_role === currentRole) {
+          setFriendsList(prev => [...new Set([...prev, `${newFriend.friend_id}_${newFriend.friend_role}`])]);
+        } else if (newFriend.friend_id === currentUserId && newFriend.friend_role === currentRole) {
+          setFriendsList(prev => [...new Set([...prev, `${newFriend.user_id}_${newFriend.user_role}`])]);
+        }
+      })
+      .subscribe();
+      
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUserId, currentRole]);
+
+  // 对 recentChats 进行分类：熟人/群聊 vs 陌生人
+  const { normalChats, strangerChats } = useMemo(() => {
+    const normal: typeof recentChats = [];
+    const stranger: typeof recentChats = [];
+    recentChats.forEach(chat => {
+      const isFriend = friendsList.includes(`${chat.id}_${chat.targetRole || 'user'}`);
+      if (chat.isGroup || chat.isCityChannel || isFriend || chat.isPhantom) {
+        normal.push(chat);
+      } else {
+        stranger.push(chat);
+      }
+    });
+    return { normalChats: normal, strangerChats: stranger };
+  }, [recentChats, friendsList]);
+
   // 主题嗅探系统
   const { settings } = useVisualSettings();
   const pathname = usePathname();
@@ -50,18 +105,18 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 本地已读状态记录，用于点击后立刻清除未读提示
-  const [readChatIds, setReadChatIds] = useState<Set<string>>(new Set());
+  // 顶层导航状态：聊天流 vs 通讯录 vs 陌生消息
+  const [navTab, setNavTab] = useState<'chats' | 'contacts' | 'strangers'>('chats');
 
   // 引入终极视口级在线感知系统
   const { observeNode } = useAtomicPresence(currentUserId);
 
   // 右键菜单状态
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, targetId: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, targetId: string, targetRole: string, isGroup: boolean } | null>(null);
 
-  const handleContextMenu = (e: React.MouseEvent, targetId: string) => {
+  const handleContextMenu = (e: React.MouseEvent, targetId: string, targetRole: string = 'user', isGroup: boolean = false) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, targetId });
+    setContextMenu({ x: e.clientX, y: e.clientY, targetId, targetRole, isGroup });
   };
 
   const handleDeleteChat = () => {
@@ -69,19 +124,19 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
     
     // 写入物理标识，从列表中抹除（仅删除聊天框，不删除历史记录）
     // 存储当前时间戳，如果后续有新消息(时间戳大于此时间)，则重新显示该聊天框
-    const delChatKey = `gx_deleted_chat_${currentUserId}_${contextMenu.targetId}`;
+    const delChatKey = contextMenu.isGroup ? `gx_deleted_chat_${currentUserId}_${contextMenu.targetId}` : `gx_deleted_chat_${currentUserId}_${contextMenu.targetId}_${contextMenu.targetRole}`;
     localStorage.setItem(delChatKey, Date.now().toString());
 
     // 触发更新事件，让列表重新渲染
-    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId } }));
+    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId, targetRole: contextMenu.targetRole } }));
     setContextMenu(null);
   };
 
   const handleClearHistory = () => {
     if (!contextMenu?.targetId) return;
-    const clearKey = `gx_cleared_${currentUserId}_${contextMenu.targetId}`;
+    const clearKey = contextMenu.isGroup ? `gx_cleared_${currentUserId}_${contextMenu.targetId}` : `gx_cleared_${currentUserId}_${contextMenu.targetId}_${contextMenu.targetRole}`;
     localStorage.setItem(clearKey, Date.now().toString());
-    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId } }));
+    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId, targetRole: contextMenu.targetRole } }));
     setContextMenu(null);
   };
 
@@ -108,38 +163,136 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
         const results: SearchResult[] = [];
 
         // 轨道一：【内网高维扫描】(查 profiles)
-        // 匹配规则：名字模糊匹配 OR ID包含 OR 手机号包含
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id, name, avatar_url, gx_id, phone')
-          .or(`name.ilike.%${cleanQuery}%,gx_id.ilike.%${cleanQuery}%,phone.ilike.%${cleanQuery}%`)
-          .limit(5);
+        // 1. 多轨搜索雷达 - 从 profiles 表搜索 (支持双身份双手机号)
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, name, avatar_url, gx_id, phone, merchant_gx_id, merchant_name, merchant_avatar_url, boss_name, boss_avatar_url, boss_phone, role, allow_search_by_phone, allow_search_by_id, merchant_phone, merchant_allow_search_by_phone, merchant_allow_search_by_id, boss_allow_search_by_phone, boss_allow_search_by_id')
+            .or(`name.ilike.%${cleanQuery}%,gx_id.ilike.%${cleanQuery}%,phone.ilike.%${cleanQuery}%,merchant_gx_id.ilike.%${cleanQuery}%,merchant_phone.ilike.%${cleanQuery}%,boss_phone.ilike.%${cleanQuery}%`)
+            .limit(10);
+        
+        if (profileError) {
+          console.error("Profiles Scan Error:", profileError);
+        }
 
         if (profileData && profileData.length > 0) {
           profileData.forEach(p => {
-            results.push({
-              track: 'profiles',
-              id: p.id,
-              name: p.name || '神秘信号',
-              avatar: p.avatar_url || '',
-              gx_id: p.gx_id || 'UNKNOWN',
-              phone: p.phone || ''
-            });
+            // 隐私防御网关 (Privacy Gateway)
+            const cleanLower = cleanQuery.toLowerCase();
+            const isNameMatch = (p.name && p.name.toLowerCase().includes(cleanLower)) ||
+                                (p.merchant_name && p.merchant_name.toLowerCase().includes(cleanLower)) ||
+                                (p.boss_name && p.boss_name.toLowerCase().includes(cleanLower));
+            
+            const isLifePhoneMatch = p.phone?.includes(cleanQuery);
+            const isMerchantPhoneMatch = p.merchant_phone?.includes(cleanQuery);
+            const isBossPhoneMatch = p.boss_phone?.includes(cleanQuery);
+            
+            const isLifeIdMatch = p.gx_id?.toLowerCase().includes(cleanLower);
+            const isMerchantIdMatch = p.merchant_gx_id?.toLowerCase().includes(cleanLower);
+
+            // --- 生活卡片 (Life Card) 呈现逻辑 ---
+            let shouldShowLife = false;
+            if (isNameMatch) {
+              shouldShowLife = true;
+            } else if (isLifePhoneMatch) {
+              shouldShowLife = p.allow_search_by_phone !== false;
+            } else if (isLifeIdMatch) {
+              shouldShowLife = p.allow_search_by_id !== false;
+            }
+
+            if (shouldShowLife) {
+              results.push({
+                track: 'profiles',
+                id: p.id,
+                name: p.name || '神秘信号',
+                avatar: p.avatar_url || '',
+                gx_id: p.gx_id || 'UNKNOWN',
+                phone: p.phone || '',
+                identity: 'life'
+              });
+            }
+
+            // --- 智控卡片 (Merchant Card) 呈现逻辑 ---
+            const hasMerchantIdentity = p.merchant_gx_id || p.role === 'boss';
+            let shouldShowMerchant = false;
+            
+            if (hasMerchantIdentity) {
+              if (isNameMatch) {
+                shouldShowMerchant = true;
+              } else if (isMerchantPhoneMatch) {
+                shouldShowMerchant = p.merchant_allow_search_by_phone !== false;
+              } else if (isMerchantIdMatch || (isLifeIdMatch && !cleanLower.startsWith('ur') && !cleanLower.startsWith('ne'))) {
+                 // 对于没有 merchant_gx_id 的 boss，通过基础 id 搜索时也可以搜出智控身份
+                shouldShowMerchant = p.merchant_allow_search_by_id !== false;
+              }
+            }
+
+            if (shouldShowMerchant) {
+              const displayMerchantId = p.merchant_gx_id || (p.gx_id ? `${p.gx_id}-MC` : 'UNKNOWN');
+              results.push({
+                track: 'profiles',
+                id: p.id,
+                name: p.merchant_name || p.name || '神秘信号',
+                avatar: p.merchant_avatar_url || p.avatar_url || '',
+                gx_id: displayMerchantId,
+                phone: p.merchant_phone || p.phone || '',
+                identity: 'merchant'
+              });
+            }
+
+            // --- BOSS卡片 (Boss Card) 呈现逻辑 ---
+            let shouldShowBoss = false;
+            if (p.role === 'boss') {
+               if (isNameMatch) {
+                  shouldShowBoss = true;
+               } else if (isBossPhoneMatch) {
+                  shouldShowBoss = p.boss_allow_search_by_phone !== false;
+               } else if (isLifeIdMatch && !cleanLower.startsWith('ur') && !cleanLower.startsWith('mc')) {
+                  shouldShowBoss = p.boss_allow_search_by_id !== false;
+               }
+            }
+
+            if (shouldShowBoss && p.boss_name) {
+               results.push({
+                track: 'profiles',
+                id: p.id,
+                name: p.boss_name,
+                avatar: p.boss_avatar_url || p.avatar_url || '',
+                gx_id: p.gx_id + '-BOSS',
+                phone: p.boss_phone || p.merchant_phone || p.phone || '',
+                identity: 'boss'
+              });
+            }
           });
         }
 
         // 轨道二：【线下中维扫描】(查 bookings 历史订单)
         // 只有当查询词看起来像电话号码或名字时，才去历史订单里挖人
         if (cleanQuery.length >= 3 && results.length < 5) {
-          const shopId = new URLSearchParams(window.location.search).get('shopId') || 'default';
-          const { data: bookingData } = await supabase
+          const shopId = new URLSearchParams(window.location.search).get('shopId');
+          
+          // 注意：Supabase 对 JSONB 内部字段的 ilike 查询要求非常严格，不能直接写在 or 里面用箭头操作符。
+          // 由于目前只需要搜纯数字或纯字母，并且是在顶层搜索，我们可以暂时采用将整个 data 字段转文本来搜。
+          // 更严谨的做法是在 bookings 表上建立专门的 customer_phone 和 customer_name 列。
+          // 这里使用 text 转换以避免 400 Bad Request 报错。
+          let bookingQuery = supabase
             .from('bookings')
             .select('data')
-            .eq('shop_id', shopId)
             .neq('status', 'VOID')
-            .or(`data->>customerName.ilike.%${cleanQuery}%,data->>customerPhone.ilike.%${cleanQuery}%`)
+            .textSearch('data', cleanQuery) // 替换为全文搜索或先获取数据再过滤，或者使用含 ::text 的写法。这里直接查询然后前端过滤以防报错。
             .order('created_at', { ascending: false })
-            .limit(10); // 多查几个用来去重
+            .limit(50); // 多取一点，然后在前端进行精准匹配
+          
+          // 仅在明确拥有合法的 shopId (通常是 UUID) 时，才去加这个条件过滤，
+          // 防止把 "default" 这种纯英文字母强行塞给 UUID 类型的列，引发 PostgreSQL 的 22P02 崩溃。
+          if (shopId && shopId !== 'default' && shopId.length > 10) {
+             bookingQuery = bookingQuery.eq('shop_id', shopId);
+          }
+
+          const { data: bookingData, error: bookingError } = await bookingQuery;
+          
+          if (bookingError) {
+             console.error("Booking search error:", bookingError);
+          }
 
           if (bookingData && bookingData.length > 0) {
             const historyMap = new Map<string, any>();
@@ -189,7 +342,7 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
 
   // 动态构建横向星轨 (Star Track)
   const starTrackContacts = useMemo(() => {
-    const tracks = [];
+    const tracks: Array<{ id: string, name: string, avatar: string, isOnline: boolean, isGroup: boolean, isCityChannel: boolean, targetRole?: string }> = [];
     
     // 1. 同城频道 (硬编码保障常驻)
     tracks.push({
@@ -201,8 +354,8 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
       isGroup: true
     });
 
-    // 2. 从 recentChats 里提取前几个联系人
-    recentChats.forEach(chat => {
+    // 2. 从 normalChats 里提取前几个联系人
+    normalChats.forEach(chat => {
       if (chat.id !== 'city_current' && tracks.length < 6) {
         tracks.push({
           id: chat.id,
@@ -210,13 +363,14 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           avatar: chat.avatar,
           isOnline: chat.isOnline === true, // 初始默认离线，交给 useAtomicPresence 原子接管
           isGroup: chat.isGroup,
-          isCityChannel: false
+          isCityChannel: false,
+          targetRole: chat.targetRole
         });
       }
     });
 
     return tracks;
-  }, [recentChats]);
+  }, [normalChats]);
 
   // 构建 100% 多端兼容的 WhatsApp URL 协议 (采用无感加密 Token 穿透，隐藏手机号)
   const getWhatsAppNativeUrl = (phone: string) => {
@@ -251,13 +405,13 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           <div className={cn("absolute inset-0 rounded-2xl transition-colors duration-500", isLight ? "bg-black/5 group-focus-within:bg-black/10" : "bg-transparent group-focus-within:bg-white/5")} />
           
           {/* 输入框与聚合功能 */}
-          <div className="relative flex items-center h-12 px-4 space-x-3">
-            <Search className={cn("w-5 h-5", isLight ? "text-black/50" : "text-white/50")} />
+          <div className="relative flex items-center h-[30px] px-4 space-x-3">
+            <Search className={cn("w-[18px] h-[18px]", isLight ? "text-black/50" : "text-white/50")} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('txt_8a6e8e')}
+              placeholder="搜索"
               className={cn(
                 "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-[15px]",
                 isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/30"
@@ -266,18 +420,15 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             {/* 扫码与添加快捷指令 (同样去除分割线，保持极致清透) */}
             <div className="flex items-center space-x-3 pl-3">
               <button className={cn("transition-colors", isLight ? "text-black/60" : "text-white/60")}>
-                <ScanLine className="w-5 h-5" />
-              </button>
-              <button className={cn("transition-colors", isLight ? "text-black/60" : "text-white/60")}>
-                <Plus className="w-5 h-5" />
+                <ScanLine className="w-[18px] h-[18px]" />
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. 雷达星轨 (在线好友横向矩阵) + 边缘羽化 (Mask-Image) */}
-      <div className="px-5 py-3 shrink-0 z-20 relative">
+      {/* 2. 雷达星轨 (在线好友横向矩阵) + 边缘羽化 (Mask-Image) - 全局置顶显示 */}
+      <div className="px-5 pt-[5px] pb-0 shrink-0 z-20 relative">
         <div 
           className="flex overflow-x-auto no-scrollbar space-x-5 pb-2"
           style={{
@@ -288,21 +439,23 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
         >
           {starTrackContacts.map((contact) => (
             <div 
-              key={contact.id} 
-              id={`chat-card-radar-${contact.id}`}
+              key={`${contact.id}_${contact.targetRole || 'user'}`} 
+              id={`chat-card-radar-${contact.id}_${contact.targetRole || 'user'}`}
               ref={(contact.isGroup || contact.isCityChannel) ? undefined : observeNode}
-              className="flex flex-col items-center space-y-2 cursor-pointer shrink-0"
+              className="flex flex-col items-center space-y-[4px] cursor-pointer shrink-0"
               onClick={() => onChatSelect({
                 id: contact.id,
                 name: contact.name,
                 isGroup: contact.isGroup || false,
-                isCityChannel: contact.isCityChannel
+                isCityChannel: contact.isCityChannel,
+                targetRole: contact.targetRole
               })}
             >
               <div className="relative w-[52px] h-[52px] rounded-full p-[2px]">
                 {/* 在线流光边框 / 同城频道特殊边框 */}
                 <div 
-                  id={`radar-presence-${contact.id}`}
+                  id={`radar-presence-${contact.id}_${contact.targetRole || 'user'}`}
+                  data-presence-id={contact.id}
                   className={cn(
                     "absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300",
                     (contact.isGroup || contact.isCityChannel || contact.isOnline) ? "opacity-100" : "opacity-0"
@@ -355,11 +508,37 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
         </div>
       </div>
 
-      {/* 3. 沉浸式信号瀑布流 (绝对清透) */}
-      <div className="flex-1 overflow-y-auto px-5 pt-2 pb-20 space-y-4 z-20">
+      {/* 1.5 导航切换: 聊天 / 通讯录 / 陌生消息 (极致极简) */}
+      <div className="px-6 pt-2 pb-[3px] shrink-0 z-20 flex items-center space-x-6">
+        <button 
+          onClick={() => setNavTab('chats')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'chats' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+        >
+          聊天
+        </button>
+        <button 
+          onClick={() => setNavTab('contacts')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'contacts' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+        >
+          通讯录
+        </button>
+        <button 
+          onClick={() => setNavTab('strangers')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'strangers' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+        >
+          陌生消息
+        </button>
+      </div>
+
+      {navTab === 'contacts' ? (
+        <ContactsUI currentUserId={currentUserId} currentRole={currentRole} isLight={isLight} onChatSelect={onChatSelect} />
+      ) : (
+        <>
+          {/* 3. 沉浸式信号瀑布流 (绝对清透) */}
+          <div className="flex-1 overflow-y-auto px-0 pt-[8px] pb-20 space-y-0 z-20">
         {searchQuery ? (
           /* 搜索结果面板 (探测与降维打击) */
-          <div className="flex flex-col space-y-4 pt-4">
+          <div className="flex flex-col space-y-0 pt-2">
             
             {/* 加载状态 */}
             {isSearching && (
@@ -374,23 +553,24 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             {/* 扫描结果列表 */}
             {!isSearching && searchResults.map((res) => (
               <div
-                key={res.id}
+                key={`${res.id}-${res.identity}`}
                 onClick={() => {
                   onChatSelect({
                     id: res.id,
                     name: res.name,
                     isGroup: false,
+                    targetRole: res.identity === 'life' ? 'user' : res.identity === 'merchant' ? 'merchant' : res.identity === 'boss' ? 'boss' : undefined
                   });
                   setSearchQuery(''); // 选中后清空搜索
                 }}
                 className={cn(
-                  "relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 border group",
-                  isLight ? "border-black/5 hover:bg-black/5" : "border-white/10 hover:bg-white/5"
-                )}
+                    "relative flex items-center py-1 px-2 cursor-pointer transition-colors duration-300 group",
+                    isLight ? "hover:bg-black/5" : "hover:bg-white/5"
+                  )}
               >
                 {/* 内部用户发光效果 */}
                 {res.track === 'profiles' && (
-                  <div className="absolute inset-0 rounded-3xl pointer-events-none p-[1px] overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 pointer-events-none p-[1px] overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity">
                      <div 
                        className="w-full h-full"
                        style={{
@@ -405,11 +585,11 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                   </div>
                 )}
 
-                <div className="relative shrink-0 mr-4">
+                <div className="relative shrink-0 mr-3">
                   {res.avatar ? (
-                    <img src={res.avatar} alt={res.name} className={cn("w-14 h-14 rounded-full object-cover border", isLight ? "border-black/20" : "border-white/20")} />
+                    <img src={res.avatar} alt={res.name} className={cn("w-11 h-11 rounded-full object-cover", isLight ? "border-black/10 border" : "border-white/10 border")} />
                   ) : (
-                    <div className={cn("w-14 h-14 rounded-full flex items-center justify-center border bg-gradient-to-br font-bold text-xl", isLight ? "border-black/20 text-black" : "border-white/20 text-white")}>
+                    <div className={cn("w-11 h-11 rounded-full flex items-center justify-center border bg-gradient-to-br font-bold text-[15px]", isLight ? "border-black/20 text-black" : "border-white/20 text-white")}>
                       {res.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -424,16 +604,32 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
                     <span className={cn("truncate text-lg font-medium tracking-wide", isLight ? "text-black" : "text-white")}>
                       {res.name}
                     </span>
-                    <span className={cn("shrink-0 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border", isLight ? "bg-black/5 border-black/10 text-black/50" : "bg-white/5 border-white/10 text-white/50")}>
-                      {res.track === 'profiles' ? '内网档案' : '历史客源'}
-                    </span>
+                    {/* 身份徽章渲染 (视觉降维) */}
+                    {res.identity === 'life' && (
+                      <span className="shrink-0 text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-white/20 text-white shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                        生活
+                      </span>
+                    )}
+                    {res.identity === 'merchant' && (
+                      <span className="shrink-0 text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[#00f2ff]/40 text-transparent bg-clip-text bg-gradient-to-r from-[#00f2ff] to-[#00f2ff]/80 shadow-[0_0_8px_rgba(0,242,255,0.3)]">
+                        智控
+                      </span>
+                    )}
+                    {res.identity === 'boss' && (
+                      <span className="shrink-0 text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[#ffd700]/40 text-transparent bg-clip-text bg-gradient-to-r from-[#ffd700] to-[#ff8c00] shadow-[0_0_8px_rgba(255,215,0,0.3)]">
+                        BOSS
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={cn("text-[12px] font-mono tracking-widest", isLight ? "text-black/60" : "text-white/60")}>{res.gx_id}</span>
+                    {/* ID 剥离前缀，极致降维 */}
+                    <span className={cn("text-[12px] font-mono tracking-widest", isLight ? "text-black/60" : "text-white/60")}>
+                      {res.gx_id.replace(/^(GX-)?(UR|MC|NE)-?/, '')}
+                    </span>
                     {res.phone && (
                       <span className={cn("text-[12px] font-mono tracking-widest", isLight ? "text-black/60" : "text-white/60")}>
                         {res.phone.substring(0, 3)}•••{res.phone.substring(res.phone.length - 4)}
@@ -444,39 +640,41 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
               </div>
             ))}
 
-            {/* 外部兜底：WhatsApp 降维打击卡片 */}
-            {!isSearching && (
+            {/* 外部兜底：WhatsApp/WeChat 降维打击卡片 */}
+            {!isSearching && searchResults.length === 0 && (
               <div className="flex flex-col items-center justify-center pt-6 pb-10">
                 <div className={cn("relative w-full max-w-[320px] border rounded-2xl p-5 flex flex-col items-center justify-center transition-colors group", isLight ? "border-black/10" : "border-white/10")}>
                   <div className="absolute inset-0 rounded-2xl transition-all pointer-events-none" />
                   
-                  <div className={cn("w-12 h-12 rounded-full border flex items-center justify-center mb-3 relative", isLight ? "border-black/20" : "border-white/20")}>
-                    <span className={cn("text-sm", isLight ? "text-black/60" : "text-white/60")}>?</span>
-                    <div className={cn("absolute -bottom-1 -right-1 rounded-full p-0.5", isLight ? "bg-white" : "bg-black")}>
-                      <MessageCircle className="w-4 h-4 text-[#25D366] " />
+                  {/* 中间问号图标 */}
+                  <div className="relative mb-4">
+                    <div className={cn("w-12 h-12 rounded-full border flex items-center justify-center relative", isLight ? "border-black/20" : "border-white/20")}>
+                      <span className={cn("text-xl font-light", isLight ? "text-black/50" : "text-white/50")}>?</span>
+                      <MessageCircle className={cn("absolute -bottom-1 -right-1 w-4 h-4", isLight ? "text-green-600 bg-white rounded-full" : "text-green-400 bg-black rounded-full")} />
                     </div>
                   </div>
-                  
-                  <span className={cn("font-mono text-sm mb-1", isLight ? "text-black" : "text-white")}>{searchQuery}</span>
-                  <span className={cn("text-xs mb-4 text-center", isLight ? "text-black/50" : "text-white/50")}>
-                    {searchResults.length > 0 
-                      ? "没找到你想找的人？\n试试通过 WhatsApp 发起强制连接"
-                      : "未检测到内部信号\n是否通过 WhatsApp 发起强制连接？"
-                    }
+
+                  <span className={cn("text-sm font-mono tracking-widest mb-2 font-medium", isLight ? "text-black" : "text-white")}>
+                    {searchQuery}
                   </span>
                   
+                  <p className={cn("text-xs text-center leading-relaxed max-w-[240px]", isLight ? "text-black/50" : "text-white/50")}>
+                    无匹配物理档案。<br/>可通过 WhatsApp 或 微信 强行建联。
+                  </p>
+
                   <a 
                     href={getWhatsAppNativeUrl(searchQuery)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                      "px-6 py-2.5 rounded-full text-xs font-bold tracking-widest uppercase transition-all duration-300",
+                      "mt-5 px-6 py-2.5 rounded-full text-xs font-mono tracking-widest transition-all",
+                      "border flex items-center space-x-2 group-hover:scale-105 active:scale-95",
                       isLight 
-                        ? "bg-black text-white hover:bg-black/80" 
-                        : "bg-white text-black hover:bg-white/90"
+                        ? "bg-black text-white border-transparent hover:bg-black/80" 
+                        : "bg-white text-black border-transparent hover:bg-white/80"
                     )}
                   >
-                    Initiate Link
+                    <span>跳转至外部通讯录</span>
                   </a>
                 </div>
               </div>
@@ -486,40 +684,54 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
         ) : (
           /* 正常历史聊天记录 */
           <>
-            {isLoading && recentChats.length === 0 && (
-              <div className={cn("flex justify-center items-center h-20 text-sm tracking-widest", isLight ? "text-black/40" : "text-white/40")}>
-                {t('txt_8fc78c')}</div>
+            {(navTab === 'chats' ? normalChats : strangerChats).length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                <p className={cn(
+                  "text-sm tracking-[0.2em] font-light",
+                  isLight ? "text-black/30" : "text-white/30"
+                )}>
+                  {navTab === 'chats' ? '开启新聊天' : '无陌生信号'}
+                </p>
+              </div>
             )}
             
-            {recentChats.map((chat) => {
-              const isUnread = chat.unread && !readChatIds.has(chat.id);
+            {(navTab === 'chats' ? normalChats : strangerChats).map((chat) => {
+              const isUnread = typeof chat.unread === 'number' ? chat.unread > 0 : chat.unread;
               // 如果数据中没有明确指定 isOnline，默认值为 false（离线），由底层的 useAtomicPresence 动态接管真实状态
               const isOnline = chat.isOnline === true; 
               
               return (
                <div
-                 key={chat.id}
-                 id={`chat-card-list-${chat.id}`}
+                 key={`${chat.id}_${chat.targetRole || 'user'}`}
+                 id={`chat-card-list-${chat.id}_${chat.targetRole || 'user'}`}
                  ref={(chat.isGroup || chat.isCityChannel) ? undefined : observeNode}
                  onClick={() => {
-                  setReadChatIds(prev => new Set(prev).add(chat.id));
+                  // 点击时立即写入物理级别的最后阅读时间戳
+                  if (typeof window !== 'undefined') {
+                    // 加入 2000ms 容差，防御客户端与服务器之间的时钟偏移（Clock Skew）导致刚读完就又变成未读
+                    const readKey = chat.isGroup ? `gx_last_read_${currentUserId}_${chat.id}` : `gx_last_read_${currentUserId}_${chat.id}_${chat.targetRole || 'user'}`;
+                    localStorage.setItem(readKey, (Date.now() + 2000).toString());
+                    window.dispatchEvent(new CustomEvent('gx_chat_read_updated'));
+                  }
                   onChatSelect({
                     id: chat.id,
                     name: chat.name,
                     isGroup: chat.isGroup,
+                    targetRole: chat.targetRole,
                   });
                 }}
-                onContextMenu={(e) => handleContextMenu(e, chat.id)}
+                onContextMenu={(e) => handleContextMenu(e, chat.id, chat.targetRole || 'user', chat.isGroup)}
                 className={cn(
-                  "relative flex items-center p-4 rounded-3xl cursor-pointer transition-colors duration-300 bg-transparent",
-                  isLight ? "border border-black/10" : "border border-white/10"
+                  "relative flex items-center py-1 px-2 cursor-pointer transition-colors duration-300 bg-transparent",
+                  isLight ? "hover:bg-black/5" : "hover:bg-white/5"
                 )}
               >
                 {/* 头像 (左) */}
-                 <div className="relative shrink-0 mr-4 w-[58px] h-[58px] rounded-full p-[2px]">
+                 <div className="relative shrink-0 mr-3 w-11 h-11 rounded-full p-[1px]">
                    {/* 在线流光边框 (跑马灯) */}
                    <div 
-                     id={`list-presence-${chat.id}`}
+                     id={`list-presence-${chat.id}_${chat.targetRole || 'user'}`}
+                     data-presence-id={chat.id}
                      className={cn(
                        "absolute inset-0 rounded-full pointer-events-none transition-opacity duration-300",
                        (chat.isGroup || chat.isCityChannel || isOnline) ? "opacity-100" : "opacity-0"
@@ -538,79 +750,82 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
                     <img
                       src={chat.avatar}
                       alt={chat.name}
-                      className={cn("w-full h-full rounded-full object-cover border-[1.5px]", isLight ? "border-black" : "border-white")}
+                      className={cn("w-full h-full rounded-full object-cover border", isLight ? "border-black/10" : "border-white/10")}
                     />
                   ) : (
                     <div className={cn(
-                      "w-full h-full rounded-full flex items-center justify-center border-[1.5px] bg-gradient-to-br font-bold text-xl",
-                      isLight ? "border-black text-black" : "border-white text-white"
+                      "w-full h-full rounded-full flex items-center justify-center border bg-gradient-to-br font-bold text-[15px]",
+                      isLight ? "border-black/10 text-black" : "border-white/10 text-white"
                     )}>
                       {chat.name ? chat.name.charAt(0).toUpperCase() : '?'}
+                    </div>
+                  )}
+
+                  {/* 未读数字：头像右上角的极简红点 */}
+                  {isUnread && (
+                    <div className={cn(
+                      // 核心定位法则：基于圆的 45 度角（14.6% 偏移），并将红点中心锚定在此点
+                      "absolute top-[14.6%] right-[14.6%] z-10 flex items-center justify-center min-w-[16px] h-[16px] px-1.5 rounded-full",
+                      "-translate-y-1/2 translate-x-1/2",
+                      "bg-red-500",
+                      "text-[9px] font-black tracking-tighter text-white leading-none"
+                    )}>
+                      {typeof chat.unread === 'number' ? (chat.unread > 99 ? '99+' : chat.unread) : 1}
                     </div>
                   )}
                 </div>
 
                 {/* 文字信息区 (中) */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span
-                        className={cn(
-                          "truncate text-lg font-medium tracking-wide flex items-center gap-2",
-                          isLight ? "text-black" : "text-white"
-                        )}
-                      >
-                        {chat.name}
-                        {chat.isPhantom && (
-                          <span className={cn(
-                            "text-[9px] px-1.5 py-0.5 rounded border font-mono tracking-widest whitespace-nowrap",
-                            isLight ? "border-black/10 text-black/60" : "border-white/10 text-white/60"
-                          )}>
-                            CONNECTING
-                          </span>
-                        )}
-                      </span>
-                      
-                      <div className="flex items-center space-x-1.5 mt-1">
-                        {/* 已读状态标记 (双蓝勾/灰勾) */}
-                        {!isUnread && (
-                          <CheckCheck className={cn("w-4 h-4 shrink-0", isLight ? "text-black/40" : "text-white/40")} />
-                        )}
-                        
-                        <p
-                          className={cn(
-                            "truncate text-[14px]",
-                            isUnread 
-                              ? (isLight ? "text-black/90 font-medium" : "text-white/90 font-medium") 
-                              : (isLight ? "text-black/60" : "text-white/60")
-                          )}
-                        >
-                          {chat.lastMessage}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* 时间和未读数 (右) */}
-                    <div className="shrink-0 flex flex-col items-end space-y-1 ml-2">
-                      <span
-                        className={cn(
-                          "text-xs",
-                          isUnread 
-                            ? (isLight ? "text-black" : "text-white") 
-                            : (isLight ? "text-black/40" : "text-white/40")
-                        )}
-                      >
-                        {chat.time}
-                      </span>
-                      {isUnread && (
-                        <div className={cn(
-                          "px-1.5 py-0.5 min-w-[20px] text-center rounded-full text-[10px] font-bold",
-                          isLight ? "bg-black text-white" : "bg-white text-black"
-                        )}>
-                          {typeof chat.unread === 'number' ? chat.unread : 1}
-                        </div>
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  {/* 第一行：名字与时间 */}
+                  <div className="flex items-center justify-between w-full">
+                    <span
+                      className={cn(
+                        "truncate text-[15px] leading-tight font-medium flex items-center gap-2",
+                        isLight ? "text-black" : "text-white"
                       )}
-                    </div>
+                    >
+                      {chat.name}
+                      {chat.isPhantom && (
+                        <span className={cn(
+                          "text-[9px] px-1.5 py-0.5 rounded border font-mono tracking-widest whitespace-nowrap",
+                          isLight ? "border-black/10 text-black/60" : "border-white/10 text-white/60"
+                        )}>
+                          CONNECTING
+                        </span>
+                      )}
+                    </span>
+                    
+                    {/* 时间 (右侧) */}
+                    <span
+                      className={cn(
+                        "shrink-0 text-[10px] ml-2 font-medium tracking-wider",
+                        isUnread 
+                          ? (isLight ? "text-black" : "text-white") 
+                          : (isLight ? "text-black/30" : "text-white/30")
+                      )}
+                    >
+                      {chat.time}
+                    </span>
+                  </div>
+                  
+                  {/* 第二行：消息预览 */}
+                  <div className="flex items-center space-x-1.5 mt-0">
+                    {/* 已读状态标记 (双蓝勾/灰勾) */}
+                    {!isUnread && (
+                      <CheckCheck className={cn("w-[10px] h-[10px] shrink-0", isLight ? "text-black/40" : "text-white/40")} />
+                    )}
+                    
+                    <p
+                      className={cn(
+                        "truncate text-[12px] leading-tight",
+                        isUnread 
+                          ? (isLight ? "text-black/90 font-medium" : "text-white/90 font-medium") 
+                          : (isLight ? "text-black/50" : "text-white/50")
+                      )}
+                    >
+                      {chat.lastMessage}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -618,6 +833,8 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
           </>
         )}
       </div>
+        </>
+      )}
 
       {/* 右键菜单层 */}
       {contextMenu && (
@@ -642,24 +859,11 @@ export default function ChatListUI({ currentUserId, onChatSelect }: ChatListUIPr
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                handleClearHistory();
-              }}
-              className={cn(
-                "w-full px-4 py-3 flex items-center gap-3 transition-colors group",
-                isLight ? "text-black/80 hover:bg-black/5" : "text-white/80 hover:bg-white/5"
-              )}
-            >
-              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-medium tracking-wide">删除聊天记录</span>
-            </button>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
                 handleDeleteChat();
               }}
               className={cn(
                 "w-full px-4 py-3 flex items-center gap-3 transition-colors group",
-                isLight ? "text-red-600 hover:bg-red-500/10" : "text-red-400 hover:bg-red-500/10"
+                isLight ? "text-black/80 hover:bg-black/5" : "text-white/80 hover:bg-white/5"
               )}
             >
               <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />

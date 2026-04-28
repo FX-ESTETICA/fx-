@@ -3,8 +3,7 @@
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
-import { Calendar, RefreshCw, X, Sparkles, Play, Eye, LogOut } from "lucide-react";
-import Link from "next/link";
+import { RefreshCw, X, Sparkles, Play, Eye, LogOut } from "lucide-react";
 import { UserProfile } from "../types";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,8 +12,8 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { motion } from "framer-motion";
 import { PhoneAuthBar } from "./PhoneAuthBar";
+import { PrivacySettings } from "./PrivacySettings";
 import { useTranslations } from "next-intl";
-import { NexusSwitcher } from "@/features/shop/NexusSwitcher";
 import { HoloAscensionCard } from "@/components/shared/HoloAscensionCard";
 import { FrontendThemeSwitcher } from "./FrontendThemeSwitcher";
 
@@ -27,7 +26,7 @@ interface UserDashboardProps {
   initialShowOnboarding?: boolean;
 }
 
-export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboarding = false }: UserDashboardProps) => {
+export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDashboardProps) => {
     const t = useTranslations('UserDashboard');
   const { settings } = useVisualSettings();
   const isLight = settings.frontendBgIndex !== 0;
@@ -554,8 +553,11 @@ export const UserDashboard = ({ profile, boundShopId, industry, initialShowOnboa
         <FrontendThemeSwitcher />
 
         {/* 融合胶囊组件 */}
-        <PhoneAuthBar initialPhone={profile.phone || ""} className="max-w-none mx-0 w-auto" />
+        <PhoneAuthBar initialPhone={profile.phone || ""} className="max-w-none mx-0 w-auto" mode="life" />
         
+        {/* 隐私防御网关 */}
+        <PrivacySettings />
+
         {/* 退出账号按钮 */}
         <Button
           variant="ghost"

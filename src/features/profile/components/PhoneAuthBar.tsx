@@ -9,11 +9,12 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useTranslations } from "next-intl";
 
 interface PhoneAuthBarProps {
- initialPhone?: string;
- className?: string;
+  initialPhone?: string;
+  className?: string;
+  mode?: "life" | "merchant" | "boss";
 }
 
-export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps) => {
+export const PhoneAuthBar = ({ initialPhone = "", className, mode = "life" }: PhoneAuthBarProps) => {
  const { user } = useAuth();
  const t = useTranslations('PhoneAuthBar');
  const { settings, isLoaded } = useVisualSettings();
@@ -23,6 +24,14 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
  // 状态机 (The Core State Machine) - Firebase Phone Auth 模式
  // ------------------------------------------------------------------
  const [phoneInput, setPhoneInput] = useState(initialPhone);
+ 
+ // 根据传入的 mode 决定读取哪个手机号
+ const currentPhone = mode === 'merchant' 
+   ? (user as any)?.merchant_phone 
+   : mode === 'boss' 
+     ? (user as any)?.boss_phone 
+     : user?.phone;
+
  const [countryCode, setCountryCode] = useState("+39"); // 默认国家号修改为意大利
  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
  const [phoneMessage, setPhoneMessage] = useState("");
@@ -83,28 +92,56 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
  }, [countdown]);
 
  const handleSendCode = async () => {
- if (!phoneInput.trim() || !user) return;
- 
- setIsUpdatingPhone(true);
- setPhoneMessage(t('sending'));
- 
- const fullPhone = `${countryCode}${phoneInput.trim()}`;
- 
- try {
- // 通过 Supabase 后端发送验证码
- const { error } = await supabase.auth.updateUser({ phone: fullPhone });
- if (error) throw error;
- 
- setIsCodeSent(true);
- setCountdown(60);
- setPhoneMessage(t('code_sent'));
- } catch (error: any) {
- console.error("SMS 发送失败:", error);
- const displayMsg = error.message || t('invalid_code');
- setPhoneMessage(displayMsg);
- } finally {
- setIsUpdatingPhone(false);
- }
+   console.log("handleSendCode triggered", { phoneInput, user, mode });
+   if (!phoneInput.trim() || !user) {
+     console.log("Early return because missing phoneInput or user");
+     return;
+   }
+   
+   setIsUpdatingPhone(true);
+   
+   const fullPhone = `${countryCode}${phoneInput.trim()}`;
+   
+   try {
+     if (mode === "merchant" || mode === "boss") {
+       // Merchant/Boss 模式：无需验证码，直接写入 profiles
+       setPhoneMessage("正在写入智控档案...");
+       const updateData = mode === "merchant" 
+         ? { merchant_phone: fullPhone } 
+         : { boss_phone: fullPhone };
+       const { error: profileError } = await supabase
+         .from('profiles')
+         .update(updateData)
+         .eq('id', user.id);
+       
+       if (profileError) {
+         if (profileError.code === '23505') throw new Error(t('phone_taken'));
+         throw profileError;
+       }
+       
+       setPhoneMessage("智控通讯阵列已激活 (SUCCESS)");
+       setTimeout(() => {
+         setIsEditMode(false);
+         // Optionally refresh the page or state
+         window.location.reload();
+       }, 1500);
+     } else {
+       // Life 模式：发送 Firebase/Supabase 验证码
+       setPhoneMessage(t('sending'));
+       const { error } = await supabase.auth.updateUser({ phone: fullPhone });
+       if (error) throw error;
+       
+       setIsCodeSent(true);
+       setCountdown(60);
+       setPhoneMessage(t('code_sent'));
+     }
+   } catch (error: any) {
+     console.error("操作失败:", error);
+     const displayMsg = error.message || t('invalid_code');
+     setPhoneMessage(displayMsg);
+   } finally {
+     setIsUpdatingPhone(false);
+   }
  };
 
  const handleVerifyCode = async () => {
@@ -149,7 +186,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
 
  return (
  <div className={cn("w-full flex flex-col relative z-10", className)}>
- {initialPhone && !isEditMode ? (
+ {currentPhone && !isEditMode ? (
  <div className="w-full flex flex-col items-center justify-center pt-8 pb-4">
  {/* 形态 B：已绑定（系统底层信标 - 融合式胶囊） */}
  <div className={cn(
@@ -178,7 +215,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
  <div className="flex items-center gap-2">
  <span className={cn("text-[10px] font-bold tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_421f72')}</span>
  <span className={cn("text-[11px] font-mono tracking-[0.1em] w-[115px] text-center transition-all duration-300", isLight ? "text-black" : "text-white")}>
- {showFullPhone ? initialPhone : formatHiddenPhone(initialPhone)}
+ {showFullPhone ? currentPhone : formatHiddenPhone(currentPhone || "")}
  </span>
  </div>
 
@@ -267,12 +304,12 @@ export const PhoneAuthBar = ({ initialPhone = "", className }: PhoneAuthBarProps
  
  {/* 极简执行按钮 */}
  <button 
- onClick={handleSendCode} 
- disabled={isUpdatingPhone || !phoneInput.trim()}
- className={cn("h-full shrink-0 px-4 font-bold tracking-widest text-[10px] transition-all disabled:opacity-40 disabled:cursor-not-allowed border-l", isLight ? "bg-black/5 text-black hover:bg-black/10 hover:text-black disabled:hover:bg-black/5 disabled:hover:text-black border-black/5" : "bg-white/5 text-white hover:bg-white/10 hover:text-white disabled:hover:bg-white/5 disabled:hover:text-white border-white/5")}
- >
- {isUpdatingPhone ? "..." : "验证"}
- </button>
+     onClick={handleSendCode} 
+     disabled={isUpdatingPhone || !phoneInput.trim()}
+     className={cn("h-full shrink-0 px-4 font-bold tracking-widest text-[10px] transition-all disabled:opacity-40 disabled:cursor-not-allowed border-l", isLight ? "bg-black/5 text-black hover:bg-black/10 hover:text-black disabled:hover:bg-black/5 disabled:hover:text-black border-black/5" : "bg-white/5 text-white hover:bg-white/10 hover:text-white disabled:hover:bg-white/5 disabled:hover:text-white border-white/5")}
+   >
+     {isUpdatingPhone ? "..." : (mode === "merchant" || mode === "boss" ? "绑定" : "验证")}
+   </button>
  </>
  ) : (
  // 模式 2：输入验证码 (无界输入流)
