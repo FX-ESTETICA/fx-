@@ -1,6 +1,5 @@
-import { Search, ScanLine, Plus, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2 } from 'lucide-react';
+import { Search, ScanLine, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2 } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
-import { useTranslations } from "next-intl";
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useChatStore } from '@/store/useChatStore';
 import { supabase } from '@/lib/supabase';
@@ -34,7 +33,6 @@ interface SearchResult {
 }
 
 export default function ChatListUI({ currentUserId, currentRole, onChatSelect }: ChatListUIProps) {
-  const t = useTranslations('ChatListUI');
   const { activeChat } = useChatStore();
   const { recentChats } = useRecentChats(currentUserId, currentRole, activeChat?.id, activeChat?.targetRole);
   
@@ -128,14 +126,6 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
     localStorage.setItem(delChatKey, Date.now().toString());
 
     // 触发更新事件，让列表重新渲染
-    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId, targetRole: contextMenu.targetRole } }));
-    setContextMenu(null);
-  };
-
-  const handleClearHistory = () => {
-    if (!contextMenu?.targetId) return;
-    const clearKey = contextMenu.isGroup ? `gx_cleared_${currentUserId}_${contextMenu.targetId}` : `gx_cleared_${currentUserId}_${contextMenu.targetId}_${contextMenu.targetRole}`;
-    localStorage.setItem(clearKey, Date.now().toString());
     window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId: contextMenu.targetId, targetRole: contextMenu.targetRole } }));
     setContextMenu(null);
   };
