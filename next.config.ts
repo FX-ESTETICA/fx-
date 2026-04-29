@@ -32,6 +32,19 @@ const nextConfig: any = {
     ],
     formats: ["image/avif", "image/webp"],
   },
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, max-age=0, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: '/home', destination: '/' },

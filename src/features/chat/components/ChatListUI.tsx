@@ -104,7 +104,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 顶层导航状态：聊天流 vs 通讯录 vs 陌生消息
-  const [navTab, setNavTab] = useState<'chats' | 'contacts' | 'strangers'>('chats');
+  const [navTab, setNavTab] = useState<'chats' | 'contacts' | 'strangers' | 'group' | 'moments' | 'nearby'>('chats');
 
   // 引入终极视口级在线感知系统
   const { observeNode } = useAtomicPresence(currentUserId);
@@ -499,37 +499,40 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
       </div>
 
       {/* 1.5 导航切换: 聊天 / 群聊 / 好友 / 动态 / 附近 / 陌生人 (极致极简) */}
-      <div className="px-[15px] pt-2 pb-[3px] shrink-0 z-20 flex items-center justify-between w-full">
+      <div className="px-[15px] pt-2 pb-[3px] shrink-0 z-20 flex items-center justify-between w-full overflow-x-auto no-scrollbar whitespace-nowrap gap-4">
         <button 
           onClick={() => setNavTab('chats')}
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", navTab === 'chats' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'chats' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           聊天
         </button>
         <button 
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", isLight ? "text-black/30" : "text-white/30")}
+          onClick={() => setNavTab('group')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'group' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           群聊
         </button>
         <button 
           onClick={() => setNavTab('contacts')}
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", navTab === 'contacts' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'contacts' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           好友
         </button>
         <button 
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", isLight ? "text-black/30" : "text-white/30")}
+          onClick={() => setNavTab('moments')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'moments' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           动态
         </button>
         <button 
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", isLight ? "text-black/30" : "text-white/30")}
+          onClick={() => setNavTab('nearby')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'nearby' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           附近
         </button>
         <button 
           onClick={() => setNavTab('strangers')}
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", navTab === 'strangers' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'strangers' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           陌生人
         </button>
@@ -537,6 +540,10 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
 
       {navTab === 'contacts' ? (
         <ContactsUI currentUserId={currentUserId} currentRole={currentRole} isLight={isLight} onChatSelect={onChatSelect} />
+      ) : navTab === 'group' || navTab === 'moments' || navTab === 'nearby' ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+          {/* 绝对清透，无任何废话提示 */}
+        </div>
       ) : (
         <>
           {/* 3. 沉浸式信号瀑布流 (绝对清透) */}
@@ -689,14 +696,20 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
         ) : (
           /* 正常历史聊天记录 */
           <>
-            {(navTab === 'chats' ? normalChats : strangerChats).length === 0 && (
+            {(navTab === 'chats' ? normalChats : strangerChats).length === 0 && navTab === 'chats' && (
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
                 <p className={cn(
                   "text-sm tracking-[0.2em] font-light",
                   isLight ? "text-black/30" : "text-white/30"
                 )}>
-                  {navTab === 'chats' ? '开启新聊天' : '无陌生信号'}
+                  开启新聊天
                 </p>
+              </div>
+            )}
+            
+            {(navTab === 'chats' ? normalChats : strangerChats).length === 0 && navTab === 'strangers' && (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                 {/* 陌生人列表为空时，绝对清透，无任何废话提示 */}
               </div>
             )}
             

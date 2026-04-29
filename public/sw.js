@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gx-core-cache-v2';
+const CACHE_NAME = 'gx-core-cache-v3';
 
 // 核心的静态资源，安装时预先缓存
 const PRE_CACHED_ASSETS = [
@@ -11,7 +11,8 @@ const PRE_CACHED_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // 强制立即进入 activate 阶段，不要等待旧版本 SW 卸载
+  // 移除自动 skipWaiting，等待前端组件发送 SKIP_WAITING 信令
+  // 这样保证不会粗暴打断用户正在使用的旧版本
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       // 容错预缓存：某一个文件 404 不会中断整个安装过程
@@ -20,6 +21,22 @@ self.addEventListener('install', (event) => {
       );
     })
   );
+});
+
+// 监听来自前端 PWAUpdater 的同步信号
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.keys().then((cacheNames) => {
+      cacheNames.forEach((cacheName) => {
+        if (cacheName.includes('gx-core-cache')) {
+          caches.delete(cacheName);
+        }
+      });
+    });
+  }
 });
 
 self.addEventListener('activate', (event) => {

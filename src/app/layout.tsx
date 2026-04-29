@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
@@ -8,6 +7,7 @@ import { AppShell } from "@/components/shared/AppShell";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
 import { WeChatBrowserGuard } from "@/components/shared/WeChatBrowserGuard";
+import { PWAUpdater } from "@/components/shared/PWAUpdater";
 // import { WebDownloadPrompt } from "@/components/shared/WebDownloadPrompt";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -201,6 +201,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
+        <PWAUpdater />
         <NextIntlClientProvider messages={messages}>
           <WeChatBrowserGuard />
           {/* Native environment bridge */}
@@ -217,23 +218,6 @@ export default async function RootLayout({
           </AuthProvider>
           {/* <WebDownloadPrompt /> */}
         </NextIntlClientProvider>
-        <Script
-          id="sw-register"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('GX SW: Registered with scope:', registration.scope);
-                  }, function(err) {
-                    console.log('GX SW: Registration failed:', err);
-                  });
-                });
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   );
