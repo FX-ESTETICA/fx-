@@ -623,9 +623,9 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
                 {!isMe && (
                   <div className="flex-shrink-0">
                     {trueAvatar ? (
-                      <img src={trueAvatar} alt="avatar" className={`w-[25px] h-[25px] rounded-full border object-cover ${isLight ? 'border-black/10' : 'border-white/10'}`} />
+                      <img src={trueAvatar} alt="avatar" className={`w-[42px] h-[42px] rounded-full border object-cover ${isLight ? 'border-black/10' : 'border-white/10'}`} />
                     ) : (
-                      <div className={`w-[25px] h-[25px] rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}>
+                      <div className={`w-[42px] h-[42px] rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}>
                         {trueRoomName ? trueRoomName.charAt(0).toUpperCase() : '?'}
                       </div>
                     )}
@@ -677,7 +677,7 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
                   msg.content && (
                     <p 
                       className={`
-                        text-[16px] font-light leading-none break-words translate-y-[1px]
+                        text-[16px] font-[350] leading-none break-words translate-y-[1px]
                         ${isLight ? 'text-black' : 'text-white'}
                       `}
                     >
@@ -736,9 +736,9 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
               {isMe && (
                 <div className="flex-shrink-0">
                   {myAvatar ? (
-                    <img src={myAvatar} alt="avatar" className={`w-[25px] h-[25px] rounded-full border object-cover ${isLight ? 'border-black/10' : 'border-white/10'}`} />
+                    <img src={myAvatar} alt="avatar" className={`w-[42px] h-[42px] rounded-full border object-cover ${isLight ? 'border-black/10' : 'border-white/10'}`} />
                   ) : (
-                    <div className={`w-[25px] h-[25px] rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}>
+                    <div className={`w-[42px] h-[42px] rounded-full border flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${isLight ? 'border-black/10 text-black' : 'border-white/10 text-white'}`}>
                       {myName ? myName.charAt(0).toUpperCase() : '?'}
                     </div>
                   )}
@@ -796,7 +796,7 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
                     onChange={(e) => setTextInput(e.target.value)}
                     placeholder={t('txt_0bbdcf')}
                     rows={1}
-                    className={`w-full h-full bg-transparent outline-none focus:outline-none rounded-full border-none focus:ring-0 text-[16px] font-light leading-[44px] py-0 pl-4 pr-12 resize-none no-scrollbar relative z-0
+                    className={`w-full h-full bg-transparent outline-none focus:outline-none rounded-full border-none focus:ring-0 text-[16px] font-[350] leading-[44px] py-0 pl-4 pr-12 resize-none no-scrollbar relative z-0
                       ${isLight ? 'text-black placeholder:text-black/30' : 'text-white placeholder:text-white/30'}
                     `}
                     onKeyDown={(e) => {

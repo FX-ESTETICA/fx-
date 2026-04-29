@@ -147,7 +147,7 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
                 )}
               >
                 {/* 头像 (左) */}
-                <div className="relative shrink-0 mr-3 w-11 h-11 rounded-full p-[1px]">
+                <div className="relative shrink-0 mr-3 w-[55px] h-[55px] rounded-full p-[1px]">
                   {/* 在线流光边框 (跑马灯) */}
                   <div 
                     id={`list-presence-${friend.friendId}_${friend.friendRole}`}

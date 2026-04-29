@@ -389,8 +389,8 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
     <div className="w-full h-full bg-transparent flex flex-col pt-safe-top">
       
       {/* 1. 顶部：全息搜索舱 (The Omni-Scanner) */}
-      <div className="px-5 py-4 shrink-0 relative z-20">
-        <div className="relative group">
+      <div className="px-2 py-4 shrink-0 relative z-20">
+        <div className="relative group ">
           {/* 无边框幽灵悬浮底色 (完全透明) */}
           <div className={cn("absolute inset-0 rounded-2xl transition-colors duration-500", isLight ? "bg-black/5 group-focus-within:bg-black/10" : "bg-transparent group-focus-within:bg-white/5")} />
           
@@ -418,7 +418,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
       </div>
 
       {/* 2. 雷达星轨 (在线好友横向矩阵) + 边缘羽化 (Mask-Image) - 全局置顶显示 */}
-      <div className="px-5 pt-[5px] pb-0 shrink-0 z-20 relative">
+      <div className="px-2 pt-[5px] pb-0 shrink-0 z-20 relative">
         <div 
           className="flex overflow-x-auto no-scrollbar space-x-5 pb-2"
           style={{
@@ -441,7 +441,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
                 targetRole: contact.targetRole
               })}
             >
-              <div className="relative w-[52px] h-[52px] rounded-full p-[2px]">
+              <div className="relative w-[55px] h-[55px] rounded-full p-[2px]">
                 {/* 在线流光边框 / 同城频道特殊边框 */}
                 <div 
                   id={`radar-presence-${contact.id}_${contact.targetRole || 'user'}`}
@@ -498,25 +498,40 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
         </div>
       </div>
 
-      {/* 1.5 导航切换: 聊天 / 通讯录 / 陌生消息 (极致极简) */}
-      <div className="px-6 pt-2 pb-[3px] shrink-0 z-20 flex items-center space-x-6">
+      {/* 1.5 导航切换: 聊天 / 群聊 / 好友 / 动态 / 附近 / 陌生人 (极致极简) */}
+      <div className="px-[15px] pt-2 pb-[3px] shrink-0 z-20 flex items-center justify-between w-full">
         <button 
           onClick={() => setNavTab('chats')}
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'chats' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", navTab === 'chats' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
           聊天
         </button>
         <button 
-          onClick={() => setNavTab('contacts')}
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'contacts' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", isLight ? "text-black/30" : "text-white/30")}
         >
-          通讯录
+          群聊
+        </button>
+        <button 
+          onClick={() => setNavTab('contacts')}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", navTab === 'contacts' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+        >
+          好友
+        </button>
+        <button 
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", isLight ? "text-black/30" : "text-white/30")}
+        >
+          动态
+        </button>
+        <button 
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", isLight ? "text-black/30" : "text-white/30")}
+        >
+          附近
         </button>
         <button 
           onClick={() => setNavTab('strangers')}
-          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest", navTab === 'strangers' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
+          className={cn("text-[15px] font-bold transition-all duration-300 tracking-widest whitespace-nowrap", navTab === 'strangers' ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black/30" : "text-white/30"))}
         >
-          陌生消息
+          陌生人
         </button>
       </div>
 
@@ -717,7 +732,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
                 )}
               >
                 {/* 头像 (左) */}
-                 <div className="relative shrink-0 mr-3 w-11 h-11 rounded-full p-[1px]">
+                 <div className="relative shrink-0 mr-3 w-[55px] h-[55px] rounded-full p-[1px]">
                    {/* 在线流光边框 (跑马灯) */}
                    <div 
                      id={`list-presence-${chat.id}_${chat.targetRole || 'user'}`}
