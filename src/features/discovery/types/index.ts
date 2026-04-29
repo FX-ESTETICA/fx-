@@ -19,7 +19,7 @@ export interface DiscoveryItem {
   };
   tags: string[];
   category: "beauty" | "dining" | "hotel" | "lifestyle";
-  aspectRatio: number; // For waterfall layout (width/height)
+  aspectRatio: number; // For waterfall  (width/height)
 }
 
 export interface DiscoveryFeed {

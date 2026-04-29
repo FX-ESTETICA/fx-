@@ -63,7 +63,8 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    /* 替换为最顶级的跨平台无衬线/微圆体组合，去除了可能导致笔画生硬的系统默认宋体/黑体 */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
     overflow-x: hidden;
     /* 终极防网页感：全局禁止选中文字 (物理级屏蔽) */
     -webkit-user-select: none;

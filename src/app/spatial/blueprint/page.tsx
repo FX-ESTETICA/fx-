@@ -9,66 +9,66 @@ import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 
 const INDUSTRIES: { id: IndustryType; label: string; icon: LucideIcon; color: string }[] = [
-  { id: "beauty", label: "美业", icon: Scissors, color: "" },
-  { id: "medical", label: "医疗", icon: Stethoscope, color: "text-white" },
-  { id: "dining", label: "餐饮", icon: Utensils, color: "text-orange-500" },
-  { id: "hotel", label: "住宿", icon: Hotel, color: "" },
-  { id: "expert", label: "专家", icon: Briefcase, color: "text-blue-400" },
-  { id: "fitness", label: "健身", icon: Dumbbell, color: "" },
-  { id: "other", label: "常规", icon: CalendarIcon, color: "text-white" },
+ { id: "beauty", label: "美业", icon: Scissors, color: "" },
+ { id: "medical", label: "医疗", icon: Stethoscope, color: "text-white" },
+ { id: "dining", label: "餐饮", icon: Utensils, color: "text-orange-500" },
+ { id: "hotel", label: "住宿", icon: Hotel, color: "" },
+ { id: "expert", label: "专家", icon: Briefcase, color: "text-blue-400" },
+ { id: "fitness", label: "健身", icon: Dumbbell, color: "" },
+ { id: "other", label: "常规", icon: CalendarIcon, color: "text-white" },
 ];
 
 export default function BlueprintPage() {
-  const [activeIndustry, setActiveIndustry] = useState<IndustryType>("beauty");
+ const [activeIndustry, setActiveIndustry] = useState<IndustryType>("beauty");
 
-  return (
-    <main className="h-[100dvh] w-full bg-black relative overflow-hidden">
-      {/* 顶部悬浮 HUD 切换环 */}
-      <motion.div 
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4"
-      >
-        <Link href="/spatial" prefetch={false}>
-          <button className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:text-white hover:bg-white/10 hover:border-white/30 transition-all">
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-        </Link>
+ return (
+ <main className="h-[100dvh] w-full bg-black relative overflow-hidden">
+ {/* 顶部悬浮 HUD 切换环 */}
+ <motion.div 
+ 
+ 
+ 
+ className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4"
+ >
+ <Link href="/spatial" prefetch={false}>
+ <button className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:text-white hover:bg-white/10 hover:border-white/30 ">
+ <ArrowLeft className="w-4 h-4" />
+ </button>
+ </Link>
 
-        <div className="flex items-center p-1 bg-black/60  border border-white/10 rounded-full ">
-          {INDUSTRIES.map((ind) => {
-            const isActive = activeIndustry === ind.id;
-            const Icon = ind.icon;
-            return (
-              <button
-                key={ind.id}
-                onClick={() => setActiveIndustry(ind.id)}
-                className={cn(
-                  "relative flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300",
-                  isActive ? "bg-white text-black" : "text-white hover:text-white hover:bg-white/5"
-                )}
-              >
-                <Icon className={cn("w-4 h-4", isActive ? "text-black" : ind.color)} />
-                <span className="text-xs font-bold tracking-widest">{ind.label}</span>
-                {isActive && (
-                  <motion.div 
-                    layoutId="active-blueprint-pill"
-                    className="absolute inset-0 border border-white/50 rounded-full  pointer-events-none"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </motion.div>
+ <div className="flex items-center p-1 bg-black/60 border border-white/10 rounded-full ">
+ {INDUSTRIES.map((ind) => {
+ const isActive = activeIndustry === ind.id;
+ const Icon = ind.icon;
+ return (
+ <button
+ key={ind.id}
+ onClick={() => setActiveIndustry(ind.id)}
+ className={cn(
+ "relative flex items-center gap-2 px-4 py-2 rounded-full ",
+ isActive ? "bg-white text-black" : "text-white hover:text-white hover:bg-white/5"
+ )}
+ >
+ <Icon className={cn("w-4 h-4", isActive ? "text-black" : ind.color)} />
+ <span className="text-xs tracking-widest">{ind.label}</span>
+ {isActive && (
+ <motion.div 
+ 
+ className="absolute inset-0 border border-white/50 rounded-full pointer-events-none"
+ />
+ )}
+ </button>
+ );
+ })}
+ </div>
+ </motion.div>
 
-      {/* 核心日历矩阵 (使用 key 强制重新挂载以重置状态) */}
-      <div className="h-full w-full">
-        <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white">Loading Calendar...</div>}>
-          <IndustryCalendar key={activeIndustry} initialIndustry={activeIndustry} mode="admin" />
-        </Suspense>
-      </div>
-    </main>
-  );
+ {/* 核心日历矩阵 (使用 key 强制重新挂载以重置状态) */}
+ <div className="h-full w-full">
+ <Suspense fallback={<div className="h-[100dvh] w-full flex items-center justify-center text-white">Loading Calendar...</div>}>
+ <IndustryCalendar key={activeIndustry} initialIndustry={activeIndustry} mode="admin" />
+ </Suspense>
+ </div>
+ </main>
+ );
 }

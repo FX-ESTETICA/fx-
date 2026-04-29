@@ -323,7 +323,7 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
 };
 
 // 升级版：接入现代 useSWR 架构，防死锁，防竞态，并挂载 Local-First 引擎
-export function useRecentChats(currentUserId: string, currentRole: string, activeChatId?: string, activeChatRole?: string) {
+export function useRecentChats(currentUserId: string, currentRole: string, activeChatId?: string) {
   // 【Local-First 引擎】：从本地硬盘光速读取聊天列表缓存
   const getCachedRecentChats = (userId: string, role: string) => {
     if (typeof window === 'undefined' || !userId) return undefined;

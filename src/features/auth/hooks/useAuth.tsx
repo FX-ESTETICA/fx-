@@ -58,6 +58,7 @@ interface AuthContextType {
   user: SandboxUser | User | null;
   session: Session | null;
   isLoading: boolean;
+  isRoleLoaded: boolean; // 新增：身份水合锁状态
   activeRole: UserRole;
   signOut: () => Promise<void>;
   setActiveRole: (role: UserRole) => void;
@@ -77,12 +78,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(true);
   const [hasConfirmedSession, setHasConfirmedSession] = useState(false);
+  const [isRoleLoaded, setIsRoleLoaded] = useState(false); // 初始化为 false，代表身份正在解析中
   const [localViewRole, setLocalViewRole] = useState<UserRole | null>(() => {
     if (typeof window === "undefined") return null;
     const stored = localStorage.getItem("gx_view_role");
-    if (stored === "user" || stored === "merchant" || stored === "boss") return stored;
+    if (stored === "user" || stored === "merchant" || stored === "boss") return stored as UserRole;
     return null;
   });
+
   const getDeviceId = useCallback(() => {
     if (typeof window === "undefined") return null;
     let deviceId = localStorage.getItem("gx_device_id");
@@ -216,6 +219,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
         
         setActiveRoleState(effectiveRole as UserRole);
+        setIsRoleLoaded(true); // 物理锁解开：身份已经 100% 确认
         await syncDeviceSession(nextSession);
         } else if (isProfileFetchFailed) {
           // 【断网防御屏障】：如果是因为网络断开（fetch 失败但并不是真的没有这个人）
@@ -245,6 +249,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("gx_cached_user", JSON.stringify(fallbackUser));
         
         if (isBoss) setActiveRoleState("boss");
+        setIsRoleLoaded(true); // 物理锁解开：身份已经 100% 确认
         }
       } catch (error) {
         console.error("[AuthProvider] Hydrate Error:", error);
@@ -269,9 +274,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // 核心修复：绝对禁止在这里覆写 localStorage！仅在内存中兜底，保护用户原有的高保真离线缓存。
         setUser(fallbackUser);
+        setIsRoleLoaded(true); // 物理锁解开：身份降级确认
       }
     } else {
       setUser(null);
+      setIsRoleLoaded(true); // 如果没登录，也解开锁，不要卡死白屏
       localStorage.removeItem("gx_cached_user");
     }
   }, [localViewRole, syncDeviceSession]);
@@ -704,6 +711,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     session,
     isLoading,
+    isRoleLoaded,
     activeRole,
     signOut: handleSignOut,
     setActiveRole,

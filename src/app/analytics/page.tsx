@@ -8,81 +8,81 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 export default function AnalyticsPage() {
-    const t = useTranslations('analytics');
-  const mockMetrics: PlatformMetric[] = [
-    { id: "1", platform: "douyin", metricName: "视频播放量", value: "1.2M", trend: 15.4, status: "growing" },
-    { id: "2", platform: "ctrip", metricName: "预订转化率", value: "4.8%", trend: -2.1, status: "declining" },
-    { id: "3", platform: "58tc", metricName: "线索留存", value: "248", trend: 5.2, status: "growing" },
-    { id: "4", platform: "xiaohongshu", metricName: "笔记互动", value: "12.4k", trend: 8.9, status: "growing" },
-  ];
+ const t = useTranslations('analytics');
+ const mockMetrics: PlatformMetric[] = [
+ { id: "1", platform: "douyin", metricName: "视频播放量", value: "1.2M", trend: 15.4, status: "growing" },
+ { id: "2", platform: "ctrip", metricName: "预订转化率", value: "4.8%", trend: -2.1, status: "declining" },
+ { id: "3", platform: "58tc", metricName: "线索留存", value: "248", trend: 5.2, status: "growing" },
+ { id: "4", platform: "xiaohongshu", metricName: "笔记互动", value: "12.4k", trend: 8.9, status: "growing" },
+ ];
 
-  const mockInsights: AIInsight[] = [
-    {
-      id: "i1",
-      type: "opportunity",
-      content: "基于抖音热门话题 #本地生活新探店# 的高频互动，建议增加 15-30s 的短视频投放，预计可提升 12% 的进店率。",
-      source: ["douyin"],
-      confidence: 94
-    },
-    {
-      id: "i2",
-      type: "warning",
-      content: "携程平台的预订量在 20:00-22:00 出现异常波动，可能与竞品低价策略有关，建议启动动态调价引擎。",
-      source: ["ctrip"],
-      confidence: 88
-    },
-    {
-      id: "i3",
-      type: "info",
-      content: "小红书用户对『赛博简约风格』的评价词云热度上升，品牌视觉资产同步率良好。",
-      source: ["xiaohongshu"],
-      confidence: 91
-    }
-  ];
+ const mockInsights: AIInsight[] = [
+ {
+ id: "i1",
+ type: "opportunity",
+ content: "基于抖音热门话题 #本地生活新探店# 的高频互动，建议增加 15-30s 的短视频投放，预计可提升 12% 的进店率。",
+ source: ["douyin"],
+ confidence: 94
+ },
+ {
+ id: "i2",
+ type: "warning",
+ content: "携程平台的预订量在 20:00-22:00 出现异常波动，可能与竞品低价策略有关，建议启动动态调价引擎。",
+ source: ["ctrip"],
+ confidence: 88
+ },
+ {
+ id: "i3",
+ type: "info",
+ content: "小红书用户对『赛博简约风格』的评价词云热度上升，品牌视觉资产同步率良好。",
+ source: ["xiaohongshu"],
+ confidence: 91
+ }
+ ];
 
-  return (
-    <main className="min-h-[100dvh] bg-black text-white p-6 md:p-12 relative overflow-hidden">
-      {/* 背景光效 */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%]   rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%]   rounded-full pointer-events-none" />
+ return (
+ <main className="min-h-[100dvh] bg-black text-white p-6 md:p-12 relative overflow-hidden">
+ {/* 背景光效 */}
+ <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none" />
+ <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none" />
 
-      <div className="max-w-[1400px] mx-auto space-y-12 relative z-10">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-white/5">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 ">
-              <Sparkles className="w-6 h-6" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.4em]">{t('txt_268892')}</span>
-            </div>
-            <h1 className="text-4xl font-bold tracking-tighter">{t('txt_8b6bfc')}</h1>
-            <p className="text-white text-sm max-w-xl">
-              {t('txt_aec6ef')}</p>
-          </div>
+ <div className="max-w-[1400px] mx-auto space-y-12 relative z-10">
+ {/* Header */}
+ <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-white/5">
+ <div className="space-y-2">
+ <div className="flex items-center gap-3 ">
+ <Sparkles className="w-6 h-6" />
+ <span className="text-[11px] uppercase tracking-[0.4em]">{t('txt_268892')}</span>
+ </div>
+ <h1 className="text-4xl tracking-tighter">{t('txt_8b6bfc')}</h1>
+ <p className="text-white text-sm max-w-xl">
+ {t('txt_aec6ef')}</p>
+ </div>
 
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="gap-2 text-white">
-              <RefreshCw className="w-3 h-3" />
-              {t('txt_5ad1a2')}</Button>
-            <Button variant="cyan" size="sm" className="gap-2">
-              <Download className="w-3 h-3" />
-              {t('txt_10bfac')}</Button>
-          </div>
-        </header>
+ <div className="flex items-center gap-4">
+ <Button variant="ghost" size="sm" className="gap-2 text-white">
+ <RefreshCw className="w-3 h-3" />
+ {t('txt_5ad1a2')}</Button>
+ <Button variant="cyan" size="sm" className="gap-2">
+ <Download className="w-3 h-3" />
+ {t('txt_10bfac')}</Button>
+ </div>
+ </header>
 
-        {/* 核心仪表盘 */}
-        <AnalyticsDashboard metrics={mockMetrics} insights={mockInsights} />
+ {/* 核心仪表盘 */}
+ <AnalyticsDashboard metrics={mockMetrics} insights={mockInsights} />
 
-        {/* 底部导航 */}
-        <footer className="pt-12 flex justify-between items-center text-[9px] font-mono text-white uppercase tracking-[0.4em]">
-          <Link href="/dashboard" className=" transition-colors flex items-center gap-2" prefetch={false}>
-            <LayoutGrid className="w-3 h-3" />
-            {t('txt_7468bb')}</Link>
-          <div className="flex gap-4">
-            <span>Secured via Edge Network</span>
-            <span>GX_CORE // 2026</span>
-          </div>
-        </footer>
-      </div>
-    </main>
-  );
+ {/* 底部导航 */}
+ <footer className="pt-12 flex justify-between items-center text-[11px] text-white uppercase tracking-[0.4em]">
+ <Link href="/dashboard" className=" flex items-center gap-2" prefetch={false}>
+ <LayoutGrid className="w-3 h-3" />
+ {t('txt_7468bb')}</Link>
+ <div className="flex gap-4">
+ <span>Secured via Edge Network</span>
+ <span>GX_CORE // 2026</span>
+ </div>
+ </footer>
+ </div>
+ </main>
+ );
 }

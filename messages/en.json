@@ -53,7 +53,7 @@
     "empty": "No nodes found",
     "uploadRealPhoto": "Upload Real Photo",
     "txt_0b8755": "ACCESS DENIED",
-    "txt_a92d4f": "Satellite Connection Denied",
+    "txt_a92d4f": "Restart Location",
     "txt_6f7f8f": "Location",
     "txt_15c54d": "Click the 🔒 icon in the address bar to unlock",
     "txt_refresh": "Refresh",
@@ -71,7 +71,7 @@
     "txt_8f4166": "Refresh & Reconnect",
     "txt_533aa5": "GX Select (Onboarding Merchants) View Switch Reserved",
     "txt_24482a": "UGC Photo Upload Feature Coming Soon",
-    "txt_3d1c77": "Satellite Connection Denied",
+    "txt_3d1c77": "Restart Location",
     "txt_1e5d7a": "Coordinates",
     "txt_bf2093": "Tap Address Bar 🔒 to Unlock",
     "txt_97e675": "✨ Experience Full Holo-Visuals in APP",
@@ -911,6 +911,6 @@
   "HomeClient": {
     "txt_a8b0c2": "All",
     "txt_24482a": "UGC Photo Upload Coming Soon",
-    "txt_3d1c77": "Satellite Connection Denied"
+    "txt_3d1c77": "Restart Location"
   }
 }

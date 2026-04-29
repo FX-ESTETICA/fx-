@@ -47,7 +47,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
  whileTap={isLoading ? {} : { scale: 0.98 }}
  disabled={isLoading || props.disabled}
  className={cn(
- "inline-flex items-center justify-center rounded-xl border font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed",
+ "inline-flex items-center justify-center rounded-xl border font-medium focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed",
  variants[variant] || variants.primary,
  sizes[size],
  className
