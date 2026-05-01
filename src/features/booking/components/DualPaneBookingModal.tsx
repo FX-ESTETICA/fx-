@@ -847,8 +847,10 @@ export function DualPaneBookingModal({
  ? Math.max(1, groupDuration + durationOffset) 
  : groupDuration;
 
- // 【重塑中枢：取消串行推演，恢复并发时刻】
- // 计算当前这笔子订单的 startTime (HH:mm 格式)，所有组都使用基准时间
+ // 【重塑中枢：多任务跨员工接力与并发判定法则】
+ // 不再傻瓜式让所有子订单都从 baseStartTimeMin 并发开始
+ // 如果同一个客人点了多个项目分给多个人，它们需要像链条一样在逻辑上相连（哪怕我们不知道大脑具体怎么排，但我们必须告诉大脑它们的顺序）
+ // 为此，我们在 payload 里加入 _siblingIndex 告诉大脑它们是兄弟，以及它们的先后顺序。
  const startH = Math.floor(baseStartTimeMin / 60);
  const startM = baseStartTimeMin % 60;
  const currentStartTimeStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
@@ -863,6 +865,7 @@ export function DualPaneBookingModal({
  newBookings.push({
  id: editingBooking && Object.keys(groupedByEmployee).length === 1 ? editingBooking.id : `BKG-${Date.now()}-${empId}-${groupIndex}`, // 重拆分时，加入 index 防止 React Key 重复
  masterOrderId: editingBooking ? editingBooking.masterOrderId : masterOrderId,
+ _siblingIndex: groupIndex, // 注入兄弟索引，用于接力排盘
  resourceId: empId === 'unassigned' ? undefined : empId, // 临时设为 undefined，后面由前置派发逻辑处理
  customerId: finalCustomerId, // 【核心修复】：注入使用 matchedProfile.gx_id 纠正后的智能编号
  customerName: finalCustomerName,

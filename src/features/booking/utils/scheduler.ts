@@ -26,8 +26,11 @@ export const BookingScheduler = {
       // 应用手动内存覆盖 (防止视图延迟导致读取到旧状态)
       if (manualOverrides) {
         todayBookings.forEach(b => {
-          if (manualOverrides[b.id]) {
-             Object.assign(b, manualOverrides[b.id]);
+          // 【核心修复】：新建订单在入库时被换发了真实的 UUID，导致 b.id 无法匹配覆盖字典。
+          // 必须去认它的 order_no（临时 BKG- 快照），这样才能成功挂载 _needsTimeReflow 标记！
+          const overrideData = manualOverrides[b.id] || (b.order_no && manualOverrides[b.order_no]);
+          if (overrideData) {
+             Object.assign(b, overrideData);
           }
         });
       }
@@ -74,9 +77,16 @@ export const BookingScheduler = {
 
       const placedBookings = [...absoluteBookings];
 
-      // 辅助函数：在一个员工列上寻找/顺延空位 (双轨制碰撞法则)
-      // isStrict: true 代表绝对防撞（未指定散客寻位），false 代表软穿透挤压（店长强行指派加塞）
-      const findSlotOnStaff = (booking: any, staffId: string, startMin: number, isStrict: boolean) => {
+      // 辅助函数：计算两个时间段的重叠分钟数
+      const calculateOverlap = (startA: number, endA: number, startB: number, endB: number) => {
+        const overlapStart = Math.max(startA, startB);
+        const overlapEnd = Math.min(endA, endB);
+        return Math.max(0, overlapEnd - overlapStart);
+      };
+
+      // 辅助函数：在一个员工列上寻找/顺延空位 (引入重叠容忍度法则)
+      // toleranceMins: 允许与旧订单重叠的最大分钟数（例如 20）。如果是 0，代表绝对防撞（散客）。
+      const findSlotOnStaff = (booking: any, staffId: string, startMin: number, toleranceMins: number) => {
         let currentStart = startMin;
         const duration = booking.duration || 60;
         
@@ -91,42 +101,64 @@ export const BookingScheduler = {
             const pStartMin = timeToMinutes(placed.startTime);
             const pEndMin = pStartMin + (placed.duration || 60);
             
-            if (isStrict) {
-              // 【轨道一：绝对防撞】(散客寻位)
-              // 必须保证整个时间段 [currentStart, currentEnd] 与别人完全没有重叠
-              return Math.max(currentStart, pStartMin) < Math.min(currentEnd, pEndMin);
-            } else {
-              // 【轨道二：软穿透挤压】(店长强塞)
-              // 只关心起点是否被别人占据！
-              // 如果我选的 currentStart 落在别人的 [pStartMin, pEndMin) 之间，说明我的起点被“硬防线”挡住了，必须顺延。
-              // 但是，如果我的起点没有被挡住，哪怕我的结尾 (currentEnd) 压到了下一个订单，我也允许“软穿透向下重叠”。
-              return currentStart >= pStartMin && currentStart < pEndMin;
-            }
+            // 计算新老订单的重叠时间
+            const overlapMins = calculateOverlap(currentStart, currentEnd, pStartMin, pEndMin);
+            
+            // 【核心重构：废弃起点检测，引入面积容忍度】
+            // 只要重叠时间大于容忍度，就判定为冲突（碍事了）
+            return overlapMins > toleranceMins;
           });
           
           if (!conflict) {
-            return currentStart; // 找到空位
+            return currentStart; // 找到空位，允许放置
           } else {
-            // 发生碰撞/阻挡，顺延到碰撞订单的结束时间，然后再次循环检测
+            // 发生不可容忍的冲突，必须顺延
+            // 【核心重构：绝对不许挤压别人，只能改变自己的落点】
+            // 我们把自己顺延到那个挡路订单的结束时间，然后再次循环检测
             const conflictEndMin = timeToMinutes(conflict.startTime) + (conflict.duration || 60);
             currentStart = conflictEndMin;
           }
         }
       };
 
-      // 3. 处理指定了员工，但需要顺延检测的订单 (Pushdown - 轨道二：软穿透)
+      // 3. 处理指定了员工，但需要顺延检测的订单 (Pushdown - 轨道二：店长强塞容忍重叠)
       pushdownBookings.forEach(bkg => {
         const targetStaffId = bkg.resourceId;
         const originalStartMin = timeToMinutes(bkg.startTime);
         
-        // 店长指定的，允许软穿透挤压 (isStrict = false)
-        const newStartMin = findSlotOnStaff(bkg, targetStaffId, originalStartMin, false);
+        // 店长指定的，允许软穿透，容忍度设为 15 分钟 (符合门店实际可容忍等待时间)
+        // 如果是多项任务并发 (带有 _siblingIndex)，我们需要根据兄弟的情况进行接力判定
+        let actualStartMin = originalStartMin;
+        
+        if (bkg.masterOrderId && bkg._siblingIndex > 0) {
+          // 这是同一个客人的第 N 个项目。我们先去看看它的“前一个兄弟”目前被排到了什么时候
+          const prevSibling = placedBookings.find(p => p.masterOrderId === bkg.masterOrderId && p._siblingIndex === bkg._siblingIndex - 1);
+          if (prevSibling) {
+             // 我们先尝试让它和前一个兄弟“并发”（即使用原始时间 originalStartMin）
+             // 去看一眼如果放在 originalStartMin，会不会与员工的已有订单严重冲突
+             const testConflict = placedBookings.find(placed => {
+                if (placed.resourceId !== targetStaffId) return false;
+                if (placed.shopId && bkg.shopId && placed.shopId !== bkg.shopId) return false;
+                const pStartMin = timeToMinutes(placed.startTime);
+                const pEndMin = pStartMin + (placed.duration || 60);
+                const currentEnd = originalStartMin + (bkg.duration || 60);
+                return calculateOverlap(originalStartMin, currentEnd, pStartMin, pEndMin) > 15;
+             });
+
+             if (testConflict) {
+               // 如果严重冲突，说明无法并发！触发【智能接力】，它的起点必须在前一个兄弟结束之后
+               actualStartMin = timeToMinutes(prevSibling.startTime) + (prevSibling.duration || 60);
+             }
+          }
+        }
+
+        const newStartMin = findSlotOnStaff(bkg, targetStaffId, actualStartMin, 15);
         bkg.startTime = minutesToTime(newStartMin);
         
         placedBookings.push(bkg);
       });
 
-      // 4. 处理未指定员工的订单 (Floating - 轨道一：绝对防撞)
+      // 4. 处理未指定员工的订单 (Floating - 轨道一：散客绝对防撞)
       floatingBookings.forEach(bkg => {
         const originalStartMin = timeToMinutes(bkg.startTime);
         let foundStaffId = null;
@@ -136,8 +168,8 @@ export const BookingScheduler = {
         for (const staff of staffs) {
           if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
           
-          // 散客自己找位置，必须绝对无重叠 (isStrict = true)
-          const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin, true);
+          // 散客自己找位置，必须绝对无重叠 (容忍度 = 0)
+          const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin, 0);
           if (newStartMin === originalStartMin) {
             foundStaffId = staff.id;
             bestStartMin = newStartMin;
@@ -146,11 +178,11 @@ export const BookingScheduler = {
         }
 
         if (!foundStaffId) {
-          // 如果所有人都放不下（都会顺延），那就选第一个员工强制顺延 (此时仍然用绝对防撞，尽量找个完全空的地方)
+          // 如果所有人都放不下（都会顺延），那就选第一个员工强制顺延
           const fallbackStaff = staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO');
           if (fallbackStaff) {
             foundStaffId = fallbackStaff.id;
-            bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin, true);
+            bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin, 0);
           }
         }
 
