@@ -166,12 +166,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq('principal_id', profile.gx_id);
           
           if (!newBindingsError && newBindings && newBindings.length > 0) {
-            // 【核心修复：多租户身份叠加法则】
-            // 绝不能直接覆盖（shopBindings = ...），否则拥有自己门店的老板在被别人绑定后，自己的店会凭空消失！
-            // 必须使用数组合并，确保他既是 A 店的老板，也是 B 店的兼职员工。
-            const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
-            shopBindings = [...(shopBindings || []), ...(mappedNewBindings || [])];
-          }
+          // 【核心修复：多租户身份叠加法则 + 强去重】
+          // 使用 Map 进行 shopId 物理级去重，防止店主在绑定自己员工时出现两条相同 shopId 的脏数据，
+          // 并且如果同一个店既有 OWNER 又有 user，必须保留最高权限 (OWNER)
+          const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
+          
+          const uniqueBindingsMap = new Map<string, NonNullable<SandboxUser["bindings"]>[0]>();
+          
+          // 先放入旧表的数据 (通常是 OWNER)
+          (shopBindings || []).forEach(b => uniqueBindingsMap.set(b.shopId, b));
+          
+          // 再放入新表的数据，但要判断权限高低
+          (mappedNewBindings || []).forEach(newB => {
+            const existing = uniqueBindingsMap.get(newB.shopId);
+            if (!existing) {
+              uniqueBindingsMap.set(newB.shopId, newB);
+            } else if (existing.role !== 'OWNER' && newB.role === 'OWNER') {
+              // 只有当新表是 OWNER 而旧表不是时，才覆盖（极少出现，但确保逻辑严密）
+              uniqueBindingsMap.set(newB.shopId, newB);
+            }
+          });
+
+          shopBindings = Array.from(uniqueBindingsMap.values());
+        }
         }
 
         // 如果是 Boss，强制接管并覆盖所有名下门店
@@ -474,10 +491,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('principal_id', profile.gx_id);
         
         if (!newBindingsError && newBindings && newBindings.length > 0) {
-          // 【核心修复：多租户身份叠加法则】
-          // 与 hydrateSession 保持一致，绝不覆盖，而是追加
+          // 【核心修复：多租户身份叠加法则 + 强去重】
+          // 与 hydrateSession 保持一致，使用 Map 进行 shopId 物理级去重
           const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
-          shopBindings = [...(shopBindings || []), ...(mappedNewBindings || [])];
+          
+          const uniqueBindingsMap = new Map<string, NonNullable<SandboxUser["bindings"]>[0]>();
+          
+          // 先放入旧表的数据 (通常是 OWNER)
+          (shopBindings || []).forEach(b => uniqueBindingsMap.set(b.shopId, b));
+          
+          // 再放入新表的数据，但要判断权限高低
+          (mappedNewBindings || []).forEach(newB => {
+            const existing = uniqueBindingsMap.get(newB.shopId);
+            if (!existing) {
+              uniqueBindingsMap.set(newB.shopId, newB);
+            } else if (existing.role !== 'OWNER' && newB.role === 'OWNER') {
+              uniqueBindingsMap.set(newB.shopId, newB);
+            }
+          });
+
+          shopBindings = Array.from(uniqueBindingsMap.values());
         }
       }
 
