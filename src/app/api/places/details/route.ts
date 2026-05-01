@@ -6,6 +6,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const placeId = searchParams.get("place_id");
+    const sessionToken = searchParams.get("sessionToken");
 
     if (!placeId) {
       return NextResponse.json({ error: "Missing place_id parameter" }, { status: 400 });
@@ -17,7 +18,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
-    const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=zh-CN`;
+    let url = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=zh-CN`;
+    
+    // 透传 SessionToken 给 Google (v1 API 必须在 query params 中传递 sessionToken)
+    if (sessionToken) {
+      url += `&sessionToken=${encodeURIComponent(sessionToken)}`;
+    }
 
     const response = await fetch(url, {
       method: 'GET',

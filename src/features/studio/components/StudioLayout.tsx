@@ -25,21 +25,36 @@ export function StudioLayout() {
 
  const fileInputRef = useRef<HTMLInputElement>(null);
 
- // Form States
- const [storeId, setStoreId] = useState<string | null>(null);
- const [currentVersionId, setCurrentVersionId] = useState<number>(1);
- const [storeName, setStoreName] = useState("");
- const [searchQuery, setSearchQuery] = useState("");
- const [selectedLocation, setSelectedLocation] = useState<{name: string, address: string, lat: number, lng: number} | null>(null);
- // const [isAddressExpanded, setIsAddressExpanded] = useState(false);
- const [autocompleteResults, setAutocompleteResults] = useState<any[]>([]);
- const [isSearching, setIsSearching] = useState(false);
- const [isDeploying, setIsDeploying] = useState(false);
- const [isLoadingStore, setIsLoadingStore] = useState(true);
- 
- // Visual Assets States
- const [slogan, setSlogan] = useState("");
- const [coverImages, setCoverImages] = useState<string[]>([]);
+  // Form States
+  const [storeId, setStoreId] = useState<string | null>(null);
+  const [currentVersionId, setCurrentVersionId] = useState<number>(1);
+  const [storeName, setStoreName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState<{name: string, address: string, lat: number, lng: number} | null>(null);
+  // const [isAddressExpanded, setIsAddressExpanded] = useState(false);
+  const [autocompleteResults, setAutocompleteResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [isLoadingStore, setIsLoadingStore] = useState(true);
+  
+  // Google Places Session Token
+  const sessionTokenRef = useRef<string | null>(null);
+
+  // Generate UUID for Session Token
+  const generateSessionToken = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback UUID v4 generator
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
+  // 基因读取：挂载时拉取已有门店数据
+  const [slogan, setSlogan] = useState("");
+  const [coverImages, setCoverImages] = useState<string[]>([]);
  const [isUploading, setIsUploading] = useState(false);
  
  // Crop States
@@ -111,23 +126,30 @@ export function StudioLayout() {
  }, [user, targetShopId]);
 
  const fetchPlaces = useCallback(async (input: string) => {
- if (!input || input.length < 2) {
- setAutocompleteResults([]);
- return;
- }
- setIsSearching(true);
- try {
- const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(input)}`);
- const data = await res.json();
- if (data.predictions) {
- setAutocompleteResults(data.predictions);
- }
- } catch (error) {
- console.error("Failed to fetch places:", error);
- } finally {
- setIsSearching(false);
- }
- }, []);
+    if (!input || input.length < 2) {
+      setAutocompleteResults([]);
+      sessionTokenRef.current = null; // 重置 token
+      return;
+    }
+    
+    // 如果没有 sessionToken，生成一个新的
+    if (!sessionTokenRef.current) {
+      sessionTokenRef.current = generateSessionToken();
+    }
+    
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(input)}&sessionToken=${sessionTokenRef.current}`);
+      const data = await res.json();
+      if (data.predictions) {
+        setAutocompleteResults(data.predictions);
+      }
+    } catch (error) {
+      console.error("Failed to fetch places:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
 
  useEffect(() => {
  const timer = setTimeout(() => {
@@ -232,28 +254,35 @@ export function StudioLayout() {
  };
 
  const handleSelectLocation = async (placeId: string, description: string) => {
- setSearchQuery(description);
- setAutocompleteResults([]);
- 
- try {
- const res = await fetch(`/api/places/details?place_id=${placeId}`);
- const data = await res.json();
- if (data.result && data.result.geometry) {
- const { lat, lng } = data.result.geometry.location;
- const name = data.result.name;
- const address = data.result.formatted_address;
- 
- setSelectedLocation({
- name: name || description,
- address: address || description,
- lat,
- lng
- });
- }
- } catch (error) {
- console.error("Failed to fetch place details:", error);
- }
- };
+    setSearchQuery(description);
+    setAutocompleteResults([]);
+    
+    try {
+      const url = sessionTokenRef.current 
+        ? `/api/places/details?place_id=${placeId}&sessionToken=${sessionTokenRef.current}`
+        : `/api/places/details?place_id=${placeId}`;
+        
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.result && data.result.geometry) {
+        const { lat, lng } = data.result.geometry.location;
+        const name = data.result.name;
+        const address = data.result.formatted_address;
+        
+        setSelectedLocation({
+          name: name || description,
+          address: address || description,
+          lat,
+          lng
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch place details:", error);
+    } finally {
+      // 选择完毕后，消耗掉这个 token，下次搜索需要新的
+      sessionTokenRef.current = null;
+    }
+  };
 
  const handleUploadClick = () => {
  if (coverImages.length >= 3) return;

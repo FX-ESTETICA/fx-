@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 
 // 声明 Edge Runtime，适配 Vercel 边缘节点计算与缓存
 export const runtime = "edge";
@@ -6,7 +7,7 @@ export const runtime = "edge";
 type PlacesTextSearchRequest = {
   textQuery: string;
   maxResultCount: number;
-  minRating: number;
+  minRating?: number;
   locationBias: {
     circle: {
       center: { latitude: number; longitude: number };
@@ -30,6 +31,37 @@ type PlacesTextSearchResponse = {
   places?: GooglePlace[];
   error?: { message?: string };
 };
+
+// 将真实的 Google API 请求封装进 unstable_cache 中
+const fetchGooglePlaces = unstable_cache(
+  async (requestBody: any, apiKey: string) => {
+    const url = "https://places.googleapis.com/v1/places:searchText";
+    const fieldMask = "places.id,places.displayName,places.rating,places.userRatingCount,places.businessStatus,places.location,places.photos";
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": fieldMask
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = (await response.json()) as PlacesTextSearchResponse;
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || response.statusText);
+    }
+
+    return data;
+  },
+  ['google-places-search'], // 基础 cache key
+  {
+    revalidate: 86400, // 缓存 24 小时
+    tags: ['places-search']
+  }
+);
 
 export async function GET(req: Request) {
   try {
@@ -61,12 +93,7 @@ export async function GET(req: Request) {
     }
 
     // 引擎选择器与参数构建
-    let url = "";
     let requestBody: PlacesTextSearchRequest | Record<string, unknown> = {};
-    const fieldMask = "places.id,places.displayName,places.rating,places.userRatingCount,places.businessStatus,places.location,places.photos";
-
-    // 全量启用 searchText 引擎，进行语义化高精度检索
-    url = "https://places.googleapis.com/v1/places:searchText";
 
     // 智能查询词构建 (Dynamic Query Formulation)
     let textQuery = "";
@@ -115,25 +142,18 @@ export async function GET(req: Request) {
       requestBody.rankPreference = "RELEVANCE"; // RELEVANCE 综合考虑了评分、距离和语义匹配度
     }
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": fieldMask
-      },
-      body: JSON.stringify(requestBody)
-    });
+    // 抹平经纬度精度，提高缓存命中率 (保留2位小数，约1公里级别的网格)
+    const cacheLat = lat.toFixed(2);
+    const cacheLng = lng.toFixed(2);
+    // 生成基于参数的独立 Cache Key，供 unstable_cache 内部区分
+    const queryCacheKey = `${textQuery}-${cacheLat}-${cacheLng}-${sortBy}`;
 
-    const data = (await response.json()) as PlacesTextSearchResponse;
-
-    if (!response.ok) {
-      console.error(`Google Places API Error (${subCategory === "all" ? "Nearby" : "Text"}):`, data.error?.message || response.statusText);
-      return NextResponse.json(
-        { error: data.error?.message || "Google API request failed" },
-        { status: response.status }
-      );
-    }
+    // 使用 unstable_cache 包装的 fetch，传入额外的 key 供闭包内使用（这里实际上我们依赖 unstable_cache 的第二个参数数组，但在 Edge 环境下动态参数需要包裹）
+    const data = await unstable_cache(
+      async () => fetchGooglePlaces(requestBody, apiKey),
+      ['google-places-search', queryCacheKey],
+      { revalidate: 86400, tags: ['places-search'] }
+    )();
 
     // Process and filter the results
     const places = (data.places || []).map((place) => ({

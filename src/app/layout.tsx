@@ -150,6 +150,21 @@ export default async function RootLayout({
             __html: `
               (function() {
                 try {
+                  // 彻底放过本地开发环境，防止拦截 Next.js 的 Hot Reload 编译
+                  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    // 绝对物理级毁灭：如果本地残留了之前的旧版 Service Worker，强行将其斩杀卸载，防止僵尸接管
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for(let registration of registrations) {
+                          registration.unregister();
+                        }
+                      });
+                    }
+                    // 清除可能导致死锁的自愈印记
+                    sessionStorage.removeItem('gx_auto_healed');
+                    return;
+                  }
+
                   // 陷阱1：拦截所有核心资源(JS/CSS) 加载失败的瞬间
                   window.addEventListener('error', function(e) {
                     if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {

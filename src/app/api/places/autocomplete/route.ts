@@ -6,6 +6,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const input = searchParams.get("input");
+    const sessionToken = searchParams.get("sessionToken");
 
     if (!input) {
       return NextResponse.json({ predictions: [] });
@@ -19,16 +20,23 @@ export async function GET(req: Request) {
 
     const url = 'https://places.googleapis.com/v1/places:autocomplete';
 
+    const body: any = {
+      input,
+      languageCode: 'zh-CN'
+    };
+
+    // 透传 SessionToken 给 Google
+    if (sessionToken) {
+      body.sessionToken = sessionToken;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey
       },
-      body: JSON.stringify({
-        input,
-        languageCode: 'zh-CN'
-      })
+      body: JSON.stringify(body)
     });
     
     const data = await response.json();
