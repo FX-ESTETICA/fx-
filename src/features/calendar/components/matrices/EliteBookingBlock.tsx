@@ -1,8 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useDragControls } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { isActiveBgColor, isActiveBorderColor } from "./utils";
+import React, { useRef, useEffect } from "react";
 
 export interface EliteBookingBlockProps {
  title: string;
@@ -30,12 +31,57 @@ export interface EliteBookingBlockProps {
  * 采用物理引擎反馈，极光呼吸灯，降维打击级质感
  */
 export const EliteBookingBlock = ({ 
- title, color, accent, height, isTiny = false, isMicro = false, isPending = false,
+ title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false,
  isPast = false, isCheckedOut = false, isNoShow = false, delayMins = 0,
  onClick, onDragStart, onDrag, onDragEnd, isReadOnly 
 }: EliteBookingBlockProps) => {
  // Check if the color is a hex code
  const isHexColor = color?.startsWith('#');
+ const controls = useDragControls();
+ const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+ const isDraggingRef = useRef(false);
+
+ const handlePointerDown = (e: React.PointerEvent) => {
+ if (isReadOnly) return;
+ dragTimeoutRef.current = setTimeout(() => {
+ controls.start(e);
+ }, 300);
+ };
+
+ const handlePointerUp = () => {
+ if (dragTimeoutRef.current) {
+ clearTimeout(dragTimeoutRef.current);
+ dragTimeoutRef.current = null;
+ }
+ };
+
+ const handleClick = (e: React.MouseEvent) => {
+ if (isDraggingRef.current) {
+ e.stopPropagation();
+ return;
+ }
+ onClick?.(e);
+ };
+
+ const handleDragStart = () => {
+ isDraggingRef.current = true;
+ onDragStart?.();
+ };
+
+ const handleDragEnd = (e: any, info: any) => {
+ onDragEnd?.(e, info);
+ setTimeout(() => {
+ isDraggingRef.current = false;
+ }, 50);
+ };
+
+ useEffect(() => {
+ return () => {
+ if (dragTimeoutRef.current) {
+ clearTimeout(dragTimeoutRef.current);
+ }
+ };
+ }, []);
 
  // 终极视觉状态判定法则
  // 1. isCheckedOut (已结账): 彻底隐入星空，透明底色，极暗边框
@@ -44,17 +90,19 @@ export const EliteBookingBlock = ({
  // 4. isNoShow (爽约): 彻底隐入星空，幽灵灰边框，文字降维
  
  const getBackgroundColor = () => {
- if (isPending) return '';
- if (isCheckedOut || isPast || isNoShow) return 'transparent';
- return isHexColor ? `${color}CC` : ''; // 80% opacity for background
- };
+    if (isPending) return '';
+    if (isCheckedOut || isPast || isNoShow) return 'transparent';
+    // 废弃原来的 `${color}40` (25% opacity) 的半透明底色，直接使用实色
+    return isHexColor ? color : ''; 
+  };
 
  const getBorderColor = () => {
- if (isPending) return 'transparent';
- if (isNoShow) return 'rgba(255, 255, 255, 0.15)'; // 幽灵灰边框
- if (isCheckedOut) return 'rgba(255, 255, 255, 0.05)'; // 幽灵灰极暗边框
- return isHexColor ? (isPast ? `${color}80` : `${color}80`) : ''; // 边框亮度提升至 50% (更清晰)
- };
+    if (isPending) return 'transparent';
+    if (isNoShow) return 'rgba(255, 255, 255, 0.15)'; // 幽灵灰边框
+    if (isCheckedOut) return 'rgba(255, 255, 255, 0.05)'; // 幽灵灰极暗边框
+    // 弱化整体外边框，仅作为结构辅助，不再抢戏 (15% 透明度)
+    return isHexColor ? (isPast ? `${color}40` : `${color}26`) : ''; 
+  };
 
  const getBoxShadow = () => {
  if (isPending) return '';
@@ -67,37 +115,43 @@ export const EliteBookingBlock = ({
  {/* 跑马灯动画边框 (只有待确认状态才渲染) */}
  {isPending && (
  <div 
- className="absolute inset-x-1.5 top-0 z-[5] rounded-xl p-[2px] pointer-events-none "
+ className="absolute inset-x-1.5 top-0 z-[5] rounded p-[2px] pointer-events-none "
  style={{ height: height === "100%" ? "100%" : height }}
  >
- <div className="absolute inset-0 rounded-xl bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3,#ff0000)] bg-[length:200%_auto] animate-[shimmer_2s_linear_infinite]" />
+ <div className="absolute inset-0 rounded bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3,#ff0000)] bg-[length:200%_auto] animate-[shimmer_2s_linear_infinite]" />
  </div>
  )}
  
  <motion.div
- onClick={onClick}
- drag={!isReadOnly}
+ onClick={handleClick}
+ drag={!isReadOnly ? "y" : false}
  dragSnapToOrigin // 松手自动弹回原位
- onDragStart={onDragStart}
- onDrag={onDrag}
- onDragEnd={onDragEnd}
+ dragControls={controls}
+ dragListener={false}
+         onPointerDown={handlePointerDown}
+         onPointerUp={handlePointerUp}
+         onPointerCancel={handlePointerUp}
+         onDragStart={handleDragStart}
+         onDrag={onDrag}
+         onDragEnd={handleDragEnd}
  className={cn(
- "absolute inset-x-1.5 top-0 z-10 rounded-xl border flex cursor-pointer group overflow-hidden",
- isMicro ? "py-0 pl-2 pr-1.5 items-center justify-start" : (isTiny ? "pl-2 pr-2 items-center justify-start" : "pl-2 pr-3 items-center justify-start"),
- !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),
- !isHexColor && !isCheckedOut && !isNoShow && isActiveBorderColor(accent || ''),
- isPending && "border-transparent bg-black/60 m-[2px]" // 如果有跑马灯，缩小一圈并让自身边框透明
- )}
- style={{
- height: height === "100%" ? "100%" : (isPending && typeof height === 'number' ? height - 4 : height),
- backgroundColor: getBackgroundColor(),
- borderColor: getBorderColor(),
- boxShadow: getBoxShadow(),
- backdropFilter: (isCheckedOut || isPast || isNoShow) ? "(0px)" : "(30px)", // 已过时也彻底移除毛玻璃
- }}
- >
- {/* 内部极光背景 (Aurora Glow) - 已移除 ，改为静态极简底色以提升性能 */}
- {!isCheckedOut && !isPast && !isNoShow && (
+          "absolute inset-x-1.5 top-0 z-10 rounded border flex cursor-pointer group overflow-hidden",
+          isMicro ? "py-0 px-2 pl-[10px] items-center justify-start" : (isTiny ? "p-1 pl-[10px] items-center justify-start" : "p-3 pl-[12px] flex-col justify-start"),
+          !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),
+          !isHexColor && !isCheckedOut && !isNoShow && isActiveBorderColor(accent || ''),
+          isPending && "border-transparent bg-black/60 m-[2px]" // 如果有跑马灯，缩小一圈并让自身边框透明
+        )}
+        style={{
+          height: height === "100%" ? "100%" : (isPending && typeof height === 'number' ? height - 4 : height),
+          backgroundColor: getBackgroundColor(),
+          borderColor: getBorderColor(),
+          boxShadow: getBoxShadow(),
+          backdropFilter: (isCheckedOut || isPast || isNoShow) ? "(0px)" : "(10px)", // 微弱磨砂
+        }}
+        title={`${title} - ${client}`} // 悬浮显示完整信息
+      >
+        {/* 内部极光背景 (Aurora Glow) - 已移除 ，改为静态极简底色以提升性能 */}
+        {!isCheckedOut && !isPast && !isNoShow && (
  <div 
  className={cn(
  "absolute -top-1/2 -left-1/2 w-full h-full opacity-[0.03] rounded-full pointer-events-none",
@@ -108,33 +162,32 @@ export const EliteBookingBlock = ({
  )}
 
  {isMicro ? (
- // --- 极限微缩态 (15-25 分钟)：绝对居中，只有服务名称，超小字体，隐藏多余元素 ---
+ // --- 极限微缩态 (15-25 分钟)：绝对左对齐，只有服务名称，超小字体，隐藏多余元素 ---
  <div className="flex items-center justify-start relative z-10 w-full truncate">
  <span 
- className={cn("text-[11px] leading-none font-medium antialiased tracking-widest shrink-0 text-white text-left", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] leading-none font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
- {title}
+ {title.replace(/ \+ /g, ' ')}
  </span>
  </div>
  ) : isTiny ? (
- // --- 紧凑态 (30-40 分钟)：单行居中排版 ---
- <div className="flex items-center justify-start gap-2 relative z-10 w-full truncate">
+ // --- 紧凑态 (30-40 分钟)：单行左对齐排版 ---
+ <div className="flex items-center justify-start gap-2 relative z-10 w-full truncate px-0">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest shrink-0 text-white text-left", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
- {title}
+ {title.replace(/ \+ /g, ' ')}
  </span>
- {/* 右上角绝对定位的小圆点已根据极简法则移除 */}
  </div>
  ) : (
- // --- 充足空间：两行经典排版 ---
+ // --- 充足空间：左对齐排版 ---
  <>
  <div className="flex flex-col gap-1 relative z-10 w-full">
- <div className="flex justify-start items-center">
+ <div className="flex justify-between items-start">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest leading-tight line-clamp-2 text-white text-left", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest uppercase leading-tight line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
- {title}
+ {title.replace(/ \+ /g, ' ')}
  </span>
  {delayMins > 0 && !isCheckedOut && !isNoShow && (
  <div className="flex items-center justify-center bg-black/60 border border-white/30 px-1.5 rounded-sm shrink-0 ml-1 ">
