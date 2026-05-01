@@ -125,7 +125,8 @@ export const EliteBookingBlock = ({
  <motion.div
  onClick={handleClick}
  drag={!isReadOnly ? "y" : false}
- dragSnapToOrigin // 松手自动弹回原位
+ dragConstraints={{ top: 0, bottom: 0 }} // 废除弹回，利用 Constraints 和 Elastic=0 彻底锁死物理偏移，将一切交给受控的辅助线克隆体
+ dragElastic={0} 
  dragControls={controls}
  dragListener={false}
          onPointerDown={handlePointerDown}
