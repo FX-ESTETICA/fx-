@@ -754,18 +754,24 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
  }
 
+ // 【世界顶端体验法则：乐观更新 (Optimistic Update)】
+ // 在等待智能大脑排盘期间，我们必须给用户一个“瞬间到达”的物理反馈，彻底消灭弹回残影。
+ // 我们通过更新组件内部的一份“沙盒”数据或直接修改原对象的引用，让它原地“假更新”。
+ booking.startTime = newStartTime; // 强行修改对象引用，由于 React 的重渲染机制，它会暂时在原地停留，直到下一次从服务端拉取。
+ booking._needsTimeReflow = true; // 强行打上需要重排的标记
+
  // 触发智能排盘：人员不变，只改变时间
- await BookingScheduler.reflowDayBookings(booking.date, currentShopId, resources, {
+ BookingScheduler.reflowDayBookings(booking.date, currentShopId, resources, {
  [booking.id]: {
  resourceId: booking.resourceId, // 保持人员不变
  startTime: newStartTime,
  originalUnassigned: booking.originalUnassigned,
  _needsTimeReflow: true // 强制顺延重排
  }
- });
- 
+ }).then(() => {
  refreshBookings();
  trackAction();
+ });
  };
 
  return (
