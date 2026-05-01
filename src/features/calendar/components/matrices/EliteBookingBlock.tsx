@@ -37,21 +37,39 @@ export const EliteBookingBlock = ({
 }: EliteBookingBlockProps) => {
  // Check if the color is a hex code
  const isHexColor = color?.startsWith('#');
- const controls = useDragControls();
  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
  const isDraggingRef = useRef(false);
+ const dragStartYRef = useRef(0);
 
  const handlePointerDown = (e: React.PointerEvent) => {
  if (isReadOnly) return;
+ dragStartYRef.current = e.clientY;
+ e.currentTarget.setPointerCapture(e.pointerId); // 捕获指针，防止移出元素后丢失事件
  dragTimeoutRef.current = setTimeout(() => {
- controls.start(e);
+ // 触发长按逻辑
+ isDraggingRef.current = true;
+ onDragStart?.();
  }, 300);
  };
 
- const handlePointerUp = () => {
+ const handlePointerMove = (e: React.PointerEvent) => {
+ if (isDraggingRef.current && onDrag) {
+ // 模拟 info.offset.y
+ onDrag(e, { offset: { y: e.clientY - dragStartYRef.current } });
+ }
+ };
+
+ const handlePointerUp = (e: React.PointerEvent) => {
+ e.currentTarget.releasePointerCapture(e.pointerId);
  if (dragTimeoutRef.current) {
  clearTimeout(dragTimeoutRef.current);
  dragTimeoutRef.current = null;
+ }
+ if (isDraggingRef.current && onDragEnd) {
+ onDragEnd(e, { offset: { y: e.clientY - dragStartYRef.current } });
+ setTimeout(() => {
+ isDraggingRef.current = false;
+ }, 50);
  }
  };
 
@@ -61,18 +79,6 @@ export const EliteBookingBlock = ({
  return;
  }
  onClick?.(e);
- };
-
- const handleDragStart = () => {
- isDraggingRef.current = true;
- onDragStart?.();
- };
-
- const handleDragEnd = (e: any, info: any) => {
- onDragEnd?.(e, info);
- setTimeout(() => {
- isDraggingRef.current = false;
- }, 50);
  };
 
  useEffect(() => {
@@ -123,19 +129,14 @@ export const EliteBookingBlock = ({
  )}
  
  <motion.div
- onClick={handleClick}
- drag={!isReadOnly ? "y" : false}
- dragConstraints={{ top: 0, bottom: 0 }} // 废除弹回，利用 Constraints 和 Elastic=0 彻底锁死物理偏移，将一切交给受控的辅助线克隆体
- dragElastic={0} 
- dragControls={controls}
- dragListener={false}
-         onPointerDown={handlePointerDown}
-         onPointerUp={handlePointerUp}
-         onPointerCancel={handlePointerUp}
-         onDragStart={handleDragStart}
-         onDrag={onDrag}
-         onDragEnd={handleDragEnd}
- className={cn(
+  onClick={handleClick}
+  // 【纯数据驱动】：彻底废弃 framer-motion 的物理拖拽 (drag="y")
+  // 利用 onPointerDown 和 onPointerMove 完全接管事件，本体只做原地半透明留影
+  onPointerDown={handlePointerDown}
+  onPointerMove={handlePointerMove}
+  onPointerUp={handlePointerUp}
+  onPointerCancel={handlePointerUp}
+  className={cn(
           "absolute inset-x-1.5 top-0 z-10 rounded border flex cursor-pointer group overflow-hidden",
           isMicro ? "py-0 px-2 pl-[10px] items-center justify-start" : (isTiny ? "p-1 pl-[10px] items-center justify-start" : "p-3 pl-[12px] flex-col justify-start"),
           !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),

@@ -16,6 +16,13 @@ export const BookingScheduler = {
       const { data: allBookings } = await BookingService.getBookings(shopId);
       const todayBookings = allBookings.filter(b => b.date === dateStr);
 
+      // 【终极排爆过滤记录】：记录每个订单进场前的原始 resourceId 和 startTime
+      // 必须在应用 manualOverrides 之前记录，否则会把拖拽后的新时间当成旧时间，导致存盘被跳过！
+      const originalStateMap = new Map(todayBookings.map(b => [b.id, {
+        resourceId: b.resourceId,
+        startTime: b.startTime
+      }]));
+
       // 应用手动内存覆盖 (防止视图延迟导致读取到旧状态)
       if (manualOverrides) {
         todayBookings.forEach(b => {
@@ -24,12 +31,6 @@ export const BookingScheduler = {
           }
         });
       }
-
-      // 【终极排爆过滤记录】：记录每个订单进场前的原始 resourceId 和 startTime
-      const originalStateMap = new Map(todayBookings.map(b => [b.id, {
-        resourceId: b.resourceId,
-        startTime: b.startTime
-      }]));
 
       const timeToMinutes = (timeStr: string) => {
         const [h, m] = (timeStr || "00:00").split(':').map(Number);

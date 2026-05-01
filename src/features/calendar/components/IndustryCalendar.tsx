@@ -334,14 +334,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  try {
  const { data, error } = await supabase
  .from('profiles')
- .select('id, avatar_url')
- .in('id', boundFrontendIds);
+ .select('gx_id, avatar_url')
+ .in('gx_id', boundFrontendIds);
  
  if (!error && data) {
  const map: Record<string, string> = {};
  data.forEach(p => {
- if (p.avatar_url) {
- map[p.id] = p.avatar_url;
+ if (p.avatar_url && p.gx_id) {
+ map[p.gx_id] = p.avatar_url;
  }
  });
  setStaffAvatars(map);
