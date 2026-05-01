@@ -170,7 +170,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // 绝不能直接覆盖（shopBindings = ...），否则拥有自己门店的老板在被别人绑定后，自己的店会凭空消失！
             // 必须使用数组合并，确保他既是 A 店的老板，也是 B 店的兼职员工。
             const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
-            shopBindings = [...(shopBindings || []), ...mappedNewBindings];
+            shopBindings = [...(shopBindings || []), ...(mappedNewBindings || [])];
           }
         }
 
@@ -477,7 +477,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // 【核心修复：多租户身份叠加法则】
           // 与 hydrateSession 保持一致，绝不覆盖，而是追加
           const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
-          shopBindings = [...(shopBindings || []), ...mappedNewBindings];
+          shopBindings = [...(shopBindings || []), ...(mappedNewBindings || [])];
         }
       }
 

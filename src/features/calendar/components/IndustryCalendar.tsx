@@ -292,9 +292,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const [storeStatus, setStoreStatus] = useState<'open' | 'closed_today' | 'holiday'>('open');
 
  const { user } = useAuth();
- const currentUserRole = user && 'role' in user ? user.role : 'user';
- 
- // 【世界顶端架构】：在顶层日历组件中，统一查询当前登录用户的真实业务档案 (Profile Avatar)
+  const globalUserRole = user && 'role' in user ? user.role : 'user';
+  
+  // 【世界顶端架构】：在顶层日历组件中，统一查询当前登录用户的真实业务档案 (Profile Avatar)
  // 这确保了无论是左侧的轨道面板，还是右上角的雷达面板，都使用同一个来源的高清真实头像
  const [trueBusinessAvatar, setTrueBusinessAvatar] = useState<string | undefined>(
  (user && typeof user === 'object' && 'avatar' in user) ? user.avatar as string : undefined
@@ -371,11 +371,38 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  ? userMetadata.gxId
  : undefined);
 
- // 获取当前商户的专属 shopId，实现多租户数据物理隔离
- // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
- const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction } = useShop();
- const urlShopId = searchParams.get('shopId');
- const shopId = urlShopId || activeShopId || 'default';
+  // 获取当前商户的专属 shopId，实现多租户数据物理隔离
+  // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
+  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction } = useShop();
+  const urlShopId = searchParams.get('shopId');
+  const shopId = urlShopId || activeShopId || 'default';
+
+  // ==========================================
+  // 【核心修改】：动态推导有效角色 (Effective Role)
+  // ==========================================
+  // 解决兼职员工保留 Boss 权限的越权漏洞
+  const effectiveUserRole = useMemo(() => {
+    let role = 'user';
+    if (availableShops && availableShops.length > 0) {
+      const currentShopBinding = availableShops.find((s: any) => s.shopId === shopId);
+      if (currentShopBinding) {
+        role = currentShopBinding.role === 'OWNER' ? 'boss' : 'user';
+      }
+    }
+    // 如果全局角色连老板都不是，肯定是 user
+    if (globalUserRole !== 'boss' && globalUserRole !== 'merchant') {
+      role = 'user';
+    }
+    return role;
+  }, [availableShops, shopId, globalUserRole]);
+
+  // 【物理权限隔离】：如果是普通员工（非 boss），判断其操作权限
+  const myStaffProfile = useMemo(() => {
+    return staffs.find(s => s.frontendId === userGxId);
+  }, [staffs, userGxId]);
+  
+  const isPermissionReadOnly = effectiveUserRole === 'user' && myStaffProfile?.operationRights === 'view';
+
 
  const openBookingModal = useCallback(() => {
  setBookingModalKey((k) => k + 1);
@@ -660,6 +687,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
  if (!subscription.isLoaded) return;
 
+ // 权限拦截：只读员工禁止开单
+ if (isPermissionReadOnly) {
+ console.log('Permission Denied: View Only');
+ return;
+ }
+
  // 拦截只读模式，直接呼出全端统一订阅弹窗
  if (isReadOnlyMode) {
  openSubscriptionModal('EXPIRED_WARNING');
@@ -681,7 +714,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
  openBookingModal();
- }, [services.length, subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
+ }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
  const handleGridClick = useCallback(async (resourceId?: string, time?: string, dateStr?: string) => {
  // --- 新增：空状态防御机制（结界） ---
@@ -694,6 +727,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // 防闪电战拦截：如果订阅状态还没加载回来，直接拦截，防止手速卡Bug
  if (!subscription.isLoaded) return;
+
+ // 权限拦截：只读员工禁止开单
+ if (isPermissionReadOnly) {
+ console.log('Permission Denied: View Only');
+ return;
+ }
 
  // 拦截只读模式，直接呼出全端统一订阅弹窗
  if (isReadOnlyMode) {
@@ -735,7 +774,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
  
  openBookingModal();
- }, [services.length, subscription.isLoaded, isReadOnlyMode, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
+ }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
  // 用于同步表头与矩阵的横向滚动
  const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -784,15 +823,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // 强化 Admin 判定：优先读取组件传入的 mode，同时作为兜底，同步读取本地通行证，防止刷新时的时序闪烁隐藏
  // 核心业务法则：只要能进这个日历并且身份是老板（boss/merchant），就绝对拥有 Admin 权限！
- const isAdmin = mode === "admin" || currentUserRole === 'boss' || currentUserRole === 'merchant';
+ const isAdmin = mode === "admin" || effectiveUserRole === 'boss' || effectiveUserRole === 'merchant';
 
  const handleDateSwipe = useCallback((direction: 'prev' | 'next') => {
  handleNavigate(direction);
  }, [handleNavigate]);
 
  const handleReadOnlyIntercept = useCallback(() => {
+ if (isReadOnlyMode) {
  openSubscriptionModal('EXPIRED_WARNING');
- }, [openSubscriptionModal]);
+ } else if (isPermissionReadOnly) {
+ console.log('Permission Denied: View Only');
+ }
+ }, [isReadOnlyMode, isPermissionReadOnly, openSubscriptionModal]);
 
  const handlePhantomDateChange = useCallback((dateStr: string) => {
  const newDate = new Date(dateStr);
@@ -940,13 +983,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  let validStaffs = staffs.filter(s => s.status !== 'resigned');
 
  // 【物理权限隔离】：如果是普通员工（非 boss/merchant），且他在系统中有绑定记录
- if (currentUserRole === 'user' && userGxId) {
+ if (effectiveUserRole === 'user' && userGxId) {
  // 找到当前登录员工在门店中的身份档案
- const myStaffProfile = validStaffs.find(s => s.frontendId === userGxId);
+ const staffProfile = validStaffs.find(s => s.frontendId === userGxId);
  
  // 如果他配置了 calendarView === 'self'，那么彻底阻断他看到其他人的排班，只保留自己
- if (myStaffProfile && myStaffProfile.calendarView === 'self') {
- validStaffs = [myStaffProfile];
+ if (staffProfile && staffProfile.calendarView === 'self') {
+ validStaffs = [staffProfile];
  }
  }
 
@@ -970,7 +1013,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  let hasPendingToday = false;
  
  // 【物理隔离衍生】：如果当前员工仅限查看自己，则不显示 NEXUS 和 NO 列
- const isSelfViewOnly = currentUserRole === 'user' && userGxId && staffs.find(s => s.frontendId === userGxId)?.calendarView === 'self';
+ const isSelfViewOnly = effectiveUserRole === 'user' && userGxId && staffs.find(s => s.frontendId === userGxId)?.calendarView === 'self';
 
  try {
  if (globalBookings && globalBookings.length > 0 && !isSelfViewOnly) {
@@ -1052,7 +1095,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
 
  return paginatedResources;
- }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams, currentUserRole, userGxId]);
+ }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams, effectiveUserRole, userGxId]);
 
  // 表头翻页手势处理
  const handleHeaderPanEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -1109,7 +1152,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  <div className="w-[260px] h-full flex flex-col">
  {/* --- 联邦制权限指挥链 (Chain of Command) --- */}
  <div className="px-8 pb-6 pt-8 flex flex-col gap-3">
- {(currentUserRole === 'boss' || currentUserRole === 'merchant') && (
+ {(effectiveUserRole === 'boss' || effectiveUserRole === 'merchant') && (
  <OrbitalPossessionProfile 
  bossName={userName || 'BOSS'}
  bossId={userGxId || 'GX88888888'}
@@ -1126,7 +1169,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  />
  )}
 
- {currentUserRole === 'user' && (
+ {effectiveUserRole === 'user' && (
  <div className="space-y-1 relative">
  <div className={cn("flex flex-col gap-1 text-[11px] uppercase tracking-widest ml-4 mb-2 ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>
  <div className="flex items-center gap-2"><div className={cn("w-1 h-1 rounded-full ", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/20" : "bg-white/20")}/>{t('txt_c145c6')}</div>
@@ -1655,7 +1698,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  onBookingClick={handleBookingClick}
  onDateSwipe={handleDateSwipe}
  storeStatus={storeStatus}
- isReadOnly={isReadOnlyMode}
+ isReadOnly={isReadOnlyMode || isPermissionReadOnly}
  onReadOnlyIntercept={handleReadOnlyIntercept}
  onPhantomDateChange={handlePhantomDateChange}
  />
@@ -1752,7 +1795,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  staffs={staffs}
  categories={categories}
  services={services}
- isReadOnly={isReadOnlyMode}
+ isReadOnly={isReadOnlyMode || isPermissionReadOnly}
  />
  </>,
  document.body
