@@ -1032,9 +1032,30 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  services: staff.services || []
  });
  const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
+ const [realAvatar, setRealAvatar] = useState<string | null>(null);
 
  const registerBack = useHardwareBack(state => state.register);
  const unregisterBack = useHardwareBack(state => state.unregister);
+
+ useEffect(() => {
+ if (!formData.frontendId) {
+ setRealAvatar(null);
+ return;
+ }
+ const fetchAvatar = async () => {
+ const { data } = await supabase
+ .from('profiles')
+ .select('avatar_url')
+ .eq('gx_id', formData.frontendId)
+ .maybeSingle();
+ if (data?.avatar_url) {
+ setRealAvatar(data.avatar_url);
+ } else {
+ setRealAvatar(null);
+ }
+ };
+ fetchAvatar();
+ }, [formData.frontendId]);
 
  useEffect(() => {
  if (isServicesModalOpen) {
@@ -1137,7 +1158,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  >
  {formData.frontendId ? (
  <Image
- src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.frontendId}`}
+ src={realAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.frontendId}`}
  alt="avatar"
  fill
  sizes="64px"
@@ -1219,7 +1240,20 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  <div className="space-y-3">
  <div className="space-y-1">
  <label className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_ab459e')}</label>
- <input type="text" value={formData.frontendId} onChange={e => setFormData({...formData, frontendId: e.target.value})} className={cn("w-full rounded-md text-xs p-2 focus:outline-none ", isLight ? "bg-black/5 border border-black/10 text-black placeholder:text-black" : "bg-black/40 border border-white/10 text-white placeholder:text-white")} placeholder={t('txt_80c5c7')} />
+ <div className={cn("flex items-center rounded-md border overflow-hidden", isLight ? "bg-black/5 border-black/10" : "bg-black/40 border-white/10")}>
+   <div className={cn("px-3 py-2 text-xs font-mono", isLight ? "text-black/60 bg-black/5 border-r border-black/10" : "text-white/60 bg-white/5 border-r border-white/10")}>GX-UR-</div>
+   <input 
+     type="text" 
+     value={formData.frontendId.replace('GX-UR-', '')} 
+     onChange={e => {
+       const val = e.target.value.replace(/\D/g, ''); // 强制剔除非数字字符
+       setFormData({...formData, frontendId: val ? `GX-UR-${val}` : ''});
+     }} 
+     maxLength={6}
+     className={cn("w-full flex-1 text-xs p-2 focus:outline-none bg-transparent", isLight ? "text-black placeholder:text-black/40" : "text-white placeholder:text-white/40")} 
+     placeholder="000000" 
+   />
+ </div>
  <p className={cn("text-[11px] mt-1", isLight ? "text-black" : "text-white")}>{t('txt_1e10a4')}</p>
  </div>
  <div className="space-y-1">
