@@ -10,9 +10,13 @@ interface ChatStore {
     targetRole?: string; // 对方的身份角色
   } | null;
   setActiveChat: (chat: ChatStore['activeChat']) => void;
+  showPrivacyGateway: boolean;
+  setShowPrivacyGateway: (show: boolean) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
   activeChat: null,
   setActiveChat: (chat) => set({ activeChat: chat }),
+  showPrivacyGateway: false,
+  setShowPrivacyGateway: (show) => set({ showPrivacyGateway: show }),
 }));

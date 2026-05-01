@@ -71,7 +71,7 @@ export default function ChatListPage() {
  const currentUserId = user?.id || deviceVisitorId;
 
  // 状态机：控制当前显示的视图和选中的聊天对象 (通过 Zustand 同步给全局)
- const { activeChat, setActiveChat } = useChatStore();
+ const { activeChat, setActiveChat, showPrivacyGateway } = useChatStore();
  const hasAutoOpened = useRef(false);
 
  // 核心逻辑 2：自动开门。如果有 shopIdParam，自动弹开聊天窗
@@ -138,7 +138,7 @@ export default function ChatListPage() {
  </div>
 
  {/* 右侧：主战场（手机端如果没选中则隐藏；平板/PC端如果没选中则显示星云空场占位符） */}
- <div className={`flex-1 h-full relative ${!activeChat ? 'hidden md:flex' : 'block'}`}>
+ <div className={`flex-1 h-full relative ${!activeChat ? 'hidden md:flex' : 'block'} ${showPrivacyGateway ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300`}>
  
  {/* 世界顶级修复法则：毛玻璃层持久化剥离 (Persistent Glass Shield)
  绝对禁止将 放入带有动态 key 的 AnimatePresence 容器中！

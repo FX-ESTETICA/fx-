@@ -5,7 +5,11 @@ import { cn } from '@/utils/cn';
 import { useVisualSettings } from '@/hooks/useVisualSettings';
 import { ShieldAlert } from 'lucide-react';
 
-export function PrivacySettings() {
+interface PrivacySettingsProps {
+ isTransparent?: boolean;
+}
+
+export function PrivacySettings({ isTransparent = false }: PrivacySettingsProps) {
  const { user, activeRole } = useAuth();
  const { settings } = useVisualSettings();
  const isLight = settings.frontendBgIndex !== 0;
@@ -73,8 +77,13 @@ export function PrivacySettings() {
 
  return (
  <div className={cn(
- "w-full max-w-sm rounded-3xl p-4 flex flex-col space-y-4 border ",
+ "w-full max-w-sm p-4 flex flex-col space-y-4",
+ isTransparent 
+ ? "bg-transparent border-transparent" 
+ : cn(
+ "rounded-3xl border",
  isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10"
+ )
  )}>
  <div className="flex items-center space-x-2 px-2">
  <ShieldAlert className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
@@ -85,12 +94,20 @@ export function PrivacySettings() {
 
  <div className="space-y-2">
  {/* 手机号搜索开关 */}
- <div className={cn("flex items-center justify-between p-3 rounded-2xl border", isLight ? "bg-white/50 border-black/5" : "bg-black/50 border-white/5")}>
+ <div className={cn(
+ "flex items-center justify-between p-3",
+ isTransparent 
+ ? "bg-transparent border-transparent" 
+ : cn(
+ "rounded-2xl border", 
+ isLight ? "bg-white/50 border-black/5" : "bg-black/50 border-white/5"
+ )
+ )}>
  <div className="flex flex-col">
  <span className={cn("text-sm font-medium tracking-wide", isLight ? "text-black" : "text-white")}>
  允许通过手机号搜索我
  </span>
- <span className={cn("text-[11px] mt-0.5", isLight ? "text-black" : "text-white")}>
+ <span className={cn("text-[11px] mt-0.5", isLight ? "text-black" : "text-white", isTransparent && "opacity-60")}>
  关闭后，他人无法通过手机号找到你的物理与数字档案
  </span>
  </div>
@@ -109,12 +126,20 @@ export function PrivacySettings() {
  </div>
 
  {/* GX ID搜索开关 */}
- <div className={cn("flex items-center justify-between p-3 rounded-2xl border", isLight ? "bg-white/50 border-black/5" : "bg-black/50 border-white/5")}>
+ <div className={cn(
+ "flex items-center justify-between p-3",
+ isTransparent 
+ ? "bg-transparent border-transparent" 
+ : cn(
+ "rounded-2xl border", 
+ isLight ? "bg-white/50 border-black/5" : "bg-black/50 border-white/5"
+ )
+ )}>
  <div className="flex flex-col">
  <span className={cn("text-sm font-medium tracking-wide", isLight ? "text-black" : "text-white")}>
  允许通过 GX ID 搜索我
  </span>
- <span className={cn("text-[11px] mt-0.5", isLight ? "text-black" : "text-white")}>
+ <span className={cn("text-[11px] mt-0.5", isLight ? "text-black" : "text-white", isTransparent && "opacity-60")}>
  关闭后，将隐藏你的专属数字编码搜索入口
  </span>
  </div>
@@ -133,12 +158,20 @@ export function PrivacySettings() {
  </div>
 
  {/* 陌生人消息网关开关 */}
- <div className={cn("flex items-center justify-between p-3 rounded-2xl border", isLight ? "bg-white/50 border-black/5" : "bg-black/50 border-white/5")}>
+ <div className={cn(
+ "flex items-center justify-between p-3",
+ isTransparent 
+ ? "bg-transparent border-transparent" 
+ : cn(
+ "rounded-2xl border", 
+ isLight ? "bg-white/50 border-black/5" : "bg-black/50 border-white/5"
+ )
+ )}>
  <div className="flex flex-col">
  <span className={cn("text-sm font-medium tracking-wide", isLight ? "text-black" : "text-white")}>
  允许接收陌生人随意消息
  </span>
- <span className={cn("text-[11px] mt-0.5", isLight ? "text-black" : "text-white")}>
+ <span className={cn("text-[11px] mt-0.5", isLight ? "text-black" : "text-white", isTransparent && "opacity-60")}>
  关闭后，陌生人首次对话仅能发送一条消息，待回复后解除
  </span>
  </div>

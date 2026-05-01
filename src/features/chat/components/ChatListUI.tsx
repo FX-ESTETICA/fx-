@@ -1,4 +1,4 @@
-import { Search, ScanLine, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2, Plus } from 'lucide-react';
+import { Search, ScanLine, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2, Plus, MoreHorizontal } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
@@ -11,6 +11,7 @@ import { cn } from "@/utils/cn";
 import { useAtomicPresence } from '../hooks/useAtomicPresence';
 import { ContactsUI } from './ContactsUI';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { PrivacySettings } from '@/features/profile/components/PrivacySettings';
 
 export interface ChatListUIProps {
  currentUserId: string;
@@ -36,7 +37,7 @@ interface SearchResult {
 
 export default function ChatListUI({ currentUserId, currentRole, onChatSelect }: ChatListUIProps) {
  const { user, setActiveRole } = useAuth();
- const { activeChat } = useChatStore();
+ const { activeChat, showPrivacyGateway, setShowPrivacyGateway } = useChatStore();
  const { recentChats } = useRecentChats(currentUserId, currentRole, activeChat?.id);
  
  // 顶级 IM 极简交友架构：利用 SWR 和 Local-First 引擎实现 0 延迟的好友名单加载
@@ -422,12 +423,23 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  GX<sup className="text-lg font-bold -ml-0.5 relative top-[2px]">⁺</sup>
  </div>
  {/* 预留右侧操作区，如扫码、发群聊等，暂时与搜索栏内的扫码保持统一，这里可以放别的或者留空 */}
- <div className="flex items-center space-x-4">
- {/* 可以把一些全局操作提到这里 */}
- </div>
- </div>
+  <div className={cn("flex items-center space-x-4 transition-opacity duration-300", showPrivacyGateway ? "opacity-0 pointer-events-none" : "opacity-100")}>
+    {/* 隐私防御网关入口 */}
+    <button 
+      onClick={() => setShowPrivacyGateway(true)}
+      className={cn("p-1.5 -mr-1.5 active:scale-95 transition-transform", isLight ? "text-black" : "text-white")}
+    >
+      <MoreHorizontal className="w-5 h-5" />
+    </button>
+  </div>
+  </div>
 
- {/* 1. 顶部：全息搜索舱 (The Omni-Scanner) */}
+  {/* 核心内容区：受隐私网关状态控制透明度 */}
+  <div className={cn(
+    "flex-1 flex flex-col min-h-0 transition-opacity duration-300",
+    showPrivacyGateway ? "opacity-0 pointer-events-none" : "opacity-100"
+  )}>
+    {/* 1. 顶部：全息搜索舱 (The Omni-Scanner) */}
  <div className="px-3 py-2 shrink-0 relative z-20">
  <div className="relative group ">
  {/* 无边框幽灵悬浮底色 (完全透明) */}
@@ -958,6 +970,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  </div>
  </>
  )}
+ </div>
 
  {/* 右键菜单层 */}
  {contextMenu && (
@@ -992,6 +1005,23 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  <Trash2 className="w-4 h-4 " />
  <span className="text-sm font-medium tracking-wide">删除聊天</span>
  </button>
+ </div>
+ </>
+ )}
+
+ {/* 隐私防御网关弹窗 (无背景透明蒙层) */}
+ {showPrivacyGateway && (
+ <>
+ {/* 蒙层 (完全透明，仅用于物理点击关闭，无任何视觉干扰) */}
+ <div 
+ className="fixed inset-0 z-[120] bg-transparent" 
+ onClick={() => setShowPrivacyGateway(false)}
+ />
+ {/* 居中容器 */}
+ <div className="fixed inset-0 z-[130] flex items-center justify-center p-6 pointer-events-none">
+ <div className="pointer-events-auto w-full max-w-sm">
+ <PrivacySettings isTransparent={true} />
+ </div>
  </div>
  </>
  )}
