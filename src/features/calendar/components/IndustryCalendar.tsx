@@ -370,6 +370,14 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  : typeof userMetadata?.gxId === "string"
  ? userMetadata.gxId
  : undefined);
+ 
+ const userBaseGxId = user && typeof user === "object" && "base_gx_id" in user
+ ? (user as { base_gx_id?: string }).base_gx_id
+ : undefined;
+ 
+ const userMerchantGxId = user && typeof user === "object" && "merchant_gx_id" in user
+ ? (user as { merchant_gx_id?: string }).merchant_gx_id
+ : undefined;
 
   // 获取当前商户的专属 shopId，实现多租户数据物理隔离
   // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
@@ -398,8 +406,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 【物理权限隔离】：如果是普通员工（非 boss），判断其操作权限
   const myStaffProfile = useMemo(() => {
-    return staffs.find(s => s.frontendId === userGxId);
-  }, [staffs, userGxId]);
+    const extractDigits = (id: string | undefined | null) => id ? id.replace(/\D/g, '') : null;
+    const numericUserGxId = extractDigits(userGxId);
+    const numericBaseGxId = extractDigits(userBaseGxId);
+    const numericMerchantGxId = extractDigits(userMerchantGxId);
+
+    return staffs.find(s => {
+      const numericStaffId = extractDigits(s.frontendId);
+      if (!numericStaffId) return false;
+      return (numericUserGxId && numericStaffId === numericUserGxId) || 
+             (numericBaseGxId && numericStaffId === numericBaseGxId) || 
+             (numericMerchantGxId && numericStaffId === numericMerchantGxId);
+    });
+  }, [staffs, userGxId, userBaseGxId, userMerchantGxId]);
   
   const isPermissionReadOnly = effectiveUserRole === 'user' && myStaffProfile?.operationRights === 'view';
 
@@ -983,15 +1002,33 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  let validStaffs = staffs.filter(s => s.status !== 'resigned');
 
  // 【物理权限隔离】：如果是普通员工（非 boss/merchant），且他在系统中有绑定记录
- if (effectiveUserRole === 'user' && userGxId) {
- // 找到当前登录员工在门店中的身份档案
- const staffProfile = validStaffs.find(s => s.frontendId === userGxId);
- 
- // 如果他配置了 calendarView === 'self'，那么彻底阻断他看到其他人的排班，只保留自己
- if (staffProfile && staffProfile.calendarView === 'self') {
- validStaffs = [staffProfile];
- }
- }
+      if (effectiveUserRole === 'user' && (userGxId || userBaseGxId || userMerchantGxId)) {
+        // 【纯数字匹配法则】：提取 ID 中的纯数字部分进行物理匹配，无视前缀字母 (如 GX-UR- 或 GX-MC-)
+        const extractDigits = (id: string | undefined | null) => id ? id.replace(/\D/g, '') : null;
+        
+        const numericUserGxId = extractDigits(userGxId);
+        const numericBaseGxId = extractDigits(userBaseGxId);
+        const numericMerchantGxId = extractDigits(userMerchantGxId);
+        
+        // 找到当前登录员工在门店中的身份档案
+        const staffProfile = validStaffs.find(s => {
+          const numericStaffId = extractDigits(s.frontendId);
+          if (!numericStaffId) return false;
+          
+          return (numericUserGxId && numericStaffId === numericUserGxId) || 
+                 (numericBaseGxId && numericStaffId === numericBaseGxId) || 
+                 (numericMerchantGxId && numericStaffId === numericMerchantGxId);
+        });
+        
+        // 🚨 Fail-Closed 兜底阻断：找不到档案，或者档案没写明 calendarView === 'all'，一律不给看全店
+        if (!staffProfile) {
+          // 透明人：没档案就啥也看不见
+          validStaffs = [];
+        } else if (staffProfile.calendarView !== 'all') {
+          // 只要不是明确的 'all' (例如 'self' 或未设置)，就强制只看自己
+          validStaffs = [staffProfile];
+        }
+      }
 
  baseResources = validStaffs
  .map(s => ({
@@ -1012,8 +1049,24 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  // 查询云端数据，如果今天存在 originalUnassigned 或 status: PENDING 的野单，则在最左侧强行挂载 NEXUS 列
  let hasPendingToday = false;
  
- // 【物理隔离衍生】：如果当前员工仅限查看自己，则不显示 NEXUS 和 NO 列
- const isSelfViewOnly = effectiveUserRole === 'user' && userGxId && staffs.find(s => s.frontendId === userGxId)?.calendarView === 'self';
+ // 【物理隔离衍生】：如果当前员工仅限查看自己（或档案缺失），则不显示 NEXUS 和 NO 列
+  let isSelfViewOnly = false;
+  if (effectiveUserRole === 'user') {
+    const extractDigits = (id: string | undefined | null) => id ? id.replace(/\D/g, '') : null;
+    const numericUserGxId = extractDigits(userGxId);
+    const numericBaseGxId = extractDigits(userBaseGxId);
+    const numericMerchantGxId = extractDigits(userMerchantGxId);
+
+    const staffProfile = staffs.find(s => {
+      const numericStaffId = extractDigits(s.frontendId);
+      if (!numericStaffId) return false;
+      return (numericUserGxId && numericStaffId === numericUserGxId) || 
+             (numericBaseGxId && numericStaffId === numericBaseGxId) || 
+             (numericMerchantGxId && numericStaffId === numericMerchantGxId);
+    });
+    // 如果没有档案，或者档案没明确配置看 'all'，那就是“受限视图”
+    isSelfViewOnly = !staffProfile || staffProfile.calendarView !== 'all';
+  }
 
  try {
  if (globalBookings && globalBookings.length > 0 && !isSelfViewOnly) {
@@ -1095,7 +1148,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
 
  return paginatedResources;
- }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams, effectiveUserRole, userGxId]);
+ }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams, effectiveUserRole, userGxId, userBaseGxId, userMerchantGxId, staffAvatars, industryDNAs]);
 
  // 表头翻页手势处理
  const handleHeaderPanEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
