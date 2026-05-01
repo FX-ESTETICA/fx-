@@ -30,7 +30,7 @@ export interface EliteBookingBlockProps {
  * 采用物理引擎反馈，极光呼吸灯，降维打击级质感
  */
 export const EliteBookingBlock = ({ 
- title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false,
+ title, color, accent, height, isTiny = false, isMicro = false, isPending = false,
  isPast = false, isCheckedOut = false, isNoShow = false, delayMins = 0,
  onClick, onDragStart, onDrag, onDragEnd, isReadOnly 
 }: EliteBookingBlockProps) => {
@@ -67,10 +67,10 @@ export const EliteBookingBlock = ({
  {/* 跑马灯动画边框 (只有待确认状态才渲染) */}
  {isPending && (
  <div 
- className="absolute inset-x-1.5 top-0 z-[5] rounded-2xl p-[2px] pointer-events-none "
+ className="absolute inset-x-1.5 top-0 z-[5] rounded-xl p-[2px] pointer-events-none "
  style={{ height: height === "100%" ? "100%" : height }}
  >
- <div className="absolute inset-0 rounded-2xl bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3,#ff0000)] bg-[length:200%_auto] animate-[shimmer_2s_linear_infinite]" />
+ <div className="absolute inset-0 rounded-xl bg-[linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3,#ff0000)] bg-[length:200%_auto] animate-[shimmer_2s_linear_infinite]" />
  </div>
  )}
  
@@ -82,8 +82,8 @@ export const EliteBookingBlock = ({
  onDrag={onDrag}
  onDragEnd={onDragEnd}
  className={cn(
- "absolute inset-x-1.5 top-0 z-10 rounded-2xl border flex cursor-pointer group overflow-hidden",
- isMicro ? "py-0 px-1.5 items-center justify-center" : (isTiny ? "p-1 items-center justify-center" : "p-3 flex-col justify-between"),
+ "absolute inset-x-1.5 top-0 z-10 rounded-xl border flex cursor-pointer group overflow-hidden",
+ isMicro ? "py-0 pl-2 pr-1.5 items-center justify-start" : (isTiny ? "pl-2 pr-2 items-center justify-start" : "pl-2 pr-3 items-center justify-start"),
  !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),
  !isHexColor && !isCheckedOut && !isNoShow && isActiveBorderColor(accent || ''),
  isPending && "border-transparent bg-black/60 m-[2px]" // 如果有跑马灯，缩小一圈并让自身边框透明
@@ -109,38 +109,30 @@ export const EliteBookingBlock = ({
 
  {isMicro ? (
  // --- 极限微缩态 (15-25 分钟)：绝对居中，只有服务名称，超小字体，隐藏多余元素 ---
- <div className="flex items-center justify-center relative z-10 w-full truncate">
+ <div className="flex items-center justify-start relative z-10 w-full truncate">
  <span 
- className={cn("text-[11px] leading-none font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] leading-none font-medium antialiased tracking-widest shrink-0 text-white text-left", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
  {title}
  </span>
  </div>
  ) : isTiny ? (
  // --- 紧凑态 (30-40 分钟)：单行居中排版 ---
- <div className="flex items-center justify-center gap-2 relative z-10 w-full truncate px-2">
+ <div className="flex items-center justify-start gap-2 relative z-10 w-full truncate">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest shrink-0 text-white text-left", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
  {title}
  </span>
- {client && (
- <>
- <span className="text-white text-[11px] shrink-0">-</span>
- <span className={cn("text-[11px] tracking-widest antialiased truncate", (isCheckedOut || isNoShow) ? "text-white" : "text-white")}>
- {client}
- </span>
- </>
- )}
  {/* 右上角绝对定位的小圆点已根据极简法则移除 */}
  </div>
  ) : (
  // --- 充足空间：两行经典排版 ---
  <>
  <div className="flex flex-col gap-1 relative z-10 w-full">
- <div className="flex justify-between items-start">
+ <div className="flex justify-start items-center">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest uppercase leading-tight line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest leading-tight line-clamp-2 text-white text-left", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
  {title}
  </span>
@@ -150,13 +142,6 @@ export const EliteBookingBlock = ({
  </div>
  )}
  </div>
- </div>
-
- <div className="flex items-center justify-between mt-1 relative z-10 w-full">
- <span className={cn("text-[11px] tracking-widest antialiased truncate max-w-[60%]", (isCheckedOut || isNoShow) ? "text-white" : "text-white")}>
- {client}
- </span>
- {/* 右下角绝对定位的小圆点已根据极简法则移除 */}
  </div>
  </>
  )}

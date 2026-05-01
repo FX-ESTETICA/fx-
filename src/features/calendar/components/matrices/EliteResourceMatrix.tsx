@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, UIEvent, useEffect, useCallback } from "react";
 import { cn } from "@/utils/cn";
-import { motion, PanInfo, AnimatePresence } from "framer-motion";
+import { motion, PanInfo } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
 import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
@@ -192,9 +192,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
  // --- 拖拽与调度核心状态 ---
  const [draggedBooking, setDraggedBooking] = React.useState<MatrixBooking | null>(null);
- const [isHoveringVoid, setIsHoveringVoid] = React.useState(false);
- const [pendingVoidBooking, setPendingVoidBooking] = React.useState<MatrixBooking | null>(null);
- const voidRef = useRef<HTMLDivElement>(null);
+ // 新增拖拽实时时间状态，用于卡片内部文本同步
+ const [draggedBookingTime, setDraggedBookingTime] = React.useState<string | null>(null);
 
  // --- 极致交互法则：多方剥离拆单状态引擎 ---
  const [implodedOrderId, setImplodedOrderId] = React.useState<string | null>(null);
@@ -203,6 +202,46 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  const [splitServiceAssignments, setSplitServiceAssignments] = React.useState<Record<string, string>>({});
  // 物理防抖锁：防止网络延迟时的多重点选
  const [processingOrderId, setProcessingOrderId] = React.useState<string | null>(null);
+
+ // --- 拖拽物理辅助线状态 ---
+ const [dragTimeline, setDragTimeline] = React.useState<{ active: boolean, y: number, time: string }>({ active: false, y: 0, time: '' });
+ const dragLockRef = useRef<boolean>(false);
+
+ // --- 终极失焦熔断机制 (The Circuit Breaker) ---
+ // 监听系统级打断（如截图、切屏、弹窗），强制释放拖拽锁死状态
+ useEffect(() => {
+   const forceReleaseDragLock = (e?: any) => {
+     if (dragLockRef.current) {
+       console.log('[Circuit Breaker] System interrupt detected. Force releasing drag lock. Event:', e?.type);
+       dragLockRef.current = false; // 瞬间物理拔除锁
+       setDraggedBooking(null);
+       setDraggedBookingTime(null);
+       setDragTimeline({ active: false, y: 0, time: '' });
+     }
+   };
+
+   const handleVisibilityChange = () => {
+     if (document.hidden) forceReleaseDragLock({ type: 'visibilitychange' });
+   };
+
+   const handleKeyDown = (e: KeyboardEvent) => {
+     // 只要在拖拽过程中按下任何键盘按键（比如截图快捷键 Win+Shift+S / Cmd+Shift+4，或者 Esc），立刻熔断！
+     forceReleaseDragLock(e);
+   };
+
+   window.addEventListener('blur', forceReleaseDragLock);
+   document.addEventListener('visibilitychange', handleVisibilityChange);
+   window.addEventListener('pointercancel', forceReleaseDragLock);
+   // 必须使用 capture: true，在捕获阶段最优先拦截按键
+   window.addEventListener('keydown', handleKeyDown, { capture: true });
+
+   return () => {
+     window.removeEventListener('blur', forceReleaseDragLock);
+     document.removeEventListener('visibilitychange', handleVisibilityChange);
+     window.removeEventListener('pointercancel', forceReleaseDragLock);
+     window.removeEventListener('keydown', handleKeyDown, { capture: true });
+   };
+ }, []);
 
 // --- 核心算法：时间切片瀑布流 (Cyber Time-Slice Waterfall) ---
  type WaterfallNode = {
@@ -251,6 +290,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  } else {
  // 降级保护
  for (let h = 9; h < 18; h++) activeHours.add(h);
+ }
+
+ // 【终极法则】：强行向前提早一小时作为“早班/日期缓冲” (The Day-Break Anchor)
+ // 但对于“今天”(数组的第一个日期)，我们不再强制提早一小时，让它直接从真实营业时间开始，避免顶部出现巨大的留白
+ const isFirstDate = dateStr === formatDateStr(targetDates[0]);
+ if (activeHours.size > 0 && !isFirstDate) {
+ const minHour = Math.min(...Array.from(activeHours));
+ if (minHour > 0) {
+ activeHours.add(minHour - 1);
+ }
  }
 
  // 2. 收集跨界订单强制撑开的时间
@@ -473,16 +522,29 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  if (!container) return;
 
  const handleTouchMove = (e: TouchEvent) => {
- if (crosshair.active) {
- // 如果准星处于激活状态，强行阻止浏览器默认的滚动行为
+ // 【重大死锁修复】：如果正在拖拽 (dragLockRef.current)，也要释放滚动和交互，不要死锁！
+ if (crosshair.active || dragLockRef.current) {
+ // 如果准星处于激活状态或正在拖拽，强行阻止浏览器默认的滚动行为
  // { passive: false } 是必须的，否则 preventDefault() 无效
  e.preventDefault();
  }
  };
 
+ // 【重大死锁修复】：解决鼠标拖拽导致整个页面卡死的终极补丁
+ const handlePointerMove = (e: PointerEvent) => {
+ if (dragLockRef.current) {
+ // 在受控拖拽模式下，必须阻止默认的指针行为（比如文字选中、系统滚动），否则会引发死锁
+ e.preventDefault();
+ }
+ }
+
  container.addEventListener('touchmove', handleTouchMove, { passive: false });
+ // 必须拦截 pointermove，并且 passive: false
+ container.addEventListener('pointermove', handlePointerMove, { passive: false });
+ 
  return () => {
  container.removeEventListener('touchmove', handleTouchMove);
+ container.removeEventListener('pointermove', handlePointerMove);
  };
  }, [crosshair.active]);
 
@@ -614,141 +676,96 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  return () => window.removeEventListener('click', handleGlobalClick);
  }, [implodedOrderId]);
 
- const checkVoidHover = (clientY: number, clientX: number) => {
- if (!voidRef.current) return false;
- const rect = voidRef.current.getBoundingClientRect();
- // 扩大判定区
- return (
- clientY >= rect.top - 50 &&
- clientY <= rect.bottom + 50 &&
- clientX >= rect.left - 50 &&
- clientX <= rect.right + 50
- );
- };
-
  const handleBookingDragStart = (booking: MatrixBooking) => {
  if (isReadOnly) {
  if (onReadOnlyIntercept) onReadOnlyIntercept();
  return;
  }
+ dragLockRef.current = true; // 开启物理锁
  setDraggedBooking(booking);
- setPendingVoidBooking(null); // 取消之前的悬停状态
+ setDraggedBookingTime(booking.startTime);
  };
 
- const handleBookingDrag = (_e: any, info: PanInfo) => {
- const isHovering = checkVoidHover(info.point.y, info.point.x);
- if (isHovering !== isHoveringVoid) {
- setIsHoveringVoid(isHovering);
- }
+ const handleBookingDrag = (_e: any, info: PanInfo, booking: MatrixBooking) => {
+ if (!dragLockRef.current) return; // 已经被熔断机制拔除，绝对禁止执行后续逻辑！
+
+ // 物理锁定为仅垂直拖动，黑洞悬停检测被废弃
+ 
+ // 1. 获取原订单的绝对物理起点 (Y坐标)
+ const topOffset = getYCoordinate(booking.date!, booking.startTime);
+ if (topOffset === -1) return;
+
+ // 2. 核心改变：辅助线不再进行 5 分钟网格吸附，而是 100% 绝对物理跟随鼠标的拖拽偏移量 (info.offset.y)
+ const currentPhysicalY = topOffset + info.offset.y;
+
+ // 3. 反推当前物理坐标代表的时间 (仅用于左侧文本显示，依然可以保持 5 分钟的吸附精度，但线条本身绝不跳跃)
+ // 每 80px 代表 60 分钟 (时间轴比例)
+ const startParts = booking.startTime.split(':');
+ const startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+ const draggedMinutes = (info.offset.y / 80) * 60;
+ 
+ const newTotalMinutes = Math.max(0, startMin + draggedMinutes);
+ // 时间文本依然吸附到 5 分钟，让用户知道松手后会落在哪
+ const snappedMinutes = Math.round(newTotalMinutes / 5) * 5;
+ 
+ const newHH = Math.floor(snappedMinutes / 60).toString().padStart(2, '0');
+ const newMM = (snappedMinutes % 60).toString().padStart(2, '0');
+ const newStartTime = `${newHH}:${newMM}`;
+
+ // 4. 更新拖拽状态，Y 坐标直接使用物理坐标 currentPhysicalY，确保辅助线与方块顶部死锁！
+ setDragTimeline({ active: true, y: currentPhysicalY, time: newStartTime });
+ setDraggedBookingTime(newStartTime);
  };
 
  const handleBookingDragEnd = async (_e: any, info: PanInfo, booking: MatrixBooking) => {
+ if (!dragLockRef.current) return; // 如果已经被熔断了，绝对禁止触发存库逻辑！
+ dragLockRef.current = false; // 正常结束，关闭物理锁
+ 
  setDraggedBooking(null);
- setIsHoveringVoid(false);
+ setDraggedBookingTime(null);
+ setDragTimeline({ active: false, y: 0, time: '' });
 
- if (checkVoidHover(info.point.y, info.point.x)) {
- const siblings = booking.masterOrderId 
- ? bookings.filter(b => b.masterOrderId === booking.masterOrderId && b.id !== booking.id) 
- : [];
+ // --- 处理垂直时间拖拽 (Vertical Time Adjust Drag) ---
  
- if (siblings.length > 0) {
- // 连单：进入悬停待确认分裂状态
- setPendingVoidBooking(booking);
- } else {
- // 单卡：直接瞬间处决
- try {
- await BookingService.deleteBookings([booking.id]);
- refreshBookings();
- trackAction();
- } catch (error) {
- console.error("Failed to destroy single booking:", error);
- }
- }
- return;
- }
+ // 只有垂直拖拽距离足够大，才认为是有效拖拽
+ if (Math.abs(info.offset.y) < 15) return;
 
- // --- 处理正常的跨列拖拽换人 (Cross-Column Drag & Drop) ---
- // 1. 获取容器尺寸与拖拽位置
- if (!containerRectRef.current) return;
- // const dropY = info.point.y - containerRectRef.current.top; // 垂直时间拖拽暂时废弃，保留注释
- const dropX = info.point.x - containerRectRef.current.left;
- 
- // 2. 只有拖拽距离足够大，才认为是有效拖拽
- if (Math.abs(info.offset.x) < 20 && Math.abs(info.offset.y) < 20) return;
+ // 获取原订单的开始时间(分钟)
+ const startParts = booking.startTime.split(':');
+ const startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
 
- // 3. 计算目标列 (资源) 和目标时间
- const totalCols = resources.length;
- const colWidth = containerRectRef.current.width / totalCols;
- const targetColIndex = Math.floor(dropX / colWidth);
+ // 每 80px 代表 60 分钟 (这是我们的时间轴比例)
+ // 计算拖拽偏移所代表的分钟数
+ const draggedMinutes = (info.offset.y / 80) * 60;
  
- if (targetColIndex >= 0 && targetColIndex < totalCols) {
- const targetResource = resources[targetColIndex];
- const newResourceId = targetResource.id === 'NEXUS' ? null : targetResource.id;
+ // 新的时间 = 原时间 + 拖拽偏移，并对齐到最近的 5 分钟
+ const newTotalMinutes = Math.max(0, startMin + draggedMinutes);
+ const snappedMinutes = Math.round(newTotalMinutes / 5) * 5;
  
- // 时间计算：每 80px 代表 1 小时 (60分钟)
- // const minutesFromTop = Math.floor((dropY / 80) * 60);
- // 对齐到最近的 15 分钟
- // const snappedMinutes = Math.round(minutesFromTop / 15) * 15;
- 
- // 由于这部分原本没有完整实现垂直时间吸附拖拽，我们只改变人员列，保留原来的起始时间，让 Scheduler 去推演顺延
- const newStartTime = booking.startTime; 
+ const newHH = Math.floor(snappedMinutes / 60).toString().padStart(2, '0');
+ const newMM = (snappedMinutes % 60).toString().padStart(2, '0');
+ const newStartTime = `${newHH}:${newMM}`;
 
- // 4. 触发智能排盘
- const isResourceChanged = booking.resourceId !== newResourceId;
- // 【核心修复】：只要发生了拖拽，无论是换了人还是原地动了一下，都强迫大脑重新审视它
- const needsReflow = isResourceChanged || booking.originalUnassigned;
-
- // 如果资源没变，且不需要重排，直接返回
- if (!needsReflow) return;
+ // 如果时间没发生实质性变化，直接返回
+ if (newStartTime === booking.startTime) return;
 
  let currentShopId = booking.shopId || 'default';
  if (typeof window !== 'undefined') {
  currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
  }
 
+ // 触发智能排盘：人员不变，只改变时间
  await BookingScheduler.reflowDayBookings(booking.date, currentShopId, resources, {
  [booking.id]: {
- resourceId: newResourceId,
+ resourceId: booking.resourceId, // 保持人员不变
  startTime: newStartTime,
- originalUnassigned: newResourceId === null,
+ originalUnassigned: booking.originalUnassigned,
  _needsTimeReflow: true // 强制顺延重排
  }
  });
  
  refreshBookings();
  trackAction();
- }
- };
-
- const destroyCurrent = async () => {
- if (!pendingVoidBooking) return;
- try {
- await BookingService.deleteBookings([pendingVoidBooking.id]);
- refreshBookings();
- trackAction();
- } catch (error) {
- console.error("Failed to destroy booking:", error);
- } finally {
- setPendingVoidBooking(null);
- }
- };
-
- const destroyAll = async () => {
- if (!pendingVoidBooking) return;
- const masterOrderId = pendingVoidBooking.masterOrderId;
- const idsToDelete = masterOrderId 
- ? bookings.filter(b => b.masterOrderId === masterOrderId).map(b => b.id)
- : [pendingVoidBooking.id];
- 
- try {
- await BookingService.deleteBookings(idsToDelete);
- refreshBookings();
- trackAction();
- } catch (error) {
- console.error("Failed to destroy all bookings:", error);
- } finally {
- setPendingVoidBooking(null);
- }
  };
 
  return (
@@ -760,7 +777,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  className="flex-1 overflow-hidden relative pointer-events-none"
  >
  <div className="relative w-full" style={{ height: waterfallData.totalHeight }}>
- {waterfallData.nodes.map((node) => {
+ {waterfallData.nodes.map((node, idx) => {
+ // 【跨天日期标签降维】：如果是第一格，不再显示文字，因为我们要把它挂在贯穿横线上
+ // 如果是当天的第一个节点（idx === 0），因为取消了缓冲提前量，所以应该直接显示真实营业时间的文字，而不是强行隐藏它。
+ const isDayAnchor = node.isDayStart && idx > 0;
+
+ if (isDayAnchor) return null; // 仅对第二天以后的起跑点隐藏渲染
+
  return (
  <div key={node.id} className="absolute w-full group" style={{ top: node.top, height: node.height }}>
  <div className={cn(
@@ -781,6 +804,52 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  </div>
  );
  })}
+
+ {/* 准星十字线实时时间反馈 (左侧时间轴原生融合) */}
+ {crosshair.active && !crosshair.time.endsWith(':00') && (
+ <div 
+ className="absolute w-full group z-50 pointer-events-none"
+ style={{ top: crosshair.y }}
+ >
+ <div className={cn(
+ "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
+ visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'coreblack' && "mix-blend-screen"
+ )} style={{ textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` }}>
+ <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
+ {crosshair.time.split(':')[0]}
+ </span>
+ <span className={cn("text-[11px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
+ :
+ </span>
+ <span className={cn("", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ {crosshair.time.split(':')[1]}
+ </span>
+ </div>
+ </div>
+ )}
+
+ {/* 拖拽实时时间反馈 (左侧时间轴原生融合) */}
+ {dragTimeline.active && !dragTimeline.time.endsWith(':00') && (
+ <div 
+ className="absolute w-full group z-50 pointer-events-none"
+ style={{ top: dragTimeline.y }}
+ >
+ <div className={cn(
+ "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
+ visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'coreblack' && "mix-blend-screen"
+ )} style={{ textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` }}>
+ <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
+ {dragTimeline.time.split(':')[0]}
+ </span>
+ <span className={cn("text-[11px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
+ :
+ </span>
+ <span className={cn("", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ {dragTimeline.time.split(':')[1]}
+ </span>
+ </div>
+ </div>
+ )}
  </div>
  </div>
  </div>
@@ -808,14 +877,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  className="absolute left-0 right-0 z-50 pointer-events-none flex items-center"
  style={{ top: crosshair.y, transform: 'translateY(-50%)' }}
  >
- {/* 时间胶囊 HUD */}
- <div className={cn(
- "absolute left-4 text-[11px] px-2 py-0.5 rounded z-10",
- resolvedTimelineTheme === 'coreblack' ? "bg-[#8B7355] text-white" : "bg-[#FDF5E6] text-black"
- )}>
- {crosshair.time}
- </div>
- {/* 激光线 */}
+ {/* 极简激光线 (废弃 HUD 胶囊，时间已在左侧时间轴高亮) */}
  <div className={cn(
  "w-full h-[1px]",
  visualSettings.timelineColorTheme === 'coreblack' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"
@@ -828,16 +890,39 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
  {/* 渲染背景与分隔 (剥离横向网格线，仅保留跨天光刃与纵向列分隔) */}
  {waterfallData.nodes.map((node, idx) => {
+ const isDayAnchor = node.isDayStart && idx > 0;
+ const dateObj = new Date(node.dateStr.replace(/-/g, '/'));
+ const dateLabel = `${dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${dateObj.getDate().toString().padStart(2, '0')}`;
+
  return (
  <div key={`bg-${node.id}`} className="absolute w-full z-0" style={{ top: node.top, height: node.height }}>
- {/* 跨天分隔线 (适配深浅壁纸的白金/黑金极简光刃) */}
- {node.isDayStart && idx > 0 && (
+ {/* 跨天分隔线 (贯通时间轴的极简法则) */}
+ {isDayAnchor && (
+ <div className="absolute top-0 -left-[80px] w-[calc(100%+80px)] z-20 flex items-center justify-center -translate-y-1/2">
+ {/* 左侧线 */}
  <div className={cn(
- "absolute top-0 left-0 w-full h-[1px] -translate-y-[1px] bg-gradient-to-r from-transparent to-transparent z-20",
- visualSettings.timelineColorTheme === 'coreblack' 
- ? "via-[#8B7355]/60" 
- : "via-[#FDF5E6]/60"
+ "flex-1 h-[1px] bg-gradient-to-r from-transparent",
+ resolvedTimelineTheme === 'coreblack' 
+ ? "to-black/60" 
+ : "to-white/60"
  )} />
+ {/* 日期悬浮胶囊 */}
+ <div className={cn(
+ "px-4 py-1 rounded-full text-[11px] font-medium tracking-[0.2em] leading-none backdrop-blur-md shrink-0",
+ resolvedTimelineTheme === 'coreblack' 
+ ? "text-black bg-white/70 border border-black/10" 
+ : "text-white bg-white/20 border border-white/20"
+ )}>
+ {dateLabel}
+ </div>
+ {/* 右侧线 */}
+ <div className={cn(
+ "flex-1 h-[1px] bg-gradient-to-l from-transparent",
+ resolvedTimelineTheme === 'coreblack' 
+ ? "to-black/60" 
+ : "to-white/60"
+ )} />
+ </div>
  )}
  {/* 【第四步改造】：直接物理隐藏非营业时间的灰色遮罩，让时间轴只显示有效开店时间 */}
  {/* 原本的 bg-stripes 被物理删除了，保持极致干净 */}
@@ -1013,7 +1098,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  }
 
  // 1. 如果有别的卡片正在拖拽/删除中，或者系统处于硬加载态，锁死右键。
- if (draggedBooking || pendingVoidBooking || processingOrderId === booking.id) return;
+ if (draggedBooking || processingOrderId === booking.id) return;
  
  // 2. 引爆当前靶向订单 (绝对原子化：永远只引爆自己，绝不跨列牵连兄弟)
  setImplodedOrderId(booking.id);
@@ -1026,11 +1111,6 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  // 3. 捞取所有需要参与这次操作的兄弟卡片
  // 绝对原子化：只有它自己参与。不再通过 masterOrderId 去跨列捞取连单。
- 
- // 4. 判定是否开启“三分天下”的派单模式
- // 绝对原子化：判定基准是当前卡片内部包裹了几个子项目 (services.length > 1)
- // （目前你的卡片在矩阵里都是 1 个项目的切片，如果是这样，isSplitMode 就永远是 false，
- // 也就永远只走“一键换人”单列菜单，彻底消灭了图 3 那种复杂的项目列表层级）
  const isSplitMode = booking.services && booking.services.length > 1;
 
  // 5. 确保附加菜单在这次引爆行动中，只渲染一次
@@ -1047,12 +1127,14 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  // 【新交互法则】：大卡片保持原色，不随选定的员工发生形变和变色
  
  const finalBlockColor = blockColor;
+ const finalBlockAccent = blockAccent;
  
  const isProcessing = processingOrderId === booking.id;
+ const isBeingDragged = draggedBooking?.id === booking.id;
 
  return (
+ <React.Fragment key={booking.id}>
  <div 
- key={booking.id} 
  id={`booking-block-${booking.id}`} // 【世界级靶向雷达】：植入 DOM ID 信标，供外层一键穿梭寻迹
  className={cn(
  "absolute pointer-events-auto implosion-container ",
@@ -1061,13 +1143,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  isMicro && "hover:z-[200] " // 微缩态悬浮放大补偿
  )}
  style={{
- top: topOffset,
- height: Math.max(14, heightPx - 4), // 废除 40px 保底，改为 14px (绝对物理最小可见值)
- zIndex: draggedBooking?.id === booking.id ? 100 : (isImploded ? 50 : (isPending ? 30 : 20)),
- // 软删除待确认状态或处理中的视觉反馈
- opacity: (pendingVoidBooking?.id === booking.id || isProcessing) ? 0.3 : 1,
- pointerEvents: (pendingVoidBooking?.id === booking.id || isProcessing) ? 'none' : 'auto'
- }}
+             top: topOffset, // 原生保持不动
+             height: Math.max(14, heightPx - 4), // 废除 40px 保底，改为 14px (绝对物理最小可见值)
+             zIndex: isBeingDragged ? 10 : (isImploded ? 50 : (isPending ? 30 : 20)), // 被拖拽时底层本体变幽灵
+             // 顶级受控法则：本体留在原地作为半透明幽灵锚点 (0.3)，绝对不随鼠标移动
+             opacity: isProcessing ? 0.3 : (isBeingDragged ? 0.3 : 1),
+             pointerEvents: isProcessing ? 'none' : 'auto'
+             }}
  onContextMenu={handleContextMenu}
  >
  <EliteBookingBlock 
@@ -1122,13 +1204,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  if (onBookingClick) onBookingClick(booking);
  }}
  onDragStart={() => handleBookingDragStart(booking)}
- onDrag={(e, info) => handleBookingDrag(e, info)}
+ onDrag={(e, info) => handleBookingDrag(e, info, booking)}
  onDragEnd={(e, info) => handleBookingDragEnd(e, info, booking)}
  title={serviceTitle}
  time={`${booking.startTime} (${booking.duration}m)`}
  client={formatMinimalId((booking.customerId || booking.customerName) || "")}
  color={finalBlockColor}
- accent={blockAccent as "cyan" | "purple" | "emerald" | "amber" | "red"}
+ accent={finalBlockAccent as "cyan" | "purple" | "emerald" | "amber" | "red"}
  height="100%" 
  isTiny={isTiny}
  isMicro={isMicro}
@@ -1349,84 +1431,66 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  </div>
  )}
  </div>
+ 
+ {/* 【Google Calendar 级克隆体】：绝对数据驱动，物理层悬浮，完美锁死辅助线 */}
+ {isBeingDragged && dragTimeline.active && (
+ <div 
+ className={cn(
+ "absolute pointer-events-none ",
+ blockClass
+ )}
+ style={{
+ top: dragTimeline.y, // 【核心】：直接使用辅助线的 Y 坐标，100% 物理死锁！
+ height: Math.max(14, heightPx - 4), 
+ zIndex: 998, // 处于最顶层，辅助线下方
+ opacity: 0.9,
+ // 废除生硬的黑色阴影，改为极简悬浮放大
+ transform: 'scale(1.02)' // 拖拽悬浮放大
+ }}
+ >
+ <EliteBookingBlock 
+ isReadOnly={true}
+ title={serviceTitle}
+ time={`${draggedBookingTime} (${booking.duration}m)`} // 【核心】：时间文本实时更新！
+ client={formatMinimalId((booking.customerId || booking.customerName) || "")}
+ color={finalBlockColor}
+ accent={finalBlockAccent as "cyan" | "purple" | "emerald" | "amber" | "red"}
+ height="100%" 
+ isTiny={isTiny}
+ isMicro={isMicro}
+ isPending={false} 
+ isCheckedOut={false}
+ isPast={false}
+ isNoShow={false}
+ />
+ </div>
+ )}
+ </React.Fragment>
  );
  })}
  </div>
  );
  })}
+ 
+ {/* 物理级拖拽辅助线 (纯黑白极简法则，置顶层级) */}
+ {dragTimeline.active && (
+ <div 
+ className="absolute left-0 right-0 z-[999] pointer-events-none flex items-center"
+ style={{ top: dragTimeline.y, transform: 'translateY(-50%)' }}
+ >
+ {/* 极简 1px 细线 (时间已在左侧时间轴高亮，彻底废弃 ml-[80px] 与 HUD) */}
+ <div className={cn(
+ "w-full h-[1px]",
+ resolvedTimelineTheme === 'coreblack' ? "bg-black" : "bg-white"
+ )} />
+ </div>
+ )}
  </div>
  </div>
  </div>
  </motion.div>
 
- {/* --- 黑洞视界 (The Void) --- */}
- <AnimatePresence>
- {(draggedBooking || pendingVoidBooking) && (
- <motion.div
- 
- 
- 
- className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center pointer-events-auto"
- >
- <div 
- ref={voidRef}
- className={cn(
- "relative flex items-center justify-center rounded-full ",
- isHoveringVoid ? "w-32 h-32" : "w-24 h-24",
- pendingVoidBooking ? "w-[300px] h-32" : ""
- )}
- >
- {/* 黑洞引力场 */}
- <div className={cn(
- "absolute inset-0 rounded-full bg-red-600/10 pointer-events-none",
- isHoveringVoid ? "bg-red-500/40 scale-125" : "",
- pendingVoidBooking ? "bg-red-600/30 " : ""
- )} />
- 
- {/* 黑洞实体 / 分裂核心 */}
- {pendingVoidBooking ? (
- <div className="relative z-10 flex items-center gap-6">
- {/* 销毁当前 (局部) */}
- <button 
- onClick={destroyCurrent}
- className={cn(
- "w-32 h-32 rounded-full border-2 bg-black/90 flex flex-col items-center justify-center ",
- visualSettings.timelineColorTheme === 'coreblack' ? "border-[#8B7355]/50 " : "border-[#FDF5E6]/50 "
- )}
- >
- <span className={cn(
- "text-sm tracking-widest",
- visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"
- )}>销毁当前</span>
- <span className={cn("text-[11px] uppercase tracking-widest mt-1", isLight ? "text-black" : "text-white")}>Single</span>
- </button>
- 
- {/* 摧毁全部 (级联) */}
- <button 
- onClick={destroyAll}
- className={cn("w-32 h-32 rounded-full border-2 bg-black/90 flex flex-col items-center justify-center ", isLight ? "border-black/50" : "border-white/50")}
- >
- <span className={cn("text-sm tracking-widest ", isLight ? "text-white" : "text-white")}>摧毁全部</span>
- <span className={cn("text-[11px] uppercase tracking-widest mt-1", isLight ? "text-white/60" : "text-white/60")}>All Linked</span>
- </button>
- </div>
- ) : (
- <div 
- className={cn(
- "relative z-10 rounded-full border flex flex-col items-center justify-center text-center overflow-hidden pointer-events-none",
- isHoveringVoid ? "w-20 h-20 bg-black/90 " : "w-16 h-16 bg-black/60",
- isLight ? (isHoveringVoid ? "border-black/50" : "border-black/30") : (isHoveringVoid ? "border-white/50" : "border-white/30")
- )}
- >
- <div className={cn("w-6 h-6 rounded-full border flex items-center justify-center", isLight ? "bg-black/20 border-black/50" : "bg-white/20 border-white/50")}>
- <div className={cn("w-2 h-2 rounded-full animate-ping", isLight ? "bg-black" : "bg-white")} />
- </div>
- </div>
- )}
- </div>
- </motion.div>
- )}
- </AnimatePresence>
+ {/* --- 黑洞视界 (The Void) --- 废弃，已由右上角回收站替代 */}
  </div>
  );
 });

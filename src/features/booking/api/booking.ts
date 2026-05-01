@@ -756,7 +756,7 @@ export const BookingService = {
     if (isMockMode) return { data: [] };
     
     if (!shopId || shopId === 'default') {
-       return { data: [] };
+      return { data: [] };
     }
     
     const { data, error } = await supabase

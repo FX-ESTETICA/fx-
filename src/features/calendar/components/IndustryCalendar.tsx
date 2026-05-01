@@ -1169,7 +1169,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  {/* 行业切换区 (已移除，移至底部时钟下方) */}
  <div className="px-8 space-y-6 pt-0">
  {/* 核心统计 (Dynamic) */}
- <div className="grid grid-cols-2 gap-2 pt-8 pointer-events-auto relative z-50">
+ <div className="grid grid-cols-3 gap-2 pt-8 pointer-events-auto relative z-50">
  {(() => {
  const shopIdStr = searchParams.get('shopId');
  
@@ -1217,7 +1217,27 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
  });
 
- // 3. AI 跨期野单总数 (NEXUS ALERT) - 终极纯净版：仅捕获 PENDING 待确认订单
+ // 3. 今日已结账数
+ const todayCompletedBookings = globalBookings.filter(b => { 
+ const bDate = b.date?.split('T')[0];
+ const status = b.status?.toUpperCase();
+ return bDate === realTodayStr && (status === 'COMPLETED' || status === 'CHECKED_OUT') && b.resourceId !== 'NO' && (!shopIdStr || b.shopId === shopIdStr);
+ });
+
+ const uniqueCompletedOrders = new Set<string>();
+ let todayCompletedCount = 0;
+ todayCompletedBookings.forEach(b => {
+ if (b.masterOrderId) {
+ if (!uniqueCompletedOrders.has(b.masterOrderId)) {
+ uniqueCompletedOrders.add(b.masterOrderId);
+ todayCompletedCount++;
+ }
+ } else {
+ todayCompletedCount++;
+ }
+ });
+
+ // 4. AI 跨期野单总数 (NEXUS ALERT) - 终极纯净版：仅捕获 PENDING 待确认订单
  const allNexusBookings = globalBookings.filter(b => {
  return b.status === 'PENDING' && (!shopIdStr || b.shopId === shopIdStr);
  }).sort((a, b) => {
@@ -1232,24 +1252,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  return (
  <>
  {/* 原生卡片 1：今日预约 */}
- <div className="p-3 bg-transparent">
- <span className={cn("text-[11px] uppercase ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_3353f0') || '今日预约'}</span>
- <div className="flex items-end justify-between mt-1">
- <span className={cn("text-xl tracking-tighter ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>{todayBookingsCount.toString().padStart(2, '0')}</span>
- <span className={cn("text-[11px] mb-1 ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_fb852f')}</span>
+ <div className="p-3 bg-transparent flex flex-col items-center">
+ <span className={cn("text-[11px] uppercase text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_3353f0') || '今日预约'}</span>
+ <div className="flex items-center justify-center mt-1">
+ <span className={cn("text-xl tracking-tighter text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>{todayBookingsCount.toString().padStart(2, '0')}</span>
  </div>
  </div>
 
  {/* 原生卡片 2：今日待处理 (业务待服务) */}
- <div className="p-3 bg-transparent">
- <span className={cn("text-[11px] uppercase ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_047109') || '待处理'}</span>
- <div className="flex items-end justify-between mt-1">
- <span className={cn("text-xl tracking-tighter ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black " : "text-white")}>{todayPendingCount.toString().padStart(2, '0')}</span>
- <span className={cn("text-[11px] mb-1 ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_65dd9e')}</span>
+ <div className="p-3 bg-transparent flex flex-col items-center">
+ <span className={cn("text-[11px] uppercase text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_047109') || '待处理'}</span>
+ <div className="flex items-center justify-center mt-1">
+ <span className={cn("text-xl tracking-tighter text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black " : "text-white")}>{todayPendingCount.toString().padStart(2, '0')}</span>
  </div>
  </div>
 
- {/* 专属卡片 3：新预约提醒 (NEXUS ALERT) - 占据整行 */}
+ {/* 原生卡片 3：今日已结账 */}
+ <div className="p-3 bg-transparent flex flex-col items-center">
+ <span className={cn("text-[11px] uppercase text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>已结账</span>
+ <div className="flex items-center justify-center mt-1">
+ <span className={cn("text-xl tracking-tighter text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-[#39FF14]")}>{todayCompletedCount.toString().padStart(2, '0')}</span>
+ </div>
+ </div>
+
+ {/* 专属卡片 4：新预约提醒 (NEXUS ALERT) - 占据整行 */}
  {nexusCount > 0 && (
  <div 
  onClick={() => {
@@ -1264,7 +1290,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
  }}
  className={cn(
- "col-span-2 p-3 mt-2 relative cursor-pointer bg-transparent",
+ "col-span-3 p-3 mt-2 relative cursor-pointer bg-transparent",
  visualSettings.headerTitleColorTheme === 'coreblack' 
  ? "hover:opacity-80" 
  : "hover:opacity-80"
@@ -1549,15 +1575,15 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </span>
  )}
  </div>
- <span className={cn(
- "text-[11px] md:text-[11px] tracking-widest truncate uppercase w-full text-center",
- visualSettings.staffNameColorTheme !== 'purewhite' && visualSettings.staffNameColorTheme !== 'coreblack' && "mix-blend-screen",
- res.metadata?.isNoShowColumn 
- ? (visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white") 
- : CYBER_COLOR_DICTIONARY[visualSettings.staffNameColorTheme].className
- )}>
- {res.name}
- </span>
+           <span className={cn(
+             "text-[11px] md:text-[11px] tracking-widest truncate uppercase w-full text-center",
+             visualSettings.staffNameColorTheme !== 'purewhite' && visualSettings.staffNameColorTheme !== 'coreblack' && "mix-blend-screen",
+             res.metadata?.isNoShowColumn 
+               ? (visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white") 
+               : CYBER_COLOR_DICTIONARY[visualSettings.staffNameColorTheme].className
+           )}>
+             {res.name}
+           </span>
  {res.metadata?.originalStatus === 'on_leave' && (
  <span className="absolute -top-1 right-1 px-1 py-0.5 rounded text-[11px] bg-yellow-500/20 text-yellow-500 leading-none shadow-[0_0_10px_rgba(234,179,8,0.3)] hidden md:inline-block">{t('txt_62a8cf')}</span>
  )}

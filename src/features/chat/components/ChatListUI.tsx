@@ -1,4 +1,4 @@
-import { Search, ScanLine, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2, ArrowLeftRight, Plus } from 'lucide-react';
+import { Search, ScanLine, CheckCheck, MessageCircle, Database, Signal, SearchX, Trash2, Plus } from 'lucide-react';
 import { useRecentChats } from '../hooks/useRecentChats';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';

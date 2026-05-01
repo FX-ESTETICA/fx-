@@ -115,7 +115,7 @@ export default function SandboxChatWindow({ currentUserId, receiverId, roomId }:
  {selectedFile && (
  <div className="flex items-center space-x-2 mb-2 px-2 py-1 rounded-md max-w-fit">
  <span className="text-xs truncate max-w-[120px]">{selectedFile.name}</span>
- <button onClick={() => setSelectedFile(null)} className={cn("text-xs", isLight ? "text-black" : "text-white")}>×</button>
+ <button onClick={() => setSelectedFile(null)} className="text-xs text-white">×</button>
  </div>
  )}
  

@@ -374,7 +374,10 @@ export function DualPaneBookingModal({
  const [editingCustomPriceId, setEditingCustomPriceId] = useState<string | null>(null);
  const [customPriceInput, setCustomPriceInput] = useState("");
 
- // 检查当前订单是否已经是已结账状态
+ // 【结账舱单项删除黑名单】记录已经被用户点击(X)删掉的项目 serviceId
+  const [deletedCheckoutItemIds, setDeletedCheckoutItemIds] = useState<string[]>([]);
+
+  // 检查当前订单是否已经是已结账状态
  const isAlreadyCompleted = useMemo(() => {
  const statusStr = (editingBooking?.status as string | undefined)?.toUpperCase();
  return statusStr === 'COMPLETED' || statusStr === 'CHECKED_OUT';
@@ -477,28 +480,39 @@ export function DualPaneBookingModal({
  // 获取某个服务在结账舱里的当前生效价格
  const getCheckoutPrice = useCallback((serviceId: string, defaultPrices: number[] | number | undefined) => {
  if (checkoutPrices[serviceId] !== undefined) {
- return checkoutPrices[serviceId];
- }
- return Array.isArray(defaultPrices) && defaultPrices.length > 0 ? defaultPrices[0] : (typeof defaultPrices === 'number' ? defaultPrices : 0);
- }, [checkoutPrices]);
+        return checkoutPrices[serviceId];
+      }
+      
+      // 回退逻辑：如果当前订单已经保存在数据库，并且服务中有 prices，优先使用订单中的价格（这可能就是之前保存过的草稿价格）
+      // 注意：这里需要从 editingBooking 中找到对应的服务来读取价格。
+      if (editingBooking && editingBooking.services) {
+         const dbService = editingBooking.services.find(s => s.id === serviceId);
+         if (dbService && Array.isArray(dbService.prices) && dbService.prices.length > 0) {
+             // 我们认为数据库里的第一个价格就是当前的最终价格（包括之前静默保存的自定义价格）
+             return dbService.prices[0];
+         }
+      }
 
- const resetFormState = useCallback(() => {
- setSelectedServices([]);
- setCustomServiceText("");
- setCurrentBrushEmployeeId(null);
- setRetargetingServiceId(null);
- setActivePaneMode('service');
- setPhoneTracks(['']);
- setDurationOffset(0);
- setEditingPhoneIndex(null);
- setMatchedProfile(null);
- setNewCustomerType(null);
- setCheckoutOverride(null);
- setSelectedPaymentMethod(null);
- setCheckoutSlideProgress(0);
- setCheckoutPrices({});
- setEditingCustomPriceId(null);
- }, []);
+      return Array.isArray(defaultPrices) && defaultPrices.length > 0 ? defaultPrices[0] : (typeof defaultPrices === 'number' ? defaultPrices : 0);
+    }, [checkoutPrices, editingBooking]);
+
+  const resetFormState = useCallback(() => {
+    setSelectedServices([]);
+    setCustomServiceText("");
+    setCurrentBrushEmployeeId(null);
+    setRetargetingServiceId(null);
+    setActivePaneMode('service');
+    setPhoneTracks(['']);
+    setDurationOffset(0);
+    setEditingPhoneIndex(null);
+    setMatchedProfile(null);
+    setNewCustomerType(null);
+    setCheckoutOverride(null);
+    setSelectedPaymentMethod(null);
+    setCheckoutSlideProgress(0);
+    setCheckoutPrices({});
+    setEditingCustomPriceId(null);
+  }, []);
 
  const handleClose = useCallback(() => {
  resetFormState();
@@ -654,7 +668,124 @@ export function DualPaneBookingModal({
  }
  };
 
- // --- 核心业务逻辑：确认并拆分预约 (Data Transformer) ---
+  const handleCheckoutPriceChange = async (serviceId: string, bookingId: string, newPrice: number) => {
+    // 1. 瞬发法则：立刻更新前端状态，让 UI 瞬间响应
+    setCheckoutPrices(prev => ({ ...prev, [serviceId]: newPrice }));
+
+    // 2. 找到需要更新的那个 booking
+    const targetBooking = (editingBooking?.isSuperBooking && editingBooking.relatedBookings)
+      ? editingBooking.relatedBookings.find(b => b.id === bookingId) || editingBooking
+      : editingBooking;
+      
+    if (!targetBooking) return;
+
+    // 3. 准备更新后的 services 数组，覆盖价格
+    const currentServices = targetBooking.services || [];
+    const updatedServices = currentServices.map((s: any) => {
+      if (s.id === serviceId) {
+        return { ...s, prices: [newPrice] };
+      }
+      return s;
+    });
+
+    try {
+      // 4. 静默写入数据库
+      const payload = [{
+        ...targetBooking,
+        services: updatedServices,
+        date: targetBooking.date || selectedDate.replace(/\//g, '-'),
+        startTime: targetBooking.startTime || "00:00",
+        resourceId: targetBooking.resourceId === null ? undefined : targetBooking.resourceId
+      }];
+      await BookingService.upsertBookings(payload);
+      
+      // 5. 触发全局刷新，保证各端数据一致
+      refreshBookings();
+      trackAction();
+    } catch (error) {
+      console.error("Failed to auto-save checkout price:", error);
+    }
+  };
+
+  // --- 核心业务逻辑：物理抹除 (Delete/Void) ---
+ const handleDeleteCheckoutItem = async (serviceId: string, bookingId: string) => {
+ try {
+ // 【视觉瞬发法则】: 瞬间加入黑名单，UI 立即重绘隐藏该项
+ setDeletedCheckoutItemIds(prev => [...prev, serviceId]);
+
+ // 找出我们要操作的那个 booking
+ const targetBooking = (editingBooking?.isSuperBooking && editingBooking.relatedBookings)
+ ? editingBooking.relatedBookings.find(b => b.id === bookingId) || editingBooking
+ : editingBooking;
+ 
+ if (!targetBooking) return;
+ 
+ const currentServices = targetBooking.services || [];
+ const updatedServices = currentServices.filter((s: any) => s.id !== serviceId);
+ 
+ // 【后台静默更新法则】
+ if (updatedServices.length === 0) {
+ // 如果删除了最后一个服务，直接物理删除整个订单
+ await BookingService.deleteBookings([targetBooking.id as string]);
+ } else {
+ // 否则只更新 services 数组，并重新计算时长等
+ const updatedDuration = updatedServices.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
+ const payload = [{
+          ...targetBooking,
+          services: updatedServices,
+          duration: Math.max(1, updatedDuration),
+          // 补齐必填字段
+          date: targetBooking.date || selectedDate.replace(/\//g, '-'),
+          startTime: targetBooking.startTime || "00:00",
+          resourceId: targetBooking.resourceId === null ? undefined : targetBooking.resourceId
+        }];
+        await BookingService.upsertBookings(payload);
+ }
+ 
+ refreshBookings();
+ trackAction();
+ 
+ // 检查目前计算后的 checkoutAllServices（由于依赖项更新，下一次渲染会少一个）
+ // 为了在本次渲染周期判断，我们手动算一下剩下的数量
+ const remainingCount = checkoutAllServices.length - 1; // 当前点了一个，所以剩 -1
+
+ // 如果全被删空了，关闭窗口。否则保持窗口开启，让店长继续操作
+ if (remainingCount <= 0) {
+ handleClose();
+ }
+ } catch (error) {
+ console.error("Failed to delete item:", error);
+ // 发生异常时，从黑名单移除以恢复显示
+ setDeletedCheckoutItemIds(prev => prev.filter(id => id !== serviceId));
+ alert("删除失败，请重试");
+ }
+ };
+ 
+ 
+ const handleDeleteBooking = async (deleteAllRelated: boolean = false) => {
+ if (!editingBooking) return;
+ try {
+ let idsToDelete: string[] = [];
+ 
+ if (deleteAllRelated && editingBooking.isSuperBooking && editingBooking.relatedBookings) {
+ // 删除联单：收集所有相关的子订单 ID
+ idsToDelete = editingBooking.relatedBookings.map(b => b.id as string);
+ } else {
+ // 单删：只删除当前点击的这个
+ idsToDelete = [editingBooking.id as string];
+ }
+ 
+ if (idsToDelete.length > 0) {
+ await BookingService.deleteBookings(idsToDelete);
+ }
+ 
+ refreshBookings();
+ trackAction();
+ handleClose();
+ } catch (error) {
+ console.error("Failed to delete booking:", error);
+ }
+ };
  const handleConfirmBooking = async () => {
  if (isReadOnly) {
  console.warn("System is in READ_ONLY mode. Cannot save bookings.");
@@ -789,8 +920,10 @@ export function DualPaneBookingModal({
  // 【核心修复】：
  // 1. 如果它是新建的（原来没有资源），或者是从弹窗的编辑中发生了人员指派变动
  // 我们必须强行给它打上 _needsTimeReflow: true，强迫排盘大脑去进行时间顺延和碰撞检测
+ const isNewBooking = !editingBooking;
  const isResourceChanged = editingBooking && editingBooking.resourceId !== b.resourceId;
- const needsReflow = !!(b.originalUnassigned || isResourceChanged);
+ // 【进阶法则】：新建的订单必须统统打上 reflow 标记，否则它们会被大脑当作绝对坐标处理，永远不会触发防撞与接力！
+ const needsReflow = !!(b.originalUnassigned || isResourceChanged || isNewBooking);
 
  if (b.id) {
  manualOverrides[b.id] = {
@@ -866,11 +999,11 @@ export function DualPaneBookingModal({
  // 如果当前是连单（isSuperBooking = true），我们仅在这里（渲染结账单和计算总价时），
  // 把 relatedBookings 里所有的 services 提取出来，形成一个“大账单”。
  const checkoutAllServices = useMemo(() => {
- if (!isCheckoutMode) return selectedServices;
+ let allServices: ServiceItem[] = [];
  
- if (editingBooking?.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 0) {
- const allServices: ServiceItem[] = [];
- 
+ if (!isCheckoutMode) {
+ allServices = selectedServices;
+ } else if (editingBooking?.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 0) {
  // 1. 当前订单的服务
  selectedServices.forEach(s => {
  allServices.push({
@@ -893,24 +1026,36 @@ export function DualPaneBookingModal({
  });
  }
  });
- 
- return allServices;
- }
- 
- // 非连单时，原样返回
- return selectedServices.map(s => ({
- ...s,
- assignedEmployeeId: s.assignedEmployeeId || editingBooking?.resourceId || 'unassigned'
- }));
- }, [isCheckoutMode, selectedServices, editingBooking]);
+ } else {
+        // 非连单时，原样返回
+        allServices = selectedServices.map(s => ({
+          ...s,
+          assignedEmployeeId: s.assignedEmployeeId || editingBooking?.resourceId || 'unassigned'
+        }));
+      }
+      
+      // 【过滤黑名单】：如果在前端被点击了 X 删除了，则瞬间隐形，不参与结算与展示
+      return allServices.filter(s => !deletedCheckoutItemIds.includes(s.id));
+    }, [isCheckoutMode, selectedServices, editingBooking, deletedCheckoutItemIds]);
 
  // 将全量服务按员工进行分组，用于结账舱渲染
- const groupedCheckoutServices = checkoutAllServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
+ // 注意：这里需要带上 bookingId 以便知道该服务属于哪个具体的订单
+ const groupedCheckoutServices = checkoutAllServices.reduce<Record<string, (ServiceItem & { _bookingId?: string })[]>>((acc, service) => {
  const empId = service.assignedEmployeeId || 'unassigned';
  if (!acc[empId]) {
  acc[empId] = [];
  }
- acc[empId].push(service);
+ 
+ // 找出该 service 对应的 bookingId
+ let foundBookingId = editingBooking?.id;
+ if (editingBooking?.isSuperBooking && editingBooking.relatedBookings) {
+ const rb = editingBooking.relatedBookings.find(b => 
+ b.services?.some((s: any) => s.id === service.id && s.name === service.name)
+ );
+ if (rb) foundBookingId = rb.id;
+ }
+ 
+ acc[empId].push({ ...service, _bookingId: foundBookingId as string });
  return acc;
  }, {});
 
@@ -974,12 +1119,12 @@ export function DualPaneBookingModal({
  <div className="mt-2 mb-4 flex flex-col items-center text-center space-y-1">
  <span className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-[#39FF14]")}>Target Entity</span>
  <h1 className={cn(
- "text-4xl md:text-5xl tracking-[0.2em] uppercase",
- customerId.startsWith('CO') 
- ? (isLight ? "text-black" : "text-white") 
+ "text-3xl md:text-4xl tracking-[0.2em] uppercase",
+ customerId.startsWith('CO')
+ ? (isLight ? "text-black" : "text-white")
  : "bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 bg-clip-text text-transparent "
  )}>
- [{formatDisplayId(customerId)}]
+ {formatDisplayId(customerId)}
  </h1>
  </div>
 
@@ -996,9 +1141,9 @@ export function DualPaneBookingModal({
  return (
  <div key={empId} className="flex flex-col gap-4">
  {services.map((service, idx: number) => {
- return (
- <div key={service.id || idx} className="flex items-center w-full gap-6">
- {/* 员工签名栏：仅在该员工的第一个项目显示，后续项目留白以维持网格对齐 */}
+          return (
+            <div key={service.id || idx} className="flex items-center w-full gap-6">
+              {/* 员工签名栏：仅在该员工的第一个项目显示，后续项目留白以维持网格对齐 */}
  <div className="w-24 shrink-0 text-left">
  {idx === 0 ? (
  <span className={cn("text-lg tracking-widest uppercase", isLight ? "text-black " : "text-white ")}>
@@ -1026,7 +1171,7 @@ export function DualPaneBookingModal({
  </span>
  
  {/* 只有在未结账时才显示修改价格的胶囊 */}
- {!isAlreadyCompleted && (
+ {!isAlreadyCompleted ? (
  <div className="flex items-center gap-1.5 ml-2">
  {/* 渲染所有数据库里的预设价格胶囊 */}
  {Array.isArray(service.prices) && service.prices.map((p, pIdx) => {
@@ -1034,7 +1179,7 @@ export function DualPaneBookingModal({
  return (
  <button
  key={pIdx}
- onClick={() => setCheckoutPrices(prev => ({ ...prev, [service.id]: p }))}
+ onClick={() => handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', p)}
  className={cn(
  "text-[11px] px-2 py-0.5 rounded-full ",
  currentActive 
@@ -1058,8 +1203,8 @@ export function DualPaneBookingModal({
  onBlur={() => {
  const val = parseInt(customPriceInput, 10);
  if (!isNaN(val)) {
- setCheckoutPrices(prev => ({ ...prev, [service.id]: val }));
- }
+  handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', val);
+  }
  setEditingCustomPriceId(null);
  }}
  onKeyDown={e => {
@@ -1084,6 +1229,32 @@ export function DualPaneBookingModal({
  <span className="text-xs leading-none -mt-0.5">+</span>
  </button>
  )}
+ 
+ {/* 单项删除按钮 (X) */}
+ <button
+ onClick={() => handleDeleteCheckoutItem(service.id, service._bookingId || editingBooking?.id || '')}
+ className={cn(
+ "w-5 h-5 flex items-center justify-center rounded-full ml-1 shrink-0 transition-opacity hover:opacity-70",
+ isLight ? "bg-black/5 text-black" : "bg-white/5 text-white"
+ )}
+ title="删除此项目"
+ >
+ <X className="w-3 h-3" />
+ </button>
+ </div>
+ ) : (
+ <div className="flex items-center gap-1.5 ml-2">
+ {/* 结账后仅保留删除按钮 */}
+ <button
+ onClick={() => handleDeleteCheckoutItem(service.id, service._bookingId || editingBooking?.id || '')}
+ className={cn(
+ "w-5 h-5 flex items-center justify-center rounded-full ml-1 shrink-0 transition-opacity hover:opacity-70",
+ isLight ? "bg-black/5 text-black" : "bg-white/5 text-white"
+ )}
+ title="删除此项目"
+ >
+ <X className="w-3 h-3" />
+ </button>
  </div>
  )}
  </div>
@@ -2572,7 +2743,7 @@ export function DualPaneBookingModal({
  
  {/* 内嵌底部操作舱 - 悬浮极简版 */}
  <div className={cn(
- "absolute bottom-0 left-0 right-0 w-full p-6 flex flex-wrap justify-center items-center gap-4 z-50 pointer-events-auto ",
+ "absolute bottom-0 left-0 right-0 w-full p-6 flex flex-wrap justify-center items-center gap-12 md:gap-24 z-50 pointer-events-auto ",
  isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
  )}>
  {isReadOnly ? (
@@ -2582,31 +2753,65 @@ export function DualPaneBookingModal({
  ) : (
  <>
  {editingBooking && (
+ <>
  <button 
  onClick={handleMarkAsNoShow}
  className={cn(
- "flex-1 md:flex-none md:w-32 min-w-[100px] py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none",
- isLight ? " " : " "
+ "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
  )}
  >
  爽 约
  </button>
+ {editingBooking.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 1 ? (
+ <div className="flex flex-col items-center gap-2">
+ <button 
+ onClick={() => handleDeleteBooking(false)}
+ className={cn(
+ "py-1.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 删 本 单
+ </button>
+ <button 
+ onClick={() => handleDeleteBooking(true)}
+ className={cn(
+ "py-1.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 删 联 单
+ </button>
+ </div>
+ ) : (
+ <button 
+ onClick={() => handleDeleteBooking(false)}
+ className={cn(
+ "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 删 除
+ </button>
+ )}
+ </>
  )}
  <button 
  onClick={handleConfirmBooking}
  disabled={selectedServices.length === 0}
  className={cn(
- "flex-1 md:flex-none md:w-56 min-w-[120px] py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent",
+ "py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent transition-opacity hover:opacity-70",
  selectedServices.length > 0 
  ? (isLight 
- ? " " 
- : " ")
+ ? "text-black" 
+ : "text-white")
  : (isLight 
- ? "text-black cursor-not-allowed" 
- : "text-white cursor-not-allowed")
+ ? "text-black/30 cursor-not-allowed" 
+ : "text-white/30 cursor-not-allowed")
  )}
  >
- {editingBooking ? "更 新 预 约" : "确 认 预 约"}
+ {editingBooking ? "更 新" : "确 认"}
  </button>
  </>
  )}

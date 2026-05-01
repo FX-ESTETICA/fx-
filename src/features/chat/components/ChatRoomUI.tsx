@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
+import { cn } from '../../../utils/cn';
 import { Blurhash } from 'react-blurhash';
 import { ArrowLeft, X, MoreHorizontal, Camera, SendHorizontal, Loader2, Sparkles, Mic, Keyboard, CornerUpLeft, Languages, ArrowRight, Trash2, UserPlus } from 'lucide-react';
 import { useChatEngine } from '../hooks/useChatEngine';
