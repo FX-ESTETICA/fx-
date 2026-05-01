@@ -158,40 +158,58 @@ export const NebulaConfigHub = ({
  }, [onGlobalSave]);
 
  // 【Live Edit 自动同步引擎 (Auto-Save Debouncer)】
- useEffect(() => {
- if (!isOpen || !initialLoadRef.current || !isCloudDataLoaded) return;
+  useEffect(() => {
+    if (!isOpen || !initialLoadRef.current || !isCloudDataLoaded) return;
 
- const currentDataStr = JSON.stringify({ 
- operatingHours: localHours, 
- staffs: localStaffs, 
- categories: localCategories, 
- services: localServices 
- });
- 
- // 深度对比拦截：如果值完全没变，拒绝广播
- if (prevDataRef.current === currentDataStr) return;
+    const currentDataStr = JSON.stringify({ 
+      operatingHours: localHours, 
+      staffs: localStaffs, 
+      categories: localCategories, 
+      services: localServices 
+    });
+    
+    // 深度对比拦截：如果值完全没变，拒绝广播
+    if (prevDataRef.current === currentDataStr) return;
 
- setSyncStatus('syncing');
- 
- // 防抖 800ms：用户停止操作 0.8 秒后，像幽灵一样静默落盘
- const timer = setTimeout(async () => {
- try {
- await onGlobalSaveRef.current(localHours, localStaffs, localCategories, localServices);
- prevDataRef.current = currentDataStr;
- setSyncStatus('saved');
- 
- // 2秒后恢复 idle 状态
- setTimeout(() => {
- setSyncStatus(current => current === 'saved' ? 'idle' : current);
- }, 2000);
- } catch (e) {
- console.error(e);
- setSyncStatus('error');
- }
- }, 800);
+    setSyncStatus('syncing');
+    
+    // 防抖 800ms：用户停止操作 0.8 秒后，像幽灵一样静默落盘
+    const timer = setTimeout(async () => {
+      try {
+        await onGlobalSaveRef.current(localHours, localStaffs, localCategories, localServices);
+        
+        // 核心突破：静默触发员工的物理绑定
+        if (shopId && shopId !== 'default') {
+          // 找出所有被分配了前端ID的员工，且状态不为离职的
+          const activeStaffsWithFrontendId = localStaffs.filter(s => s.frontendId && s.status !== 'resigned');
+          if (activeStaffsWithFrontendId.length > 0) {
+             const { BookingService } = await import('@/features/booking/api/booking');
+             // 批量执行绑定（BookingService.bindUserToShop 内部有防重和静默处理）
+             for (const staff of activeStaffsWithFrontendId) {
+               if (staff.frontendId) {
+                 await BookingService.bindUserToShop(staff.frontendId, shopId).catch(err => {
+                    console.warn(`[NebulaConfigHub] 员工物理绑定失败: ${staff.frontendId}`, err);
+                 });
+               }
+             }
+          }
+        }
 
- return () => clearTimeout(timer);
- }, [localHours, localStaffs, localCategories, localServices, isOpen, isCloudDataLoaded]);
+        prevDataRef.current = currentDataStr;
+        setSyncStatus('saved');
+        
+        // 2秒后恢复 idle 状态
+        setTimeout(() => {
+          setSyncStatus(current => current === 'saved' ? 'idle' : current);
+        }, 2000);
+      } catch (e) {
+        console.error(e);
+        setSyncStatus('error');
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [localHours, localStaffs, localCategories, localServices, isOpen, isCloudDataLoaded, shopId]);
 
  // 原子修改包装器：只更新本地状态，让 useEffect 防抖去处理真实的保存
  const handleHoursChange = (newHours: ShopOperatingConfig | OperatingHour[]) => {
