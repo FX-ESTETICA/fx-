@@ -1819,7 +1819,7 @@ export function DualPaneBookingModal({
  </div>
  {/* 内嵌底部操作舱 - 收编入左侧面板底部 */}
       <div className={cn(
-        "mt-auto pt-6 flex flex-wrap justify-center items-center gap-8 md:gap-16 z-50 pointer-events-auto shrink-0 w-full",
+        "pt-6 flex flex-wrap justify-center items-center gap-8 md:gap-16 z-50 pointer-events-auto shrink-0 w-full",
         isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
       )}>
  {isReadOnly ? (
@@ -1873,6 +1873,17 @@ export function DualPaneBookingModal({
  )}
  </>
  )}
+ {!editingBooking && (
+ <button 
+ onClick={handleClose}
+ className={cn(
+ "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 关 闭
+ </button>
+ )}
  <button 
  onClick={handleConfirmBooking}
  disabled={selectedServices.length === 0}
@@ -1898,8 +1909,7 @@ export function DualPaneBookingModal({
       <section 
         className={cn(
           "flex-1 h-auto min-h-[250px] md:min-h-0 md:h-full p-2 relative z-10 overflow-hidden flex flex-col",
-          "md:border-l",
-          isLight ? "border-black/20" : "border-white/20"
+          ""
         )}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -1910,16 +1920,8 @@ export function DualPaneBookingModal({
  "flex-1 flex flex-col overflow-hidden relative rounded-xl border p-4 pt-10",
  isLight ? "border-black/20" : "border-white/20"
  )}>
- {/* 下放的绝对控制权：内框专属的关闭按钮 */}
- <button 
- onClick={handleClose} 
- className={cn("absolute top-3 right-4 z-50 transition-opacity", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
- >
- <X className="w-5 h-5" />
- </button>
-
  {/* 分类标签导航 - 恢复与项目矩阵左对齐，整体下移避开X */}
- <div className="flex gap-[20px] pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none pl-[92px] pr-8">
+ <div className="flex gap-[20px] pb-2 mb-0 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none pl-[92px] pr-8">
  {categories.map(cat => (
  <button
  key={cat.id}
@@ -1942,12 +1944,12 @@ export function DualPaneBookingModal({
  {/* Pro Studio 工作台布局：左侧画笔槽 + 右侧画布 */}
  <div className="flex-1 flex gap-3 overflow-hidden min-h-0">
  {/* 左侧垂直画笔槽 (极致压缩版竖列胶囊) */}
-          <div className="w-[80px] shrink-0 flex flex-col gap-1.5 overflow-y-auto no-scrollbar pr-2 pb-4">
+          <div className="w-[80px] shrink-0 flex flex-col gap-3 overflow-y-auto no-scrollbar pr-2 pb-4">
  {/* 无指定 (断电态) */}
  <button
  onClick={() => handleSetBrush(null)}
  className={cn(
- "flex items-center justify-start gap-2 p-2 rounded-lg shrink-0 h-[36px] bg-transparent",
+ "flex items-center justify-start gap-2 p-2 rounded-lg shrink-0 h-[64px] bg-transparent",
  currentBrushEmployeeId !== null && (isLight ? "" : "")
  )}
  style={{
@@ -1974,7 +1976,7 @@ export function DualPaneBookingModal({
  key={staff.id}
  onClick={() => handleSetBrush(staff.id)}
  className={cn(
- "flex items-center justify-start gap-2 p-2 rounded-lg shrink-0 h-[36px] bg-transparent",
+ "flex items-center justify-start gap-2 p-2 rounded-lg shrink-0 h-[64px] bg-transparent",
  !isAssigned && (isLight ? "" : "")
  )}
  style={{
@@ -2057,13 +2059,6 @@ export function DualPaneBookingModal({
  className="h-full flex flex-col p-4 pt-10 overflow-hidden relative rounded-xl border"
  style={{ borderColor: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }}
  >
- {/* 下放的绝对控制权：内框专属的关闭按钮 */}
- <button 
- onClick={handleClose} 
- className={cn("absolute top-3 right-4 z-50 transition-opacity", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
- >
- <X className="w-5 h-5" />
- </button>
  {/* 1. 顶部：核心身份与消费概览 (双轨ID跨域融合架构) */}
  <div className="flex items-start justify-between pb-4 mb-4 shrink-0 px-2 relative pt-2">
  {/* 左侧和中部容器 */}
@@ -2307,7 +2302,7 @@ export function DualPaneBookingModal({
  {isCurrentViewing && (
  <div className={cn(
  "absolute top-1.5 right-3 text-[11px] tracking-widest z-10",
- isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"
+ isLight ? "text-black" : "text-white"
  )}>
  查看中
  </div>
@@ -2317,12 +2312,12 @@ export function DualPaneBookingModal({
  <div className="flex flex-col items-center justify-center w-12 shrink-0">
  <span className={cn(
  "text-sm text-center tracking-tighter", 
- isNoShow ? (isLight ? "text-black" : "text-white") : (isToday ? (isLight ? "text-black " : "text-white ") : isFuture ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black" : "text-white"))
+ isNoShow ? (isLight ? "text-black" : "text-white") : (isToday ? (isLight ? "text-black " : "text-white ") : isFuture ? `${isLight ? "text-black" : "text-white"}` : (isLight ? "text-black" : "text-white"))
  )}>
  {epochLabel}
  </span>
  {epochSubLabel && !isNoShow && (
- <span className={cn("text-[11px] mt-0.5", isFuture ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black" : "text-white"))}>
+ <span className={cn("text-[11px] mt-0.5", isFuture ? `${isLight ? "text-black" : "text-white"}` : (isLight ? "text-black" : "text-white"))}>
  {epochSubLabel}
  </span>
  )}
@@ -2430,16 +2425,19 @@ export function DualPaneBookingModal({
  rows={1}
  style={{ whiteSpace: 'nowrap' }} // 强制单行横向滚动
  />
- <div className={cn(`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r ${isLight ? "from-[#8B7355]/50" : "from-[#FDF5E6]/50"} to-transparent`, isLight ? "via-black/10" : "via-white/10")} />
+ <div className={cn(`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r ${isLight ? "from-black/50" : "from-white/50"} to-transparent`, isLight ? "via-black/10" : "via-white/10")} />
  </div>
  </div>
  </div>
  )}
 
  {activePaneMode === 'duration' && (
-        <div className="h-full flex flex-col items-center justify-center p-8 pb-4 select-none touch-none relative">
+        <div 
+          className="h-full flex flex-col p-8 pb-4 overflow-hidden relative rounded-xl border select-none touch-none"
+          style={{ borderColor: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }}
+        >
  {/* 全息视界区 (HUD Display) */}
- <div className="flex flex-col items-center mb-6">
+ <div className="flex flex-col items-center flex-1 mb-6 mt-4">
  <span 
  key={totalDuration}
  className={cn("text-[64px] tracking-widest bg-clip-text text-transparent leading-none whitespace-nowrap", isLight ? "bg-gradient-to-br from-black via-black/90 to-black/40 " : "bg-gradient-to-br from-white via-white/90 to-white/40 ")}
@@ -2452,7 +2450,7 @@ export function DualPaneBookingModal({
  {durationOffset !== 0 && (
  <>
  <span className={cn("w-1 h-1 rounded-full", isLight ? "bg-black/20" : "bg-white/20")} />
- <span className={durationOffset > 0 ? (isLight ? "text-black" : "text-white") : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}`}>
+ <span className={durationOffset > 0 ? (isLight ? "text-black" : "text-white") : (isLight ? "text-black" : "text-white")}>
  OFFSET {durationOffset > 0 ? '+' : ''}{durationOffset} MIN
  </span>
  </>
@@ -2462,7 +2460,7 @@ export function DualPaneBookingModal({
 
  {/* 矢量无极微操区 (Vector Micro-manipulation) - 移动到了中间 */}
  <div 
- className="w-full h-16 flex flex-col items-center justify-center cursor-ew-resize group z-20 mb-6"
+ className="w-full h-16 flex flex-col items-center justify-center cursor-ew-resize group z-20 mb-10"
  onPointerDown={(e) => {
  e.preventDefault();
  e.currentTarget.setPointerCapture(e.pointerId);
@@ -2486,16 +2484,16 @@ export function DualPaneBookingModal({
  }
  }}
  >
- <div className={`flex items-center gap-4 ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} `}>
+ <div className={`flex items-center gap-4 ${isLight ? "text-black" : "text-white"} `}>
  <svg className="w-4 h-4 " fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
  <span className="text-[11px] tracking-[0.3em] uppercase">Drag to Adjust</span>
  <svg className="w-4 h-4 " fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
  </div>
- <div className={`w-48 h-px bg-gradient-to-r from-transparent ${isLight ? "via-[#8B7355]/30" : "via-[#FDF5E6]/30"} to-transparent mt-3 `} />
+ <div className={`w-48 h-px bg-gradient-to-r from-transparent ${isLight ? "via-black/30" : "via-white/30"} to-transparent mt-3 `} />
  </div>
 
  {/* 脉冲微调阵列 (Quick Offset Tags) */}
- <div className="w-full max-w-[400px] space-y-6 relative z-10">
+ <div className="w-full max-w-[400px] space-y-6 relative z-10 mb-4">
  {/* 缩减区 (提前) */}
  <div className="flex justify-center gap-3">
  {[-45, -30, -15].map(offset => (
@@ -2505,7 +2503,7 @@ export function DualPaneBookingModal({
  className={cn(
  "w-16 py-2 rounded-lg text-xs ",
  durationOffset === offset 
- ? `${isLight ? "bg-[#8B7355]/10" : "bg-[#FDF5E6]/10"} ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-` 
+ ? `${isLight ? "bg-black/10" : "bg-white/10"} ${isLight ? "text-black" : "text-white"} drop-` 
  : (isLight ? "bg-black/5 text-black " : "bg-white/5 text-white ")
  )}
  >
@@ -2523,7 +2521,7 @@ export function DualPaneBookingModal({
  className={cn(
  "w-16 py-2 rounded-lg text-xs ",
  durationOffset === offset 
- ? `${isLight ? "bg-[#8B7355]/10" : "bg-[#FDF5E6]/10"} ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-` 
+ ? `${isLight ? "bg-black/10" : "bg-white/10"} ${isLight ? "text-black" : "text-white"} drop-` 
  : (isLight ? "bg-black/5 text-black " : "bg-white/5 text-white ")
  )}
  >
@@ -2536,9 +2534,12 @@ export function DualPaneBookingModal({
  )}
 
  {activePaneMode === 'date' && (
-        <div className="h-full flex flex-col pt-2 pb-4 overflow-y-auto no-scrollbar pr-2">
+        <div 
+          className="h-full flex flex-col pt-10 pb-4 overflow-y-auto no-scrollbar relative rounded-xl border pr-2"
+          style={{ borderColor: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }}
+        >
  {/* Header: Month and Year with glowing text */}
- <div className="flex items-center justify-between mb-6 px-4 shrink-0">
+ <div className="flex items-center justify-between mb-6 px-4 shrink-0 mt-2">
  <button 
  onClick={() => {
  const newDate = new Date(calendarViewDate);
@@ -2565,7 +2566,7 @@ export function DualPaneBookingModal({
  </div>
 
  {/* Matrix: Gridless approach */}
- <div className="flex-1 px-2 shrink-0">
+ <div className="flex-1 px-2 shrink-0 flex flex-col justify-center pb-8">
  {/* Weekdays */}
  <div className="grid grid-cols-7 mb-4">
  {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
@@ -2606,14 +2607,14 @@ export function DualPaneBookingModal({
  className={cn(
  "relative h-10 flex flex-col items-center justify-center text-sm rounded-lg group",
  isSelected 
- ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} border ${isLight ? "border-[#8B7355]/50" : "border-[#FDF5E6]/50"} ${isLight ? "bg-[#8B7355]/5" : "bg-[#FDF5E6]/5"}` 
+ ? `${isLight ? "text-black" : "text-white"} border ${isLight ? "border-black/50" : "border-white/50"} ${isLight ? "bg-black/5" : "bg-white/5"}` 
  : (isLight ? "text-black border border-transparent" : "text-white border border-transparent")
  )}
  >
  {formattedDay}
  {/* Today pulse indicator */}
  {isToday && !isSelected && (
- <div className={`absolute bottom-1 w-[3px] h-[3px] rounded-full ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} `} />
+ <div className={`absolute bottom-1 w-[3px] h-[3px] rounded-full ${isLight ? "bg-black" : "bg-white"} `} />
  )}
  </button>
  );
@@ -2627,15 +2628,16 @@ export function DualPaneBookingModal({
 
  {activePaneMode === 'time' && (
  <div 
- className="h-full flex flex-col items-center justify-start relative select-none pt-0 touch-none cursor-default"
+          className="h-full flex flex-col items-center justify-center relative select-none touch-none cursor-default pt-10 overflow-hidden rounded-xl border"
+          style={{ borderColor: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }}
  >
  {/* 顶部中心 HUD (HH:mm) */}
- <div className={cn("absolute -top-2 left-1/2 -translate-x-1/2 flex shrink-0 items-center gap-2 z-30 text-[50px] tracking-widest leading-none", isLight ? "" : "")}>
+ <div className={cn("absolute top-6 left-1/2 -translate-x-1/2 flex shrink-0 items-center gap-2 z-30 text-[50px] tracking-widest leading-none", isLight ? "" : "")}>
  <button 
  onClick={() => setTimeSelectionMode('hour')}
  className={cn(
  " px-2 rounded-lg",
- timeSelectionMode === 'hour' ? (isLight ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-black/5` : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-white/5`) : (isLight ? "text-black " : "text-white ")
+ timeSelectionMode === 'hour' ? (isLight ? `${isLight ? "text-black" : "text-white"} bg-black/5` : `${isLight ? "text-black" : "text-white"} bg-white/5`) : (isLight ? "text-black " : "text-white ")
  )}
  >
  {selectedTime.split(':')[0]}
@@ -2645,7 +2647,7 @@ export function DualPaneBookingModal({
  onClick={() => setTimeSelectionMode('minute')}
  className={cn(
  " px-2 rounded-lg",
- timeSelectionMode === 'minute' ? (isLight ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-black/5` : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} bg-white/5`) : (isLight ? "text-black " : "text-white ")
+ timeSelectionMode === 'minute' ? (isLight ? `${isLight ? "text-black" : "text-white"} bg-black/5` : `${isLight ? "text-black" : "text-white"} bg-white/5`) : (isLight ? "text-black " : "text-white ")
  )}
  >
  {selectedTime.split(':')[1]}
@@ -2657,7 +2659,7 @@ export function DualPaneBookingModal({
  "scale-100 opacity-100"
  )}>
  {/* 中心光点 */}
- <div className={`absolute inset-0 m-auto w-3 h-3 rounded-full ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} z-30 pointer-events-none`} />
+ <div className={`absolute inset-0 m-auto w-3 h-3 rounded-full ${isLight ? "bg-black" : "bg-white"} z-30 pointer-events-none`} />
 
  {/* 双圈 / 单圈 渲染 */}
  {timeSelectionMode === 'hour' ? (
@@ -2680,7 +2682,7 @@ export function DualPaneBookingModal({
  className={cn(
  "absolute rounded-full flex items-center justify-center text-base cursor-pointer pointer-events-auto",
  isSelected 
- ? `text-black ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} w-12 h-12` 
+ ? `text-white ${isLight ? "bg-black" : "bg-white"} w-12 h-12` 
  : (isLight ? `text-black w-10 h-10` : `text-white w-10 h-10`)
  )}
  style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
@@ -2713,7 +2715,7 @@ export function DualPaneBookingModal({
  className={cn(
  "absolute rounded-full flex items-center justify-center text-xs cursor-pointer pointer-events-auto",
  isSelected 
- ? `text-black ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} w-8 h-8` 
+ ? `text-white ${isLight ? "bg-black" : "bg-white"} w-8 h-8` 
  : (isLight ? `text-black w-6 h-6` : `text-white w-6 h-6`)
  )}
  style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
@@ -2745,7 +2747,7 @@ export function DualPaneBookingModal({
 
  return (
  <div 
- className={`absolute top-1/2 left-1/2 h-[2px] ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} origin-left z-10 pointer-events-none`}
+ className={`absolute top-1/2 left-1/2 h-[2px] ${isLight ? "bg-black" : "bg-white"} origin-left z-10 pointer-events-none`}
  style={{ 
  width: `${distance}px`, 
  transform: `translate(0, -50%) rotate(${rotation}deg)`
@@ -2774,7 +2776,7 @@ export function DualPaneBookingModal({
  className={cn(
  "absolute rounded-full flex items-center justify-center text-base cursor-pointer pointer-events-auto",
  isSelected 
- ? `text-black ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} w-12 h-12` 
+ ? `text-white ${isLight ? "bg-black" : "bg-white"} w-12 h-12` 
  : (isLight ? `text-black w-10 h-10` : `text-white w-10 h-10`)
  )}
  style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
@@ -2800,7 +2802,7 @@ export function DualPaneBookingModal({
 
  return (
  <div 
- className={`absolute top-1/2 left-1/2 h-[2px] ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} origin-left z-10 pointer-events-none`}
+ className={`absolute top-1/2 left-1/2 h-[2px] ${isLight ? "bg-black" : "bg-white"} origin-left z-10 pointer-events-none`}
  style={{ 
  width: `${distance}px`, 
  transform: `translate(0, -50%) rotate(${rotation}deg)`
