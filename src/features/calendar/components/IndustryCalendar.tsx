@@ -421,6 +421,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   }, [staffs, userGxId, userBaseGxId, userMerchantGxId]);
   
   const isPermissionReadOnly = effectiveUserRole === 'user' && myStaffProfile?.operationRights === 'view';
+ const isPermissionEditSelf = effectiveUserRole === 'user' && myStaffProfile?.operationRights === 'edit_self';
+ const isPhoneMasked = effectiveUserRole === 'user' && myStaffProfile?.operationRights !== 'manager';
+ const isManager = effectiveUserRole === 'admin' || effectiveUserRole === 'boss' || effectiveUserRole === 'merchant' || (effectiveUserRole === 'user' && myStaffProfile?.operationRights === 'manager');
 
 
  const openBookingModal = useCallback(() => {
@@ -664,6 +667,18 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  return;
  }
 
+ // 权限拦截：只读员工禁止操作任何订单
+ if (isPermissionReadOnly) {
+ console.log('Permission Denied: View Only');
+ return;
+ }
+
+ // 权限拦截：只能修改自己的员工，禁止操作别人的订单
+ if (isPermissionEditSelf && booking.resourceId !== myStaffProfile?.id && booking.resourceId !== myStaffProfile?.frontendId) {
+ console.log('Permission Denied: Can only edit self');
+ return;
+ }
+
  // 【连单全域打捞协议】：
  // 日历矩阵在点击时，传过来的 booking 可能只是一个子订单的切片。
  // 如果它是连单（有 masterOrderId），我们必须从全局订单池 globalBookings 中，
@@ -692,7 +707,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  setEditingBooking(superBooking);
  openBookingModal();
- }, [subscription.isLoaded, isReadOnlyMode, openSubscriptionModal]);
+ }, [subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, isPermissionEditSelf, myStaffProfile?.id, myStaffProfile?.frontendId, openSubscriptionModal, openBookingModal]);
 
  const handleCreateBookingClick = useCallback(async () => {
  // --- 新增：空状态防御机制（结界） ---
@@ -709,6 +724,12 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  // 权限拦截：只读员工禁止开单
  if (isPermissionReadOnly) {
  console.log('Permission Denied: View Only');
+ return;
+ }
+
+ // 权限拦截：只能修改自己的员工，禁止在别人的排期上开单
+ if (isPermissionEditSelf && resourceId && resourceId !== myStaffProfile?.id && resourceId !== myStaffProfile?.frontendId) {
+ console.log('Permission Denied: Can only edit self');
  return;
  }
 
@@ -733,7 +754,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
  openBookingModal();
- }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
+ }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, isPermissionEditSelf, myStaffProfile?.id, myStaffProfile?.frontendId, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
  const handleGridClick = useCallback(async (resourceId?: string, time?: string, dateStr?: string) => {
  // --- 新增：空状态防御机制（结界） ---
@@ -793,7 +814,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
  
  openBookingModal();
- }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
+ }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, isPermissionEditSelf, myStaffProfile?.id, myStaffProfile?.frontendId, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
  // 用于同步表头与矩阵的横向滚动
  const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -1619,7 +1640,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  <Trash2 className="w-4 h-4 md:w-5 md:h-5 " />
  </button>
- <button 
+ {isManager && (
+ <button
  onClick={() => setIsConfigOpen(true)}
  className="p-1.5 md:p-2 rounded-lg group flex items-center justify-center"
  style={{ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex }}
@@ -1627,6 +1649,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  <Settings className="w-4 h-4 md:w-5 md:h-5 " />
  </button>
+ )}
  </div>
  )}
  </div>
@@ -1829,6 +1852,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  onClose={() => setIsFinanceDashboardOpen(false)}
  staffs={staffs as any}
  globalBookings={globalBookings}
+ isFinanceSelfOnly={effectiveUserRole === 'user' && myStaffProfile?.financialVisibility === 'self'}
+ currentUserId={myStaffProfile?.id || myStaffProfile?.frontendId}
  />
  
  <RecycleBinModal 
@@ -1849,6 +1874,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  categories={categories}
  services={services}
  isReadOnly={isReadOnlyMode || isPermissionReadOnly}
+ isPhoneMasked={isPhoneMasked}
  />
  </>,
  document.body

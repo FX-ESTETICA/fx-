@@ -1469,15 +1469,12 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  <label className={cn("text-[11px] uppercase tracking-widest flex items-center gap-1", isLight ? "text-black" : "text-white")}><CalendarIcon className="w-3 h-3"/> {t('txt_461577')}</label>
  <div className="grid grid-cols-2 gap-2">
  {[
- { id: "self", label: t('txt_c71868'), desc: t('txt_cd5e70') },
- { id: "all", label: t('txt_0467cc'), desc: t('txt_319cc2') }
+ { id: "self", label: t('txt_c71868') },
+ { id: "all", label: t('txt_0467cc') }
  ].map(opt => (
- <div key={opt.id} onClick={() => setFormData({...formData, calendarView: opt.id})} className={cn("p-3 rounded-xl border cursor-pointer ", formData.calendarView === opt.id ? " " : (isLight ? "bg-black/5 border-black/5 " : "bg-white/[0.02] border-white/5 "))}>
- <div className="flex items-center justify-between mb-1">
+ <div key={opt.id} onClick={() => setFormData({...formData, calendarView: opt.id})} className={cn("p-3 rounded-xl border cursor-pointer flex items-center justify-between", formData.calendarView === opt.id ? " " : (isLight ? "bg-black/5 border-black/5 " : "bg-white/[0.02] border-white/5 "))}>
  <span className={cn("text-xs ", formData.calendarView === opt.id ? "" : (isLight ? "text-black" : "text-white"))}>{opt.label}</span>
  {formData.calendarView === opt.id && <Check className="w-3 h-3 " />}
- </div>
- <span className={cn("text-[11px]", isLight ? "text-black" : "text-white")}>{opt.desc}</span>
  </div>
  ))}
  </div>
@@ -1488,8 +1485,9 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  <label className={cn("text-[11px] uppercase tracking-widest flex items-center gap-1", isLight ? "text-black" : "text-white")}><Shield className="w-3 h-3"/> {t('txt_773712')}</label>
  <select value={formData.operationRights} onChange={e => setFormData({...formData, operationRights: e.target.value})} className={cn("w-full border rounded-lg text-xs p-3 focus:outline-none appearance-none cursor-pointer", isLight ? "bg-black/5 border-black/10 text-black" : "bg-black/40 border-white/10 text-white")}>
  <option value="view" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_7781d9')}</option>
- <option value="edit" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_2878a0')}</option>
- <option value="edit_price" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_823d26')}</option>
+ <option value="edit_self" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_2878a0')}</option>
+ <option value="edit_all" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_823d26')}</option>
+ <option value="manager" className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{t('txt_manager')}</option>
  </select>
  </div>
 

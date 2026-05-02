@@ -15,11 +15,13 @@ interface AiFinanceDashboardModalProps {
  onClose: () => void;
  staffs?: StaffItem[];
  globalBookings?: BookingEdit[];
+ isFinanceSelfOnly?: boolean;
+ currentUserId?: string;
 }
 
 type TimeRange = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
-export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBookings = [] }: AiFinanceDashboardModalProps) => {
+export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBookings = [], isFinanceSelfOnly, currentUserId }: AiFinanceDashboardModalProps) => {
  const [timeRange, setTimeRange] = useState<TimeRange>('day');
  const { settings } = useVisualSettings();
  const isLight = settings.headerTitleColorTheme === 'coreblack';
@@ -27,6 +29,14 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  // --- 核心真实数据核算逻辑 (Real-time Financial Engine) ---
  
  const financialData = useMemo(() => {
+ // 权限隔离过滤
+ const filteredBookings = isFinanceSelfOnly 
+ ? globalBookings.filter(b => b.resourceId === currentUserId || (b as any).assignedEmployeeId === currentUserId) 
+ : globalBookings;
+ const filteredStaffs = isFinanceSelfOnly 
+ ? staffs.filter(s => s.id === currentUserId || s.frontendId === currentUserId) 
+ : staffs;
+
  // 动态时间窗引擎
  const now = new Date();
  now.setHours(0, 0, 0, 0);
@@ -77,7 +87,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  const currentBookings: BookingEdit[] = [];
  const prevBookings: BookingEdit[] = [];
 
- globalBookings.forEach(b => {
+ filteredBookings.forEach(b => {
  if (!b.date) return;
  const isCompleted = (b.status as string)?.toUpperCase() === 'COMPLETED' || (b.status as string)?.toUpperCase() === 'CHECKED_OUT';
  if (!isCompleted) return;
@@ -104,7 +114,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  const staffPerformance: Record<string, { revenue: number, commissionRate: number, baseSalary: number, guarantee: number, daysOff: number, name: string, role: string, avatar: string }> = {};
  
  // 只展示有效员工（排除了假员工比如 "散客池 NO"）
- const validStaffs = staffs.filter(s => s.id !== 'NO');
+ const validStaffs = filteredStaffs.filter(s => s.id !== 'NO');
  validStaffs.forEach(staff => {
  const s = staff as any;
  staffPerformance[staff.id] = {
@@ -287,7 +297,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  retailRatio
  }
  };
- }, [globalBookings, staffs, timeRange]);
+ }, [globalBookings, staffs, timeRange, isFinanceSelfOnly, currentUserId]);
 
  const currentMetrics = {
  total: financialData.totalRevenue,

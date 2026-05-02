@@ -21,6 +21,7 @@ interface DualPaneBookingModalProps {
  categories: CategoryItem[];
  services: ServiceItem[];
  isReadOnly?: boolean;
+ isPhoneMasked?: boolean;
 }
 
 type ServiceItem = {
@@ -83,12 +84,21 @@ export function DualPaneBookingModal({
  staffs,
  categories,
  services,
- isReadOnly
+ isReadOnly,
+ isPhoneMasked
 }: DualPaneBookingModalProps) {
  const t = useTranslations('DualPaneBookingModal');
  const { activeShopId, refreshBookings, trackAction } = useShop();
  const { settings } = useVisualSettings();
  const isLight = settings.headerTitleColorTheme === 'coreblack';
+
+ // -------------------------------
+ // Phone Masking Helper
+ // -------------------------------
+ const displayPhone = (p?: string) => {
+   if (!p) return "";
+   return isPhoneMasked && p.length >= 7 ? p.replace(/(\d{3})\d{4}(\d*)/, '$1****$2') : p;
+ };
 
  // --- 结账模式状态 (Neon Core Checkout) ---
  const [checkoutOverride, setCheckoutOverride] = useState<boolean | null>(null);
@@ -1634,7 +1644,7 @@ export function DualPaneBookingModal({
  "text-[11px] tracking-widest leading-none -translate-y-[1px]",
  matchedProfile || matchedHistoryCustomer || (customerId && !customerId.startsWith('CO')) ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black" : "text-white")
  )}>
- {matchedProfile?.name || phoneTracks[0]}
+ {matchedProfile?.name || displayPhone(phoneTracks[0])}
  </span>
  </div>
  ) : (
@@ -2082,32 +2092,32 @@ export function DualPaneBookingModal({
  autoFocus
  />
  ) : (
- <span 
+ <span
  className={cn(
  "text-sm cursor-pointer ",
  isLight ? "" : "",
- customerId.startsWith('CO') 
+ customerId.startsWith('CO')
  ? (isLight ? "text-black" : "text-white")
  : `bg-gradient-to-r ${isLight ? "from-[#8B7355]/80" : "from-[#FDF5E6]/80"} bg-clip-text text-transparent `
  )}
- onClick={() => setEditingPhoneIndex(index)}
+ onClick={() => !isPhoneMasked && setEditingPhoneIndex(index)}
  >
- {phone || "无电话记录"}
+ {displayPhone(phone) || "无电话记录"}
  </span>
  )}
  
  {/* 动态增减按钮 */}
  <div className="flex items-center gap-1">
- {index === phoneTracks.length - 1 && (
- <button 
+ {index === phoneTracks.length - 1 && !isPhoneMasked && (
+ <button
  onClick={() => updatePhoneTracks([...phoneTracks, ''])}
  className={cn("w-4 h-4 rounded-full border flex items-center justify-center text-xs", isLight ? "border-black/20 text-black " : "border-white/20 text-white ")}
  >
  +
  </button>
  )}
- {phoneTracks.length > 1 && (
- <button 
+ {phoneTracks.length > 1 && !isPhoneMasked && (
+ <button
  onClick={() => {
  const newTracks = phoneTracks.filter((_, i) => i !== index);
  updatePhoneTracks(newTracks);
