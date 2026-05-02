@@ -1770,7 +1770,7 @@ export function DualPaneBookingModal({
  <span className={cn("text-[11px] tracking-[0.2em] uppercase ", isLight ? "text-black " : "text-white ")}>{t('txt_4ff1e7')}</span>
  </div>
  <span className={cn(
- "text-lg tracking-wider ",
+ "text-xl tracking-wider ",
  isLight ? "text-black" : "text-white"
  )}>
  {selectedDate.replace(/\//g, '.')}
@@ -1778,10 +1778,11 @@ export function DualPaneBookingModal({
  </button>
 
  {/* 开始时间触发器 */}
+ <div className="flex-1 flex p-4 relative group items-end">
  <button
  onClick={() => setActivePaneMode('time')}
  className={cn(
- "flex-1 flex flex-col items-start justify-center p-4 relative group",
+ "flex flex-col items-start justify-center",
  isLight ? "" : ""
  )}
  >
@@ -1790,42 +1791,33 @@ export function DualPaneBookingModal({
  <span className={cn("text-[11px] tracking-[0.2em] uppercase ", isLight ? "text-black " : "text-white ")}>{t('txt_19fcb9')}</span>
  </div>
  <span className={cn(
- "text-lg tracking-wider ",
+ "text-xl tracking-wider leading-none",
  isLight ? "text-black" : "text-white"
  )}>
  {selectedTime}
  </span>
  </button>
- </div>
-
- {/* 下半部分：时长与结束时间推算 (并排) */}
- <div className="flex">
- {/* 服务时长触发器 */}
+ 
+ {/* 时长与结束时间独立热区 (绝对顶底对齐 - 阶梯式) */}
  <button
  onClick={() => setActivePaneMode('duration')}
- className={cn(
- "flex-1 flex items-center justify-between p-4 relative group",
- isLight ? "" : ""
- )}
+ className="flex flex-col items-start justify-end ml-2 pb-[1px]"
  >
- <span className={cn("text-[11px] tracking-[0.2em] uppercase ", isLight ? "text-black " : "text-white ")}>{t('txt_5bdfd7')}</span>
+ {/* 持续时间 - 绝对定位于顶部边缘 */}
  <span className={cn(
- "text-sm ",
- durationOffset !== 0 ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} drop-` : (isLight ? "text-black" : "text-white")
+ "text-[10px] tracking-widest leading-none whitespace-nowrap -translate-y-full mb-[2px]",
+ durationOffset !== 0 ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black/60" : "text-white/60")
  )}>
  {totalDuration > 0 ? `${totalDuration} MIN` : '-- MIN'}
  </span>
- </button>
-
- {/* 结束时间 (只读展示) */}
- <div className={cn(
- "flex-1 flex items-center justify-between p-4 ",
- totalDuration === 0 ? "" : ""
+ {/* 结束时间 - 自然底部对齐 */}
+ <span className={cn(
+ "text-[10px] tracking-widest leading-none whitespace-nowrap",
+ isLight ? "text-black/60" : "text-white/60"
  )}>
- <span className={cn("text-[11px] tracking-[0.2em] uppercase", isLight ? "text-black" : "text-white")}>{t('txt_946010')}</span>
- <span className={cn("text-sm ", isLight ? "text-black" : "text-white")}>
- {getEndTime()}
+ {totalDuration === 0 ? "" : getEndTime()}
  </span>
+ </button>
  </div>
  </div>
  </div>
