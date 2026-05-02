@@ -1530,11 +1530,11 @@ export function DualPaneBookingModal({
  <X className="w-5 h-5" />
  </button>
  {/* ===================== 左侧/顶部：控制台面板 ===================== */}
- <section 
- className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 pb-24 md:pb-24 flex flex-col gap-4 relative z-10 shrink-0"
- onTouchStart={handleTouchStart}
- onTouchEnd={handleTouchEnd}
- >
+        <section 
+          className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 md:pb-24 flex flex-col gap-4 relative z-10 shrink-0"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
  
  {/* 表单录入区 */}
  <div className="flex flex-col gap-4 mt-1">
@@ -1824,9 +1824,85 @@ export function DualPaneBookingModal({
  </div>
  </section>
 
+ {/* 内嵌底部操作舱 - 悬浮极简版 */}
+ <div className={cn(
+ "relative md:absolute md:bottom-0 md:left-0 md:right-0 w-full py-4 md:p-6 flex flex-wrap justify-center items-center gap-12 md:gap-24 z-50 pointer-events-auto shrink-0",
+ isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
+ )}>
+ {isReadOnly ? (
+ <div className={cn("w-full md:w-64 py-3 text-center rounded-xl text-[11px] uppercase tracking-widest", isLight ? "bg-black/5 text-black" : "bg-white/5 text-white")}>
+ 只读模式 / READ ONLY
+ </div>
+ ) : (
+ <>
+ {editingBooking && (
+ <>
+ <button 
+ onClick={handleMarkAsNoShow}
+ className={cn(
+ "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 爽 约
+ </button>
+ {editingBooking.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 1 ? (
+ <div className="flex flex-col items-center gap-2">
+ <button 
+ onClick={() => handleDeleteBooking(false)}
+ className={cn(
+ "py-1.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 删 本 单
+ </button>
+ <button 
+ onClick={() => handleDeleteBooking(true)}
+ className={cn(
+ "py-1.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 删 联 单
+ </button>
+ </div>
+ ) : (
+ <button 
+ onClick={() => handleDeleteBooking(false)}
+ className={cn(
+ "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ 删 除
+ </button>
+ )}
+ </>
+ )}
+ <button 
+ onClick={handleConfirmBooking}
+ disabled={selectedServices.length === 0}
+ className={cn(
+ "py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent transition-opacity hover:opacity-70",
+ selectedServices.length > 0 
+ ? (isLight 
+ ? "text-black" 
+ : "text-white")
+ : (isLight 
+ ? "text-black/30 cursor-not-allowed" 
+ : "text-white/30 cursor-not-allowed")
+ )}
+ >
+ {editingBooking ? "更 新" : "确 认"}
+ </button>
+ </>
+ )}
+ </div>
+
  {/* ===================== 右侧/底部：动态监视器区 ===================== */}
  <section 
- className="flex-1 h-auto min-h-[400px] md:min-h-0 md:h-full p-4 md:p-6 pb-24 relative z-10 overflow-hidden"
+ className="flex-1 h-auto min-h-[250px] md:min-h-0 md:h-full p-4 md:p-6 pb-4 md:pb-24 relative z-10 overflow-hidden"
  onTouchStart={handleTouchStart}
  onTouchEnd={handleTouchEnd}
  >
@@ -1855,7 +1931,7 @@ export function DualPaneBookingModal({
  {/* Pro Studio 工作台布局：左侧画笔槽 + 右侧画布 */}
  <div className="flex-1 flex gap-3 overflow-hidden min-h-0">
  {/* 左侧垂直画笔槽 (极致压缩版竖列胶囊) */}
- <div className="w-[80px] shrink-0 flex flex-col gap-1.5 overflow-y-auto no-scrollbar pr-2 pb-24">
+ <div className="w-[80px] shrink-0 flex flex-col gap-1.5 overflow-y-auto no-scrollbar pr-2 pb-4 md:pb-24">
  {/* 无指定 (断电态) */}
  <button
  onClick={() => handleSetBrush(null)}
@@ -1915,7 +1991,7 @@ export function DualPaneBookingModal({
  </div>
 
  {/* 右侧服务项目矩阵画布 */}
- <div className="flex-1 overflow-y-auto custom-scrollbar pb-24">
+ <div className="flex-1 overflow-y-auto custom-scrollbar pb-4 md:pb-24">
  <div className="grid grid-cols-2 gap-3 pr-2 content-start">
  {services
  .filter(s => s.categoryId === activeCategory)
@@ -2330,7 +2406,7 @@ export function DualPaneBookingModal({
  </div>
 
  {/* 3. 底部：新客分类按钮 & 单行备注 */}
- <div className="shrink-0 space-y-4 px-2 pb-24">
+ <div className="shrink-0 space-y-4 px-2 pb-4 md:pb-24">
  {/* 分类选项 (仅在新客且未匹配到会员时显示) */}
  {!matchedProfile && !matchedHistoryCustomer && (!editingBooking?.customerId || editingBooking.customerId.startsWith('CO')) && (
  <div className="flex justify-between items-center px-4">
@@ -2366,7 +2442,7 @@ export function DualPaneBookingModal({
  )}
 
  {activePaneMode === 'duration' && (
- <div className="h-full flex flex-col items-center justify-center p-8 pb-24 select-none touch-none relative">
+ <div className="h-full flex flex-col items-center justify-center p-8 pb-4 md:pb-24 select-none touch-none relative">
  {/* 全息视界区 (HUD Display) */}
  <div className="flex flex-col items-center mb-6">
  <span 
@@ -2465,7 +2541,7 @@ export function DualPaneBookingModal({
  )}
 
  {activePaneMode === 'date' && (
- <div className="h-full flex flex-col pt-2 pb-24 overflow-y-auto custom-scrollbar pr-2">
+ <div className="h-full flex flex-col pt-2 pb-4 md:pb-24 overflow-y-auto custom-scrollbar pr-2">
  {/* Header: Month and Year with glowing text */}
  <div className="flex items-center justify-between mb-6 px-4 shrink-0">
  <button 
@@ -2743,84 +2819,8 @@ export function DualPaneBookingModal({
  </div>
  )}
  
- {/* ===================== 新增：内嵌底部操作舱 ===================== */}
  </section>
  
- {/* 内嵌底部操作舱 - 悬浮极简版 */}
- <div className={cn(
- "absolute bottom-0 left-0 right-0 w-full p-6 flex flex-wrap justify-center items-center gap-12 md:gap-24 z-50 pointer-events-auto ",
- isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
- )}>
- {isReadOnly ? (
- <div className={cn("w-full md:w-64 py-3 text-center rounded-xl text-[11px] uppercase tracking-widest", isLight ? "bg-black/5 text-black" : "bg-white/5 text-white")}>
- 只读模式 / READ ONLY
- </div>
- ) : (
- <>
- {editingBooking && (
- <>
- <button 
- onClick={handleMarkAsNoShow}
- className={cn(
- "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
- isLight ? "text-black" : "text-white"
- )}
- >
- 爽 约
- </button>
- {editingBooking.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 1 ? (
- <div className="flex flex-col items-center gap-2">
- <button 
- onClick={() => handleDeleteBooking(false)}
- className={cn(
- "py-1.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
- isLight ? "text-black" : "text-white"
- )}
- >
- 删 本 单
- </button>
- <button 
- onClick={() => handleDeleteBooking(true)}
- className={cn(
- "py-1.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
- isLight ? "text-black" : "text-white"
- )}
- >
- 删 联 单
- </button>
- </div>
- ) : (
- <button 
- onClick={() => handleDeleteBooking(false)}
- className={cn(
- "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
- isLight ? "text-black" : "text-white"
- )}
- >
- 删 除
- </button>
- )}
- </>
- )}
- <button 
- onClick={handleConfirmBooking}
- disabled={selectedServices.length === 0}
- className={cn(
- "py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent transition-opacity hover:opacity-70",
- selectedServices.length > 0 
- ? (isLight 
- ? "text-black" 
- : "text-white")
- : (isLight 
- ? "text-black/30 cursor-not-allowed" 
- : "text-white/30 cursor-not-allowed")
- )}
- >
- {editingBooking ? "更 新" : "确 认"}
- </button>
- </>
- )}
- </div>
  </main>
 
  {/* Global styles for custom scrollbar */}
