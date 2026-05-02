@@ -1268,8 +1268,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/5 border-black/10 text-black" : "bg-white/5 border-white/10 text-white"
  )}>
  {user && typeof user === 'object' && 'avatar' in user && user.avatar ? (
- // eslint-disable-next-line @next/next/no-img-element
- <img src={user.avatar as string} alt="avatar" className="w-full h-full object-cover" />
+ <div 
+ className="w-full h-full bg-cover bg-center bg-no-repeat" 
+ style={{ backgroundImage: `url(${user.avatar as string})` }} 
+ />
  ) : (
  userInitial || 'S'
  )}

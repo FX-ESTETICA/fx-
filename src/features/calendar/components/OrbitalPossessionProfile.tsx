@@ -144,8 +144,7 @@ export const OrbitalPossessionProfile = ({
  <div className="relative w-10 h-10 flex items-center justify-center pointer-events-none">
  <div className={cn("relative z-10 w-10 h-10 rounded-full flex items-center justify-center overflow-hidden")}>
  {bossData.avatar ? (
- // eslint-disable-next-line @next/next/no-img-element
- <img src={bossData.avatar} alt="avatar" className="w-full h-full object-cover" />
+ <div className="w-full h-full bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${bossData.avatar})` }} />
  ) : (
  <span className={cn(" text-sm", isBlack ? "text-black" : "text-white")}>{bossData.name[0]}</span>
  )}
@@ -190,19 +189,17 @@ export const OrbitalPossessionProfile = ({
  <div className="relative w-10 h-10 flex items-center justify-center pointer-events-none">
  
  {/* 主图 (大位) */}
- <motion.div 
- 
+ <div 
  className={cn(
  "relative z-10 w-10 h-10 rounded-full flex items-center justify-center overflow-hidden"
  )}
  >
  {activeProfile.avatar ? (
- // eslint-disable-next-line @next/next/no-img-element
- <img src={activeProfile.avatar} className="w-full h-full object-cover" alt="main" />
+ <div className="w-full h-full bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${activeProfile.avatar})` }} />
  ) : (
  <span className={cn(" text-sm", isBlack ? "text-black" : "text-white")}>{activeProfile.name[0]}</span>
  )}
- </motion.div>
+ </div>
 
  {/* 卫星 (小位) - 点击互换或显示待指派 */}
  <motion.div
@@ -219,8 +216,7 @@ export const OrbitalPossessionProfile = ({
  // PENDING 状态：加号占位符
  <span className="text-gx-gold text-[11px]">+</span>
  ) : satelliteProfile.avatar ? (
- // eslint-disable-next-line @next/next/no-img-element
- <img src={satelliteProfile.avatar} className="w-full h-full object-cover" alt="satellite" />
+ <div className="w-full h-full bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${satelliteProfile.avatar})` }} />
  ) : (
  <span className={cn(" text-[11px] scale-75", "text-white")}>{satelliteProfile.name[0]}</span>
  )}
