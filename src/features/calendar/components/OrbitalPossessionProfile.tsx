@@ -177,10 +177,12 @@ export const OrbitalPossessionProfile = ({
 
  return (
  <div className="space-y-1 select-none">
+ <div className="relative h-[68px] flex items-start justify-start pointer-events-none">
+ 
  <div 
  onClick={onNavigateHome}
  className={cn(
- "flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer group",
+ "absolute top-0 left-0 flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer group pointer-events-auto",
  isBlack ? "" : ""
  )}
  title={t('txt_36386d')}
@@ -189,8 +191,7 @@ export const OrbitalPossessionProfile = ({
  <div className="relative w-10 h-10 flex items-center justify-center pointer-events-none">
  
  {/* 主图 (大位) */}
- <motion.div 
- 
+ <div 
  className={cn(
  "relative z-10 w-10 h-10 rounded-full flex items-center justify-center overflow-hidden"
  )}
@@ -201,7 +202,7 @@ export const OrbitalPossessionProfile = ({
  ) : (
  <span className={cn(" text-sm", isBlack ? "text-black" : "text-white")}>{activeProfile.name[0]}</span>
  )}
- </motion.div>
+ </div>
 
  {/* 卫星 (小位) - 点击互换或显示待指派 */}
  <motion.div
@@ -255,6 +256,7 @@ export const OrbitalPossessionProfile = ({
  >
  {activeProfile.id}
  </motion.div>
+ </div>
  </div>
  </div>
 
