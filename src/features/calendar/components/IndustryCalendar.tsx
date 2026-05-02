@@ -728,7 +728,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
 
  // 权限拦截：只能修改自己的员工，禁止在别人的排期上开单
- if (isPermissionEditSelf && resourceId && resourceId !== myStaffProfile?.id && resourceId !== myStaffProfile?.frontendId) {
+ if (isPermissionEditSelf && crosshairResourceId && crosshairResourceId !== myStaffProfile?.id && crosshairResourceId !== myStaffProfile?.frontendId) {
  console.log('Permission Denied: Can only edit self');
  return;
  }
@@ -754,7 +754,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // 不在这里拦截，直接打开窗口，在窗口内渲染悬浮续命遮罩
  openBookingModal();
- }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, isPermissionEditSelf, myStaffProfile?.id, myStaffProfile?.frontendId, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
+ }, [services.length, subscription.isLoaded, isReadOnlyMode, isPermissionReadOnly, isPermissionEditSelf, myStaffProfile?.id, myStaffProfile?.frontendId, crosshairResourceId, openSubscriptionModal, subscriptionTier, trialStartedAt, empireId, openBookingModal]);
 
  const handleGridClick = useCallback(async (resourceId?: string, time?: string, dateStr?: string) => {
  // --- 新增：空状态防御机制（结界） ---
