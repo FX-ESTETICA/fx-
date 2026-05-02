@@ -1108,8 +1108,8 @@ export function DualPaneBookingModal({
  <div 
  key="checkout-pane"
  className={cn(
- "relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 rounded-2xl touch-pan-y pointer-events-auto",
- isLight ? " bg-white/50" : " bg-black/50"
+ "relative z-10 w-full max-w-[800px] h-auto flex flex-col justify-between p-6 rounded-2xl touch-pan-y pointer-events-auto border",
+ isLight ? "bg-transparent border-black/20" : "bg-transparent border-white/20"
  )}
  >
  {/* 顶角关闭 / 返回按钮 */}
@@ -1520,15 +1520,10 @@ export function DualPaneBookingModal({
  {/* 核心双窗容器 (Glassmorphism) */}
         <main className={cn(
           "w-full h-auto min-h-[550px] md:h-[550px] flex flex-col md:flex-row relative group rounded-2xl pointer-events-auto overflow-hidden border",
-          isLight ? "bg-white/50 border-black/10" : "bg-black/50 border-white/10",
+          isLight ? "bg-transparent border-black/20" : "bg-transparent border-white/20",
           isAIPending ? " grayscale-[0.2]" : ""
         )}>
- <button 
-          onClick={handleClose} 
-          className={cn("absolute top-4 right-4 z-50 transition-opacity", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* 注意：已移除原先横跨整个 main 的右上角关闭按钮 X，将其下放到了内部面板中 */}
  {/* ===================== 左侧/顶部：控制台面板 ===================== */}
         <section 
           className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 flex flex-col gap-4 relative z-10 shrink-0"
@@ -1541,11 +1536,11 @@ export function DualPaneBookingModal({
  <div className="space-y-1.5">
  <label className={cn("text-[11px] tracking-widest uppercase", isLight ? "text-black" : "text-white")}>{t('txt_ef3505')}</label>
  <div 
- className={cn(
- "border rounded-lg p-2 min-h-[48px] flex items-center cursor-text overflow-hidden",
- isLight ? "bg-white/40" : "bg-black/40",
- activePaneMode === 'service' ? `${isLight ? "border-[#8B7355]" : "border-[#FDF5E6]"}` : `${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"} `
- )}
+                className={cn(
+                  "border rounded-lg p-2 min-h-[48px] flex items-center cursor-text overflow-hidden",
+                  "bg-transparent transition-colors",
+                  activePaneMode === 'service' ? `${isLight ? "border-black/50" : "border-white/50"}` : `${isLight ? "border-black/20" : "border-white/20"} `
+                )}
  onClick={() => {
  // 终极修复：由于内部的胶囊 (button) 已经有了 e.stopPropagation()，
  // 能走到这一层的点击，必然是点在了空白处、透明输入框、或者提示文字上。
@@ -1625,17 +1620,17 @@ export function DualPaneBookingModal({
  <div className="space-y-1.5">
  <label className={cn("text-[11px] tracking-widest uppercase", isLight ? "text-black" : "text-white")}>{t('txt_32fd76')}</label>
  <div 
- className={cn(
- "border rounded-lg p-2 min-h-[48px] flex items-center gap-2 cursor-text relative group",
- isLight ? "bg-white/40" : "bg-black/40",
- activePaneMode === 'member' ? `${isLight ? "border-[#8B7355]" : "border-[#FDF5E6]"}` : `${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"} `
- )}
- onClick={() => {
- setActivePaneMode('member');
- setIsMemberInputFocused(true); // 点击整个区域时触发输入模式
- }}
- >
- <User className={cn("w-3 h-3 shrink-0", activePaneMode === 'member' ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)} />
+                className={cn(
+                  "border rounded-lg p-2 min-h-[48px] flex items-center gap-2 cursor-text relative group",
+                  "bg-transparent transition-colors",
+                  activePaneMode === 'member' ? `${isLight ? "border-black/50" : "border-white/50"}` : `${isLight ? "border-black/20" : "border-white/20"} `
+                )}
+                onClick={() => {
+                  setActivePaneMode('member');
+                  setIsMemberInputFocused(true); // 点击整个区域时触发输入模式
+                }}
+              >
+                <User className={cn("w-3 h-3 shrink-0 transition-colors", activePaneMode === 'member' ? `${isLight ? "text-black/80" : "text-white/80"}` : `${isLight ? "text-black/40" : "text-white/40"}`)} />
  
  {/* 终极极简交互：如果处于非输入状态，且有 phoneTracks[0] 则说明有记录，如果为空则显示 placeholder */}
  {!isMemberInputFocused && phoneTracks[0] ? (
@@ -1901,22 +1896,39 @@ export function DualPaneBookingModal({
 
       {/* ===================== 右侧/底部：动态监视器区 ===================== */}
       <section 
-        className="flex-1 h-auto min-h-[250px] md:min-h-0 md:h-full p-4 md:p-6 pb-4 relative z-10 overflow-hidden"
+        className={cn(
+          "flex-1 h-auto min-h-[250px] md:min-h-0 md:h-full p-2 relative z-10 overflow-hidden flex flex-col",
+          "md:border-l",
+          isLight ? "border-black/20" : "border-white/20"
+        )}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
  {activePaneMode === 'service' && (
- // 服务项目选择矩阵与人员分配
- <div className="h-full flex flex-col overflow-hidden relative">
- {/* 分类标签导航 */}
- <div className="flex gap-[20px] pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none">
+ // 框中框法则：内部透明卡片容器
+ <div className={cn(
+ "flex-1 flex flex-col overflow-hidden relative rounded-xl border p-4 pt-10",
+ isLight ? "border-black/20" : "border-white/20"
+ )}>
+ {/* 下放的绝对控制权：内框专属的关闭按钮 */}
+ <button 
+ onClick={handleClose} 
+ className={cn("absolute top-3 right-4 z-50 transition-opacity", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
+ >
+ <X className="w-5 h-5" />
+ </button>
+
+ {/* 分类标签导航 - 恢复与项目矩阵左对齐，整体下移避开X */}
+ <div className="flex gap-[20px] pb-3 mb-4 overflow-x-auto no-scrollbar shrink-0 sticky top-0 z-10 pointer-events-none pl-[92px] pr-8">
  {categories.map(cat => (
  <button
  key={cat.id}
  onClick={() => setActiveCategory(cat.id)}
  className={cn(
- "text-[15px] whitespace-nowrap uppercase tracking-widest pointer-events-auto",
- isLight ? "text-black " : "text-white "
+ "text-[13px] whitespace-nowrap uppercase tracking-widest pointer-events-auto transition-colors",
+ activeCategory === cat.id 
+ ? (isLight ? "text-black font-medium" : "text-white font-medium")
+ : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
  )}
  >
  {(cat.name || '').replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()}
@@ -2042,8 +2054,16 @@ export function DualPaneBookingModal({
 
  {activePaneMode === 'member' && (
  <div 
- className="h-full flex flex-col p-2 overflow-hidden relative"
+ className="h-full flex flex-col p-4 pt-10 overflow-hidden relative rounded-xl border"
+ style={{ borderColor: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }}
  >
+ {/* 下放的绝对控制权：内框专属的关闭按钮 */}
+ <button 
+ onClick={handleClose} 
+ className={cn("absolute top-3 right-4 z-50 transition-opacity", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
+ >
+ <X className="w-5 h-5" />
+ </button>
  {/* 1. 顶部：核心身份与消费概览 (双轨ID跨域融合架构) */}
  <div className="flex items-start justify-between pb-4 mb-4 shrink-0 px-2 relative pt-2">
  {/* 左侧和中部容器 */}
