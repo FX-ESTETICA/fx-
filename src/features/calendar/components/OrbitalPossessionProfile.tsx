@@ -131,34 +131,35 @@ export const OrbitalPossessionProfile = ({
  // 如果没有店长数据，降级显示原始的单卡片，防崩溃
  if (!managerData) {
  return (
- <div className="space-y-1">
+ <div className="space-y-1 select-none">
  <div 
  onClick={onNavigateHome}
  className={cn(
- "flex items-center gap-3 p-3 rounded-xl bg-transparent border cursor-pointer group",
- isBlack ? "border-black/10 " : "border-white/10 "
+ "flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer group",
+ isBlack ? "" : ""
  )}
  title={t('txt_36386d')}
  >
- <div className={cn(
- "w-8 h-8 rounded-full border flex items-center justify-center text-xs overflow-hidden",
- isBlack ? "bg-black/5 border-black/10 text-black" : "bg-white/5 border-white/10 text-white"
- )}>
+ {/* 左侧：星轨容器 (与主UI保持完全一致的骨架) */}
+ <div className="relative w-10 h-10 flex items-center justify-center pointer-events-none">
+ <div className={cn("relative z-10 w-10 h-10 rounded-full flex items-center justify-center overflow-hidden")}>
  {bossData.avatar ? (
  // eslint-disable-next-line @next/next/no-img-element
  <img src={bossData.avatar} alt="avatar" className="w-full h-full object-cover" />
  ) : (
- bossData.name[0]
+ <span className={cn(" text-sm", isBlack ? "text-black" : "text-white")}>{bossData.name[0]}</span>
  )}
  </div>
- <div>
- <div className={cn("text-xs uppercase ", isBlack ? "text-black" : "text-white")}>{bossData.name}</div>
+ </div>
+ {/* 右侧：信息容器 */}
+ <div className="flex flex-col justify-center h-full min-w-[120px] relative">
+ <div className={cn("text-xs uppercase tracking-wider ", isBlack ? "text-black" : "text-white")}>{bossData.name}</div>
  <div className={cn("text-[11px] tracking-widest ", isBlack ? "text-black" : "text-white")}>{bossData.id}</div>
  </div>
  </div>
  {shopName && (
- <div className={cn("flex items-center gap-2 mt-2 ml-4 text-[11px] ", isBlack ? "text-black " : "text-white")}>
- <div className={cn("w-px h-4 ", isBlack ? "bg-black/20" : "bg-white/20")} />
+ <div className={cn("flex items-center gap-2 mt-1 ml-6 text-[11px] ", isBlack ? "text-black " : "text-white")}>
+ <div className={cn("w-px h-4", isBlack ? "bg-black/20" : "bg-white/20")} />
  <span className="truncate max-w-[150px]">{t('txt_680885')}{shopName}</span>
  </div>
  )}
@@ -177,12 +178,10 @@ export const OrbitalPossessionProfile = ({
 
  return (
  <div className="space-y-1 select-none">
- <div className="relative h-[68px] flex items-start justify-start pointer-events-none">
- 
  <div 
  onClick={onNavigateHome}
  className={cn(
- "absolute top-0 left-0 flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer group pointer-events-auto",
+ "flex items-center gap-4 p-3 rounded-xl bg-transparent border border-transparent cursor-pointer group",
  isBlack ? "" : ""
  )}
  title={t('txt_36386d')}
@@ -191,7 +190,8 @@ export const OrbitalPossessionProfile = ({
  <div className="relative w-10 h-10 flex items-center justify-center pointer-events-none">
  
  {/* 主图 (大位) */}
- <div 
+ <motion.div 
+ 
  className={cn(
  "relative z-10 w-10 h-10 rounded-full flex items-center justify-center overflow-hidden"
  )}
@@ -202,7 +202,7 @@ export const OrbitalPossessionProfile = ({
  ) : (
  <span className={cn(" text-sm", isBlack ? "text-black" : "text-white")}>{activeProfile.name[0]}</span>
  )}
- </div>
+ </motion.div>
 
  {/* 卫星 (小位) - 点击互换或显示待指派 */}
  <motion.div
@@ -256,7 +256,6 @@ export const OrbitalPossessionProfile = ({
  >
  {activeProfile.id}
  </motion.div>
- </div>
  </div>
  </div>
 
