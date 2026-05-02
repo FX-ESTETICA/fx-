@@ -284,13 +284,13 @@ export const NebulaConfigHub = ({
  className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-transparent z-[102] flex flex-col pointer-events-auto"
  >
  {/* 头部 */}
- <div className={cn("p-6 border-b flex items-center justify-between shrink-0", isLight ? "border-black/5" : "border-white/5")}>
- {/* 左侧：标题与图标 */}
- <div className="flex items-center gap-3">
- <div className="w-8 h-8 rounded-full flex items-center justify-center relative">
- <Settings className="w-4 h-4" />
- </div>
- <div>
+        <div className={cn("p-6 border-b flex items-center justify-between shrink-0", isLight ? "border-black/5" : "border-white/5")}>
+          {/* 左侧：标题与图标 */}
+          <div className="flex items-center gap-3">
+            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center relative", isLight ? "text-black" : "text-white")}>
+              <Settings className="w-4 h-4" />
+            </div>
+            <div>
  <h2 className={cn("text-sm uppercase tracking-widest flex items-center gap-2", isLight ? "text-black" : "text-white")}>
  {t('txt_406bc4')}
  </h2>
@@ -361,7 +361,12 @@ export const NebulaConfigHub = ({
  ].map((tab) => (
  <button
  key={tab.id}
- onClick={() => setActiveTab(tab.id as MainTab)}
+ onClick={() => {
+   if (editingContext.type) {
+     handleContextualCancel();
+   }
+   setActiveTab(tab.id as MainTab);
+ }}
  className={cn(
  "min-w-[80px] flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-2 border border-transparent",
  isLight ? "text-black" : "text-white"
@@ -408,17 +413,16 @@ export const NebulaConfigHub = ({
 
  {/* 底部 Contextual 操作栏 (仅在编辑时显示) */}
  {editingContext.type && (
- <div className={cn("absolute bottom-0 left-0 w-full p-6 border-t z-50 ", isLight ? "bg-white/80 border-black/10" : "bg-black/80 border-white/5")}
- >
- <div className="flex gap-4">
+ <div className={cn("absolute bottom-0 left-0 w-full p-6 z-50 bg-transparent")}>
+ <div className={cn("flex rounded-2xl border overflow-hidden", isLight ? "bg-transparent backdrop-blur-md border-black/10 " : "bg-transparent backdrop-blur-md border-white/10 ")}>
  <button
  onClick={handleContextualCancel}
- className={cn("flex-1 py-4 rounded-2xl border uppercase tracking-widest text-xs", isLight ? "bg-black/5 border-black/10 text-black " : "bg-white/5 border-white/10 text-white ")}
+ className={cn("flex-1 py-4 uppercase tracking-widest text-xs border-r", isLight ? "text-black border-black/10 hover:bg-black/5" : "text-white border-white/10 hover:bg-white/5")}
  >
  {t('txt_625fb2')}</button>
  <button
  onClick={handleContextualSave}
- className="flex-[2] py-4 rounded-2xl text-black uppercase tracking-widest text-xs"
+ className={cn("flex-[2] py-4 uppercase tracking-widest text-xs", isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5")}
  >
  {editingContext.type === 'staff' ? t('txt_dc8d03') : t('txt_49e56c')}
  </button>
@@ -826,7 +830,7 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
  <button 
  onClick={() => handleToggleClosedRegular(key, !isClosed)}
  className={cn("px-2 py-0.5 text-[11px] tracking-widest rounded-sm ", 
- isClosed ? (isLight ? "text-black" : "text-white") : " "
+ isLight ? "text-black" : "text-white"
  )}
  >
  {isClosed ? '休息' : '营业'}
@@ -891,7 +895,7 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
  <button 
  onClick={() => handleToggleClosedSpecial(dateStr, !specialConfig.isClosed)}
  className={cn("px-2 py-0.5 text-[11px] tracking-widest rounded-sm ", 
- specialConfig.isClosed ? (isLight ? "text-black" : "text-white") : " "
+ isLight ? "text-black" : "text-white"
  )}
  >
  {specialConfig.isClosed ? '休息' : '营业'}
@@ -1760,7 +1764,7 @@ const ServicesConfig = ({
  const activeCategoryName = categories.find(c => c.id === activeCategoryId)?.name || "未选择";
 
  return (
- <div className="space-y-8 pb-24">
+ <div className="space-y-8 pb-32">
  {/* 分类与服务列表 */}
  {categories.map((cat) => {
  const catServices = services.filter(s => s.categoryId === cat.id);
@@ -1768,7 +1772,7 @@ const ServicesConfig = ({
  
  
  return (
- <div key={cat.id} className={cn("space-y-3 p-4 rounded-xl border", isActive ? (isLight ? "bg-black/5 " : "bg-white/[0.02] ") : "border-transparent")}>
+ <div key={cat.id} className="space-y-3 p-4">
  <div className={cn("flex items-center justify-between border-b pb-2 group/header", isLight ? "border-black/10" : "border-white/10")}>
  {editingCategoryId === cat.id ? (
  <input
@@ -1957,7 +1961,7 @@ const ServicesConfig = ({
  })}
 
  {/* 底部全局指挥舱 (Omni-Input Core) */}
- <div className="sticky bottom-0 left-0 w-full pt-4 pb-2 z-30">
+      <div className="fixed bottom-0 right-0 w-full md:w-[480px] p-6 pt-4 pb-6 z-40">
  
  {/* 透明遮罩：用于点击外部关闭下拉菜单 */}
  {isDropdownOpen && (
@@ -1967,7 +1971,7 @@ const ServicesConfig = ({
  />
  )}
 
- <div className={cn("relative group flex items-center border rounded-2xl p-1.5 z-50", isLight ? "bg-transparent border-black/10 " : "bg-transparent border-white/10 ")}>
+ <div className={cn("relative group flex items-center border rounded-2xl p-1.5 z-50", isLight ? "bg-transparent backdrop-blur-md border-black/10 " : "bg-transparent backdrop-blur-md border-white/10 ")}>
  
  {/* 上下文 Badge (交互式 Dropdown) - 始终显示 */}
  <div className="relative">
