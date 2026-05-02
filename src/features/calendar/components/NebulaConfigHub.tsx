@@ -91,52 +91,68 @@ export const NebulaConfigHub = ({
  const [localServices, setLocalServices] = useState<ServiceItem[]>(services);
 
  const [, setSyncStatus] = useState<'idle' | 'syncing' | 'saved' | 'error'>('idle');
- const [activeEditors, setActiveEditors] = useState<Record<string, any>>({});
- const initialLoadRef = useRef(false);
- const prevDataRef = useRef("");
+  const [activeEditors, setActiveEditors] = useState<Record<string, any>>({});
+  const initialLoadRef = useRef(false);
+  const prevDataRef = useRef("");
 
- // 【全息协同雷达 (Holographic Presence)】: 仅负责人员在线状态显示
- useEffect(() => {
- if (!isOpen || !shopId) return;
+  // 【静止防闪烁锁】：利用 Ref 缓存当前的 activeEditors，用于在闭包中进行同步深度比对
+  const activeEditorsRef = useRef(activeEditors);
+  useEffect(() => {
+    activeEditorsRef.current = activeEditors;
+  }, [activeEditors]);
 
- const channelName = `config_presence_${shopId}`;
- const channel = supabase.channel(channelName, {
- config: {
- presence: {
- key: user?.id || `guest_${Date.now()}`
- }
- }
- });
+  // 【依赖降维拆解】：提取绝对不变的基本类型字符串，彻底切断 React 循环重绘风暴
+  const userIdStr = user?.id || `guest_${Date.now()}`;
+  const userNameStr = businessName || (user as any)?.name || (user as any)?.user_metadata?.full_name || (user as any)?.phone || 'BOSS';
+  const userAvatarStr = businessAvatar || (user as any)?.user_metadata?.avatar_url || null;
 
- const userName = businessName || (user as any)?.name || (user as any)?.user_metadata?.full_name || (user as any)?.phone || 'BOSS';
- const userAvatar = businessAvatar || (user as any)?.user_metadata?.avatar_url || null;
+  // 【全息协同雷达 (Holographic Presence)】: 仅负责人员在线状态显示
+  useEffect(() => {
+    if (!isOpen || !shopId) return;
 
- channel
- .on('presence', { event: 'sync' }, () => {
- const state = channel.presenceState();
- const activeUsers: Record<string, any> = {};
- for (const [key, presences] of Object.entries(state)) {
- if (presences && presences.length > 0) {
- activeUsers[key] = presences[0];
- }
- }
- setActiveEditors(activeUsers);
- })
- .subscribe(async (status) => {
- if (status === 'SUBSCRIBED') {
- await channel.track({
- name: userName,
- avatar: userAvatar,
- status: 'viewing',
- color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
- });
- }
- });
+    const channelName = `config_presence_${shopId}`;
+    const channel = supabase.channel(channelName, {
+      config: {
+        presence: {
+          key: userIdStr
+        }
+      }
+    });
 
- return () => {
- supabase.removeChannel(channel);
- };
- }, [isOpen, shopId, user, businessName, businessAvatar]);
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const activeUsers: Record<string, any> = {};
+        for (const [key, presences] of Object.entries(state)) {
+          if (presences && presences.length > 0) {
+            activeUsers[key] = presences[0];
+          }
+        }
+        
+        // 【物理阻断】：深度比对，只有在人员真有变动时才触发重绘
+        const currentStr = JSON.stringify(activeEditorsRef.current);
+        const newStr = JSON.stringify(activeUsers);
+        if (currentStr !== newStr) {
+          setActiveEditors(activeUsers);
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            name: userNameStr,
+            avatar: userAvatarStr,
+            status: 'viewing',
+            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  // 核心修复：绝对禁止将 user 对象或可能变化的 Props 放入依赖数组！只依赖这几个基本类型字符串
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, shopId, userIdStr, userNameStr, userAvatarStr]);
 
  // 【单向数据流实时同步】：绝对信任来自外部 (Supabase DB onUpdate 或 全局广播) 的数据推送
  useEffect(() => {
