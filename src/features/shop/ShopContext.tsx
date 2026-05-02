@@ -127,6 +127,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   // ==========================================
   // 全局门店配置中枢 (Shop Config Source of Truth)
   // ==========================================
+  // 【水合安全】：初始渲染使用 null，在 useEffect 中提取快照以避免 SSR 报错
   const [shopConfig, setShopConfig] = useState<any | null>(null);
   const [isShopConfigLoaded, setIsShopConfigLoaded] = useState(false);
 
@@ -143,6 +144,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   // ==========================================
   // 全局订单中枢 (Bookings Source of Truth)
   // ==========================================
+  // 【水合安全】：初始渲染使用 []，在 useEffect 中提取快照以避免 SSR 报错
   const [globalBookings, setGlobalBookings] = useState<any[]>([]);
 
   // 将加载订单提炼成一个全局的刷新函数，任何弹窗保存后都可以直接调它，代替原来的事件
@@ -159,6 +161,10 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         duration: booking.duration ?? 0
       }));
       setGlobalBookings(safeBookings);
+      // 【快照覆写】：真实数据就绪后，静默写入硬盘，供下次 0 秒打开
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`gx_bookings_snapshot_${resolvedActiveShopId}`, JSON.stringify(safeBookings));
+      }
     } catch (e) {
       console.error("[ShopContext] Failed to load cloud bookings:", e);
     }
@@ -188,6 +194,22 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     let isMounted = true;
     setIsShopConfigLoaded(false);
 
+    // 【水合安全 0秒快照加载】: 在发起网络请求前，瞬间同步读取并更新状态。
+    // React 18 会将这个 Effect 中的同步状态更新合并并在绘制前（paint）刷新，从而实现既不报 Hydration Error 又无闪烁的完美 0 秒开屏！
+    try {
+      const cachedConfig = localStorage.getItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
+      if (cachedConfig && isMounted) {
+        setShopConfig(JSON.parse(cachedConfig));
+        setIsShopConfigLoaded(true);
+      }
+      const cachedBookings = localStorage.getItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
+      if (cachedBookings && isMounted) {
+        setGlobalBookings(JSON.parse(cachedBookings));
+      }
+    } catch (e) {
+      console.error("[ShopContext] Failed to load snapshot", e);
+    }
+
     // 1. Initial Fetch
     const fetchShopConfig = async () => {
       try {
@@ -199,8 +221,13 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
         if (error) throw error;
         if (isMounted) {
-          setShopConfig(data?.config || {});
+          const finalConfig = data?.config || {};
+          setShopConfig(finalConfig);
           setIsShopConfigLoaded(true);
+          // 【快照覆写】：真实数据就绪后，静默写入硬盘，供下次 0 秒打开
+          if (typeof window !== "undefined") {
+            localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(finalConfig));
+          }
         }
       } catch (err) {
         console.error("[ShopContext] Failed to load shop config:", err);
@@ -213,6 +240,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     refreshBookings();
 
     // 2. Realtime Subscription (Config)
+    let configDebounceTimer: NodeJS.Timeout | null = null;
     const channelConfig = supabase
       .channel(`shop_config_${resolvedActiveShopId}`)
       .on(
@@ -226,7 +254,15 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && isMounted) {
+          console.log(`[ShopContext] Realtime Config channel SUBSCRIBED for shop ${resolvedActiveShopId}, fetching latest state...`);
+          if (configDebounceTimer) clearTimeout(configDebounceTimer);
+          configDebounceTimer = setTimeout(() => {
+            fetchShopConfig();
+          }, 300);
+        }
+      });
       
     // 3. Realtime Subscription (Bookings)
     // 接管原有的订单监听，直接在此处触发全局订单拉取
@@ -241,6 +277,13 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
       console.log(`[ShopContext] Realtime Bookings change received for shop ${resolvedActiveShopId}:`, payload);
       handleBookingUpdate();
+    }, () => {
+      // 【世界级物理探针】：无论是初次挂载，还是从长达数小时的后台挂起中苏醒重连
+      // 只要 WebSocket 物理通道重建成功，立刻拉取全量快照，填补断连期间的数据黑洞！
+      if (isMounted) {
+        console.log(`[ShopContext] Realtime Bookings channel SUBSCRIBED for shop ${resolvedActiveShopId}, syncing full state...`);
+        handleBookingUpdate(); // 复用已有的防抖逻辑
+      }
     });
 
     return () => {
@@ -259,7 +302,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     // 乐观更新
     const patch = { [key]: payload };
-    setShopConfig((prev: any) => ({ ...(prev || {}), ...patch }));
+    setShopConfig((prev: any) => {
+      const newState = { ...(prev || {}), ...patch };
+      // 【乐观更新快照同步】
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(newState));
+      }
+      return newState;
+    });
 
     try {
       // 因为数据库的 patch_shop_config RPC 可能存在静默失败（返回 204 但未实际写入），
@@ -289,7 +339,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
 
     // 乐观更新
-    setShopConfig((prev: any) => ({ ...(prev || {}), ...patchObj }));
+    setShopConfig((prev: any) => {
+      const newState = { ...(prev || {}), ...patchObj };
+      // 【乐观更新快照同步】
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(newState));
+      }
+      return newState;
+    });
 
     try {
       // 强制使用 Update 兜底，绕过失效的 RPC
@@ -420,7 +477,37 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
                 });
               }
             )
-            .subscribe();
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED' && isMounted) {
+                console.log(`[ShopContext] Realtime Empire sub channel SUBSCRIBED for ${empireId}, fetching latest state...`);
+                // 递归调用虽然不太好，但可以提取出来或者直接触发重新拉取。由于 fetchSubscriptionData 已经定义在作用域内，可以直接调。
+                // 为了防止无限死循环，确保 fetchSubscriptionData 内部不会重置 channel，我们可以通过一个 fetchState 独立函数。
+                // 实际上，这里我们可以只发送一条查询。为了简单且安全，直接重新查库
+                supabase
+                  .from('profiles')
+                  .select('subscription_tier, trial_started_at, current_period_end, grace_period_actions_left')
+                  .eq('id', empireId)
+                  .maybeSingle()
+                  .then(({ data: profileData }) => {
+                    if (profileData && isMounted) {
+                      setSubscription(prev => {
+                        if (activeRole === 'boss') return prev;
+                        const updatedState = {
+                          ...prev,
+                          subscriptionTier: profileData.subscription_tier || 'FREE',
+                          trialStartedAt: profileData.trial_started_at,
+                          subscriptionEndsAt: profileData.current_period_end,
+                          gracePeriodActionsLeft: profileData.grace_period_actions_left ?? null,
+                        };
+                        if (typeof window !== "undefined") {
+                          localStorage.setItem("gx_empire_sub_snapshot", JSON.stringify(updatedState));
+                        }
+                        return updatedState;
+                      });
+                    }
+                  });
+              }
+            });
         }
 
       } catch (e) {

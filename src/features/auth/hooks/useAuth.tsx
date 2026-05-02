@@ -599,6 +599,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 我们需要用户的 gxId 来订阅 bindings 表的变动
     const profileGxId = 'gxId' in user ? user.gxId : null;
 
+    // 【防爆锁】：多个频道如果同时 SUBSCRIBED，不要疯狂并发请求 refreshUserData
+    let subscribedDebounceTimer: NodeJS.Timeout | null = null;
+    const handleSubscribedRefresh = (channelName: string) => {
+      console.log(`[AuthProvider] ${channelName} SUBSCRIBED, queuing refreshUserData...`);
+      if (subscribedDebounceTimer) clearTimeout(subscribedDebounceTimer);
+      subscribedDebounceTimer = setTimeout(() => {
+        refreshUserData();
+      }, 500); // 500ms 防抖，将所有通道的同时苏醒合并为 1 次 Fetch
+    };
+
     const profileSubscription = supabase
       .channel(`public:profiles:${user.id}`)
       .on(
@@ -609,7 +619,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await refreshUserData();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') handleSubscribedRefresh('Profile channel');
+      });
 
     const bindingsSubscription = supabase
       .channel(`public:bindings:${profileGxId}`)
@@ -621,7 +633,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await refreshUserData();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') handleSubscribedRefresh('Bindings channel');
+      });
       
     // 监听商户申请状态变更 (实现秒级入驻闭环)
     const applicationsSubscription = supabase
@@ -634,7 +648,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await refreshUserData();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') handleSubscribedRefresh('Applications channel');
+      });
 
     // 修复：取消全局无 filter 的 shops 监听，因为配置更新会导致死循环
     // 只有在真的需要时（比如新建了店）才手动触发刷新

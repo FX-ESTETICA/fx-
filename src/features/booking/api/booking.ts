@@ -860,7 +860,7 @@ export const BookingService = {
     return channel;
   },
 
-  subscribeToShopBookings(shopId: string, onUpdate: (payload: BookingRealtimePayload) => void) {
+  subscribeToShopBookings(shopId: string, onUpdate: (payload: BookingRealtimePayload) => void, onSubscribed?: () => void) {
     if (isMockMode || !shopId || shopId === 'default') return null;
 
     const channel = supabase
@@ -877,12 +877,16 @@ export const BookingService = {
           onUpdate(payload);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && onSubscribed) {
+          onSubscribed();
+        }
+      });
 
     return channel;
   },
 
-  subscribeToShopConfig(shopId: string, onUpdate: (payload: { new?: { config?: ShopConfig } }) => void) {
+  subscribeToShopConfig(shopId: string, onUpdate: (payload: { new?: { config?: ShopConfig } }) => void, onSubscribed?: () => void) {
     if (isMockMode || !shopId || shopId === 'default') return null;
 
     const channel = supabase
@@ -899,7 +903,11 @@ export const BookingService = {
           onUpdate(payload as any);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && onSubscribed) {
+          onSubscribed();
+        }
+      });
 
     return channel;
   },
