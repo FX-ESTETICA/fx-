@@ -1102,7 +1102,7 @@ export function DualPaneBookingModal({
  />
 
  {/* 滚动容器：允许在移动端键盘弹起时进行瀑布流滑动 */}
- <div className="fixed inset-0 overflow-y-auto pointer-events-none flex flex-col items-center justify-start md:justify-center py-4 md:py-8 custom-scrollbar">
+ <div className="fixed inset-0 overflow-y-auto pointer-events-none flex flex-col items-center justify-start md:justify-center py-4 md:py-8 no-scrollbar">
  {isCheckoutMode ? (
  /* ===================== Neon Core 结账舱 ===================== */
  <div 
@@ -1517,18 +1517,18 @@ export function DualPaneBookingModal({
  </div>
  )}
 
- {/* 核心双窗容器 (Glassmorphism + Zero Border) */}
- <main className={cn(
- "w-full h-auto min-h-[500px] md:h-[450px] flex flex-col md:flex-row relative group rounded-2xl pointer-events-auto overflow-hidden",
- isLight ? "bg-white/50" : "bg-black/50",
- isAIPending ? " grayscale-[0.2]" : ""
- )}>
+ {/* 核心双窗容器 (Glassmorphism) */}
+        <main className={cn(
+          "w-full h-auto min-h-[550px] md:h-[550px] flex flex-col md:flex-row relative group rounded-2xl pointer-events-auto overflow-hidden border",
+          isLight ? "bg-white/50 border-black/10" : "bg-black/50 border-white/10",
+          isAIPending ? " grayscale-[0.2]" : ""
+        )}>
  <button 
- onClick={handleClose} 
- className={cn("absolute top-4 right-4 z-50", isLight ? "text-black " : "text-white ")}
- >
- <X className="w-5 h-5" />
- </button>
+          onClick={handleClose} 
+          className={cn("absolute top-4 right-4 z-50 transition-opacity", isLight ? "text-black/30 hover:text-black/80" : "text-white/30 hover:text-white/80")}
+        >
+          <X className="w-5 h-5" />
+        </button>
  {/* ===================== 左侧/顶部：控制台面板 ===================== */}
         <section 
           className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 md:pb-24 flex flex-col gap-4 relative z-10 shrink-0"
@@ -1642,7 +1642,7 @@ export function DualPaneBookingModal({
  <div className="flex-1 truncate flex items-center justify-start pl-2">
  <span className={cn(
  "text-[11px] tracking-widest leading-none -translate-y-[1px]",
- matchedProfile || matchedHistoryCustomer || (customerId && !customerId.startsWith('CO')) ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : (isLight ? "text-black" : "text-white")
+ isLight ? "text-black" : "text-white"
  )}>
  {matchedProfile?.name || displayPhone(phoneTracks[0])}
  </span>
@@ -1689,7 +1689,7 @@ export function DualPaneBookingModal({
  <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping `} />
  </div>
  ) : (
- <div className="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col py-1">
+ <div className="max-h-[200px] overflow-y-auto no-scrollbar flex flex-col py-1">
  {fuzzyResults.map((result, idx) => (
  <div 
  key={idx}
@@ -1991,7 +1991,7 @@ export function DualPaneBookingModal({
  </div>
 
  {/* 右侧服务项目矩阵画布 */}
- <div className="flex-1 overflow-y-auto custom-scrollbar pb-4 md:pb-24">
+ <div className="flex-1 overflow-y-auto no-scrollbar pb-4 md:pb-24">
  <div className="grid grid-cols-2 gap-3 pr-2 content-start">
  {services
  .filter(s => s.categoryId === activeCategory)
@@ -2046,25 +2046,24 @@ export function DualPaneBookingModal({
  className="h-full flex flex-col p-2 overflow-hidden relative"
  >
  {/* 1. 顶部：核心身份与消费概览 (双轨ID跨域融合架构) */}
- <div className="flex items-start justify-between pb-4 mb-4 shrink-0 px-2">
- <div className="flex items-center gap-4 w-[75%]">
- {/* 左侧：全息圆形头像 (平台社交身份锚点) */}
- <div className="relative shrink-0">
+ <div className="flex items-start justify-between pb-4 mb-4 shrink-0 px-2 relative pt-2">
+ {/* 左侧和中部容器 */}
+ <div className="flex items-start gap-4 w-full">
+ {/* 左侧：绝对纯净的头像 */}
+ <div className="relative shrink-0 flex flex-col items-center">
  <div className={cn(
- "w-14 h-14 rounded-full flex items-center justify-center relative border-2",
+ "w-12 h-12 rounded-full flex items-center justify-center relative",
  matchedProfile 
  ? "bg-gradient-to-br " // 已匹配 C 端用户
  : matchedHistoryCustomer
- ? `bg-gradient-to-br ${isLight ? "from-[#8B7355]/20" : "from-[#FDF5E6]/20"} to-gx-blue/20 ${isLight ? "border-[#8B7355]/60" : "border-[#FDF5E6]/60"}` // 已匹配 B 端老客
+ ? `bg-gradient-to-br ${isLight ? "from-[#8B7355]/20" : "from-[#FDF5E6]/20"} to-gx-blue/20` // 已匹配 B 端老客
  : (phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO')))
  ? "bg-gradient-to-br "
- : (isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10") // 游离态散客
+ : (isLight ? "bg-black/5" : "bg-white/5") // 游离态散客
  )}>
  <span className={cn(
- "text-xl tracking-widest",
- customerId.startsWith('CO')
- ? (isLight ? "text-black" : "text-white")
- : `bg-gradient-to-br ${isLight ? "from-[#8B7355]" : "from-[#FDF5E6]"} bg-clip-text text-transparent `
+ "text-lg tracking-widest",
+ isLight ? "text-black" : "text-white"
  )}>
  {(() => {
  if (customerId) {
@@ -2077,79 +2076,57 @@ export function DualPaneBookingModal({
  return 'CO';
  })()}
  </span>
- 
- {/* 匹配成功的光晕特效 */}
- {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
- <div 
- className="absolute inset-[-4px] rounded-full border border-dashed pointer-events-none animate-[spin_15s_linear_infinite]"
- />
- )}
  </div>
  </div>
 
- {/* 中部：信息流与双轨 ID 矩阵 */}
- <div className="flex flex-col gap-1 w-full">
- {/* 上层：门店内部档案编号 (业务基石，绝不覆盖) */}
- <div className="flex items-baseline gap-2">
- <div className={cn(
- " text-lg tracking-[0.1em] shrink-0 leading-none",
- customerId.startsWith('CO') 
- ? `${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}` // 散客冷峻单色
- : `bg-gradient-to-r ${isLight ? "from-[#8B7355]" : "from-[#FDF5E6]"} bg-clip-text text-transparent animate-gradient bg-[length:200%_auto] drop-` // VIP 七彩流光
- )}>
- {formatDisplayId(customerId)}
- </div>
- </div>
-
- {/* 中层：历史信标与徽章及名字输入 */}
- <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
- {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
- <>
- {matchedProfile && (
- <span className="text-[11px] uppercase tracking-widest px-1.5 py-0.5 rounded border ">
- 已联动 C端
- </span>
- )}
- {!matchedProfile && matchedHistoryCustomer && (
- <span className={`text-[11px] uppercase tracking-widest px-1.5 py-0.5 rounded ${isLight ? "bg-[#8B7355]/10" : "bg-[#FDF5E6]/10"} border ${isLight ? "border-[#8B7355]/30" : "border-[#FDF5E6]/30"} ${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"}`}>
- 已留存档案
- </span>
- )}
- 
- <span className={cn(
- "text-[11px] italic tracking-widest",
- isLight ? "text-black" : "text-white",
- ""
- )}>
- LV.{Math.floor((realTotalSpent || 0) / 1000)}
- </span>
- </>
- )}
- 
- {/* 名字输入框 (始终显示，供散客录入) */}
+ {/* 中部与右侧容器 (数据流与财务锚点) */}
+ <div className="flex flex-col w-full justify-between h-12 py-0.5">
+ {/* 上行：客户名字 + LV */}
+ <div className="flex items-center gap-2">
  <input 
  type="text"
  autoComplete="off"
  placeholder="客户名字..."
  className={cn(
- "bg-transparent border-b outline-none text-xs w-24 ml-1 px-1",
- isLight ? "border-black/20 text-black placeholder:text-black focus:border-black/50" : "border-white/20 text-white placeholder:text-white focus:border-white/50"
+ "bg-transparent outline-none text-sm w-32 placeholder:tracking-widest",
+ isLight ? "text-black placeholder:text-black/50" : "text-white placeholder:text-white/50"
  )}
  value={customerRealName}
  onChange={(e) => setCustomerRealName(e.target.value)}
  />
- </div>
  
- {/* 下层：电话号码多轨流 */}
- <div className="flex flex-col gap-0.5 mt-1">
+ {(matchedProfile || matchedHistoryCustomer || phoneTracks[0] || newCustomerType || (customerId && !customerId.startsWith('CO'))) && (
+ <span className={cn(
+ "text-xs italic tracking-widest bg-transparent",
+ isLight ? "text-black/40" : "text-white/40"
+ )}>
+ LV.{Math.floor((realTotalSpent || 0) / 1000)}
+ </span>
+ )}
+ </div>
+
+ {/* 下行：ID · 电话 (左对齐) 及 金额 (右对齐) */}
+ <div className="flex items-center justify-between w-full">
+ <div className="flex items-center gap-2">
+ <span className={cn(
+ "text-xs tracking-[0.1em]",
+ isLight ? "text-black/80" : "text-white/80"
+ )}>
+ ID: {formatDisplayId(customerId)}
+ </span>
+
+ <span className={cn("text-xs", isLight ? "text-black/40" : "text-white/40")}>·</span>
+
+ {/* 电话多轨流 */}
+ <div className="flex items-center gap-2">
  {phoneTracks.map((phone, index) => (
- <div key={index} className="flex items-center gap-2 group/phone">
+ <div key={index} className="flex items-center gap-1 group/phone">
  {editingPhoneIndex === index ? (
  <input 
  type="text" 
  autoComplete="off"
  placeholder={t('txt_f3a023')} 
- className={cn(`bg-transparent border-b ${isLight ? "border-[#8B7355]/50" : "border-[#FDF5E6]/50"} outline-none text-sm w-32`, isLight ? "text-black placeholder:text-black" : "text-white placeholder:text-white")}
+ className={cn(`bg-transparent border-b outline-none text-xs w-28`, isLight ? "border-black/30 text-black placeholder:text-black/50" : "border-white/30 text-white placeholder:text-white/50")}
  value={phone}
  onChange={(e) => {
  const newTracks = [...phoneTracks];
@@ -2162,11 +2139,8 @@ export function DualPaneBookingModal({
  ) : (
  <span
  className={cn(
- "text-sm cursor-pointer ",
- isLight ? "" : "",
- customerId.startsWith('CO')
- ? (isLight ? "text-black" : "text-white")
- : `bg-gradient-to-r ${isLight ? "from-[#8B7355]/80" : "from-[#FDF5E6]/80"} bg-clip-text text-transparent `
+ "text-xs cursor-pointer tracking-wider",
+ isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80"
  )}
  onClick={() => !isPhoneMasked && setEditingPhoneIndex(index)}
  >
@@ -2174,12 +2148,12 @@ export function DualPaneBookingModal({
  </span>
  )}
  
- {/* 动态增减按钮 */}
- <div className="flex items-center gap-1">
+ {/* 动态增减按钮 (透明度极简降维) */}
+ <div className="flex items-center opacity-0 group-hover/phone:opacity-100 transition-opacity gap-1 ml-1">
  {index === phoneTracks.length - 1 && !isPhoneMasked && (
  <button
  onClick={() => updatePhoneTracks([...phoneTracks, ''])}
- className={cn("w-4 h-4 rounded-full border flex items-center justify-center text-xs", isLight ? "border-black/20 text-black " : "border-white/20 text-white ")}
+ className={cn("w-3.5 h-3.5 flex items-center justify-center text-[10px]", isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")}
  >
  +
  </button>
@@ -2190,7 +2164,7 @@ export function DualPaneBookingModal({
  const newTracks = phoneTracks.filter((_, i) => i !== index);
  updatePhoneTracks(newTracks);
  }}
- className={cn("w-4 h-4 rounded-full border flex items-center justify-center text-xs", isLight ? "border-black/20 text-black " : "border-white/20 text-white ")}
+ className={cn("w-3.5 h-3.5 flex items-center justify-center text-[10px]", isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")}
  >
  -
  </button>
@@ -2200,20 +2174,22 @@ export function DualPaneBookingModal({
  ))}
  </div>
  </div>
- </div>
- 
- {/* 右侧：总金额 */}
- <div className="flex flex-col items-end shrink-0 pt-1">
- <span className={cn("text-xl tracking-wider mt-4", isLight ? "text-black" : "text-white")}>
+
+ {/* 财务锚点 (右对齐) */}
+ <div className="flex items-center">
+ <span className={cn("text-lg tracking-wider", isLight ? "text-black" : "text-white")}>
  {phoneTracks[0] || newCustomerType || matchedHistoryCustomer || matchedProfile || (customerId && !customerId.startsWith('CO')) 
  ? (isFetchingHistory ? "..." : `¥ ${realTotalSpent.toLocaleString()}`)
  : "¥ 0"}
  </span>
  </div>
  </div>
+ </div>
+ </div>
+ </div>
 
  {/* 2. 中间：过往消费记录卡片 (可滚动区) / 散客极简显示 */}
- <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 mb-4 px-2 pb-2">
+ <div className="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-2 mb-4 px-2 pb-2">
  {phoneTracks[0] || newCustomerType || matchedHistoryCustomer || matchedProfile || (customerId && !customerId.startsWith('CO')) ? (
  <div className="flex flex-col gap-2 pt-2">
  
@@ -2431,7 +2407,7 @@ export function DualPaneBookingModal({
  <div className="relative">
  <textarea 
  placeholder={t('txt_bf9b52')}
- className={cn("w-full bg-transparent border-none outline-none text-xs resize-none h-8 leading-8 px-1 custom-scrollbar overflow-x-hidden whitespace-nowrap", isLight ? "text-black placeholder:text-black" : "text-white placeholder:text-white")}
+ className={cn("w-full bg-transparent border-none outline-none text-xs resize-none h-8 leading-8 px-1 no-scrollbar overflow-x-hidden whitespace-nowrap", isLight ? "text-black placeholder:text-black" : "text-white placeholder:text-white")}
  rows={1}
  style={{ whiteSpace: 'nowrap' }} // 强制单行横向滚动
  />
@@ -2541,7 +2517,7 @@ export function DualPaneBookingModal({
  )}
 
  {activePaneMode === 'date' && (
- <div className="h-full flex flex-col pt-2 pb-4 md:pb-24 overflow-y-auto custom-scrollbar pr-2">
+ <div className="h-full flex flex-col pt-2 pb-4 md:pb-24 overflow-y-auto no-scrollbar pr-2">
  {/* Header: Month and Year with glowing text */}
  <div className="flex items-center justify-between mb-6 px-4 shrink-0">
  <button 
@@ -2823,24 +2799,7 @@ export function DualPaneBookingModal({
  
  </main>
 
- {/* Global styles for custom scrollbar */}
- <style dangerouslySetInnerHTML={{__html: `
- .custom-scrollbar::-webkit-scrollbar {
- width: 4px;
- height: 0px; /* Hide horizontal scrollbar */
- }
- .custom-scrollbar::-webkit-scrollbar-track {
- background: ${isLight ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.02)'};
- border-radius: 4px;
- }
- .custom-scrollbar::-webkit-scrollbar-thumb {
- background: ${isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
- border-radius: 4px;
- }
- .custom-scrollbar::-webkit-scrollbar-thumb:hover {
- background: rgba(6, 182, 212, 0.5);
- }
- `}} />
+ 
  </div>
  )}
  </div>
