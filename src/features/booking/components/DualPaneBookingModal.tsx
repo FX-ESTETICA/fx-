@@ -1761,7 +1761,7 @@ export function DualPaneBookingModal({
  <button
  onClick={() => setActivePaneMode('date')}
  className={cn(
- "flex-1 flex flex-col items-start justify-center p-4 relative group",
+ "flex-1 flex flex-col items-start justify-end p-4 relative group",
  isLight ? "" : ""
  )}
  >
@@ -1770,7 +1770,7 @@ export function DualPaneBookingModal({
  <span className={cn("text-[11px] tracking-[0.2em] uppercase ", isLight ? "text-black " : "text-white ")}>{t('txt_4ff1e7')}</span>
  </div>
  <span className={cn(
- "text-xl tracking-wider ",
+ "text-xl tracking-wider leading-none",
  isLight ? "text-black" : "text-white"
  )}>
  {selectedDate.replace(/\//g, '.')}
@@ -1782,7 +1782,7 @@ export function DualPaneBookingModal({
  <button
  onClick={() => setActivePaneMode('time')}
  className={cn(
- "flex flex-col items-start justify-center",
+ "flex flex-col items-start justify-end",
  isLight ? "" : ""
  )}
  >
