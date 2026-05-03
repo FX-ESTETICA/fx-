@@ -28,7 +28,8 @@ export const BookingScheduler = {
         todayBookings.forEach(b => {
           // 【核心修复】：新建订单在入库时被换发了真实的 UUID，导致 b.id 无法匹配覆盖字典。
           // 必须去认它的 order_no（临时 BKG- 快照），这样才能成功挂载 _needsTimeReflow 标记！
-          const overrideData = manualOverrides[b.id] || (b.order_no && manualOverrides[b.order_no]);
+          const orderNo = b.order_no as string;
+          const overrideData = manualOverrides[b.id] || (orderNo && manualOverrides[orderNo]);
           if (overrideData) {
              Object.assign(b, overrideData);
           }

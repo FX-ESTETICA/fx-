@@ -1029,31 +1029,25 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const dna = useMemo(() => industryDNAs[industry], [industry, industryDNAs]);
 
  const resources: MatrixResource[] = useMemo(() => {
- // 确保在客户端挂载前返回空，避免服务端渲染不一致
- if (!isMounted) return [];
+    // 确保在客户端挂载前返回空，避免服务端渲染不一致
+    if (!isMounted) return [];
 
- let baseResources: MatrixResource[] = [];
+    let baseResources: MatrixResource[] = [];
 
- if (industry === 'medical' || industry === 'expert') {
- baseResources = [
- { id: '1', name: '张医生', role: '主任医师', avatar: '👨‍⚕️', themeColor: '#3b82f6' },
- { id: '2', name: '李医生', role: '副主任', avatar: '👩‍⚕️', themeColor: '#10b981' },
- { id: '3', name: '王专家', role: '资深专家', avatar: '👨‍🔬', themeColor: '#8b5cf6' },
- { id: '4', name: '赵医生', role: '主治医师', avatar: '👩‍🔬', themeColor: '#f59e0b' },
- ];
- } else {
- // 获取当前视图日期的 YYYY-MM-DD 字符串，用于精确比对排班异常
- const viewYear = currentDate.getFullYear();
- const viewMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
- const viewDay = String(currentDate.getDate()).padStart(2, '0');
- const viewDateStr = `${viewYear}-${viewMonth}-${viewDay}`;
-
- // 使用全局 staffs 状态，仅过滤掉离职员工。不再动态删减今天休息的员工（保留列宽）
- let validStaffs = staffs.filter(s => {
- if (s.status === 'resigned') return false;
- 
- return true;
- });
+    if (industry === 'medical' || industry === 'expert') {
+      baseResources = [
+        { id: '1', name: '张医生', role: '主任医师', avatar: '👨‍⚕️', themeColor: '#3b82f6' },
+        { id: '2', name: '李医生', role: '副主任', avatar: '👩‍⚕️', themeColor: '#10b981' },
+        { id: '3', name: '王专家', role: '资深专家', avatar: '👨‍🔬', themeColor: '#8b5cf6' },
+        { id: '4', name: '赵医生', role: '主治医师', avatar: '👩‍🔬', themeColor: '#f59e0b' },
+      ];
+    } else {
+      // 使用全局 staffs 状态，仅过滤掉离职员工。不再动态删减今天休息的员工（保留列宽）
+      let validStaffs = staffs.filter(s => {
+        if (s.status === 'resigned') return false;
+        
+        return true;
+      });
 
  // 【物理权限隔离】：如果是普通员工（非 boss/merchant），且他在系统中有绑定记录
       if (effectiveUserRole === 'user' && (userGxId || userBaseGxId || userMerchantGxId)) {
