@@ -1537,13 +1537,19 @@ export function DualPaneBookingModal({
           isLight ? "bg-transparent border-black/20" : "bg-transparent border-white/20",
           isAIPending ? " grayscale-[0.2]" : ""
         )}>
-        {/* 注意：已移除原先横跨整个 main 的右上角关闭按钮 X，将其下放到了内部面板中 */}
- {/* ===================== 左侧/顶部：控制台面板 ===================== */}
+        {/* ===================== 左侧/顶部：控制台面板 ===================== */}
         <section 
           className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 flex flex-col gap-4 relative z-10 shrink-0"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
+        {/* 左窗右上角安静的 X 控制开关 (纯视觉关闭) */}
+        <button 
+          onClick={handleClose} 
+          className={cn("absolute top-4 right-4 z-50 transition-opacity hover:opacity-100", isLight ? "text-black/30" : "text-white/30")}
+        >
+          <X className="w-4 h-4" />
+        </button>
  
  {/* 表单录入区 */}
  <div className="flex flex-col gap-4 mt-1">
@@ -1844,15 +1850,6 @@ export function DualPaneBookingModal({
  <>
  {editingBooking && (
  <>
- <button 
- onClick={handleMarkAsNoShow}
- className={cn(
- "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
- isLight ? "text-black" : "text-white"
- )}
- >
- 爽 约
- </button>
  {editingBooking.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 1 ? (
  <div className="flex flex-col items-center gap-2">
  <button 
@@ -1887,17 +1884,6 @@ export function DualPaneBookingModal({
  )}
  </>
  )}
- {!editingBooking && (
- <button 
- onClick={handleClose}
- className={cn(
- "py-3.5 bg-transparent text-[12px] uppercase tracking-[0.3em] outline-none transition-opacity hover:opacity-70",
- isLight ? "text-black" : "text-white"
- )}
- >
- 关 闭
- </button>
- )}
  <button 
  onClick={handleConfirmBooking}
  disabled={selectedServices.length === 0}
@@ -1912,7 +1898,7 @@ export function DualPaneBookingModal({
  : "text-white/30 cursor-not-allowed")
  )}
  >
- {editingBooking ? "更 新" : "确 认"}
+ 确 认
  </button>
  </>
       )}
@@ -2015,6 +2001,31 @@ export function DualPaneBookingModal({
  </button>
  );
  })}
+ 
+ {/* 爽约 (No Show) 特殊画笔 */}
+ {editingBooking && (
+ <button
+ onClick={() => {
+ // 当点击爽约画笔时，触发爽约逻辑，并将所有选中的服务标为爽约
+ handleMarkAsNoShow();
+ }}
+ className={cn(
+ "flex items-center justify-start gap-2 p-2 rounded-lg shrink-0 h-[64px] bg-transparent border border-dashed",
+ isLight ? "border-red-500/50 hover:bg-red-500/10" : "border-red-500/50 hover:bg-red-500/10"
+ )}
+ title="标记为爽约 (NO SHOW)"
+ >
+ <div className={cn(
+ "w-2 h-2 rounded-full shrink-0 bg-red-500"
+ )} />
+ <span className={cn(
+ "text-[11px] tracking-wider uppercase text-left truncate",
+ isLight ? "text-red-600" : "text-red-400"
+ )}>
+ 爽约
+ </span>
+ </button>
+ )}
  </div>
 
  {/* 右侧服务项目矩阵画布 */}
