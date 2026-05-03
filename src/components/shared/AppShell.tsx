@@ -77,8 +77,8 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
       </div>
 
       {/* 2. 全息档案舱：0冲突悬浮拦截层 */}
-      {/* 强制拦截：核心资料未填写的用户必须完成引导 (仅对真实登录用户生效) */}
-      {user && !isMockUser && !(user as any).name && <CyberOnboardingModal />}
+      {/* 强制拦截：核心资料未填写（姓名、性别、生日任一缺失）的用户必须完成引导 (仅对真实登录用户生效) */}
+      {user && !isMockUser && (!(user as any).name || !(user as any).gender || (user as any).gender === 'unknown' || !(user as any).birthday) && <CyberOnboardingModal />}
 
       {showBottomTabs && (
         <BottomNavBar className="fixed bottom-0 left-0 right-0" />

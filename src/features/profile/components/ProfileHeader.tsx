@@ -368,74 +368,15 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  </div>
  )}
 
- {/* 右侧僚机 (数字社会区: 名字 + 身份 + ID) - 底部锚定 */}
+ {/* 右侧僚机 (数字社会区: 身份 + ID) - 底部锚定 */}
  <div 
  className="absolute bottom-2 right-0 translate-x-[calc(100%+32px)] z-10 flex flex-col items-start gap-1"
  >
- {/* 名字投影 - 点击展开、复制与修改 */}
- {!isEditingName ? (
- <div 
- onClick={handleCopyName}
- className={cn(
- "text-[18px] md:text-[24px] font-black tracking-widest select-none leading-none mb-1 cursor-pointer pr-2 flex items-center group",
- nameCopyState === "copied" 
- ? "whitespace-nowrap max-w-none" 
- : "truncate max-w-[140px] sm:max-w-[180px] md:max-w-[240px] hover:opacity-80",
- isLight ? "text-black" : "text-white"
- )}
- >
- {getRoleSpecificName()}
- {/* 复制成功指示器 & 改名按钮 */}
- <AnimatePresence>
- {nameCopyState === "copied" && (
- <motion.div
- 
- 
- 
- className="ml-2 flex items-center gap-2"
- >
- <div className={cn("flex items-center ", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
- <Check className="w-4 h-4" strokeWidth={3} />
- <span className="text-[11px] ml-1 tracking-widest uppercase">Copied</span>
- </div>
- <motion.div 
- 
- 
- onClick={handleEnterEditName}
- className={cn("flex items-center justify-center text-[11px] tracking-widest cursor-pointer border rounded px-1.5 py-0.5 whitespace-nowrap", isLight ? "bg-black/40 text-black hover:text-black hover:bg-black/10 border-black/20" : isLight ? "bg-black/40" : "bg-white/40", isLight ? "text-black" : "text-white", isLight ? "hover:text-black" : "hover:text-white", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "border-black/20" : "border-white/20")}
- >
- {t('rename') || '改名'}
- </motion.div>
- </motion.div>
- )}
- </AnimatePresence>
- </div>
- ) : (
- // 编辑态
- <div className="flex items-center mb-1 pr-2 group">
- <input 
- autoFocus
- value={editNameValue}
- onChange={(e) => setEditNameValue(e.target.value)}
- onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
- className={cn("bg-transparent border-b focus:outline-none text-[18px] md:text-[24px] font-black tracking-widest leading-none w-[140px] sm:w-[180px] md:w-[240px] pb-0.5", isLight ? "border-black/50 focus:border-black text-black placeholder-black/20" : "border-white/50 focus:border-white placeholder-white/20", isLight ? "text-black" : isLight ? "text-black" : "text-white")}
- />
- <div className="ml-3 flex items-center gap-3">
- <button onClick={handleSaveName} className={cn(" hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black" : "hover:text-white", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
- <Check className="w-5 h-5" strokeWidth={3} />
- </button>
- <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className={cn(" hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black" : isLight ? "text-black" : "text-white", isLight ? "hover:text-black" : "hover:text-white")}>
- <span className="text-[14px] ">✕</span>
- </button>
- </div>
- </div>
- )}
-
  {/* 角色暗门切换器 */}
  <button 
  onClick={handleRoleCycle}
  className={cn(
- "relative flex items-center text-[11px] tracking-widest uppercase text-left leading-none pointer-events-auto pr-2",
+ "relative flex items-center text-[14px] md:text-[16px] font-black tracking-widest uppercase text-left leading-none pointer-events-auto pr-2 mb-1.5 -translate-y-1",
  availableRoles.length > 1 ? "cursor-pointer hover:opacity-80" : "cursor-default",
  currentRole.color
  )}
@@ -456,12 +397,12 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  <div className="relative flex items-center whitespace-nowrap pr-2">
  {/* 原始 ID 渲染 - 同步左侧流光 */}
  <div className={cn(
- "flex items-center whitespace-nowrap",
- isLight ? "text-black" : isLight ? "text-black" : "text-white",
- copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative group-hover:opacity-80"
- )}>
- ID: {profile.id === "GX-GUEST-0000" ? profile.id : profile.id.split('-').length >= 3 ? profile.id.split('-')[0] + '·' + profile.id.split('-')[1] + '·' + profile.id.split('-')[2] : profile.id}
- </div>
+            "flex items-center whitespace-nowrap font-mono tracking-wider",
+            isLight ? "text-black" : isLight ? "text-black" : "text-white",
+            copyState === "copied" ? "opacity-0 absolute" : "opacity-100 relative group-hover:opacity-80"
+          )}>
+            {profile.id === "GX-GUEST-0000" ? "0000" : profile.id.split('-').pop()}
+          </div>
 
  {/* 复制反馈状态 - 保持高亮白/青色 */}
  <div className={cn(
@@ -475,7 +416,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  </div>
  </div>
 
- {/* 新增：第四行 订阅倒计时引擎 (极简降维法则：BOSS隐藏，移除"剩余"字样) */}
+ {/* 订阅倒计时引擎 (极简降维法则：BOSS隐藏，移除"剩余"字样) */}
  {activeRole !== 'boss' && subscription.subscriptionTier !== 'FREE' && remainingTime && remainingTime !== "MEMBERSHIP_EXPIRED" && (
  <div 
  className={cn(
@@ -494,7 +435,7 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
 
  {/* 动态角色头像框 (无边框极简悬浮) */}
  <div 
- className="w-24 h-24 rounded-full flex items-center justify-center relative cursor-pointer "
+ className="w-24 h-24 rounded-full flex items-center justify-center relative cursor-pointer z-20"
  onClick={() => {
  if (isUploading) return;
  const input = document.createElement('input');
@@ -565,6 +506,68 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  </motion.div>
  )}
  </AnimatePresence>
+ </div>
+
+ {/* 新增：头像正下方的名字居中舱 (独立层级) */}
+ <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center whitespace-nowrap">
+ {/* 名字投影 - 点击展开、复制与修改 */}
+ {!isEditingName ? (
+ <div 
+ onClick={handleCopyName}
+ className={cn(
+ "text-[16px] md:text-[20px] font-black tracking-widest select-none leading-none cursor-pointer flex items-center group",
+ nameCopyState === "copied" 
+ ? "whitespace-nowrap max-w-none" 
+ : "truncate max-w-[200px] sm:max-w-[240px] md:max-w-[300px] hover:opacity-80",
+ isLight ? "text-black" : "text-white"
+ )}
+ >
+ {getRoleSpecificName()}
+ {/* 复制成功指示器 & 改名按钮 */}
+ <AnimatePresence>
+ {nameCopyState === "copied" && (
+ <motion.div
+ 
+ 
+ 
+ className="ml-2 flex items-center gap-2"
+ >
+ <div className={cn("flex items-center ", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
+ <Check className="w-4 h-4" strokeWidth={3} />
+ <span className="text-[11px] ml-1 tracking-widest uppercase">Copied</span>
+ </div>
+ <motion.div 
+ 
+ 
+ onClick={handleEnterEditName}
+ className={cn("flex items-center justify-center text-[11px] tracking-widest cursor-pointer border rounded px-1.5 py-0.5 whitespace-nowrap", isLight ? "bg-black/40 text-black hover:text-black hover:bg-black/10 border-black/20" : isLight ? "bg-black/40" : "bg-white/40", isLight ? "text-black" : "text-white", isLight ? "hover:text-black" : "hover:text-white", isLight ? "hover:bg-black/10" : "hover:bg-white/10", isLight ? "border-black/20" : "border-white/20")}
+ >
+ {t('rename') || '改名'}
+ </motion.div>
+ </motion.div>
+ )}
+ </AnimatePresence>
+ </div>
+ ) : (
+ // 编辑态
+ <div className="flex items-center group">
+ <input 
+ autoFocus
+ value={editNameValue}
+ onChange={(e) => setEditNameValue(e.target.value)}
+ onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+ className={cn("bg-transparent border-b focus:outline-none text-[16px] md:text-[20px] font-black tracking-widest leading-none w-[140px] sm:w-[180px] md:w-[240px] pb-0.5 text-center", isLight ? "border-black/50 focus:border-black text-black placeholder-black/20" : "border-white/50 focus:border-white placeholder-white/20", isLight ? "text-black" : isLight ? "text-black" : "text-white")}
+ />
+ <div className="ml-3 flex items-center gap-3">
+ <button onClick={handleSaveName} className={cn(" hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black" : "hover:text-white", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>
+ <Check className="w-5 h-5" strokeWidth={3} />
+ </button>
+ <button onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }} className={cn(" hover:scale-110 active:scale-95", isLight ? "text-black hover:text-black" : isLight ? "text-black" : "text-white", isLight ? "hover:text-black" : "hover:text-white")}>
+ <span className="text-[14px] ">✕</span>
+ </button>
+ </div>
+ </div>
+ )}
  </div>
  </div>
 

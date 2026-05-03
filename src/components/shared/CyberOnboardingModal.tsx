@@ -25,12 +25,12 @@ export const CyberOnboardingModal = () => {
  }, []);
 
  const [formData, setFormData] = useState({
- name: "",
- gender: "unknown",
- birthday: defaultDate, // 赋默认值
- brandName: "",
- industry: "beauty",
- });
+    name: (user as any)?.name || "",
+    gender: (user as any)?.gender && (user as any).gender !== 'unknown' ? (user as any).gender : "unknown",
+    birthday: (user as any)?.birthday || defaultDate,
+    brandName: "",
+    industry: "beauty",
+  });
 
  // 【强制防穿透与时空冻结锁】
  // 当蒙版出现时，锁定底层 Body 滚动，防止用户在底层瞎滑
@@ -122,10 +122,10 @@ export const CyberOnboardingModal = () => {
  setIsSuccess(true);
  
  // 3. 延迟 800ms 展示流光绿成功动画，然后触发全局刷新
- setTimeout(async () => {
- await refreshUserData();
- // refreshUserData 执行后，AppShell 层的 !user.name 条件将失效，组件自然卸载
- }, 800);
+      setTimeout(async () => {
+        await refreshUserData();
+        // refreshUserData 执行后，AppShell 层的条件将失效，组件自然卸载
+      }, 800);
 
  } catch (error) {
  console.error("[Onboarding] Failed to update profile:", error);
