@@ -12,7 +12,6 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { motion } from "framer-motion";
 import { PhoneAuthBar } from "./PhoneAuthBar";
-import { PrivacySettings } from "./PrivacySettings";
 import { useTranslations } from "next-intl";
 import { HoloAscensionCard } from "@/components/shared/HoloAscensionCard";
 import { FrontendThemeSwitcher } from "./FrontendThemeSwitcher";
@@ -194,13 +193,13 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  
  if (showMerchantPortal && applicationStatus !== "success" && mounted) {
  const portalContent = (
- <div className="fixed inset-0 z-[99999] bg-black flex overflow-hidden font-sans">
- {/* 左轨：愿景丰碑 (大屏展示) */}
- <div className={`hidden lg:flex w-2/5 relative p-12 xl:p-20 flex-col justify-between border-r ${isLight ? "border-black/10" : "border-white/10"} bg-gradient-to-b ${isLight ? "from-black/10" : "from-white/10"} to-black`}>
- <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center mix-blend-luminosity" />
- <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
- 
- <div className="relative z-10 space-y-6">
+      <div className={cn("fixed inset-0 z-[99999] flex overflow-hidden font-sans", isLight ? "bg-white" : "bg-black")}>
+        {/* 左轨：愿景丰碑 (大屏展示) */}
+        <div className={cn("hidden lg:flex w-2/5 relative p-12 xl:p-20 flex-col justify-between border-r bg-gradient-to-b to-transparent", isLight ? "border-black/10 from-white" : "border-white/10 from-black")}>
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center mix-blend-luminosity opacity-40" />
+          <div className={cn("absolute inset-0 bg-gradient-to-t via-60% to-transparent", isLight ? "from-white via-white/80" : "from-black via-black/80")} />
+          
+          <div className="relative z-10 space-y-6">
  <Sparkles className={`w-12 h-12 ${isLight ? "text-black" : "text-white"}`} />
  <h2 className={`text-4xl xl:text-5xl font-black tracking-tighter leading-tight ${isLight ? "text-black" : "text-white"}`}>
  {t('txt_d3a60f')}<br />{t('txt_697bfe')}
@@ -212,20 +211,20 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  </div>
 
  {/* 移动端顶部状态栏 (仅小屏展示) */}
- <div className="lg:hidden absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-center pointer-events-none bg-gradient-to-b from-black/90 to-transparent">
- <div className="space-y-1">
- <h2 className={`text-lg font-black tracking-tighter ${isLight ? "text-black" : "text-white"} flex items-center gap-2`}>
- <Sparkles className={`w-4 h-4 ${isLight ? "text-black" : "text-white"}`} />
- {t('txt_d3a60f')} {t('txt_697bfe')}
- </h2>
- </div>
- <button 
- onClick={() => setShowMerchantPortal(false)} 
- className={`w-10 h-10 rounded-full ${isLight ? "bg-black/10 text-black hover:text-black hover:bg-black/20" : "bg-white/10 text-white hover:text-white hover:bg-white/20"} flex items-center justify-center pointer-events-auto `}
- >
- <X className="w-5 h-5" />
- </button>
- </div>
+      <div className={cn("lg:hidden absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-center pointer-events-none bg-gradient-to-b from-black/90 to-transparent")}>
+        <div className="space-y-1">
+          <h2 className={cn("text-lg font-black tracking-tighter flex items-center gap-2", isLight ? "text-black" : "text-white")}>
+            <Sparkles className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
+            {t('txt_d3a60f')} {t('txt_697bfe')}
+          </h2>
+        </div>
+        <button 
+          onClick={() => setShowMerchantPortal(false)} 
+          className={cn("w-10 h-10 rounded-full flex items-center justify-center pointer-events-auto", isLight ? "bg-black/10 text-black hover:text-black hover:bg-black/20" : "bg-white/10 text-white hover:text-white hover:bg-white/20")}
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
  
  {/* 大屏关闭按钮 */}
  <button 
@@ -236,17 +235,17 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  </button>
 
  {/* 右轨：一镜到底表单矩阵 */}
- <div className="flex-1 relative overflow-y-auto custom-scrollbar scroll-smooth bg-black/90 lg:bg-transparent">
- {/* 小屏底层视差背景 */}
- <div className="lg:hidden fixed inset-0 z-0 pointer-events-none">
- <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center mix-blend-luminosity" />
- <div className="absolute inset-0 bg-gradient-to-t from-black via-black/90 to-black/60" />
- </div>
+        <div className={cn("flex-1 relative overflow-y-auto custom-scrollbar scroll-smooth lg:bg-transparent", isLight ? "bg-white" : "bg-black")}>
+          {/* 小屏底层视差背景 */}
+          <div className="lg:hidden fixed inset-0 z-0 pointer-events-none">
+            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center mix-blend-luminosity opacity-30" />
+            <div className={cn("absolute inset-0 bg-gradient-to-t via-60%", isLight ? "from-white via-white/90 to-white/60" : "from-black via-black/90 to-black/60")} />
+          </div>
 
  <div className="max-w-2xl mx-auto px-6 py-28 lg:py-32 relative z-10">
  {/* 锁定遮罩 (提交中) */}
  {applicationStatus === "submitting" && (
- <div className="fixed inset-0 z-[1000] bg-black/80 flex items-center justify-center">
+ <div className={cn("fixed inset-0 z-[1000] flex items-center justify-center", isLight ? "bg-white/80" : "bg-black/80")}>
  <div className="flex flex-col items-center gap-6">
  <div className={`w-20 h-20 border-t-2 border-r-2 rounded-full animate-spin ${isLight ? "border-black" : "border-white"}`} />
  <p className={` tracking-[0.3em] uppercase text-sm ${isLight ? "text-black" : "text-white"}`}>
@@ -288,8 +287,8 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  onChange={(e) => setFormData(prev => ({ ...prev, brandName: e.target.value }))}
  className={cn(
  " h-14 text-base ",
- isLight ? "focus:border-black/20" : "focus:border-white/20",
- formErrors.includes("brandName") ? (isLight ? "border-black" : "border-white") : (isLight ? "border-black/10 bg-black/5" : "border-white/10 bg-white/5")
+ isLight ? "bg-white text-black focus:border-black/50 placeholder:text-black/50" : "bg-black/50 text-white focus:border-white/20",
+ formErrors.includes("brandName") ? (isLight ? "border-black" : "border-white") : (isLight ? "border-black/20" : "border-white/10")
  )} 
  />
  </div>
@@ -302,7 +301,10 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  <select
  value={formData.countryCode}
  onChange={(e) => setFormData(prev => ({ ...prev, countryCode: e.target.value }))}
- className={`w-full bg-black/50 border ${isLight ? "border-black/10 text-black focus:border-black/20" : "border-white/10 text-white focus:border-white/20"} rounded-lg px-1 text-center text-sm outline-none appearance-none h-14`}
+ className={cn(
+ "w-full border rounded-lg px-1 text-center text-sm outline-none appearance-none h-14",
+ isLight ? "bg-white border-black/20 text-black focus:border-black" : "bg-black/50 border-white/10 text-white focus:border-white/20"
+ )}
  >
  <option value="+39">{t('txt_2aacf5')}</option>
  <option value="+33">{t('txt_08248a')}</option>
@@ -319,8 +321,8 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
  className={cn(
  " h-14 text-base tracking-widest",
- isLight ? "focus:border-black/20" : "focus:border-white/20",
- formErrors.includes("contact") ? (isLight ? "border-black" : "border-white") : (isLight ? "border-black/10 bg-black/5" : "border-white/10 bg-white/5")
+ isLight ? "bg-white text-black focus:border-black/50 placeholder:text-black/50" : "bg-black/50 text-white focus:border-white/20",
+ formErrors.includes("contact") ? (isLight ? "border-black" : "border-white") : (isLight ? "border-black/20" : "border-white/10")
  )} 
  />
  </div>
@@ -330,11 +332,14 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  <div className="space-y-2">
  <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>{t('txt_09ab42')}</label>
  <div className="relative">
- <select
- value={formData.industry}
- onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
- className={`w-full bg-black/50 border ${isLight ? "border-black/10 text-black focus:border-black/20" : "border-white/10 text-white focus:border-white/20"} rounded-lg px-3 text-sm outline-none appearance-none h-14 tracking-widest`}
- >
+                  <select
+                    value={formData.industry}
+                    onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
+                    className={cn(
+                      "w-full border rounded-lg px-3 text-sm outline-none appearance-none h-14 tracking-widest",
+                      isLight ? "bg-white border-black/20 text-black focus:border-black" : "bg-black/50 border-white/10 text-white focus:border-white/20"
+                    )}
+                  >
  <option value="beauty">{t('txt_4a6a90')}</option>
  <option value="dining">{t('txt_2a0ad6')}</option>
  <option value="medical">{t('txt_2fbcd8')}</option>
@@ -356,14 +361,14 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  </div>
  
  <div className="space-y-4">
- <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>{t('txt_40223b')}</label>
- <Input 
- placeholder={t('txt_95cd99')} 
- value={formData.nexusCode}
- onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
- className={` tracking-widest text-base h-14 text-center focus:outline-none focus:ring-1 ${isLight ? "bg-black/10 border-black/20 focus:border-black text-black placeholder:text-black focus:ring-black" : "bg-white/10 border-white/20 focus:border-white text-white placeholder:text-white focus:ring-white"}`}
- />
- <div className={`mt-6 p-4 rounded-xl border ${isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/5"}`}>
+                <label className={`text-xs ${isLight ? "text-black" : "text-white"} tracking-widest`}>{t('txt_40223b')}</label>
+                <Input 
+                  placeholder={t('txt_95cd99')} 
+                  value={formData.nexusCode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, nexusCode: e.target.value }))}
+                  className={` tracking-widest text-base h-14 text-center focus:outline-none focus:ring-1 ${isLight ? "bg-white border-black/20 focus:border-black text-black placeholder:text-black/50 focus:ring-black" : "bg-white/10 border-white/20 focus:border-white text-white placeholder:text-white/50 focus:ring-white"}`}
+                />
+ <div className={`mt-6 p-4 rounded-xl border ${isLight ? "border-black/10 bg-black/5" : "border-white/5 bg-white/5"}`}>
  <p className={`text-xs ${isLight ? "text-black" : "text-white"} leading-relaxed tracking-widest`}>
  {t('txt_509c2e')}<br/><br/>
  <span className={` ${isLight ? "text-black" : "text-white"}`}>{t('txt_292fbd')}</span>
