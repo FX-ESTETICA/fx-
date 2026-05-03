@@ -10,6 +10,88 @@ import { useMemo } from "react";
 
 import { useVisualSettings } from "@/hooks/useVisualSettings";
 
+// --- 顶级可视化图表组件 (Bento Box Graphical Assets) ---
+
+const SmoothAreaChart = ({ data, color, className }: { data: number[], color: string, className?: string }) => {
+  // 如果全是 0，给个极小值维持线形
+  const safeData = data.every(d => d === 0) ? data.map(() => 1) : data;
+  const max = Math.max(...safeData);
+  const min = Math.min(...safeData);
+  const range = max - min || 1;
+  
+  const points = safeData.map((d, i) => ({
+    x: (i / (safeData.length - 1)) * 100,
+    y: 100 - ((d - min) / range) * 80 - 10 // 预留上下 10% 边距
+  }));
+
+  if (points.length === 0) return null;
+
+  let d = `M ${points[0].x},${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+    const cx = (curr.x + next.x) / 2;
+    d += ` C ${cx},${curr.y} ${cx},${next.y} ${next.x},${next.y}`;
+  }
+  
+  const areaPath = `${d} L 100,100 L 0,100 Z`;
+
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={cn("w-full h-full", className)}>
+      <defs>
+        <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+    </svg>
+  );
+};
+
+const DonutChart = ({ data, className }: { data: { value: number, color: string, label: string }[], className?: string }) => {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  let currentOffset = 0;
+  const radius = 35; // Reduce radius to leave room for stroke width
+  const circumference = 2 * Math.PI * radius;
+
+  return (
+    <div className={cn("relative flex items-center justify-center", className)}>
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 drop-shadow-[0_0_10px_rgba(0,0,0,0.2)]">
+        {total === 0 ? (
+           <circle cx="50" cy="50" r={radius} fill="transparent" stroke="rgba(150,150,150,0.1)" strokeWidth="12" />
+        ) : (
+          data.map((d, i) => {
+            if (d.value === 0) return null;
+            const percentage = d.value / total;
+            const dash = percentage * circumference;
+            const gap = circumference - dash;
+            const offset = -(currentOffset / total) * circumference;
+            currentOffset += d.value;
+
+            return (
+              <circle
+                key={i}
+                cx="50"
+                cy="50"
+                r={radius}
+                fill="transparent"
+                stroke={d.color}
+                strokeWidth="12"
+                strokeDasharray={`${dash} ${gap}`}
+                strokeDashoffset={offset}
+                className="transition-all duration-1000 ease-out"
+              />
+            );
+          })
+        )}
+      </svg>
+      {/* 中间留白区可放置动态信息 */}
+    </div>
+  );
+};
+
 interface AiFinanceDashboardModalProps {
  isOpen: boolean;
  onClose: () => void;
@@ -130,14 +212,34 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  });
 
  // 2. 深入每个已结账订单，拆解其服务项目，分配业绩给对应的技师
+ 
+ // --- 新增：真实时间轴趋势数据 (Timeline Data for Sparkline) ---
+ const timelinePoints = timeRange === 'day' ? 12 : timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 12;
+ const timelineData = Array(timelinePoints).fill(0);
+
  currentBookings.forEach(booking => {
  // 解析支付方式，默认为现金
  const method = (booking.paymentMethod as string) || '现金';
+ 
+ // --- 时间轴分配逻辑 ---
+ let pointIndex = 0;
+ const bDate = new Date(booking.date!.replace(/-/g, '/'));
+ if (timeRange === 'day') {
+ const hour = booking.startTime ? parseInt(booking.startTime.split(':')[0]) : 12;
+ pointIndex = Math.max(0, Math.min(11, hour - 9)); // 9:00 - 20:00 (12 slots)
+ } else if (timeRange === 'week') {
+ pointIndex = bDate.getDay() === 0 ? 6 : bDate.getDay() - 1; // 0-6 (Mon-Sun)
+ } else if (timeRange === 'month') {
+ pointIndex = Math.max(0, Math.min(29, bDate.getDate() - 1));
+ } else {
+ pointIndex = Math.max(0, Math.min(11, bDate.getMonth()));
+ }
 
  if (booking.services && Array.isArray(booking.services)) {
  booking.services.forEach((service: any) => {
  const servicePrice = (Array.isArray(service.prices) && service.prices.length > 0) ? Number(service.prices[0]) : 0;
  totalRevenue += servicePrice;
+ timelineData[pointIndex] += servicePrice; // 累加到时间轴
  
  // 精准渠道分流 (与 DualPaneBookingModal 的 PAYMENT_METHODS 对齐)
  if (method === '微信') wechatRevenue += servicePrice;
@@ -282,6 +384,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  cashRevenue,
  bankCardRevenue,
  memberCardRevenue,
+ timelineData, // <-- 新增
  trendPercentage,
  staffRanking,
  serviceRanking,
@@ -306,6 +409,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  cash: financialData.cashRevenue,
  bankCard: financialData.bankCardRevenue,
  memberCard: financialData.memberCardRevenue,
+ timeline: financialData.timelineData, // <-- 新增
  trend: financialData.trendPercentage,
  tactical: financialData.tacticalMetrics
  };
@@ -337,37 +441,31 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  
  
  className={cn(
- "relative z-10 w-full max-w-6xl h-[85vh] rounded-2xl flex flex-col overflow-hidden",
- isLight 
- ? "bg-white/50 shadow-[0_0_50px_rgba(0,0,0,0.1)]" 
- : "bg-black/50 shadow-[0_0_50px_rgba(0,0,0,1)]"
+ "relative z-10 w-full max-w-6xl h-[85vh] rounded-2xl flex flex-col overflow-hidden pointer-events-none",
  )}
  >
  {/* Header */}
  <div className={cn(
- "h-16 border-b flex items-center justify-between px-6",
- isLight 
- ? "border-black/5 bg-gradient-to-r from-purple-500/5 via-transparent to-transparent" 
- : "border-white/5 bg-gradient-to-r from-purple-500/10 via-transparent to-transparent"
+ "h-16 flex items-center justify-between px-6 pointer-events-auto rounded-t-2xl",
  )}>
  <div className="flex items-center gap-3">
  <div className={cn(
  "w-8 h-8 rounded-full border flex items-center justify-center",
  isLight 
- ? "bg-purple-500/10 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" 
- : "bg-purple-500/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.3)]"
+ ? "bg-purple-500/10 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)] backdrop-blur-md" 
+ : "bg-purple-500/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.3)] backdrop-blur-md"
  )}>
  <Sparkles className={cn("w-4 h-4", isLight ? "text-purple-600" : "text-purple-400")} />
  </div>
- <div className="flex flex-col">
- <h2 className={cn("text-sm tracking-widest", isLight ? "text-black" : "text-white")}>AI 财务核心舱</h2>
- <span className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-purple-600" : "text-purple-400")}>Financial Intelligence Hub</span>
+ <div className="flex flex-col drop-shadow-sm">
+ <h2 className={cn("text-sm tracking-widest", isLight ? "text-black font-semibold" : "text-white font-semibold")}>AI 财务核心舱</h2>
+ <span className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-purple-600 font-medium" : "text-purple-400 font-medium")}>Financial Intelligence Hub</span>
  </div>
  </div>
 
  <div className={cn(
- "flex items-center gap-2 p-1 rounded-lg border",
- isLight ? "bg-black/5 border-black/5" : "bg-white/5 border-white/5"
+ "flex items-center gap-2 p-1 rounded-lg border pointer-events-auto backdrop-blur-md",
+ isLight ? "bg-black/5 border-black/10 shadow-sm" : "bg-white/5 border-white/10 shadow-sm"
  )}>
  {(['day', 'week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
  <button
@@ -386,322 +484,334 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
 
  <button onClick={onClose} className={cn(
- "w-8 h-8 flex items-center justify-center rounded-full ",
- isLight ? "hover:bg-black/5 text-black hover:text-black" : "hover:bg-white/10 text-white hover:text-white"
+ "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md",
+ isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
  )}>
  <X className="w-5 h-5" />
  </button>
  </div>
 
  {/* Scrollable Content */}
- <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+ <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide pointer-events-auto">
  
- {/* AI Insight Bar */}
- <div className="w-full bg-purple-500/5 border border-purple-500/20 rounded-xl p-4 flex items-start gap-4 relative overflow-hidden">
- <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-400 to-amber-400" />
- <Sparkles className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
- <div className="flex flex-col gap-1">
- <span className="text-[11px] text-purple-400 uppercase tracking-widest">AI Agent Insight</span>
- <p className={cn(isLight ? "text-sm text-black leading-relaxed" : "text-sm text-white leading-relaxed")}>
- 本时段现金流健康度极佳。高端日式项目（如极光猫眼）利润贡献率高达 45%，但仅有 Sara 一名技师主做，存在单点瓶颈。建议本周安排内部培训，释放产能。
- </p>
- </div>
- </div>
+ {/* Bento Box Top Section */}
+ <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   
+   {/* Col 1 & 2: Revenue Area Chart (Bento Large Block) */}
+     <div className={cn(
+        "lg:col-span-2 lg:row-span-3 rounded-2xl p-8 flex flex-col relative overflow-hidden group border",
+         isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+       )}>
 
- {/* Top Row: Global Gross Revenue (总营业额独占一行) */}
- <div className={cn(isLight ? "w-full bg-black/5 border border-black/5 rounded-xl p-6 flex flex-col justify-center relative overflow-hidden group" : "w-full bg-white/5 border border-white/5 rounded-xl p-6 flex flex-col justify-center relative overflow-hidden group")}>
- <div className="absolute right-0 top-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 " />
- <div className="flex items-center justify-between relative z-10">
- <div className="flex flex-col gap-2">
- <span className={cn(isLight ? "text-xs text-black uppercase tracking-widest flex items-center gap-2" : "text-xs text-white uppercase tracking-widest flex items-center gap-2")}>
- <Crown className="w-4 h-4 text-purple-400" />
- 总营业额 (Gross Revenue)
- </span>
- <div className="flex items-baseline gap-2">
- <span className={cn(isLight ? "text-5xl tracking-tighter text-black" : "text-5xl tracking-tighter text-white")}>€ {currentMetrics.total.toLocaleString()}</span>
- </div>
- <div className={cn("flex items-center gap-1 mt-1 text-xs ", isPositive ? "text-gx-cyan" : isNegative ? (isLight ? "text-black" : "text-white") : "text-white")}>
- {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : isNegative ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
- <span>
- {isPositive ? '+' : ''}{trend.toFixed(1)}% vs 上一周期
- </span>
- </div>
- </div>
- {/* 装饰性数据可视化 / 迷你仪表盘位留白 */}
- <div className="hidden md:flex flex-col items-end gap-1 ">
- <div className="flex gap-1 h-8 items-end">
- {[40, 60, 45, 80, 55, 90, 75].map((h, i) => (
- <div key={i} className="w-2 bg-purple-400 rounded-t-sm" style={{ height: `${h}%` }} />
- ))}
- </div>
- <span className="text-[11px] tracking-widest">REALTIME VOL.</span>
- </div>
- </div>
- </div>
-
- {/* Second Row: Payment Channels (五大支付渠道平铺矩阵) */}
- <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
- {/* 微信 */}
- <div className={cn(isLight ? "bg-white/50 border border-black/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group" : "bg-[#0f0f0f] border border-white/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group")}>
- <div className="absolute top-0 right-0 w-16 h-16 bg-[#07C160]/5 rounded-bl-full group-hover:bg-[#07C160]/10" />
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest relative z-10" : "text-[11px] text-white uppercase tracking-widest relative z-10")}>微信 (WeChat)</span>
- <span className="text-2xl tracking-tight text-[#07C160] mt-3 relative z-10">€ {currentMetrics.wechat.toLocaleString()}</span>
- <div className={cn(isLight ? "w-full h-1 bg-black/5 rounded-full mt-3 overflow-hidden relative z-10" : "w-full h-1 bg-white/5 rounded-full mt-3 overflow-hidden relative z-10")}>
- <div className="h-full bg-[#07C160]" style={{ width: `${currentMetrics.total ? (currentMetrics.wechat / currentMetrics.total) * 100 : 0}%` }} />
- </div>
- </div>
+      {/* Super Block: Gross Revenue + Traffic */}
+       <div className="flex relative z-10 mb-10 items-stretch">
+         
+         {/* Left: Giant Money */}
+         <div className="flex-1 flex flex-col justify-center">
+           <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2 mb-2", isLight ? "text-black/50" : "text-white/50")}>
+             <Crown className="w-3.5 h-3.5" />
+             总营业额 (Gross Revenue)
+           </span>
+           <span className={cn("text-7xl font-mono tracking-tighter drop-shadow-sm leading-none", isLight ? "text-black" : "text-white")}>
+             €{currentMetrics.total.toLocaleString()}
+           </span>
+           <div className="mt-4 flex items-center gap-2">
+             <div className={cn("inline-flex items-center gap-1 text-sm font-mono px-3 py-1.5 rounded border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
+               {isPositive ? <TrendingUp className="w-4 h-4" /> : isNegative ? <TrendingDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+               <span>{isPositive ? '+' : ''}{trend.toFixed(1)}% vs Prev</span>
+             </div>
+           </div>
+         </div>
  
- {/* 支付宝 */}
- <div className={cn(isLight ? "bg-white/50 border border-black/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group" : "bg-[#0f0f0f] border border-white/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group")}>
- <div className="absolute top-0 right-0 w-16 h-16 bg-[#1677FF]/5 rounded-bl-full group-hover:bg-[#1677FF]/10" />
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest relative z-10" : "text-[11px] text-white uppercase tracking-widest relative z-10")}>支付宝 (Alipay)</span>
- <span className="text-2xl tracking-tight text-[#1677FF] mt-3 relative z-10">€ {currentMetrics.alipay.toLocaleString()}</span>
- <div className={cn(isLight ? "w-full h-1 bg-black/5 rounded-full mt-3 overflow-hidden relative z-10" : "w-full h-1 bg-white/5 rounded-full mt-3 overflow-hidden relative z-10")}>
- <div className="h-full bg-[#1677FF]" style={{ width: `${currentMetrics.total ? (currentMetrics.alipay / currentMetrics.total) * 100 : 0}%` }} />
- </div>
- </div>
-
- {/* 现金 */}
- <div className={cn(isLight ? "bg-white/50 border border-black/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group" : "bg-[#0f0f0f] border border-white/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group")}>
- <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-bl-full group-hover:bg-amber-500/10" />
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest relative z-10" : "text-[11px] text-white uppercase tracking-widest relative z-10")}>现金 (Cash)</span>
- <span className="text-2xl tracking-tight text-amber-500 mt-3 relative z-10">€ {currentMetrics.cash.toLocaleString()}</span>
- <div className={cn(isLight ? "w-full h-1 bg-black/5 rounded-full mt-3 overflow-hidden relative z-10" : "w-full h-1 bg-white/5 rounded-full mt-3 overflow-hidden relative z-10")}>
- <div className="h-full bg-amber-500" style={{ width: `${currentMetrics.total ? (currentMetrics.cash / currentMetrics.total) * 100 : 0}%` }} />
- </div>
- </div>
-
- {/* 银行卡 */}
- <div className={cn(isLight ? "bg-white/50 border border-black/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group" : "bg-[#0f0f0f] border border-white/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group")}>
- <div className="absolute top-0 right-0 w-16 h-16 bg-blue-400/5 rounded-bl-full group-hover:bg-blue-400/10" />
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest relative z-10" : "text-[11px] text-white uppercase tracking-widest relative z-10")}>银行卡 (Card)</span>
- <span className="text-2xl tracking-tight text-blue-400 mt-3 relative z-10">€ {currentMetrics.bankCard.toLocaleString()}</span>
- <div className={cn(isLight ? "w-full h-1 bg-black/5 rounded-full mt-3 overflow-hidden relative z-10" : "w-full h-1 bg-white/5 rounded-full mt-3 overflow-hidden relative z-10")}>
- <div className="h-full bg-blue-400" style={{ width: `${currentMetrics.total ? (currentMetrics.bankCard / currentMetrics.total) * 100 : 0}%` }} />
- </div>
- </div>
-
- {/* 会员卡扣款 */}
- <div className={cn(isLight ? "bg-white/50 border border-black/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group" : "bg-[#0f0f0f] border border-white/5 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group")}>
- <div className="absolute top-0 right-0 w-16 h-16 bg-gx-cyan/5 rounded-bl-full group-hover:bg-gx-cyan/10" />
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest relative z-10" : "text-[11px] text-white uppercase tracking-widest relative z-10")}>会员卡 (Member)</span>
- <span className="text-2xl tracking-tight text-gx-cyan mt-3 relative z-10">€ {currentMetrics.memberCard.toLocaleString()}</span>
- <div className={cn(isLight ? "w-full h-1 bg-black/5 rounded-full mt-3 overflow-hidden relative z-10" : "w-full h-1 bg-white/5 rounded-full mt-3 overflow-hidden relative z-10")}>
- <div className="h-full bg-gx-cyan" style={{ width: `${currentMetrics.total ? (currentMetrics.memberCard / currentMetrics.total) * 100 : 0}%` }} />
- </div>
- </div>
- </div>
-
- {/* Third Row: Tactical Modules (三大战术模块胶囊矩阵) */}
- <div className={cn(isLight ? "grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-black/5" : "grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-white/5")}>
+         {/* Divider Vertical */}
+         <div className={cn("w-[1px] mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
  
- {/* 1. 客流与留存胶囊 (Traffic & Retention Engine) */}
- <div className={cn(isLight ? "bg-white/50 border border-gx-cyan/20 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group hover:border-gx-cyan/50 shadow-[0_0_15px_rgba(0,240,255,0.05)]" : "bg-[#0f0f0f] border border-gx-cyan/20 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group hover:border-gx-cyan/50 shadow-[0_0_15px_rgba(0,240,255,0.05)]")}>
- <div className="absolute top-0 left-0 w-32 h-32 bg-gx-cyan/10 rounded-br-full blur-2xl group-hover:bg-gx-cyan/20 " />
- <div className="flex items-center justify-between mb-4 relative z-10">
- <span className="text-[11px] text-gx-cyan/70 uppercase tracking-widest flex items-center gap-2">
- <Users className="w-3.5 h-3.5" />
- 客流与留存 (Traffic)
- </span>
- <div className="flex items-center gap-1 text-[11px] text-gx-cyan/50 bg-gx-cyan/10 px-2 py-0.5 rounded-full">
- <span className="w-1.5 h-1.5 rounded-full bg-gx-cyan " /> Live
- </div>
- </div>
+         {/* Right: People & ATV (Stacked vertically) */}
+         <div className="w-56 flex flex-col justify-between">
+           
+           {/* Top: Traffic */}
+           <div className="flex flex-col gap-1">
+             <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-gx-cyan/70" : "text-gx-cyan/70")}>
+               <Users className="w-3.5 h-3.5" />
+               客流 (Traffic)
+             </span>
+             <div className="flex items-baseline gap-2 mt-1">
+               <span className={cn("text-4xl font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
+               <span className={cn("text-xs uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>PAX</span>
+             </div>
+             
+             {/* New/Returning Ratio Bar */}
+             <div className="flex flex-col gap-1 mt-2">
+               <div className="flex justify-between text-[9px] font-mono uppercase tracking-widest">
+                 <span className="text-blue-400">New {currentMetrics.tactical.newRatio}%</span>
+                 <span className="text-purple-400">Ret {currentMetrics.tactical.returningRatio}%</span>
+               </div>
+               <div className={cn("w-full h-1 rounded-full overflow-hidden flex", isLight ? "bg-black/5" : "bg-white/5")}>
+                 <div className="h-full bg-blue-400" style={{ width: `${currentMetrics.tactical.newRatio}%` }} />
+                 <div className="h-full bg-purple-400" style={{ width: `${currentMetrics.tactical.returningRatio}%` }} />
+               </div>
+             </div>
+           </div>
  
- <div className="flex items-baseline gap-2 relative z-10 mb-4">
- <span className={cn(isLight ? "text-4xl tracking-tighter text-black" : "text-4xl tracking-tighter text-white")}>{currentMetrics.tactical.totalCustomers}</span>
- <span className={cn(isLight ? "text-xs text-black uppercase tracking-widest" : "text-xs text-white uppercase tracking-widest")}>人 (PAX)</span>
+           {/* Bottom: ATV */}
+           <div className="flex flex-col gap-1 mt-5">
+             <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
+               <Target className="w-3.5 h-3.5" />
+               客单价 (ATV)
+             </span>
+             <div className="flex items-baseline gap-2 mt-1">
+               <span className={cn("text-3xl font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{currentMetrics.tactical.atv}</span>
+               <span className={cn("text-[10px] uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>/ PAX</span>
+             </div>
+           </div>
+ 
+         </div>
+       </div>
+
+      {/* Smooth Area Chart */}
+      <div className="absolute bottom-0 left-0 w-full h-[45%] z-0 mix-blend-screen pointer-events-none">
+        <SmoothAreaChart data={currentMetrics.timeline} color={isLight ? "#A855F7" : "#A855F7"} className="opacity-60" />
+      </div>
+    </div>
+
+   {/* Col 3: Tactical Stack (Donut Chart + Prepaid + Retail) */}
+     <div className="flex flex-col gap-6">
+       {/* 1. Payment Breakdown */}
+       <div className={cn(
+          "rounded-2xl p-6 flex flex-col relative border",
+          isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+        )}>
+          <div className="flex items-center justify-between mb-4">
+            <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
+              <Wallet className="w-3.5 h-3.5" />
+              支付构成 (Structure)
+            </span>
+          </div>
+  
+          <div className="flex-1 flex items-center justify-between gap-4">
+            <div className="w-32 h-32 relative shrink-0">
+              <DonutChart 
+                data={[
+                  { label: 'WeChat', value: currentMetrics.wechat, color: '#07C160' },
+                  { label: 'Alipay', value: currentMetrics.alipay, color: '#1677FF' },
+                  { label: 'Cash', value: currentMetrics.cash, color: '#F59E0B' },
+                  { label: 'Card', value: currentMetrics.bankCard, color: '#60A5FA' },
+                  { label: 'Member', value: currentMetrics.memberCard, color: '#06B6D4' }
+                ]} 
+              />
+            </div>
+            
+            {/* Aligned List */}
+            <div className="flex-1 flex flex-col gap-2 font-mono text-[10px]">
+              {[
+                { label: '微信 (WECHAT)', value: currentMetrics.wechat, color: '#07C160' },
+                { label: '支付宝 (ALIPAY)', value: currentMetrics.alipay, color: '#1677FF' },
+                { label: '银行卡 (CARD)', value: currentMetrics.bankCard, color: '#60A5FA' },
+                { label: '现金 (CASH)', value: currentMetrics.cash, color: '#F59E0B' },
+                { label: '会员卡 (MEMBER)', value: currentMetrics.memberCard, color: '#06B6D4' }
+              ].sort((a, b) => b.value - a.value).map((item, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className={cn(isLight ? "text-black/60" : "text-white/60")}>{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(isLight ? "text-black/40" : "text-white/40")}>
+                      {currentMetrics.total > 0 ? ((item.value / currentMetrics.total) * 100).toFixed(0) : 0}%
+                    </span>
+                    <span className={cn("w-14 text-right", isLight ? "text-black" : "text-white")}>
+                      €{item.value.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+       {/* 2. Prepaid Engine */}
+       <div className={cn(
+        "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+         isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+       )}>
+         <div className="absolute top-0 left-0 w-32 h-32 bg-amber-500/10 rounded-br-full blur-2xl group-hover:bg-amber-500/20" />
+         <div className="flex items-center justify-between mb-4 relative z-10">
+           <span className="text-[11px] text-amber-500 uppercase tracking-widest flex items-center gap-2">
+             <Wallet className="w-3.5 h-3.5" />
+             新增充值 (Prepaid)
+           </span>
+         </div>
+         
+         <div className="flex items-baseline gap-2 relative z-10 mb-4">
+           <span className="text-4xl font-mono tracking-tighter text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+             €{currentMetrics.tactical.topUps.toLocaleString()}
+           </span>
+         </div>
+
+         <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 relative z-10">
+           <UserPlus className="w-4 h-4 text-amber-500 shrink-0" />
+           <div className="flex flex-col">
+             <span className="text-[10px] font-mono text-amber-500/70 uppercase tracking-widest">Conv. Rate</span>
+             <span className="text-xs font-mono text-amber-500">{currentMetrics.tactical.conversionRate}% <TrendingUp className="inline w-3 h-3 ml-1" /></span>
+           </div>
+         </div>
+       </div>
+
+       {/* 3. Retail Engine */}
+       <div className={cn(
+        "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+         isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+       )}>
+         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-br-full blur-2xl group-hover:bg-emerald-500/20" />
+         <div className="flex items-center justify-between mb-4 relative z-10">
+           <span className="text-[11px] text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+             <ShoppingBag className="w-3.5 h-3.5" />
+             产品零售 (Retail)
+           </span>
+         </div>
+         
+         <div className="flex items-baseline gap-2 relative z-10 mb-4">
+           <span className="text-4xl font-mono tracking-tighter text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+             €{currentMetrics.tactical.retailRevenue.toLocaleString()}
+           </span>
+         </div>
+
+         <div className="flex flex-col gap-1.5 relative z-10">
+           <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest text-emerald-500/70">
+             <span>Ratio</span>
+             <span>{currentMetrics.tactical.retailRatio}%</span>
+           </div>
+           <div className={cn("w-full h-1 bg-emerald-500/20 rounded-full overflow-hidden")}>
+             <div className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" style={{ width: `${currentMetrics.tactical.retailRatio}%` }} />
+           </div>
+         </div>
+       </div>
+     </div>
  </div>
 
- <div className="flex flex-col gap-3 relative z-10">
- <div className="flex flex-col gap-1.5">
- <div className="flex justify-between text-[11px] uppercase tracking-widest">
- <span className="text-blue-400">新客 {currentMetrics.tactical.newRatio}%</span>
- <span className="text-purple-400">老客 {currentMetrics.tactical.returningRatio}%</span>
- </div>
- <div className={cn(isLight ? "w-full h-1.5 bg-black/5 rounded-full overflow-hidden flex" : "w-full h-1.5 bg-white/5 rounded-full overflow-hidden flex")}>
- <div className="h-full bg-blue-400 " style={{ width: `${currentMetrics.tactical.newRatio}%` }} />
- <div className="h-full bg-purple-400 " style={{ width: `${currentMetrics.tactical.returningRatio}%` }} />
- </div>
- </div>
+ {/* Removed old Tactical Modules Section as it is now integrated into Bento Box */}
  
- <div className={cn(isLight ? "flex items-center justify-between border-t border-black/5 pt-3" : "flex items-center justify-between border-t border-white/5 pt-3")}>
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest" : "text-[11px] text-white uppercase tracking-widest")}>客单价 (ATV)</span>
- <span className={cn(isLight ? "text-sm text-black shadow-[0_0_10px_rgba(255,255,255,0.2)]" : "text-sm text-white shadow-[0_0_10px_rgba(255,255,255,0.2)]")}>€ {currentMetrics.tactical.atv} <span className={cn(isLight ? "text-[11px] text-black font-normal" : "text-[11px] text-white font-normal")}>/ 人</span></span>
- </div>
- </div>
- </div>
-
- {/* 2. 储值与现金流胶囊 (Prepaid & Cashflow Engine) */}
- <div className={cn(isLight ? "bg-white/50 border border-amber-500/20 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.05)]" : "bg-[#0f0f0f] border border-amber-500/20 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.05)]")}>
- <div className="absolute top-0 left-0 w-32 h-32 bg-amber-500/10 rounded-br-full blur-2xl group-hover:bg-amber-500/20 " />
- <div className="flex items-center justify-between mb-4 relative z-10">
- <span className="text-[11px] text-amber-500 uppercase tracking-widest flex items-center gap-2">
- <Wallet className="w-3.5 h-3.5" />
- 新增充值 (Prepaid)
- </span>
- </div>
- 
- <div className="flex items-baseline gap-2 relative z-10 mb-4">
- <span className="text-4xl tracking-tighter text-amber-400">€ {currentMetrics.tactical.topUps.toLocaleString()}</span>
- </div>
-
- <div className="flex flex-col gap-3 relative z-10">
- <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5">
- <UserPlus className="w-4 h-4 text-amber-400 shrink-0" />
- <div className="flex flex-col">
- <span className="text-[11px] text-amber-500 uppercase tracking-widest">办卡转化率 (Conv. Rate)</span>
- <span className="text-xs text-amber-400">{currentMetrics.tactical.conversionRate}% <TrendingUp className="inline w-3 h-3 ml-1" /></span>
- </div>
- </div>
- 
- <div className={cn(isLight ? "flex items-center justify-between border-t border-black/5 pt-3" : "flex items-center justify-between border-t border-white/5 pt-3")}>
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest" : "text-[11px] text-white uppercase tracking-widest")}>资金池流向</span>
- <span className={cn(isLight ? "text-[11px] text-black" : "text-[11px] text-white")}>储值沉淀率待解锁</span>
- </div>
- </div>
- </div>
-
- {/* 3. 高毛利零售胶囊 (Retail & Upsell Engine) */}
- <div className={cn(isLight ? "bg-white/50 border border-emerald-500/20 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : "bg-[#0f0f0f] border border-emerald-500/20 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.05)]")}>
- <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-br-full blur-2xl group-hover:bg-emerald-500/20 " />
- <div className="flex items-center justify-between mb-4 relative z-10">
- <span className="text-[11px] text-emerald-500 uppercase tracking-widest flex items-center gap-2">
- <ShoppingBag className="w-3.5 h-3.5" />
- 产品零售 (Retail)
- </span>
- </div>
- 
- <div className="flex items-baseline gap-2 relative z-10 mb-4">
- <span className="text-4xl tracking-tighter text-emerald-400">€ {currentMetrics.tactical.retailRevenue.toLocaleString()}</span>
- </div>
-
- <div className="flex flex-col gap-3 relative z-10">
- <div className="flex flex-col gap-1.5">
- <div className="flex justify-between text-[11px] uppercase tracking-widest">
- <span className="text-emerald-400">占总营收 (Ratio)</span>
- <span className="text-emerald-400 ">{currentMetrics.tactical.retailRatio}%</span>
- </div>
- <div className={cn(isLight ? "w-full h-1.5 bg-black/5 rounded-full overflow-hidden" : "w-full h-1.5 bg-white/5 rounded-full overflow-hidden")}>
- <div className="h-full bg-emerald-400 " style={{ width: `${currentMetrics.tactical.retailRatio}%` }} />
- </div>
- </div>
- 
- <div className={cn(isLight ? "flex items-center justify-between border-t border-black/5 pt-3" : "flex items-center justify-between border-t border-white/5 pt-3")}>
- <span className={cn(isLight ? "text-[11px] text-black uppercase tracking-widest" : "text-[11px] text-white uppercase tracking-widest")}>连带率 (Upsell)</span>
- <span className="text-sm text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]">{currentMetrics.tactical.upsellRate}% <TrendingUp className="inline w-3 h-3 ml-1" /></span>
- </div>
- </div>
- </div>
- </div>
-
- {/* Bottom Row: Two Columns */}
+ {/* Bottom Row: Two Columns (Dual Horizontal Data Bars) */}
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
  
- {/* Left: Staff Performance */}
- <div className={cn(isLight ? "bg-black/5 border border-black/5 rounded-xl p-5 flex flex-col gap-4" : "bg-white/5 border border-white/5 rounded-xl p-5 flex flex-col gap-4")}>
- <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-3" : "flex items-center justify-between border-b border-white/5 pb-3")}>
- <h3 className={cn(isLight ? "text-sm tracking-widest text-black flex items-center gap-2" : "text-sm tracking-widest text-white flex items-center gap-2")}>
- <Users className="w-4 h-4 text-purple-400" />
- 技师血汗榜 & 提成核算
- </h3>
- <span className={cn(isLight ? "text-[11px] text-black uppercase" : "text-[11px] text-white uppercase")}>Auto-calculated</span>
- </div>
+ {/* Left: Staff Performance (Horizontal Bar Chart) */}
+ <div className={cn(
+    "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+    isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+  )}>
+   <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-4 mb-6" : "flex items-center justify-between border-b border-white/5 pb-4 mb-6")}>
+     <h3 className={cn(isLight ? "text-sm tracking-widest text-black flex items-center gap-2 uppercase" : "text-sm tracking-widest text-white flex items-center gap-2 uppercase")}>
+       <Users className="w-4 h-4 text-blue-500" />
+       技师血汗榜 (Staff Leaderboard)
+     </h3>
+     <span className={cn(isLight ? "text-[10px] font-mono text-black/50" : "text-[10px] font-mono text-white/50")}>Auto-calculated</span>
+   </div>
  
- <div className="flex flex-col gap-4">
- {staffRanking.map((staff, idx) => (
- <div key={staff.id} className={cn(isLight ? "flex flex-col gap-2 p-3 rounded-lg bg-white/20 border border-black/5 hover:border-purple-500/30 group" : "flex flex-col gap-2 p-3 rounded-lg bg-black/20 border border-white/5 hover:border-purple-500/30 group")}>
- <div className="flex items-center justify-between">
- <div className="flex items-center gap-3">
- <div className={cn(isLight ? "w-8 h-8 rounded-full bg-black/10 flex items-center justify-center text-sm border border-black/10" : "w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm border border-white/10")}>
- {staff.avatar}
- </div>
- <div className="flex flex-col">
- <span className={cn(isLight ? "text-xs text-black flex items-center gap-2" : "text-xs text-white flex items-center gap-2")}>
- {staff.name}
- {idx === 0 && <Crown className="w-3 h-3 text-amber-400" />}
- </span>
- <span className={cn(isLight ? "text-[11px] text-black" : "text-[11px] text-white")}>{staff.role}</span>
- </div>
- </div>
- <div className="flex flex-col items-end">
- {staff.rate > 0 ? (
- <>
- <span className={cn(isLight ? "text-[11px] text-black uppercase" : "text-[11px] text-white uppercase")}>预估提成 ({staff.rateStr})</span>
- <span className="text-sm text-purple-400">€ {staff.commission}</span>
- </>
- ) : (
- <>
- <span className={cn(isLight ? "text-[11px] text-black uppercase mt-1" : "text-[11px] text-white uppercase mt-1")}>
- <span className={cn(isLight ? "px-2 py-0.5 rounded border border-black/10 bg-black/5" : "px-2 py-0.5 rounded border border-white/10 bg-white/5")}>固定薪资 / 无提成</span>
- </span>
- </>
- )}
- </div>
- </div>
- 
- <div className="flex items-center gap-3 mt-1">
- <span className={cn(isLight ? "text-[11px] text-black w-16" : "text-[11px] text-white w-16")}>业绩: €{staff.revenue}</span>
- {staff.isBoss ? (
- <div className={cn(isLight ? "flex-1 h-1.5 bg-black/10 rounded-full overflow-hidden relative" : "flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden relative")}>
- <div className="absolute top-0 left-0 h-full rounded-full bg-amber-500 w-full" />
- </div>
- ) : staff.target > 0 ? (
- <div className={cn(isLight ? "flex-1 h-1.5 bg-black/10 rounded-full overflow-hidden relative" : "flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden relative")}>
- <div 
- className={cn(
- "absolute top-0 left-0 h-full rounded-full ",
- staff.revenue >= staff.target ? "bg-emerald-400" : "bg-purple-500"
- )}
- style={{ width: `${Math.min(100, (staff.revenue / staff.target) * 100)}%` }} 
- />
- </div>
- ) : (
- <div className={cn(isLight ? "flex-1 h-1.5 bg-black/10 rounded-full overflow-hidden relative" : "flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden relative")}>
- <div className={cn(isLight ? "absolute top-0 left-0 h-full rounded-full bg-black/20 w-full" : "absolute top-0 left-0 h-full rounded-full bg-white/20 w-full")} />
- </div>
- )}
- <span className={cn(isLight ? "text-[11px] text-black w-16 text-right" : "text-[11px] text-white w-16 text-right")}>
- {staff.isBoss ? '👑 纯利润' : staff.target > 0 ? `目标: ${staff.target}` : '无硬性考核'}
- </span>
- </div>
- </div>
- ))}
- </div>
+   <div className="flex flex-col gap-5 relative">
+     {staffRanking.map((staff, idx) => {
+       const maxRevenue = Math.max(...staffRanking.map(s => s.revenue), 1);
+       const percent = (staff.revenue / maxRevenue) * 100;
+       
+       return (
+         <div key={staff.id} className="flex items-center gap-4 relative z-10 group">
+           {/* Left: Avatar & Name (Fixed width) */}
+           <div className="flex items-center gap-2 w-[100px] shrink-0">
+             <div className={cn(
+               "w-6 h-6 rounded-full flex items-center justify-center text-[10px] border",
+               isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10"
+             )}>
+               {staff.avatar}
+             </div>
+             <span className={cn("text-[11px] font-mono truncate", isLight ? "text-black" : "text-white")}>
+               {staff.name}
+             </span>
+             {idx === 0 && staff.revenue > 0 && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
+           </div>
+           
+           {/* Middle: Horizontal Bar */}
+           <div className="flex-1 h-2 relative rounded-full overflow-hidden bg-black/5 dark:bg-white/5">
+             <div 
+               className={cn(
+                 "absolute top-0 left-0 h-full rounded-full transition-all duration-1000",
+                 idx === 0 ? "bg-gradient-to-r from-blue-600 to-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]" : "bg-blue-500/50"
+               )}
+               style={{ width: `${Math.max(2, percent)}%` }}
+             />
+           </div>
+           
+           {/* Right: Exact Numbers (Fixed width) */}
+           <div className="flex flex-col items-end w-[80px] shrink-0">
+             <span className={cn("text-xs font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{staff.revenue}</span>
+             {staff.rate > 0 && (
+               <span className="text-[9px] font-mono text-blue-500/70 mt-1 leading-none">提成 €{staff.commission}</span>
+             )}
+           </div>
+         </div>
+       );
+     })}
+   </div>
  </div>
 
- {/* Right: Service ROI */}
- <div className={cn(isLight ? "bg-black/5 border border-black/5 rounded-xl p-5 flex flex-col gap-4" : "bg-white/5 border border-white/5 rounded-xl p-5 flex flex-col gap-4")}>
- <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-3" : "flex items-center justify-between border-b border-white/5 pb-3")}>
- <h3 className={cn(isLight ? "text-sm tracking-widest text-black flex items-center gap-2" : "text-sm tracking-widest text-white flex items-center gap-2")}>
- <Target className="w-4 h-4 text-amber-400" />
- 爆款与吸金项目排行
- </h3>
- <span className={cn(isLight ? "text-[11px] text-black uppercase" : "text-[11px] text-white uppercase")}>Service ROI</span>
- </div>
+ {/* Right: Service ROI (Horizontal Bar Chart) */}
+ <div className={cn(
+    "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+    isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+  )}>
+   <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-4 mb-6" : "flex items-center justify-between border-b border-white/5 pb-4 mb-6")}>
+     <h3 className={cn(isLight ? "text-sm tracking-widest text-black flex items-center gap-2 uppercase" : "text-sm tracking-widest text-white flex items-center gap-2 uppercase")}>
+       <Target className="w-4 h-4 text-amber-500" />
+       爆款项目排行 (Service ROI)
+     </h3>
+     <span className={cn(isLight ? "text-[10px] font-mono text-black/50" : "text-[10px] font-mono text-white/50")}>Top 5</span>
+   </div>
 
- <div className="flex flex-col gap-3">
- {serviceRanking.map((svc, idx) => (
- <div key={svc.id} className={cn(isLight ? "flex items-center justify-between p-3 rounded-lg bg-white/20 border border-black/5 hover:border-amber-500/30 " : "flex items-center justify-between p-3 rounded-lg bg-black/20 border border-white/5 hover:border-amber-500/30 ")}>
- <div className="flex items-center gap-4">
- <span className={cn(isLight ? "text-lg text-black w-4" : "text-lg text-white w-4")}>{idx + 1}</span>
- <div className="flex flex-col">
- <span className={cn(isLight ? "text-xs text-black" : "text-xs text-white")}>{svc.name}</span>
- <div className="flex items-center gap-2 mt-1">
- <span className={cn(
- "text-[11px] px-1.5 py-0.5 rounded-sm border uppercase",
- svc.type === '利润款' ? "text-amber-400 border-amber-400/30 bg-amber-400/10" : "text-blue-400 border-blue-400/30 bg-blue-400/10"
- )}>
- {svc.type}
- </span>
- <span className={cn(isLight ? "text-[11px] text-black" : "text-[11px] text-white")}>服务 {svc.count} 单</span>
- </div>
- </div>
- </div>
- <span className={cn(isLight ? "text-sm text-black " : "text-sm text-white ")}>€ {svc.revenue}</span>
- </div>
- ))}
- </div>
+   <div className="flex flex-col gap-5">
+     {serviceRanking.map((svc, idx) => {
+       const maxRevenue = Math.max(...serviceRanking.map(s => s.revenue), 1);
+       const percent = (svc.revenue / maxRevenue) * 100;
+
+       return (
+         <div key={svc.id} className="flex items-center gap-4 relative z-10 group">
+           {/* Left: Rank & Name (Fixed width) */}
+           <div className="flex items-center gap-3 w-[120px] shrink-0">
+             <span className={cn(
+               "w-4 text-center font-mono text-[10px]", 
+               idx === 0 ? "text-amber-500" : (isLight ? "text-black/40" : "text-white/40")
+             )}>
+               {idx + 1}
+             </span>
+             <div className="flex flex-col">
+               <span className={cn("text-[11px] font-mono truncate max-w-[90px]", isLight ? "text-black" : "text-white")}>
+                 {svc.name}
+               </span>
+               <span className={cn(
+                 "text-[8px] uppercase tracking-widest", 
+                 svc.type === '利润款' ? "text-amber-500" : "text-blue-400"
+               )}>
+                 {svc.type} · {svc.count}单
+               </span>
+             </div>
+           </div>
+
+           {/* Middle: Horizontal Bar */}
+           <div className="flex-1 h-2 relative rounded-full overflow-hidden bg-black/5 dark:bg-white/5">
+             <div 
+               className={cn(
+                 "absolute top-0 left-0 h-full rounded-full transition-all duration-1000",
+                 idx === 0 ? "bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]" : "bg-amber-500/50"
+               )}
+               style={{ width: `${Math.max(2, percent)}%` }}
+             />
+           </div>
+
+           {/* Right: Exact Numbers (Fixed width) */}
+           <div className="flex flex-col items-end w-[60px] shrink-0">
+             <span className={cn("text-xs font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{svc.revenue}</span>
+           </div>
+         </div>
+       );
+     })}
+   </div>
  </div>
 
  </div>
