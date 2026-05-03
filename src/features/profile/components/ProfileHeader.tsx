@@ -217,15 +217,58 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  return;
  }
 
+ // --- 世界级图片降维防线 (Image Compression) ---
+ // 利用 Canvas 强行把用户上传的高清原图压缩到合理尺寸，极限降低带宽刺客的威胁
+ const compressImage = (imageFile: File): Promise<Blob> => {
+   return new Promise((resolve, reject) => {
+     const img = new window.Image();
+     img.src = URL.createObjectURL(imageFile);
+     img.onload = () => {
+       const canvas = document.createElement("canvas");
+       const MAX_WIDTH = 512;
+       const MAX_HEIGHT = 512;
+       let width = img.width;
+       let height = img.height;
+
+       if (width > height) {
+         if (width > MAX_WIDTH) {
+           height *= MAX_WIDTH / width;
+           width = MAX_WIDTH;
+         }
+       } else {
+         if (height > MAX_HEIGHT) {
+           width *= MAX_HEIGHT / height;
+           height = MAX_HEIGHT;
+         }
+       }
+       canvas.width = width;
+       canvas.height = height;
+       const ctx = canvas.getContext("2d");
+       ctx?.drawImage(img, 0, 0, width, height);
+       canvas.toBlob(
+         (blob) => {
+           if (blob) resolve(blob);
+           else reject(new Error("Canvas to Blob failed"));
+         },
+         "image/jpeg",
+         0.8 // 80% quality
+       );
+     };
+     img.onerror = (err) => reject(err);
+   });
+ };
+
+ const compressedBlob = await compressImage(file);
+ const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: "image/jpeg" });
+
  // 1. 生成唯一文件名 (这里使用 profile.id 可以实现同名覆盖，或者加时间戳避免缓存)
- const fileExt = file.name.split('.').pop() || 'jpg';
- const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
+ const fileName = `${profile.id}-${Date.now()}.jpg`;
  const bucketName = process.env.NEXT_PUBLIC_SUPABASE_AVATAR_BUCKET || 'avatars';
 
  // 2. 直接调用 Supabase Storage API 上传
  const { error } = await supabase.storage
  .from(bucketName)
- .upload(fileName, file, {
+ .upload(fileName, compressedFile, {
  cacheControl: '3600',
  upsert: true // 允许覆盖同名文件
  });

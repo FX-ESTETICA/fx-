@@ -92,8 +92,52 @@ export const UGCUploadModal = ({ isOpen, onClose, onSuccess }: UGCUploadModalPro
  };
 
  const uploadImage = async (imageFile: File) => {
+ // --- 世界级图片降维防线 (UGC Image Compression) ---
+ const compressImage = (file: File): Promise<Blob> => {
+   return new Promise((resolve, reject) => {
+     const img = new window.Image();
+     img.src = URL.createObjectURL(file);
+     img.onload = () => {
+       const canvas = document.createElement("canvas");
+       // UGC 图片可稍微大一点，限制到 1080p 以内
+       const MAX_WIDTH = 1080;
+       const MAX_HEIGHT = 1080;
+       let width = img.width;
+       let height = img.height;
+
+       if (width > height) {
+         if (width > MAX_WIDTH) {
+           height *= MAX_WIDTH / width;
+           width = MAX_WIDTH;
+         }
+       } else {
+         if (height > MAX_HEIGHT) {
+           width *= MAX_HEIGHT / height;
+           height = MAX_HEIGHT;
+         }
+       }
+       canvas.width = width;
+       canvas.height = height;
+       const ctx = canvas.getContext("2d");
+       ctx?.drawImage(img, 0, 0, width, height);
+       canvas.toBlob(
+         (blob) => {
+           if (blob) resolve(blob);
+           else reject(new Error("Canvas compress failed"));
+         },
+         "image/jpeg",
+         0.85
+       );
+     };
+     img.onerror = (err) => reject(err);
+   });
+ };
+
+ const compressedBlob = await compressImage(imageFile);
+ const compressedFile = new File([compressedBlob], imageFile.name.replace(/\.[^/.]+$/, ".jpg"), { type: "image/jpeg" });
+
  const formData = new FormData();
- formData.append("file", imageFile);
+ formData.append("file", compressedFile);
  formData.append("path", "ugc/discovery");
 
  const res = await fetch("/api/upload/image", {

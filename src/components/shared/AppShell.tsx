@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AppPlatformGuard } from "./AppPlatformGuard";
+import { TabGuard } from "./TabGuard";
 import { CyberOnboardingModal } from "./CyberOnboardingModal";
 import { BottomNavBar } from "./BottomNavBar";
 import { GlobalWormholeCapsule } from "./GlobalWormholeCapsule";
@@ -68,6 +69,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="relative min-h-[100dvh] bg-transparent flex flex-col">
       <AppPlatformGuard />
+      <TabGuard />
       
       {/* 1. 底层业务页面：作为背景正常渲染 */}
       <div className="flex-1">

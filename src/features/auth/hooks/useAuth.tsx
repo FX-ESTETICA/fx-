@@ -695,18 +695,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
-    const intervalId = window.setInterval(async () => {
-      // 后台静默刷新，不阻塞 UI
-      const { data: { session: nextSession } } = await supabase.auth.getSession();
-      await hydrateSession(nextSession);
-      if (nextSession?.user) {
-        await syncDeviceSession(nextSession);
-      }
-    }, 30000);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
-      window.clearInterval(intervalId);
     };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 
