@@ -451,7 +451,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  };
 
  const handlePointerDown = (e: React.PointerEvent) => {
- // 允许穿透：只有当点击在已有的预约色块内部时才拦截，点击空白背景直接放行！
+    // 【逻辑拦截法则 (根源打击)】：如果当前正在显示右键菜单（内爆状态），点击空白处只应关闭菜单，不应触发任何定位线或准星逻辑
+    if (implodedOrderId) {
+      return;
+    }
+
+    // 允许穿透：只有当点击在已有的预约色块内部时才拦截，点击空白背景直接放行！
  const target = e.target as HTMLElement;
  // 【关键修复】：如果点击的是卡片内部 (包含 implosion-container) 或右键菜单，就拦截
  // 注意不要拦截整个日历画布的 pointer-events-auto
@@ -549,8 +554,15 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  }, [crosshair.active]);
 
  const handlePointerUp = (e: React.PointerEvent) => {
- const start = startPointerRef.current;
- const downAt = pointerDownAtRef.current;
+    // 【逻辑拦截法则】：如果当前正在显示右键菜单（内爆状态），点击空白处只应关闭菜单，不应穿透触发新建预约
+    if (implodedOrderId) {
+      startPointerRef.current = null;
+      pointerDownAtRef.current = null;
+      return;
+    }
+
+    const start = startPointerRef.current;
+    const downAt = pointerDownAtRef.current;
  
  if (longPressTimerRef.current) {
  clearTimeout(longPressTimerRef.current);
