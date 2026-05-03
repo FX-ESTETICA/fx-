@@ -146,6 +146,7 @@ type StaffMember = {
  commissionRate?: number;
  frontendId?: string;
  calendarView?: string;
+ scheduleExceptions?: Array<{ id: string; type: 'day_off' | 'leave' | 'vacation'; startDate: string; endDate?: string }>;
  [key: string]: unknown;
 };
 
@@ -1019,8 +1020,33 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  { id: '4', name: '赵医生', role: '主治医师', avatar: '👩‍🔬', themeColor: '#f59e0b' },
  ];
  } else {
- // 使用全局 staffs 状态，过滤掉离职员工
- let validStaffs = staffs.filter(s => s.status !== 'resigned');
+ // 获取当前视图日期的 YYYY-MM-DD 字符串，用于精确比对排班异常
+ const viewYear = currentDate.getFullYear();
+ const viewMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+ const viewDay = String(currentDate.getDate()).padStart(2, '0');
+ const viewDateStr = `${viewYear}-${viewMonth}-${viewDay}`;
+
+ // 使用全局 staffs 状态，过滤掉离职员工，以及在当前日期休息/请假/休假的员工
+ let validStaffs = staffs.filter(s => {
+ if (s.status === 'resigned') return false;
+ 
+ // 动态排班异常拦截 (物理隐藏不在岗员工)
+ if (s.scheduleExceptions && s.scheduleExceptions.length > 0) {
+ const hasExceptionToday = s.scheduleExceptions.some(exc => {
+ if (exc.type === 'day_off' || exc.type === 'leave') {
+ return exc.startDate === viewDateStr;
+ } else if (exc.type === 'vacation') {
+ const start = exc.startDate;
+ const end = exc.endDate || exc.startDate;
+ return viewDateStr >= start && viewDateStr <= end;
+ }
+ return false;
+ });
+ if (hasExceptionToday) return false;
+ }
+ 
+ return true;
+ });
 
  // 【物理权限隔离】：如果是普通员工（非 boss/merchant），且他在系统中有绑定记录
       if (effectiveUserRole === 'user' && (userGxId || userBaseGxId || userMerchantGxId)) {

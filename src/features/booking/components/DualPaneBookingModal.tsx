@@ -132,7 +132,50 @@ export function DualPaneBookingModal({
  // 遵循绝对液态派发法则：新建预约时，员工画笔强制默认【无指定 (TBD)】，忽略点击的列坐标
  return null;
  }); 
- // 当前处于“待重定向”状态的已选服务ID
+ // --- 日期与时间状态 ---
+ const [selectedDate, setSelectedDate] = useState(() => {
+ if (editingBooking?.date) return editingBooking.date.replace(/-/g, '/');
+ const targetDate = initialDate || new Date();
+ const year = targetDate.getFullYear();
+ const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+ const day = targetDate.getDate().toString().padStart(2, '0');
+ return `${year}/${month}/${day}`;
+ });
+ const [selectedTime, setSelectedTime] = useState(() => {
+ if (editingBooking?.startTime) return editingBooking.startTime;
+ if (initialTime) return initialTime;
+ const now = new Date();
+ const nextHour = (now.getHours() + 1) % 24;
+ return `${nextHour.toString().padStart(2, '0')}:00`;
+ });
+ 
+ // 基于当前选择的日期过滤员工（排除离职、当日休息、请假、休假的员工）
+ const activeStaffs = useMemo(() => {
+ if (!selectedDate) return staffs.filter(s => s.status !== 'resigned');
+ 
+ const dateStr = selectedDate.replace(/\//g, '-'); // YYYY-MM-DD
+ return staffs.filter(s => {
+ if (s.status === 'resigned') return false;
+ 
+ const exceptions = (s as any).scheduleExceptions;
+ if (Array.isArray(exceptions) && exceptions.length > 0) {
+ const hasExceptionToday = exceptions.some((exc: any) => {
+ if (exc.type === 'day_off' || exc.type === 'leave') {
+ return exc.startDate === dateStr;
+ } else if (exc.type === 'vacation') {
+ const start = exc.startDate;
+ const end = exc.endDate || exc.startDate;
+ return dateStr >= start && dateStr <= end;
+ }
+ return false;
+ });
+ if (hasExceptionToday) return false;
+ }
+ 
+ return true;
+ });
+ }, [staffs, selectedDate]);
+ 
  const [retargetingServiceId, setRetargetingServiceId] = useState<string | null>(null);
  const [activeCategory, setActiveCategory] = useState<string | null>(() => categories[0]?.id || null);
  
@@ -196,24 +239,7 @@ export function DualPaneBookingModal({
  return new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
  });
 
- // --- 日期与时间状态 ---
- const [selectedDate, setSelectedDate] = useState(() => {
- if (editingBooking?.date) return editingBooking.date.replace(/-/g, '/');
- const targetDate = initialDate || new Date();
- const year = targetDate.getFullYear();
- const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
- const day = targetDate.getDate().toString().padStart(2, '0');
- return `${year}/${month}/${day}`;
- });
- const [selectedTime, setSelectedTime] = useState(() => {
- if (editingBooking?.startTime) return editingBooking.startTime;
- if (initialTime) return initialTime;
- const now = new Date();
- const nextHour = (now.getHours() + 1) % 24;
- return `${nextHour.toString().padStart(2, '0')}:00`;
- });
-
- // --- 预分配心跳锁引擎 (Pre-allocation Heartbeat Lock) ---
+ // --- 会员信息状态 ---
  // 将锁引擎移至所有依赖状态（如 newCustomerType）声明之后，避免 ReferenceError
  const [allocatedId, setAllocatedId] = useState<string | null>(null);
  const allocatedIdRef = useRef<string | null>(null);
@@ -1969,7 +1995,7 @@ export function DualPaneBookingModal({
  </button>
 
  {/* 员工画笔列表 */}
- {staffs.map(staff => {
+ {activeStaffs.map(staff => {
  const isAssigned = currentBrushEmployeeId === staff.id;
  return (
  <button

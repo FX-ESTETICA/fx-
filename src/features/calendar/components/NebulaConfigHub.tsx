@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay, TrendingUp, Crown } from "lucide-react";
+import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, ChevronRight, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay, TrendingUp, Crown } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -32,6 +32,7 @@ export interface StaffItem {
  operationRights: string;
  financialVisibility: string;
  services: string[];
+ scheduleExceptions?: Array<{ id: string; type: 'day_off' | 'leave' | 'vacation'; startDate: string; endDate?: string }>;
 }
 
 export interface NebulaConfigHubProps {
@@ -1014,8 +1015,10 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight
  <div className="flex flex-col">
  <div className="flex items-center gap-2">
  <span className={cn("text-xs ", staff.status === "resigned" ? (isLight ? "text-black line-through" : "text-white line-through") : (isLight ? "text-black" : "text-white"))}>{staff.name}</span>
- {staff.status === "on_leave" && <span className="px-1.5 py-0.5 rounded text-[11px] bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">{t('txt_62a8cf')}</span>}
  {staff.status === "resigned" && <span className={cn("px-1.5 py-0.5 rounded text-[11px] border", isLight ? "bg-black/5 text-black border-black/30" : "bg-white/5 text-white border-white/30")}>{t('txt_583e79')}</span>}
+ {staff.status === "active" && staff.scheduleExceptions && staff.scheduleExceptions.length > 0 && (
+ <span className="px-1.5 py-0.5 rounded text-[11px] bg-blue-500/20 text-blue-500 border border-blue-500/30">动态排班</span>
+ )}
  </div>
  <span className={cn("text-[11px] mt-0.5 flex items-center gap-1", isLight ? "text-black" : "text-white")}>
  {staff.role} 
@@ -1034,7 +1037,13 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  const t = useTranslations('NebulaConfigHub');
  type StaffTab = "basic" | "finance" | "access";
  const [activeTab, setActiveTab] = useState<StaffTab>("basic");
- const [formData, setFormData] = useState({
+ 
+ // 定义表单数据的完整类型，以避免 TypeScript 报错
+ type StaffFormData = Omit<StaffItem, 'id'> & {
+ scheduleExceptions?: Array<{ id: string; type: string; startDate: string; endDate?: string }>;
+ };
+
+ const [formData, setFormData] = useState<StaffFormData>({
  name: staff.name || "",
  role: staff.role || "",
  color: staff.color || "#06b6d4",
@@ -1049,13 +1058,143 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  nebulaAccess: staff.nebulaAccess || false,
  operationRights: staff.operationRights || "view",
  financialVisibility: staff.financialVisibility || "self",
- services: staff.services || []
+ services: staff.services || [],
+ scheduleExceptions: staff.scheduleExceptions || []
  });
  const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
  const [realAvatar, setRealAvatar] = useState<string | null>(null);
 
  const registerBack = useHardwareBack(state => state.register);
  const unregisterBack = useHardwareBack(state => state.unregister);
+ 
+ // --- 画笔涂鸦引擎状态 (Paint & Brush Engine) ---
+ type BrushType = 'day_off' | 'leave' | 'vacation' | 'eraser' | null;
+ const [activeBrush, setActiveBrush] = useState<BrushType>(null);
+ const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
+ // 用于处理休假区间的拖拽涂鸦
+ const [dragStartDate, setDragStartDate] = useState<string | null>(null);
+
+ // 计算当前日历面板显示的月份
+ const currentCalendarDate = new Date();
+ currentCalendarDate.setMonth(currentCalendarDate.getMonth() + calendarMonthOffset);
+ const currentYear = currentCalendarDate.getFullYear();
+ const currentMonth = currentCalendarDate.getMonth();
+
+ // 获取当月所有日期格
+ const getCalendarDays = () => {
+ const days = [];
+ const firstDay = new Date(currentYear, currentMonth, 1);
+ const lastDay = new Date(currentYear, currentMonth + 1, 0);
+ const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // 周一为一周开始
+ 
+ // 填充上月占位
+ for (let i = 0; i < startDayOfWeek; i++) {
+ days.push({ date: '', isCurrentMonth: false });
+ }
+ // 填充当月
+ for (let i = 1; i <= lastDay.getDate(); i++) {
+ const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+ days.push({ date: dateStr, isCurrentMonth: true, dayNum: i });
+ }
+ return days;
+ };
+
+ // 判断某一天属于哪种异常状态
+ const getExceptionTypeForDate = (dateStr: string): BrushType => {
+ if (!dateStr || !formData.scheduleExceptions) return null;
+ 
+ for (const exc of formData.scheduleExceptions) {
+ if (exc.type === 'day_off' || exc.type === 'leave') {
+ if (exc.startDate === dateStr) return exc.type as BrushType;
+ } else if (exc.type === 'vacation') {
+ const start = exc.startDate;
+ const end = exc.endDate || exc.startDate;
+ if (dateStr >= start && dateStr <= end) return 'vacation';
+ }
+ }
+ return null;
+ };
+
+ // 处理日历格子的点击（涂鸦/擦除）
+ const handleCalendarCellClick = (dateStr: string) => {
+ if (!dateStr || !activeBrush) return;
+
+ const currentExcs = [...(formData.scheduleExceptions || [])];
+ const existingType = getExceptionTypeForDate(dateStr);
+
+ if (activeBrush === 'eraser') {
+ // 橡皮擦逻辑：找到包含该日期的记录并删除或拆分
+ const newExcs = currentExcs.filter(exc => {
+ if (exc.type === 'day_off' || exc.type === 'leave') {
+ return exc.startDate !== dateStr;
+ } else if (exc.type === 'vacation') {
+ const start = exc.startDate;
+ const end = exc.endDate || exc.startDate;
+ if (dateStr >= start && dateStr <= end) {
+ // 如果是区间，理想情况是拆分，这里简化处理：直接删除整个区间（商业系统中通常休假是一起请一起销）
+ return false; 
+ }
+ return true;
+ }
+ return true;
+ });
+ setFormData({...formData, scheduleExceptions: newExcs});
+ return;
+ }
+
+ // 如果当前格子已经有相同的颜色，相当于反选（擦除）
+ if (existingType === activeBrush) {
+ const newExcs = currentExcs.filter(exc => {
+ if (exc.type === 'day_off' || exc.type === 'leave') {
+ return exc.startDate !== dateStr;
+ } else if (exc.type === 'vacation') {
+ const start = exc.startDate;
+ const end = exc.endDate || exc.startDate;
+ return !(dateStr >= start && dateStr <= end);
+ }
+ return true;
+ });
+ setFormData({...formData, scheduleExceptions: newExcs});
+ return;
+ }
+
+ // 画笔逻辑
+ if (activeBrush === 'day_off' || activeBrush === 'leave') {
+ // 先擦除该日期的旧记录防止冲突
+ const cleanExcs = currentExcs.filter(exc => {
+ if (exc.type === 'day_off' || exc.type === 'leave') return exc.startDate !== dateStr;
+ if (exc.type === 'vacation') return !(dateStr >= exc.startDate && dateStr <= (exc.endDate || exc.startDate));
+ return true;
+ });
+ cleanExcs.push({ id: `exc_${Date.now()}`, type: activeBrush, startDate: dateStr });
+ setFormData({...formData, scheduleExceptions: cleanExcs});
+ } else if (activeBrush === 'vacation') {
+ // 休假逻辑：第一次点击记录起点，第二次点击记录终点
+ if (!dragStartDate) {
+ setDragStartDate(dateStr);
+ } else {
+ const start = dragStartDate < dateStr ? dragStartDate : dateStr;
+ const end = dragStartDate < dateStr ? dateStr : dragStartDate;
+ 
+ // 清理区间内的旧记录
+ const cleanExcs = currentExcs.filter(exc => {
+ if (exc.type === 'day_off' || exc.type === 'leave') return !(exc.startDate >= start && exc.startDate <= end);
+ if (exc.type === 'vacation') {
+ // 简单处理：如果存在交叉，直接干掉旧区间
+ const oldStart = exc.startDate;
+ const oldEnd = exc.endDate || exc.startDate;
+ const isOverlap = start <= oldEnd && end >= oldStart;
+ return !isOverlap;
+ }
+ return true;
+ });
+ 
+ cleanExcs.push({ id: `exc_${Date.now()}`, type: 'vacation', startDate: start, endDate: end });
+ setFormData({...formData, scheduleExceptions: cleanExcs});
+ setDragStartDate(null); // 重置起点
+ }
+ }
+ };
 
  useEffect(() => {
  if (!formData.frontendId) {
@@ -1230,10 +1369,9 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  {/* Status */}
  <div className="space-y-2">
  <label className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_70240b')}</label>
- <div className="grid grid-cols-3 gap-2">
+ <div className="grid grid-cols-2 gap-2">
  {[
  { id: "active", label: t('txt_238a27'), color: " " },
- { id: "on_leave", label: t('txt_538024'), color: "text-yellow-400 border-yellow-400/20 bg-yellow-400/10" },
  { id: "resigned", label: t('txt_151a99'), color: isLight ? "text-black border-black/20 bg-black/10" : "text-white border-white/20 bg-white/10" },
  ].map(s => (
  <button
@@ -1250,6 +1388,163 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  ))}
  </div>
  </div>
+
+ {/* 动态排班异常配置 (休息/请假/休假) */}
+ {formData.status === 'active' && (
+ <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2">
+ <div className="flex items-center justify-between">
+ <label className={cn("text-[11px] uppercase tracking-widest flex items-center gap-1", isLight ? "text-black" : "text-white")}>
+ <CalendarIcon className="w-3 h-3" /> 动态排班设定
+ </label>
+ </div>
+ <div className={cn("p-3 rounded-xl border space-y-3", isLight ? "bg-black/5 border-black/5" : "bg-white/[0.02] border-white/5")}>
+ <div className="flex gap-2">
+ <button 
+ onClick={() => { setActiveBrush(activeBrush === 'day_off' ? null : 'day_off'); setDragStartDate(null); }}
+ className={cn("flex-1 py-1.5 rounded text-[11px] border flex items-center justify-center gap-1 transition-all", 
+ activeBrush === 'day_off' 
+ ? (isLight ? "bg-blue-500 text-white border-blue-500 shadow-md" : "bg-blue-500 text-white border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]") 
+ : (isLight ? "bg-blue-500/10 text-blue-600 border-blue-500/20" : "bg-blue-500/20 text-blue-400 border-blue-500/30")
+ )}
+ >
+ <Plus className="w-3 h-3" /> 休息
+ </button>
+ <button 
+ onClick={() => { setActiveBrush(activeBrush === 'leave' ? null : 'leave'); setDragStartDate(null); }}
+ className={cn("flex-1 py-1.5 rounded text-[11px] border flex items-center justify-center gap-1 transition-all", 
+ activeBrush === 'leave' 
+ ? (isLight ? "bg-orange-500 text-white border-orange-500 shadow-md" : "bg-orange-500 text-white border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]") 
+ : (isLight ? "bg-orange-500/10 text-orange-600 border-orange-500/20" : "bg-orange-500/20 text-orange-400 border-orange-500/30")
+ )}
+ >
+ <Plus className="w-3 h-3" /> 请假
+ </button>
+ <button 
+ onClick={() => { setActiveBrush(activeBrush === 'vacation' ? null : 'vacation'); setDragStartDate(null); }}
+ className={cn("flex-1 py-1.5 rounded text-[11px] border flex items-center justify-center gap-1 transition-all", 
+ activeBrush === 'vacation' 
+ ? (isLight ? "bg-pink-500 text-white border-pink-500 shadow-md" : "bg-pink-500 text-white border-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]") 
+ : (isLight ? "bg-pink-500/10 text-pink-600 border-pink-500/20" : "bg-pink-500/20 text-pink-400 border-pink-500/30")
+ )}
+ >
+ <Plus className="w-3 h-3" /> 休假
+ </button>
+ </div>
+ 
+ {/* 画笔提示区 */}
+ {activeBrush && (
+ <div className={cn("text-[10px] text-center py-1 animate-in fade-in", isLight ? "text-black/60" : "text-white/60")}>
+ {activeBrush === 'day_off' && "👆 已激活【休息】画笔：点击下方日历进行单日涂鸦"}
+ {activeBrush === 'leave' && "👆 已激活【请假】画笔：点击下方日历进行单日涂鸦"}
+ {activeBrush === 'vacation' && "👆 已激活【休假】画笔：点击下方日历选择起始和结束日期"}
+ {dragStartDate && activeBrush === 'vacation' && " (请选择结束日期)"}
+ </div>
+ )}
+
+ {/* 迷你日历画板 (Mini Calendar Canvas) */}
+ <div className={cn("p-3 rounded-lg border flex flex-col gap-3 select-none", isLight ? "bg-white border-black/10" : "bg-black/20 border-white/10")}>
+ {/* 日历头部 */}
+ <div className="flex items-center justify-between px-1">
+ <button onClick={() => setCalendarMonthOffset(o => o - 1)} className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/5")}>
+ <ChevronLeft className="w-4 h-4" />
+ </button>
+ <span className={cn("text-xs font-medium tracking-widest", isLight ? "text-black" : "text-white")}>
+ {currentYear} / {String(currentMonth + 1).padStart(2, '0')}
+ </span>
+ <button onClick={() => setCalendarMonthOffset(o => o + 1)} className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/5")}>
+ <ChevronRight className="w-4 h-4" />
+ </button>
+ </div>
+ 
+ {/* 星期头 */}
+ <div className="grid grid-cols-7 gap-1 text-center">
+ {['一', '二', '三', '四', '五', '六', '日'].map(day => (
+ <span key={day} className={cn("text-[10px] font-medium", isLight ? "text-black/40" : "text-white/40")}>{day}</span>
+ ))}
+ </div>
+ 
+ {/* 日期网格 */}
+ <div className="grid grid-cols-7 gap-1">
+ {getCalendarDays().map((dayObj, idx) => {
+ if (!dayObj.isCurrentMonth) {
+ return <div key={`empty-${idx}`} className="h-8" />;
+ }
+ 
+ const dateStr = dayObj.date;
+ const excType = getExceptionTypeForDate(dateStr);
+ 
+ // 颜色映射逻辑
+ let bgColor = "transparent";
+ let textColor = isLight ? "text-black/80" : "text-white/80";
+ let borderStyle = "border-transparent";
+ let isHighlight = false;
+ 
+ if (excType === 'day_off') {
+ bgColor = isLight ? "bg-blue-500/20" : "bg-blue-500/30";
+ textColor = isLight ? "text-blue-700" : "text-blue-300";
+ borderStyle = "border-blue-500/30";
+ isHighlight = true;
+ } else if (excType === 'leave') {
+ bgColor = isLight ? "bg-orange-500/20" : "bg-orange-500/30";
+ textColor = isLight ? "text-orange-700" : "text-orange-300";
+ borderStyle = "border-orange-500/30";
+ isHighlight = true;
+ } else if (excType === 'vacation') {
+ bgColor = isLight ? "bg-pink-500/20" : "bg-pink-500/30";
+ textColor = isLight ? "text-pink-700" : "text-pink-300";
+ borderStyle = "border-pink-500/30";
+ isHighlight = true;
+ }
+ 
+ // 拖拽中状态预览 (休假画笔)
+ if (activeBrush === 'vacation' && dragStartDate && dateStr === dragStartDate) {
+ bgColor = isLight ? "bg-pink-500/40" : "bg-pink-500/50";
+ borderStyle = "border-pink-500 border-dashed";
+ }
+
+ // 今日小点
+ const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+ return (
+ <button
+ key={dateStr}
+ onClick={() => handleCalendarCellClick(dateStr)}
+ disabled={!activeBrush}
+ className={cn(
+ "relative h-8 flex flex-col items-center justify-center rounded-md border text-[11px] transition-all",
+ bgColor,
+ textColor,
+ borderStyle,
+ activeBrush ? "cursor-pointer hover:scale-105" : "cursor-default",
+ isHighlight ? "font-bold shadow-sm" : "",
+ activeBrush && !isHighlight && (isLight ? "hover:bg-black/5" : "hover:bg-white/5")
+ )}
+ >
+ {dayObj.dayNum}
+ {isToday && !isHighlight && (
+ <div className={cn("absolute bottom-1 w-1 h-1 rounded-full", isLight ? "bg-black/30" : "bg-white/30")} />
+ )}
+ </button>
+ );
+ })}
+ </div>
+ </div>
+ 
+ <div className="flex justify-between items-center px-1">
+ <span className={cn("text-[10px] opacity-50", isLight ? "text-black" : "text-white")}>
+ {formData.scheduleExceptions?.length ? `已设置 ${formData.scheduleExceptions.length} 条排班异常` : '该员工全勤，无异常排班。'}
+ </span>
+ <button 
+ onClick={() => setFormData({...formData, scheduleExceptions: []})}
+ disabled={!formData.scheduleExceptions?.length}
+ className={cn("text-[10px] flex items-center gap-1 disabled:opacity-30", isLight ? "text-red-600" : "text-red-400")}
+ >
+ <Trash2 className="w-3 h-3" /> 清空
+ </button>
+ </div>
+ </div>
+ </div>
+ )}
 
  {/* System Linking */}
  <div className="space-y-4 p-4 rounded-xl border ">
