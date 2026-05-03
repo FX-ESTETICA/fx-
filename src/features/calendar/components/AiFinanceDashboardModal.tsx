@@ -426,7 +426,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in font-sans",
+ "fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in",
  isLight ? "text-black" : "text-white"
  )}>
  {/* 背景暗场遮罩：取消黑色，使用和预约窗一致的透明层 */}
@@ -459,7 +459,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
  <div className="flex flex-col drop-shadow-sm">
  <h2 className={cn("text-sm tracking-widest", isLight ? "text-black font-semibold" : "text-white font-semibold")}>AI 财务核心舱</h2>
- <span className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-purple-600 font-medium" : "text-purple-400 font-medium")}>Financial Intelligence Hub</span>
+ <span className={cn("text-[13px] uppercase tracking-widest", isLight ? "text-purple-600 font-medium" : "text-purple-400 font-medium")}>Financial Intelligence Hub</span>
  </div>
  </div>
 
@@ -472,7 +472,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  key={range}
  onClick={() => setTimeRange(range)}
  className={cn(
- "px-4 py-1.5 rounded-md text-[11px] uppercase tracking-widest ",
+ "px-4 py-1.5 rounded-md text-[13px] uppercase tracking-widest ",
  timeRange === range 
  ? (isLight ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]")
  : (isLight ? "text-black hover:text-black hover:bg-black/5 border border-transparent" : "text-white hover:text-white hover:bg-white/5 border border-transparent")
@@ -508,15 +508,15 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          
          {/* Left: Giant Money */}
          <div className="flex-1 flex flex-col justify-center">
-           <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2 mb-2", isLight ? "text-black/50" : "text-white/50")}>
+           <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2 mb-2", isLight ? "text-black/50" : "text-white/50")}>
              <Crown className="w-3.5 h-3.5" />
              总营业额 (Gross Revenue)
            </span>
-           <span className={cn("text-7xl font-mono tracking-tighter drop-shadow-sm leading-none", isLight ? "text-black" : "text-white")}>
+           <span className={cn("text-7xl  tracking-tighter drop-shadow-sm leading-none", isLight ? "text-black" : "text-white")}>
              €{currentMetrics.total.toLocaleString()}
            </span>
            <div className="mt-4 flex items-center gap-2">
-             <div className={cn("inline-flex items-center gap-1 text-sm font-mono px-3 py-1.5 rounded border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
+             <div className={cn("inline-flex items-center gap-1 text-sm  px-3 py-1.5 rounded border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
                {isPositive ? <TrendingUp className="w-4 h-4" /> : isNegative ? <TrendingDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
                <span>{isPositive ? '+' : ''}{trend.toFixed(1)}% vs Prev</span>
              </div>
@@ -531,18 +531,18 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            
            {/* Top: Traffic */}
            <div className="flex flex-col gap-1">
-             <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-gx-cyan/70" : "text-gx-cyan/70")}>
+             <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-gx-cyan/70" : "text-gx-cyan/70")}>
                <Users className="w-3.5 h-3.5" />
                客流 (Traffic)
              </span>
              <div className="flex items-baseline gap-2 mt-1">
-               <span className={cn("text-4xl font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
-               <span className={cn("text-xs uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>PAX</span>
+               <span className={cn("text-4xl  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
+               <span className={cn("text-[13px] uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>PAX</span>
              </div>
              
              {/* New/Returning Ratio Bar */}
              <div className="flex flex-col gap-1 mt-2">
-               <div className="flex justify-between text-[9px] font-mono uppercase tracking-widest">
+               <div className="flex justify-between text-[13px]  uppercase tracking-widest">
                  <span className="text-blue-400">New {currentMetrics.tactical.newRatio}%</span>
                  <span className="text-purple-400">Ret {currentMetrics.tactical.returningRatio}%</span>
                </div>
@@ -555,13 +555,13 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  
            {/* Bottom: ATV */}
            <div className="flex flex-col gap-1 mt-5">
-             <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
+             <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
                <Target className="w-3.5 h-3.5" />
                客单价 (ATV)
              </span>
              <div className="flex items-baseline gap-2 mt-1">
-               <span className={cn("text-3xl font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{currentMetrics.tactical.atv}</span>
-               <span className={cn("text-[10px] uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>/ PAX</span>
+               <span className={cn("text-3xl  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{currentMetrics.tactical.atv}</span>
+               <span className={cn("text-[13px] uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>/ PAX</span>
              </div>
            </div>
  
@@ -582,7 +582,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
           isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
         )}>
           <div className="flex items-center justify-between mb-4">
-            <span className={cn("text-[11px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
+            <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
               <Wallet className="w-3.5 h-3.5" />
               支付构成 (Structure)
             </span>
@@ -602,7 +602,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
             </div>
             
             {/* Aligned List */}
-            <div className="flex-1 flex flex-col gap-2 font-mono text-[10px]">
+            <div className="flex-1 flex flex-col gap-2  text-[13px]">
               {[
                 { label: '微信 (WECHAT)', value: currentMetrics.wechat, color: '#07C160' },
                 { label: '支付宝 (ALIPAY)', value: currentMetrics.alipay, color: '#1677FF' },
@@ -636,14 +636,14 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        )}>
          <div className="absolute top-0 left-0 w-32 h-32 bg-amber-500/10 rounded-br-full blur-2xl group-hover:bg-amber-500/20" />
          <div className="flex items-center justify-between mb-4 relative z-10">
-           <span className="text-[11px] text-amber-500 uppercase tracking-widest flex items-center gap-2">
+           <span className="text-[13px] text-amber-500 uppercase tracking-widest flex items-center gap-2">
              <Wallet className="w-3.5 h-3.5" />
              新增充值 (Prepaid)
            </span>
          </div>
          
          <div className="flex items-baseline gap-2 relative z-10 mb-4">
-           <span className="text-4xl font-mono tracking-tighter text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+           <span className="text-4xl  tracking-tighter text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
              €{currentMetrics.tactical.topUps.toLocaleString()}
            </span>
          </div>
@@ -651,8 +651,8 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 relative z-10">
            <UserPlus className="w-4 h-4 text-amber-500 shrink-0" />
            <div className="flex flex-col">
-             <span className="text-[10px] font-mono text-amber-500/70 uppercase tracking-widest">Conv. Rate</span>
-             <span className="text-xs font-mono text-amber-500">{currentMetrics.tactical.conversionRate}% <TrendingUp className="inline w-3 h-3 ml-1" /></span>
+             <span className="text-[13px]  text-amber-500/70 uppercase tracking-widest">Conv. Rate</span>
+             <span className="text-[13px]  text-amber-500">{currentMetrics.tactical.conversionRate}% <TrendingUp className="inline w-3 h-3 ml-1" /></span>
            </div>
          </div>
        </div>
@@ -664,20 +664,20 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        )}>
          <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-br-full blur-2xl group-hover:bg-emerald-500/20" />
          <div className="flex items-center justify-between mb-4 relative z-10">
-           <span className="text-[11px] text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+           <span className="text-[13px] text-emerald-500 uppercase tracking-widest flex items-center gap-2">
              <ShoppingBag className="w-3.5 h-3.5" />
              产品零售 (Retail)
            </span>
          </div>
          
          <div className="flex items-baseline gap-2 relative z-10 mb-4">
-           <span className="text-4xl font-mono tracking-tighter text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+           <span className="text-4xl  tracking-tighter text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]">
              €{currentMetrics.tactical.retailRevenue.toLocaleString()}
            </span>
          </div>
 
          <div className="flex flex-col gap-1.5 relative z-10">
-           <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest text-emerald-500/70">
+           <div className="flex justify-between text-[13px]  uppercase tracking-widest text-emerald-500/70">
              <span>Ratio</span>
              <span>{currentMetrics.tactical.retailRatio}%</span>
            </div>
@@ -704,7 +704,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        <Users className="w-4 h-4 text-blue-500" />
        技师血汗榜 (Staff Leaderboard)
      </h3>
-     <span className={cn(isLight ? "text-[10px] font-mono text-black/50" : "text-[10px] font-mono text-white/50")}>Auto-calculated</span>
+     <span className={cn(isLight ? "text-[13px]  text-black/50" : "text-[13px]  text-white/50")}>Auto-calculated</span>
    </div>
  
    <div className="flex flex-col gap-5 relative">
@@ -717,12 +717,12 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            {/* Left: Avatar & Name (Fixed width) */}
            <div className="flex items-center gap-2 w-[100px] shrink-0">
              <div className={cn(
-               "w-6 h-6 rounded-full flex items-center justify-center text-[10px] border",
+               "w-6 h-6 rounded-full flex items-center justify-center text-[13px] border",
                isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10"
              )}>
                {staff.avatar}
              </div>
-             <span className={cn("text-[11px] font-mono truncate", isLight ? "text-black" : "text-white")}>
+             <span className={cn("text-[13px]  truncate", isLight ? "text-black" : "text-white")}>
                {staff.name}
              </span>
              {idx === 0 && staff.revenue > 0 && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
@@ -741,9 +741,9 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            
            {/* Right: Exact Numbers (Fixed width) */}
            <div className="flex flex-col items-end w-[80px] shrink-0">
-             <span className={cn("text-xs font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{staff.revenue}</span>
+             <span className={cn("text-[13px]  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{staff.revenue}</span>
              {staff.rate > 0 && (
-               <span className="text-[9px] font-mono text-blue-500/70 mt-1 leading-none">提成 €{staff.commission}</span>
+               <span className="text-[13px]  text-blue-500/70 mt-1 leading-none">提成 €{staff.commission}</span>
              )}
            </div>
          </div>
@@ -762,7 +762,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        <Target className="w-4 h-4 text-amber-500" />
        爆款项目排行 (Service ROI)
      </h3>
-     <span className={cn(isLight ? "text-[10px] font-mono text-black/50" : "text-[10px] font-mono text-white/50")}>Top 5</span>
+     <span className={cn(isLight ? "text-[13px]  text-black/50" : "text-[13px]  text-white/50")}>Top 5</span>
    </div>
 
    <div className="flex flex-col gap-5">
@@ -775,17 +775,17 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            {/* Left: Rank & Name (Fixed width) */}
            <div className="flex items-center gap-3 w-[120px] shrink-0">
              <span className={cn(
-               "w-4 text-center font-mono text-[10px]", 
+               "w-4 text-center  text-[13px]", 
                idx === 0 ? "text-amber-500" : (isLight ? "text-black/40" : "text-white/40")
              )}>
                {idx + 1}
              </span>
              <div className="flex flex-col">
-               <span className={cn("text-[11px] font-mono truncate max-w-[90px]", isLight ? "text-black" : "text-white")}>
+               <span className={cn("text-[13px]  truncate max-w-[90px]", isLight ? "text-black" : "text-white")}>
                  {svc.name}
                </span>
                <span className={cn(
-                 "text-[8px] uppercase tracking-widest", 
+                 "text-[13px] uppercase tracking-widest", 
                  svc.type === '利润款' ? "text-amber-500" : "text-blue-400"
                )}>
                  {svc.type} · {svc.count}单
@@ -806,7 +806,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
 
            {/* Right: Exact Numbers (Fixed width) */}
            <div className="flex flex-col items-end w-[60px] shrink-0">
-             <span className={cn("text-xs font-mono tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{svc.revenue}</span>
+             <span className={cn("text-[13px]  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{svc.revenue}</span>
            </div>
          </div>
        );

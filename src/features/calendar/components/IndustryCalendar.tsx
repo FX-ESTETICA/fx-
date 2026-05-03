@@ -1510,21 +1510,21 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </button>
  </div>
 
- {/* AI 财务核算 (AI Finance Dashboard) - 顶级 B 端全息入口 */} 
+ {/* 财务核算 (AI Finance Dashboard) - 顶级 B 端全息入口 */} 
  <div className="px-8 mt-4 pointer-events-auto relative z-50"> 
  <button
  onClick={() => setIsFinanceDashboardOpen(true)}
  className={cn(
- "w-full flex items-center justify-center gap-3 px-4 py-3 group relative bg-transparent"
+ "w-full flex items-center justify-center py-3.5 group relative bg-transparent"
  )}
  >
- <div className="flex items-center gap-3 relative z-10">
- <span className={cn("text-xs tracking-widest ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>AI 财务核算</span>
- </div>
- <div className="flex items-center gap-1 relative z-10">
+ <div className="flex items-center justify-center relative z-10">
+ <span className={cn("text-xs tracking-widest uppercase ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>财务核算</span>
+ <div className="absolute -right-6 flex items-center gap-1">
  <div className={cn("w-0.5 h-3 rounded-full animate-[pulse_1s_ease-in-out_infinite]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
  <div className={cn("w-0.5 h-4 rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
  <div className={cn("w-0.5 h-2 rounded-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
+ </div>
  </div>
  </button>
  </div>

@@ -9,12 +9,12 @@ import {
  Search
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { BookingDetails } from "@/features/booking/types";
+
 import { ShopOperatingConfig, DailyOverride } from "@/features/calendar/components/IndustryCalendar";
 import { TodayOverrideController } from "@/features/calendar/components/TodayOverrideController";
 import { cn } from "@/utils/cn";
 import { PhoneAuthBar } from "./PhoneAuthBar";
-import { IndustryType } from "@/features/calendar/types";
+
 import { UserProfile } from "../types";
 
 import { supabase } from "@/lib/supabase";
@@ -25,7 +25,6 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 // import { useRouter } from "next/navigation";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 import { FrontendThemeSwitcher } from "./FrontendThemeSwitcher";
-import { PrivacySettings } from "./PrivacySettings";
 
 interface MerchantDashboardProps {
  merchantId: string;
@@ -35,17 +34,7 @@ interface MerchantDashboardProps {
  profile?: UserProfile;
 }
 
-const resolveIndustry = (value?: string | null): IndustryType => {
- const allowed: IndustryType[] = ["beauty", "dining", "hotel", "medical", "expert", "fitness", "other"];
- return allowed.includes(value as IndustryType) ? (value as IndustryType) : "beauty";
-};
 
-const normalizeStatus = (value?: string): BookingDetails["status"] => {
- const lower = (value || "pending").toLowerCase();
- return lower === "confirmed" || lower === "cancelled" || lower === "completed"
- ? (lower as BookingDetails["status"])
- : "pending";
-};
 
 const StatsCard = ({ label, value, isLight }: { label: string; value: number | string; isLight?: boolean }) => {
  return (
@@ -73,7 +62,6 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
  const isGracePeriodActive = subscription.isGracePeriodActive;
  const gracePeriodActionsLeft = subscription.gracePeriodActionsLeft;
- const [bookings, setBookings] = useState<BookingDetails[]>([]);
 
  // 多门店全局下拉菜单状态
  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -213,21 +201,6 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
 
  // 1 & 2. 移除 MerchantDashboard 内置的 Bookings 独立拉取和监听
  // 【世界顶端架构】：完全复用 ShopContext 里的 globalBookings，消灭所有的并发与多重 websocket
- useEffect(() => {
- const resolvedIndustry = resolveIndustry(industry);
- const uiBookings = globalBookings.map((b) => ({
- id: b.id,
- industry: resolvedIndustry,
- serviceId: b.services?.[0]?.id || "unknown",
- serviceName: b.services?.map((s: any) => s.name).join(', ') || b.customServiceText || "未知服务",
- date: b.date,
- timeSlot: `${b.startTime} - ${b.duration || b.duration_min}min`,
- customerName: b.customer_name || b.customerName || "散客",
- customerPhone: b.customer_phone || b.customerPhone || "无",
- status: normalizeStatus(b.status),
- }));
- setBookings(uiBookings);
- }, [globalBookings, industry]);
 
  if (!availableShops || availableShops.length === 0) {
  return (
@@ -257,21 +230,91 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  {/* 第一层：数据统计区 */}
  <div className="w-full py-4 relative z-10">
  <div className="grid grid-cols-3 divide-x divide-white/5">
+ {(() => {
+ const year = new Date().getFullYear();
+ const month = String(new Date().getMonth() + 1).padStart(2, '0');
+ const day = String(new Date().getDate()).padStart(2, '0');
+ const realTodayStr = `${year}-${month}-${day}`;
+
+ // 1. 今日预约数 (排除 PENDING 和 NO 的真实订单，连单按 1 单计算)
+ const todayBookings = globalBookings.filter(b => {
+ const bDate = b.date?.split('T')[0];
+ return bDate === realTodayStr && b.status !== 'PENDING' && b.resourceId !== 'NO' && (!activeShopId || b.shopId === activeShopId);
+ });
+
+ const uniqueTodayOrders = new Set<string>();
+ let todayBookingsCount = 0;
+ todayBookings.forEach(b => {
+ if (b.masterOrderId) {
+ if (!uniqueTodayOrders.has(b.masterOrderId)) {
+ uniqueTodayOrders.add(b.masterOrderId);
+ todayBookingsCount++;
+ }
+ } else {
+ todayBookingsCount++;
+ }
+ });
+
+ // 2. 原生今日待处理数 (未完成的真实订单，连单按 1 单计算) 
+ const todayPendingBookings = globalBookings.filter(b => { 
+ const bDate = b.date?.split('T')[0];
+ const status = b.status?.toUpperCase();
+ return bDate === realTodayStr && status !== 'PENDING' && status !== 'COMPLETED' && status !== 'CHECKED_OUT' && b.resourceId !== 'NO' && (!activeShopId || b.shopId === activeShopId);
+ });
+
+ const uniquePendingOrders = new Set<string>();
+ let todayPendingCount = 0;
+ todayPendingBookings.forEach(b => {
+ if (b.masterOrderId) {
+ if (!uniquePendingOrders.has(b.masterOrderId)) {
+ uniquePendingOrders.add(b.masterOrderId);
+ todayPendingCount++;
+ }
+ } else {
+ todayPendingCount++;
+ }
+ });
+
+ // 3. 今日已结账数
+ const todayCompletedBookings = globalBookings.filter(b => { 
+ const bDate = b.date?.split('T')[0];
+ const status = b.status?.toUpperCase();
+ return bDate === realTodayStr && (status === 'COMPLETED' || status === 'CHECKED_OUT') && b.resourceId !== 'NO' && (!activeShopId || b.shopId === activeShopId);
+ });
+
+ const uniqueCompletedOrders = new Set<string>();
+ let todayCompletedCount = 0;
+ todayCompletedBookings.forEach(b => {
+ if (b.masterOrderId) {
+ if (!uniqueCompletedOrders.has(b.masterOrderId)) {
+ uniqueCompletedOrders.add(b.masterOrderId);
+ todayCompletedCount++;
+ }
+ } else {
+ todayCompletedCount++;
+ }
+ });
+
+ return (
+ <>
  <StatsCard 
- label={t('txt_f49d92')} 
- value={bookings.filter(b => b.status === "pending").length} 
+ label="今日预约" 
+ value={todayBookingsCount.toString().padStart(2, '0')} 
  isLight={isLight}
  />
  <StatsCard 
- label={t('txt_733f4a')} 
- value={bookings.filter(b => b.status === "confirmed").length} 
+ label="待处理" 
+ value={todayPendingCount.toString().padStart(2, '0')} 
  isLight={isLight}
  />
  <StatsCard 
- label={t('txt_5af2c6')} 
- value={0} 
+ label="已结账" 
+ value={todayCompletedCount.toString().padStart(2, '0')} 
  isLight={isLight}
  />
+ </>
+ );
+ })()}
  </div>
  </div>
 
