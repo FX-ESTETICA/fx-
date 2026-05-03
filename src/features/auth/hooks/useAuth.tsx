@@ -158,12 +158,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
 
-        // 如果存在 profile.gx_id，才去拉取最新的 bindings
-        if (profile?.gx_id) {
+        // 如果存在 profile.gx_id 或 profile.merchant_gx_id，才去拉取最新的 bindings
+        const principalIds = [profile?.gx_id, profile?.merchant_gx_id].filter(Boolean);
+        if (principalIds.length > 0) {
           const { data: newBindings, error: newBindingsError } = await supabase
             .from('bindings')
             .select('shop_id, role, shops(id, name, industry)')
-            .eq('principal_id', profile.gx_id);
+            .in('principal_id', principalIds);
           
           if (!newBindingsError && newBindings && newBindings.length > 0) {
           // 【核心修复：多租户身份叠加法则 + 强去重】
@@ -483,12 +484,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
 
-      // 如果存在 profile.gx_id，才去拉取最新的 bindings
-      if (profile?.gx_id) {
+      // 如果存在 profile.gx_id 或 profile.merchant_gx_id，才去拉取最新的 bindings
+      const principalIds = [profile?.gx_id, profile?.merchant_gx_id].filter(Boolean);
+      if (principalIds.length > 0) {
         const { data: newBindings, error: newBindingsError } = await supabase
           .from('bindings')
           .select('shop_id, role, shops(id, name, industry)')
-          .eq('principal_id', profile.gx_id);
+          .in('principal_id', principalIds);
         
         if (!newBindingsError && newBindings && newBindings.length > 0) {
           // 【核心修复：多租户身份叠加法则 + 强去重】
@@ -670,12 +672,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     */
 
     return () => {
+      if (subscribedDebounceTimer) clearTimeout(subscribedDebounceTimer);
       supabase.removeChannel(profileSubscription);
       supabase.removeChannel(bindingsSubscription);
       supabase.removeChannel(applicationsSubscription);
       // supabase.removeChannel(shopsSubscription);
     };
-  }, [user, refreshUserData]); // 仅当 user 变化时重新订阅
+  }, [user?.id, 'gxId' in (user || {}) ? (user as any).gxId : null, refreshUserData]); // 仅当核心 ID 变化时重新订阅，打破死循环
 
   useEffect(() => {
     if (isMockMode) return;
