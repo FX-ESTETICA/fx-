@@ -29,6 +29,7 @@ import { Settings } from "lucide-react";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { createPortal } from "react-dom";
 import { DualPaneBookingModal, type BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
+import { BookingScheduler } from "@/features/booking/utils/scheduler";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
