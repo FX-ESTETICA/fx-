@@ -1182,7 +1182,7 @@ export function DualPaneBookingModal({
  </div>
 
  {/* Middle Matrix: 极简三维消费流 (取消定高和滚动，直接平铺) */}
- <div className="w-full flex flex-col gap-4 px-8 md:px-24 mb-6">
+              <div className="w-full flex flex-col gap-3 md:gap-4 px-2 md:px-24 mb-6">
  {Object.entries(groupedCheckoutServices).map(([empId, services]) => {
  // 这里解决渲染匹配问题：如果在沙盒模式下 assignedEmployeeId 是 null 或者 'unassigned'，它可能找不到 staff
  // 但是在跨块连单传入时，booking 本身可能带有 resourceId。
@@ -1195,145 +1195,145 @@ export function DualPaneBookingModal({
  <div key={empId} className="flex flex-col gap-4">
  {services.map((service, idx: number) => {
           return (
-            <div key={service.id || idx} className="flex items-center w-full gap-6">
+            <div key={service.id || idx} className="flex items-center w-full gap-2 md:gap-6">
               {/* 员工签名栏：仅在该员工的第一个项目显示，后续项目留白以维持网格对齐 */}
- <div className="w-24 shrink-0 text-left">
- {idx === 0 ? (
- <span className={cn("text-lg tracking-widest uppercase", isLight ? "text-black " : "text-white ")}>
- {staffName as React.ReactNode}
- </span>
- ) : (
- <span className="text-lg tracking-widest text-transparent uppercase select-none">
- {staffName as React.ReactNode}
- </span>
- )}
- </div>
- 
- {/* 高对比度项目名称 */}
- <span className={cn(" text-lg tracking-wider shrink-0", isLight ? "text-black " : "text-white ")}>
- {service.name as React.ReactNode}
- </span>
- 
- {/* 动态赛博引线 (Leader) */}
- <div className={cn("flex-1 h-px border-b border-dashed mx-2", isLight ? "border-black/20" : "border-white/20")} />
- 
- {/* 价格与备用胶囊阵列 */}
- <div className="flex items-center gap-2 shrink-0">
- <span className={cn(" text-lg tracking-wider", isLight ? "text-black" : "text-white")}>
- ¥ {getCheckoutPrice(service.id, service.prices)}
- </span>
- 
- {/* 只有在未结账时才显示修改价格的胶囊 */}
- {!isAlreadyCompleted ? (
- <div className="flex items-center gap-1.5 ml-2">
- {/* 渲染所有数据库里的预设价格胶囊 */}
- {Array.isArray(service.prices) && service.prices.map((p, pIdx) => {
- const currentActive = getCheckoutPrice(service.id, service.prices) === p;
- return (
- <button
- key={pIdx}
- onClick={() => handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', p)}
- className={cn(
- "text-[11px] px-2 py-0.5 rounded-full ",
- currentActive 
- ? "bg-[#39FF14]/20 text-[#39FF14]" 
- : (isLight ? "bg-black/5 text-black " : "bg-white/5 text-white ")
- )}
- >
- {p}
- </button>
- );
- })}
+              <div className="w-14 md:w-24 shrink-0 text-left">
+                {idx === 0 ? (
+                  <span className={cn("text-base md:text-lg tracking-widest uppercase truncate block", isLight ? "text-black " : "text-white ")}>
+                    {staffName as React.ReactNode}
+                  </span>
+                ) : (
+                  <span className="text-base md:text-lg tracking-widest text-transparent uppercase select-none hidden md:block">
+                    {staffName as React.ReactNode}
+                  </span>
+                )}
+              </div>
+              
+              {/* 高对比度项目名称 */}
+              <span className={cn("text-base md:text-lg tracking-wider shrink-0 truncate max-w-[80px] md:max-w-[150px]", isLight ? "text-black " : "text-white ")}>
+                {service.name as React.ReactNode}
+              </span>
+              
+              {/* 动态赛博引线 (Leader) */}
+              <div className={cn("flex-1 h-px border-b border-dashed mx-1 md:mx-2", isLight ? "border-black/20" : "border-white/20")} />
+              
+              {/* 价格与备用胶囊阵列 */}
+              <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                <div className="w-14 md:w-20 text-right">
+                  <span className={cn("text-base md:text-lg tracking-wider", isLight ? "text-black" : "text-white")}>
+                    ¥ {getCheckoutPrice(service.id, service.prices)}
+                  </span>
+                </div>
+                
+                {/* 只有在未结账时才显示修改价格的胶囊 */}
+                {!isAlreadyCompleted ? (
+                  <>
+                    {/* 锚点 2: 动态胶囊区槽位 (固定最大宽度，确保胶囊数量不同时不影响后续排版) */}
+                    <div className="w-20 md:w-28 flex items-center justify-start gap-1 md:gap-1.5 ml-1 md:ml-2 shrink-0 overflow-hidden">
+                      {/* 渲染所有数据库里的预设价格胶囊 */}
+                      {Array.isArray(service.prices) && service.prices.map((p, pIdx) => {
+                        const currentActive = getCheckoutPrice(service.id, service.prices) === p;
+                        return (
+                          <button
+                            key={pIdx}
+                            onClick={() => handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', p)}
+                            className={cn(
+                              "text-[11px] px-2 py-0.5 rounded-full shrink-0",
+                              currentActive 
+                                ? "bg-[#39FF14]/20 text-[#39FF14]" 
+                                : (isLight ? "bg-black/5 text-black " : "bg-white/5 text-white ")
+                            )}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                    </div>
 
- {/* 自定义价格输入胶囊 */}
- {editingCustomPriceId === service.id ? (
- <input 
- type="number"
- autoComplete="off"
- autoFocus
- value={customPriceInput}
- onChange={e => setCustomPriceInput(e.target.value)}
- onBlur={() => {
- const val = parseInt(customPriceInput, 10);
- if (!isNaN(val)) {
-  handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', val);
-  }
- setEditingCustomPriceId(null);
- }}
- onKeyDown={e => {
- if (e.key === 'Enter') {
- e.preventDefault();
- e.currentTarget.blur();
- } else if (e.key === 'Escape') {
- setEditingCustomPriceId(null);
- }
- }}
- className="w-12 text-[11px] bg-black/60 border border-[#39FF14]/50 rounded-full px-2 py-0.5 text-[#39FF14] outline-none text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
- />
- ) : (
- <button
- onClick={() => {
- setCustomPriceInput("");
- setEditingCustomPriceId(service.id);
- }}
- className={cn("w-6 h-5 flex items-center justify-center rounded-full border border-dashed ", isLight ? "border-black/20 text-black" : "border-white/20 text-white")}
- title="自定义价格"
- >
- <span className="text-xs leading-none -mt-0.5">+</span>
- </button>
- )}
- 
- {/* 单项删除按钮 (X) */}
- <button
- onClick={() => handleDeleteCheckoutItem(service.id, service._bookingId || editingBooking?.id || '')}
- className={cn(
- "w-5 h-5 flex items-center justify-center rounded-full ml-1 shrink-0 transition-opacity hover:opacity-70",
- isLight ? "bg-black/5 text-black" : "bg-white/5 text-white"
- )}
- title="删除此项目"
- >
- <X className="w-3 h-3" />
- </button>
- </div>
- ) : (
- <div className="flex items-center gap-1.5 ml-2">
- {/* 结账后仅保留删除按钮 */}
- <button
- onClick={() => handleDeleteCheckoutItem(service.id, service._bookingId || editingBooking?.id || '')}
- className={cn(
- "w-5 h-5 flex items-center justify-center rounded-full ml-1 shrink-0 transition-opacity hover:opacity-70",
- isLight ? "bg-black/5 text-black" : "bg-white/5 text-white"
- )}
- title="删除此项目"
- >
- <X className="w-3 h-3" />
- </button>
- </div>
- )}
- </div>
- </div>
+                    {/* 锚点 3: 自定义价格/加号区 (固定宽度居中) */}
+                    <div className="w-8 md:w-10 flex items-center justify-center shrink-0">
+                      {editingCustomPriceId === service.id ? (
+                        <input 
+                          type="number"
+                          autoComplete="off"
+                          autoFocus
+                          value={customPriceInput}
+                          onChange={e => setCustomPriceInput(e.target.value)}
+                          onBlur={() => {
+                            const val = parseInt(customPriceInput, 10);
+                            if (!isNaN(val)) {
+                             handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', val);
+                             }
+                            setEditingCustomPriceId(null);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.currentTarget.blur();
+                            } else if (e.key === 'Escape') {
+                              setEditingCustomPriceId(null);
+                            }
+                          }}
+                          className="w-8 text-[11px] bg-black/60 border border-[#39FF14]/50 rounded-full px-1 py-0.5 text-[#39FF14] outline-none text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setCustomPriceInput("");
+                            setEditingCustomPriceId(service.id);
+                          }}
+                          className={cn("w-6 h-5 flex items-center justify-center rounded-full border border-dashed shrink-0", isLight ? "border-black/20 text-black" : "border-white/20 text-white")}
+                          title="自定义价格"
+                        >
+                          <span className="text-xs leading-none -mt-0.5">+</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  // 已结账时，为了保持对齐，使用占位符撑开空间
+                  <div className="w-[116px] md:w-[160px] shrink-0" />
+                )}
+                
+                {/* 锚点 4: 删除按钮区 (X) (固定宽度居中) */}
+                <div className="w-6 md:w-8 flex items-center justify-center shrink-0">
+                  <button
+                    onClick={() => handleDeleteCheckoutItem(service.id, service._bookingId || editingBooking?.id || '')}
+                    className={cn(
+                      "w-5 h-5 flex items-center justify-center rounded-full transition-opacity hover:opacity-70 shrink-0",
+                      isLight ? "bg-black/5 text-black" : "bg-white/5 text-white"
+                    )}
+                    title="删除此项目"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
  );
  })}
  </div>
  );
  })}
- {/* 如果有自定义备注，作为附加流显示 */}
- {customServiceText && (
- <div className="flex items-center w-full gap-6 mt-2">
- <div className="w-24 shrink-0 text-left">
- <span className={cn("text-sm tracking-widest uppercase", isLight ? "text-black" : "text-white")}>
- [EXT]
- </span>
- </div>
- <span className={cn(" text-lg tracking-widest shrink-0", isLight ? "text-black" : "text-white")}>
- {customServiceText as string}
- </span>
- <div className={cn("flex-1 h-px border-b border-dashed mx-2", isLight ? "border-black/10" : "border-white/10")} />
- <span className={cn(" text-lg tracking-wider shrink-0", isLight ? "text-black" : "text-white")}>
- --
- </span>
- </div>
- )}
+              {/* 如果有自定义备注，作为附加流显示 */}
+              {customServiceText && (
+                <div className="flex items-center w-full gap-2 md:gap-6 mt-2">
+                  <div className="w-14 md:w-24 shrink-0 text-left">
+                    <span className={cn("text-xs md:text-sm tracking-widest uppercase", isLight ? "text-black" : "text-white")}>
+                      [EXT]
+                    </span>
+                  </div>
+                  <span className={cn("text-base md:text-lg tracking-widest shrink-0 truncate max-w-[80px] md:max-w-[150px]", isLight ? "text-black" : "text-white")}>
+                    {customServiceText as string}
+                  </span>
+                  <div className={cn("flex-1 h-px border-b border-dashed mx-1 md:mx-2", isLight ? "border-black/10" : "border-white/10")} />
+                  <div className="w-14 md:w-20 text-right">
+                    <span className={cn("text-base md:text-lg tracking-wider shrink-0", isLight ? "text-black" : "text-white")}>
+                      --
+                    </span>
+                  </div>
+                </div>
+              )}
  </div>
 
  {/* Bottom Core: 总金额的绝对中心与光轨结算 */}
