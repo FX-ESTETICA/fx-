@@ -1026,24 +1026,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const viewDay = String(currentDate.getDate()).padStart(2, '0');
  const viewDateStr = `${viewYear}-${viewMonth}-${viewDay}`;
 
- // 使用全局 staffs 状态，过滤掉离职员工，以及在当前日期休息/请假/休假的员工
+ // 使用全局 staffs 状态，仅过滤掉离职员工。不再动态删减今天休息的员工（保留列宽）
  let validStaffs = staffs.filter(s => {
  if (s.status === 'resigned') return false;
- 
- // 动态排班异常拦截 (物理隐藏不在岗员工)
- if (s.scheduleExceptions && s.scheduleExceptions.length > 0) {
- const hasExceptionToday = s.scheduleExceptions.some(exc => {
- if (exc.type === 'day_off' || exc.type === 'leave') {
- return exc.startDate === viewDateStr;
- } else if (exc.type === 'vacation') {
- const start = exc.startDate;
- const end = exc.endDate || exc.startDate;
- return viewDateStr >= start && viewDateStr <= end;
- }
- return false;
- });
- if (hasExceptionToday) return false;
- }
  
  return true;
  });
@@ -1696,12 +1681,36 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  onPanEnd={handleHeaderPanEnd}
  >
  <div 
- className="flex h-full w-full"
- >
- {resources.map(res => (
- <div key={res.id} className={cn("flex-1 min-w-0 h-full flex items-center justify-center relative group", res.metadata?.originalStatus === 'on_leave' ? '' : '')}>
- <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1 gap-1">
- <div 
+                className="flex h-full w-full"
+              >
+                {resources.map(res => {
+                  // 判断该员工在当前屏幕显示的日期（phantomDate）是否处于休息/请假状态
+                  const phantomDateStr = phantomDate.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+                  let isPhantomOff = false;
+                  
+                  if (res.id !== 'NO') { // NO列不参与排班校验
+                    const staffInfo = staffs.find(s => s.id === res.id);
+                    if (staffInfo) {
+                      const exceptions = (staffInfo as any).scheduleExceptions;
+                      if (Array.isArray(exceptions) && exceptions.length > 0) {
+                        isPhantomOff = exceptions.some((exc: any) => {
+                          if (exc.type === 'day_off' || exc.type === 'leave') {
+                            return exc.startDate === phantomDateStr;
+                          } else if (exc.type === 'vacation') {
+                            const start = exc.startDate;
+                            const end = exc.endDate || exc.startDate;
+                            return phantomDateStr >= start && phantomDateStr <= end;
+                          }
+                          return false;
+                        });
+                      }
+                    }
+                  }
+
+                  return (
+                  <div key={res.id} className={cn("flex-1 min-w-0 h-full flex items-center justify-center relative group transition-opacity duration-300", isPhantomOff ? 'opacity-0 pointer-events-none' : '')}>
+                  <div className="flex flex-col items-center justify-center leading-none bg-transparent w-full px-1 gap-1">
+                  <div 
  className={cn(
  "relative w-6 h-6 md:w-7 md:h-7 rounded-full overflow-hidden shrink-0 border flex items-center justify-center shadow-inner",
  visualSettings.staffNameColorTheme === 'coreblack' ? "border-black/10" : "border-white/10"
@@ -1734,7 +1743,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  )}
  </div>
  </div>
- ))}
+ );
+ })}
  </div>
  </motion.div>
  </div>
