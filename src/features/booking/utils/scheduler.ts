@@ -168,6 +168,23 @@ export const BookingScheduler = {
         for (const staff of staffs) {
           if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
           
+          // 【物理阻断法则】：检查该员工在当前日期是否处于休息/请假状态
+          let isStaffOff = false;
+          if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
+            isStaffOff = staff.scheduleExceptions.some((exc: any) => {
+              if (exc.type === 'day_off' || exc.type === 'leave') {
+                return exc.startDate === dateStr;
+              } else if (exc.type === 'vacation') {
+                const start = exc.startDate;
+                const end = exc.endDate || exc.startDate;
+                return dateStr >= start && dateStr <= end;
+              }
+              return false;
+            });
+          }
+          // 如果该员工今天休息，直接跳过这列，绝对不排给他
+          if (isStaffOff) continue;
+
           // 散客自己找位置，必须绝对无重叠 (容忍度 = 0)
           const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin, 0);
           if (newStartMin === originalStartMin) {
