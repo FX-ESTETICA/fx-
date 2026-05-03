@@ -554,9 +554,6 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
 
  {/* 融合胶囊组件 */}
  <PhoneAuthBar initialPhone={profile.phone || ""} className="max-w-none mx-0 w-auto" mode="life" />
- 
- {/* 隐私防御网关 */}
- <PrivacySettings />
 
  {/* 退出账号按钮 */}
  <Button

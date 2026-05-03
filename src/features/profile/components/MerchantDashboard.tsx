@@ -494,9 +494,6 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  mode="merchant"
  />
  </div>
-
- {/* 隐私防御网关 */}
- <PrivacySettings />
  </div>
  </div>
  );

@@ -224,10 +224,15 @@ export function DualPaneBookingModal({
  }, [allocatedId]);
 
  useEffect(() => {
- if (!isOpen || editingBooking) return;
- 
- let isMounted = true;
- const prefix = newCustomerType || 'CO';
+    if (!isOpen) return;
+    // 如果是编辑模式，只有当原订单是散客且用户明确点击了新会员类型时，才允许重新分配ID
+    if (editingBooking) {
+      if (!editingBooking.customerId?.startsWith('CO')) return;
+      if (!newCustomerType) return;
+    }
+    
+    let isMounted = true;
+    const prefix = newCustomerType || 'CO';
 
  const fetchId = async () => {
  // 1. 读取数据库，执行断层扫描并返回可用ID
@@ -351,10 +356,14 @@ export function DualPaneBookingModal({
  };
 
  const customerId = useMemo(() => {
- if (editingBooking?.customerId) return editingBooking.customerId;
- if (matchedHistoryCustomer?.gx_id) return matchedHistoryCustomer.gx_id; // 【核心修复】优先使用历史记录的编号
- return allocatedId || `${newCustomerType || 'CO'} --`;
- }, [editingBooking?.customerId, allocatedId, newCustomerType, matchedHistoryCustomer?.gx_id]);
+    if (matchedHistoryCustomer?.gx_id) return matchedHistoryCustomer.gx_id; // 【核心修复】历史老客拥有绝对最高优先级
+    // 如果用户在编辑散客订单时，明确点击了升级为新会员，则优先使用新生成的 ID
+    if (editingBooking?.customerId?.startsWith('CO') && newCustomerType && allocatedId) {
+      return allocatedId;
+    }
+    if (editingBooking?.customerId) return editingBooking.customerId;
+    return allocatedId || `${newCustomerType || 'CO'} --`;
+  }, [editingBooking?.customerId, allocatedId, newCustomerType, matchedHistoryCustomer?.gx_id]);
 
  const autoCheckoutMode = useMemo(() => {
  if (!isOpen || !editingBooking || !editingBooking.date) return false;
@@ -830,8 +839,13 @@ export function DualPaneBookingModal({
  // --- 消耗/更新客户编号 (Consume Customer ID) ---
  // 真正的计数器和 ID 生成交由 Supabase 后端序列处理，本地无需再手动管理
  // 断层扫描分配器已保证 `customerId` 完美填坑
- // 【重要修复】：优先使用已匹配的历史会员编号（matchedHistoryCustomer.gx_id），否则使用新生成的 allocatedId 或 CO 散客编号
- const finalCustomerId = editingBooking?.customerId || matchedHistoryCustomer?.gx_id || allocatedId || `${newCustomerType || 'CO'} --`;
+ // 【重要修复】：优先使用已匹配的历史会员编号（matchedHistoryCustomer.gx_id）
+    // 【进阶修复】：如果是散客升级会员，优先使用新生成的 allocatedId
+    const finalCustomerId = matchedHistoryCustomer?.gx_id || 
+      (editingBooking?.customerId?.startsWith('CO') && newCustomerType && allocatedId ? allocatedId : null) || 
+      editingBooking?.customerId || 
+      allocatedId || 
+      `${newCustomerType || 'CO'} --`;
 
 
  // 废弃串行连单推演，改为“绝对并发创建 (Parallel Time Pipeline)”：
@@ -2284,7 +2298,7 @@ export function DualPaneBookingModal({
  isToday && !isCurrentViewing && "border-transparent" // 为TODAY准备跑马灯
  )}>
  
- {/* 当天订单特效：跑马灯边框 */}
+ {/* 当天订单特效：跑马灯边框 (废弃实心遮挡) */}
  {isToday && (
  <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden">
  <div className="absolute -inset-[100%] animate-[spin_4s_linear_infinite]"
@@ -2294,7 +2308,8 @@ export function DualPaneBookingModal({
  : `conic-gradient(from 90deg at 50% 50%, transparent 0%, transparent 50%, rgba(255,255,255,0.1) 80%, rgba(255,255,255,0.4) 100%)`
  }}
  />
- <div className={cn("absolute inset-[1px] rounded-[11px]", isLight ? "bg-[#f5f5f5]" : "bg-[#1a1a1a]")} />
+ {/* 彻底废弃实心底色，使用纯透明来保持背景的磨砂通透质感 */}
+ <div className="absolute inset-[1px] rounded-[11px] bg-transparent" />
  </div>
  )}
  
