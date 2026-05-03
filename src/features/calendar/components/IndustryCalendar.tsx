@@ -529,55 +529,76 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // ==========================================
  // 【世界顶端 0 冲突架构】：显式全局保存机制 (替换隐式 useEffect 监听)
- // ==========================================
- const handleSaveConfigs = useCallback(async (
- newHours: ShopOperatingConfig | OperatingHour[],
- newStaffs: StaffItem[],
- newCategories: HubCategoryItem[],
- newServices: HubServiceItem[]
- ) => {
- if (isReadOnlyMode) return;
- 
- // 解析 newHours 看看是否触发了今日关门或节假日
- // 根据用户的操作（例如从 NebulaConfigHub 传过来的 newHours）自动同步 storeStatus
- let nextStoreStatus: 'open' | 'closed_today' | 'holiday' = 'open';
- const today = new Date();
- const todayStr = today.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
- 
- if (newHours && !Array.isArray(newHours)) {
- // 1. 优先判断今日临时覆盖 (Today Override)
- if (newHours.todayOverride && newHours.todayOverride.date === todayStr && newHours.todayOverride.isClosed) {
- nextStoreStatus = 'closed_today';
- } 
- // 2. 其次判断特殊节假日 (Special Dates)
- else if (newHours.specialDates && newHours.specialDates[todayStr] && newHours.specialDates[todayStr].isClosed) {
- nextStoreStatus = 'holiday';
- }
- // 3. 最后判断常规星期几 (Regular)
- else if (newHours.regular) {
- const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
- const dayName = days[today.getDay()];
- const regularHours = newHours.regular[dayName];
- if (!regularHours || regularHours.length === 0) {
- // 常规的某天不营业，虽然不算 holiday，但也是今天不营业
- nextStoreStatus = 'closed_today';
- }
- }
- }
- 
- // 【世界顶端架构】：直接通过 ShopContext 的 patch API 将数据写入云端
- // 乐观更新已经在 Context 内部处理完毕，日历和智控页会瞬间拿到新数据
- await updateFullShopConfig({
- hours: newHours,
- staffs: newStaffs,
- categories: newCategories,
- services: newServices,
- storeStatus: nextStoreStatus // 确保 status 联动更新
- });
- 
- // 触发动作记录，扣减运力
- trackAction();
- }, [isReadOnlyMode, updateFullShopConfig, trackAction]);
+  // ==========================================
+  const handleSaveConfigs = useCallback(async (
+    newHours: ShopOperatingConfig | OperatingHour[],
+    newStaffs: StaffItem[],
+    newCategories: HubCategoryItem[],
+    newServices: HubServiceItem[]
+  ) => {
+    if (isReadOnlyMode) return;
+    
+    // 解析 newHours 看看是否触发了今日关门或节假日
+    // 根据用户的操作（例如从 NebulaConfigHub 传过来的 newHours）自动同步 storeStatus
+    let nextStoreStatus: 'open' | 'closed_today' | 'holiday' = 'open';
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    
+    if (newHours && !Array.isArray(newHours)) {
+      // 1. 优先判断今日临时覆盖 (Today Override)
+      if (newHours.todayOverride && newHours.todayOverride.date === todayStr && newHours.todayOverride.isClosed) {
+        nextStoreStatus = 'closed_today';
+      } 
+      // 2. 其次判断特殊节假日 (Special Dates)
+      else if (newHours.specialDates && newHours.specialDates[todayStr] && newHours.specialDates[todayStr].isClosed) {
+        nextStoreStatus = 'holiday';
+      }
+      // 3. 最后判断常规星期几 (Regular)
+      else if (newHours.regular) {
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+        const dayName = days[today.getDay()];
+        const regularHours = newHours.regular[dayName];
+        if (!regularHours || regularHours.length === 0) {
+          // 常规的某天不营业，虽然不算 holiday，但也是今天不营业
+          nextStoreStatus = 'closed_today';
+        }
+      }
+    }
+    
+    // 【世界顶端架构】：直接通过 ShopContext 的 patch API 将数据写入云端
+    // 乐观更新已经在 Context 内部处理完毕，日历和智控页会瞬间拿到新数据
+    await updateFullShopConfig({
+      hours: newHours,
+      staffs: newStaffs,
+      categories: newCategories,
+      services: newServices,
+      storeStatus: nextStoreStatus // 确保 status 联动更新
+    });
+
+    // 【突发请假订单智能剥离重排】：触发未来 4 天 (当前视界) 的全盘洗牌
+    // 当店长保存排班后，可能会有员工被突然设为请假。
+    // 我们唤醒 BookingScheduler，让它用最新的 staffs 数据去检查这 4 天的订单，
+    // 把那些落在“新请假员工”头上的单子物理剥离出来，自动转交给其他在岗员工！
+    try {
+      const currentShopId = shopId || 'default';
+      const targetDates = Array.from({ length: 4 }, (_, i) => {
+        const d = new Date(currentDate || new Date());
+        d.setDate(d.getDate() + i);
+        return d;
+      });
+
+      // 并发执行未来 4 天的洗牌指令
+      await Promise.all(targetDates.map(async (d) => {
+        const dateStr = d.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        await BookingScheduler.reflowDayBookings(dateStr, currentShopId, newStaffs);
+      }));
+    } catch (e) {
+      console.error("Failed to reflow bookings after config save:", e);
+    }
+    
+    // 触发动作记录，扣减运力
+    trackAction();
+  }, [isReadOnlyMode, updateFullShopConfig, trackAction, currentDate, shopId]);
 
  // 控制左侧边栏显示状态
  const [isSidebarOpen, setIsSidebarOpen] = useState(true);

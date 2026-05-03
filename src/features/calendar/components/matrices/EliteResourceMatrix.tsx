@@ -970,9 +970,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  })}
 
  {/* 渲染资源列与卡片 (The Cyber Matrix Data Layer) */}
- <div className="absolute inset-0 flex pl-[0px] pb-20 pointer-events-none">
- {resources.map((resource) => {
- let colBookings = bookings.filter(b => {
+              <div className="absolute inset-0 flex pl-[0px] pb-20 pointer-events-none">
+                {resources.map((resource) => {
+                  // 这里可以做一层底层保护，如果是休息的员工，理论上不该渲染他的订单。
+                  // 但为了保持数据的绝对一致性（万一有强制安排的订单），我们还是照常渲染，
+                  // 只是视觉上的留白已经通过表头隐身达成了。
+                  
+                  let colBookings = bookings.filter(b => {
  // 【NEXUS 终极法则】：只捕获前端 AI 生成的待确认订单 (PENDING)
  if (resource.id === 'NEXUS') {
  return b.status === 'PENDING';

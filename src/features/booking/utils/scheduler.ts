@@ -52,7 +52,31 @@ export const BookingScheduler = {
 
       // 2. 剥离并分类
       todayBookings.forEach((b) => {
-        if (b.resourceId === 'NO') {
+        // 【突发请假订单被动剥离法则】：如果这单有指定的员工，但该员工今天休息/请假，强制剥离降维为 TBD！
+        let isStaffOff = false;
+        if (b.resourceId && b.resourceId !== 'NO') {
+          const staffInfo = staffs.find(s => s.id === b.resourceId);
+          if (staffInfo && staffInfo.scheduleExceptions && staffInfo.scheduleExceptions.length > 0) {
+            isStaffOff = staffInfo.scheduleExceptions.some((exc: any) => {
+              if (exc.type === 'day_off' || exc.type === 'leave') {
+                return exc.startDate === dateStr;
+              } else if (exc.type === 'vacation') {
+                const start = exc.startDate;
+                const end = exc.endDate || exc.startDate;
+                return dateStr >= start && dateStr <= end;
+              }
+              return false;
+            });
+          }
+        }
+
+        if (isStaffOff) {
+          // 剥离原主，降维打击为纯正 TBD 散客单，交给调度大脑重新分发
+          b.resourceId = undefined;
+          b.originalUnassigned = true;
+          floatingBookings.push(b);
+          console.log(`[BookingScheduler] Evicted booking ${b.id} due to staff off on ${dateStr}`);
+        } else if (b.resourceId === 'NO') {
           absoluteBookings.push(b);
         } else if (b._needsTimeReflow && b.resourceId && !b.originalUnassigned) {
           // 明确指定了员工，且被标记需要重新排盘（例如弹窗分配给 ALEXA）
