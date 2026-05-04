@@ -122,6 +122,8 @@ export const BookingScheduler = {
           const conflict = placedBookings.find(placed => {
             if (placed.resourceId !== staffId) return false;
             if (placed.shopId && booking.shopId && placed.shopId !== booking.shopId) return false;
+            // 【水位线豁免】：如果这个被检查的订单是“强塞”进来的，它将被视为空气，不参与防撞检测
+            if (placed._isForceInsert) return false;
             
             const pStartMin = timeToMinutes(placed.startTime);
             const pEndMin = pStartMin + (placed.duration || 60);
@@ -151,6 +153,12 @@ export const BookingScheduler = {
         const targetStaffId = bkg.resourceId;
         const originalStartMin = timeToMinutes(bkg.startTime);
         
+        // 【绝对特权】：如果订单带有 _isForceInsert 标记，无视一切防撞逻辑，直接钉死在原始时间！
+        if (bkg._isForceInsert) {
+          placedBookings.push(bkg);
+          return; // 结束当前订单的顺延计算
+        }
+
         // 店长指定的，允许软穿透，容忍度设为 15 分钟 (符合门店实际可容忍等待时间)
         // 如果是多项任务并发 (带有 _siblingIndex)，我们需要根据兄弟的情况进行接力判定
         let actualStartMin = originalStartMin;

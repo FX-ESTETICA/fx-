@@ -108,6 +108,9 @@ export function DualPaneBookingModal({
  type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
  const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>(() => editingBooking ? 'member' : 'service');
 
+ // --- 强塞特权状态 ---
+ const [isForceInsert, setIsForceInsert] = useState(false);
+
  // --- 悬浮审批舱状态 (AI PENDING) ---
  const [isAIPending, setIsAIPending] = useState(() => editingBooking?.status === 'PENDING');
 
@@ -943,7 +946,9 @@ export function DualPaneBookingModal({
  originalUnassigned: empId === 'unassigned', // 标记它原本是未指定的
  shopId: currentShopId, // 强绑定租户
  // 【财务防篡改快照】
- staff_snapshot_name: staffs.find(s => s.id === empId)?.name || empId // 封印当时的员工名字
+ staff_snapshot_name: staffs.find(s => s.id === empId)?.name || empId, // 封印当时的员工名字
+ // 【店长特权强塞标记】
+ _isForceInsert: isForceInsert
  });
  });
 
@@ -980,7 +985,7 @@ export function DualPaneBookingModal({
  await BookingService.upsertBookings(payload);
 
  // 3. 将刚刚入库的新订单注入到覆盖字典里，告诉智能大脑：这些是需要重新排盘的“浮动订单”
- const manualOverrides: Record<string, { resourceId?: string | null; originalUnassigned?: boolean; _needsTimeReflow: boolean }> = {};
+ const manualOverrides: Record<string, { resourceId?: string | null; originalUnassigned?: boolean; _needsTimeReflow: boolean; _isForceInsert?: boolean }> = {};
  newBookings.forEach(b => {
  // 【核心修复】：
  // 1. 如果它是新建的（原来没有资源），或者是从弹窗的编辑中发生了人员指派变动
@@ -994,7 +999,8 @@ export function DualPaneBookingModal({
  manualOverrides[b.id] = {
  resourceId: b.resourceId as string | null,
  originalUnassigned: !!b.originalUnassigned,
- _needsTimeReflow: needsReflow 
+ _needsTimeReflow: needsReflow,
+ _isForceInsert: b._isForceInsert as boolean
  };
  }
  });
@@ -1887,7 +1893,7 @@ export function DualPaneBookingModal({
  </div>
  {/* 内嵌底部操作舱 - 收编入左侧面板底部 */}
       <div className={cn(
-        "pt-6 flex flex-wrap justify-center items-center gap-8 md:gap-16 z-50 pointer-events-auto shrink-0 w-full",
+        "pt-6 flex justify-center items-center gap-8 md:gap-16 z-50 pointer-events-auto shrink-0 w-full relative",
         isAIPending ? "opacity-0 pointer-events-none" : "opacity-100"
       )}>
  {isReadOnly ? (
@@ -1896,6 +1902,7 @@ export function DualPaneBookingModal({
  </div>
  ) : (
  <>
+ <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 w-full">
  {editingBooking && (
  <>
  {editingBooking.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 1 ? (
@@ -1932,6 +1939,19 @@ export function DualPaneBookingModal({
  )}
  </>
  )}
+ <div className="flex flex-col items-center relative">
+ {/* 店长特权强塞开关 - 绝对定位在确认按钮正上方 */}
+ <button
+ onClick={() => setIsForceInsert(!isForceInsert)}
+ className={cn(
+ "absolute -top-6 text-[10px] tracking-[0.3em] uppercase transition-colors px-2 py-1 whitespace-nowrap",
+ isForceInsert
+ ? "text-red-500 font-bold"
+ : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
+ )}
+ >
+ 加 塞
+ </button>
  <button 
  onClick={handleConfirmBooking}
  disabled={selectedServices.length === 0}
@@ -1948,6 +1968,8 @@ export function DualPaneBookingModal({
  >
  确 认
  </button>
+ </div>
+ </div>
  </>
       )}
       </div>
