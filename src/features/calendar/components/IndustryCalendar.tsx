@@ -1241,16 +1241,22 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  
  
  
- // 恢复并将手势监听绑定在侧边栏容器本身，且设置 touch-none 确保手势不被内部元素或浏览器吞噬
- onPanEnd={(_e, info) => {
- if (info.offset.x < -30 || info.velocity.x < -300) {
- setIsSidebarOpen(false);
- }
- }}
  // onClick 阻止冒泡，防止点击侧边栏内部时触发外层遮罩的关闭
  onClick={(e) => e.stopPropagation()}
  className="bg-transparent flex flex-col relative z-20 shrink-0 overflow-hidden whitespace-nowrap absolute md:relative top-0 left-0 h-full md:bg-transparent backdrop-blur-xl md:backdrop-blur-none touch-none"
  >
+ {/* 隐形触发器：极简关闭按钮 */}
+ <button
+ onClick={() => setIsSidebarOpen(false)}
+ className={cn(
+ "absolute top-0 left-0 z-50 p-2 opacity-100",
+ visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white"
+ )}
+ title="隐藏"
+ >
+ <span className="text-[11px] uppercase tracking-[0.2em] font-medium">隐藏</span>
+ </button>
+
  <div className="w-[260px] h-full flex flex-col">
  {/* --- 联邦制权限指挥链 (Chain of Command) --- */}
  <div className="px-8 pb-6 pt-8 flex flex-col gap-3">
