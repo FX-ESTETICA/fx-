@@ -1142,7 +1142,7 @@ export function DualPaneBookingModal({
  />
 
  {/* 滚动容器：允许在移动端键盘弹起时进行瀑布流滑动 */}
- <div className="fixed inset-0 overflow-y-auto pointer-events-none flex flex-col items-center justify-start md:justify-center py-4 md:py-8 no-scrollbar">
+ <div className="fixed inset-0 overflow-y-auto pointer-events-auto flex flex-col items-center justify-start md:justify-center py-4 md:py-8 no-scrollbar">
  {isCheckoutMode ? (
  /* ===================== Neon Core 结账舱 ===================== */
  <div 
