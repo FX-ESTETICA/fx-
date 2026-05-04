@@ -41,6 +41,7 @@ import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
 import { Trash2 } from "lucide-react";
 import { RecycleBinModal } from "./RecycleBinModal";
 import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
+import { BookingSearch } from "./BookingSearch";
 import { useTranslations } from "next-intl";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
@@ -1468,6 +1469,16 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  })()}
  </div>
  </div>
+
+ {/* 预约搜索 (Booking Search Hub) */}
+  <BookingSearch 
+    visualSettings={visualSettings} 
+    setCrosshairDate={setCrosshairDate}
+    setCrosshairTime={setCrosshairTime}
+    setCrosshairResourceId={setCrosshairResourceId}
+    setEditingBooking={setEditingBooking}
+    handleCreateBookingClick={handleCreateBookingClick}
+  />
 
  {/* 极速开单 (Walk-in Quick Booking) */}
  <div className="px-8 mt-4 pointer-events-auto relative z-50">

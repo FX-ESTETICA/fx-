@@ -214,16 +214,24 @@ export function DualPaneBookingModal({
  return "";
  });
 
- // 当匹配到 C端或历史客资时，自动填充名字
- useEffect(() => {
- if (matchedProfile?.name) {
- setCustomerRealName(matchedProfile.name);
- } else if (matchedHistoryCustomer?.name) {
- setCustomerRealName(matchedHistoryCustomer.name);
- }
- }, [matchedProfile, matchedHistoryCustomer]);
+  // ==========================================
+  // 【核心修复】：解决下拉列表点击后未填充的问题
+  // ==========================================
+  useEffect(() => {
+    // 监听 matchedHistoryCustomer 的变化，一旦有值，自动同步到 customerRealName
+    // 并且我们不再单纯依赖这个 effect，点击时的 onClick 也做了深度状态控制
+    if (matchedHistoryCustomer?.name) {
+      setCustomerRealName(matchedHistoryCustomer.name);
+    }
+  }, [matchedHistoryCustomer]);
 
- // --- 会员真实历史消费流 (Real History Data Stream) ---
+  useEffect(() => {
+    if (matchedProfile?.name) {
+      setCustomerRealName(matchedProfile.name);
+    }
+  }, [matchedProfile]);
+
+  // --- 会员真实历史消费流 (Real History Data Stream) ---
  const [realHistoryStream, setRealHistoryStream] = useState<any[]>([]);
  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
@@ -1735,7 +1743,12 @@ export function DualPaneBookingModal({
  <div 
  key={idx}
  className={`px-3 py-2.5 cursor-pointer flex items-center justify-between group `}
- onClick={() => {
+ onPointerDown={(e) => {
+ // 终极物理拦截：使用 onPointerDown 拦截点击，因为它比 onBlur 更早触发
+ // 从而防止输入框的 onBlur 导致面板消失，点击失效
+ e.preventDefault(); 
+ e.stopPropagation();
+
  const newTracks = [...phoneTracks];
  newTracks[0] = result.phone;
  // 【核心修复】：点击下拉列表后，调用更新电话，并禁止自动探针再次发起搜索，以免冲刷掉我们手动设置的值
@@ -1752,6 +1765,11 @@ export function DualPaneBookingModal({
  BookingService.getProfileByPhone(result.phone).then(({data}) => {
  setMatchedProfile(data);
  });
+
+ // 如果有名字，立刻同步到姓名输入框
+ if (result.name) {
+ setCustomerRealName(result.name);
+ }
 
  // 【核心修复】：如果匹配到了老客，必须清空下面的“新客选定分类(GV/AD等)”状态，防止计算 ID 冲突
  setNewCustomerType(null);
