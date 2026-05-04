@@ -860,22 +860,26 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const isMainContentVisible = !isBookingModalOpen && !isFinanceDashboardOpen && !isConfigOpen;
 
  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
- setCurrentDate(prev => {
- const next = new Date(prev);
+ // 【瀑布流分页基准修复】：翻页必须基于用户当前肉眼所见的日期（phantomDate），而不是底层静默的起始日期（currentDate）
+ const baseDate = new Date(phantomDate);
  const step = direction === 'prev' ? -1 : 1;
  
  if (viewMode === 'day') {
- next.setDate(prev.getDate() + step);
+ baseDate.setDate(baseDate.getDate() + step);
  } else if (viewMode === 'week') {
- next.setDate(prev.getDate() + (step * 7));
+ baseDate.setDate(baseDate.getDate() + (step * 7));
  } else if (viewMode === 'month') {
- next.setMonth(prev.getMonth() + step);
+ baseDate.setMonth(baseDate.getMonth() + step);
  }
- // 同步幻象日期以防跳跃
- setPhantomDate(next);
- return next;
- });
- }, [viewMode]);
+ 
+ setCurrentDate(baseDate);
+ setPhantomDate(baseDate);
+ 
+ // 【物理视口重置】：强制将滚动条归零，确保新加载的日期恰好对齐屏幕顶部，消灭错位与幽灵闪烁
+ if (matrixScrollRef.current) {
+ matrixScrollRef.current.scrollTop = 0;
+ }
+ }, [viewMode, phantomDate]);
 
  const getTodayLabel = () => {
  switch (viewMode) {

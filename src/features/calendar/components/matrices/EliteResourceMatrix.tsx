@@ -871,7 +871,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  ref={actualMatrixRef as React.RefObject<HTMLDivElement>}
  onScroll={handleMatrixScroll}
  onPanEnd={handleMatrixPanEnd}
- className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth relative no-scrollbar touch-pan-y"
+ className="flex-1 overflow-x-hidden overflow-y-auto relative no-scrollbar touch-pan-y"
  >
  <div className="min-w-fit flex flex-col h-full w-full">
  <div 

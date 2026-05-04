@@ -210,7 +210,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  {/* 核心网格 */}
  <div 
  onScroll={handleMatrixScroll}
- className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth relative no-scrollbar"
+ className="flex-1 overflow-x-hidden overflow-y-auto relative no-scrollbar"
  >
  <div className="min-w-fit flex flex-col h-full">
  {/* 矩阵主体同步修改底部留白为 pb-16 */}
