@@ -52,23 +52,23 @@ export const GlobalWormholeCapsule = () => {
  const isBoss = availableShops.some(s => s.role === 'boss');
  
  // 红色警报覆盖逻辑
- const glowColorHex = isEmergency 
- ? (isLight ? "rgba(239,68,68,0.5)" : "rgba(239,68,68,0.8)")
- : isBoss 
- ? (isLight ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.6)")
- : (isLight ? "rgba(0,0,0,0.05)" : "rgba(0,242,255,0.6)");
+  const glowColorHex = isEmergency 
+    ? (isLight ? "rgba(239,68,68,0.5)" : "rgba(239,68,68,0.8)")
+    : isBoss 
+    ? (isLight ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.6)")
+    : (isLight ? "rgba(0,242,255,0.4)" : "rgba(0,242,255,0.6)");
 
- const borderColorClass = isEmergency 
- ? (isLight ? "border-red-500/50" : "border-red-500/80")
- : isBoss 
- ? (isLight ? "border-amber-500/30" : "border-amber-500/50")
- : (isLight ? "border-black/10" : "border-white/20");
+  const borderColorClass = isEmergency 
+    ? (isLight ? "border-red-500/50" : "border-red-500/80")
+    : isBoss 
+    ? (isLight ? "border-amber-500/30" : "border-amber-500/50")
+    : (isLight ? "border-cyan-500/40" : "border-cyan-500/40");
 
- const textColorClass = isEmergency 
- ? (isLight ? "text-red-500" : "text-red-500")
- : isBoss 
- ? (isLight ? "text-amber-600" : "text-amber-500")
- : (isLight ? "text-black" : "text-white");
+  const textColorClass = isEmergency 
+    ? (isLight ? "text-red-500" : "text-red-500")
+    : isBoss 
+    ? (isLight ? "text-amber-600" : "text-amber-500")
+    : (isLight ? "text-cyan-500" : "text-cyan-400");
 
  const handleShopClick = (shop: typeof availableShops[0]) => {
  setActiveShopId(shop.shopId);
@@ -104,47 +104,47 @@ export const GlobalWormholeCapsule = () => {
  
  
  className={cn(
- "mb-4 w-56 rounded-2xl border p-2 flex flex-col gap-2",
+ "mb-4 w-56 rounded-2xl border p-2 flex flex-col gap-2 backdrop-blur-md",
  isLight 
- ? "bg-white/90 border-black/10 shadow-xl" 
- : "bg-black/80 border-white/20"
+ ? "bg-transparent border-cyan-500/30 shadow-[0_0_15px_rgba(0,242,255,0.15)]" 
+ : "bg-transparent border-cyan-500/30"
  )}
- style={isLight ? undefined : { boxShadow: `0 0 30px rgba(0,0,0,0.8), inset 0 0 10px ${glowColorHex}` }}
+ style={isLight ? undefined : { boxShadow: `inset 0 0 10px ${glowColorHex}` }}
  >
- <div className="max-h-[50vh] overflow-y-auto scrollbar-hide flex flex-col gap-1.5">
+ <div className="max-h-[50vh] overflow-y-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [scrollbar-width:none] flex flex-col gap-1.5">
  {availableShops.map(shop => {
  const isSelected = activeShopId === shop.shopId;
  const activeItemColor = shop.role === 'boss' 
- ? (isLight ? "border-amber-400 bg-amber-50" : "border-amber-500 bg-amber-500/10")
- : (isLight ? "border-black/20 bg-black/5" : "border-white/20 bg-white/10");
+ ? (isLight ? "border-amber-400 bg-transparent shadow-[0_0_10px_rgba(245,158,11,0.15)]" : "border-amber-500 bg-transparent shadow-[0_0_10px_rgba(245,158,11,0.2)]")
+ : (isLight ? "border-cyan-400 bg-transparent shadow-[0_0_10px_rgba(0,242,255,0.15)]" : "border-cyan-500 bg-transparent shadow-[0_0_10px_rgba(0,242,255,0.2)]");
  const itemTextColor = shop.role === 'boss' 
- ? (isLight ? "text-amber-600" : "text-amber-500") 
- : (isLight ? "text-black" : "text-white");
+ ? (isLight ? "text-amber-600" : "text-amber-400") 
+ : (isLight ? "text-cyan-600" : "text-cyan-400");
 
  return (
  <button
  key={shop.shopId}
  onClick={() => handleShopClick(shop)}
  className={cn(
- "w-full flex items-center gap-3 p-3 rounded-xl border group",
+ "w-full flex items-center gap-3 p-3 rounded-xl border group transition-all",
  isSelected
  ? activeItemColor
  : isLight 
- ? "border-transparent bg-transparent hover:bg-black/5" 
- : "bg-transparent border-white/10 hover:border-white/30 hover:bg-white/5"
+ ? "border-transparent bg-transparent hover:border-cyan-500/30" 
+ : "border-transparent bg-transparent hover:border-cyan-500/30"
  )}
  >
- <Store className={cn("w-4 h-4 ", isSelected ? itemTextColor : (isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white"))} />
+ <Store className={cn("w-4 h-4 transition-colors", isSelected ? itemTextColor : (isLight ? "text-black group-hover:text-cyan-600" : "text-white group-hover:text-cyan-400"))} />
  <div className="flex flex-col items-start text-left">
  <span className={cn(
- "text-xs tracking-wider truncate max-w-[120px]", 
+ "text-xs tracking-wider truncate max-w-[120px] transition-colors", 
  isSelected 
  ? itemTextColor 
- : (isLight ? "text-black group-hover:text-black" : "text-white group-hover:text-white")
+ : (isLight ? "text-black group-hover:text-cyan-600" : "text-white group-hover:text-cyan-400")
  )}>
  {shop.shopName || "未知节点"}
  </span>
- <span className={cn("text-[11px] uppercase mt-0.5", isSelected ? itemTextColor : (isLight ? "text-black" : "text-white"))}>
+ <span className={cn("text-[11px] uppercase mt-0.5 transition-colors", isSelected ? itemTextColor : (isLight ? "text-black/60 group-hover:text-cyan-600/70" : "text-white/60 group-hover:text-cyan-400/70"))}>
  {shop.industry || 'UNKNOWN'}
  </span>
  </div>
@@ -170,13 +170,11 @@ export const GlobalWormholeCapsule = () => {
  setIsOpen(!isOpen);
  }}
  className={cn(
- "w-12 h-12 rounded-full border flex items-center justify-center relative",
- borderColorClass,
- textColorClass,
- isOpen 
- ? (isLight ? " scale-95" : "bg-white/10 scale-95") 
- : (isLight ? "bg-white hover:scale-105 " : "bg-transparent hover:scale-105")
- )}
+          "w-12 h-12 rounded-full border flex items-center justify-center relative bg-transparent hover:scale-105",
+          borderColorClass,
+          textColorClass,
+          isOpen && "scale-95"
+        )}
  style={isLight && !isEmergency ? undefined : { boxShadow: `0 0 15px ${glowColorHex}` }}
  >
  {/* 呼吸光效底层 - 纯靠发光特征色彰显存在感 */}
