@@ -182,7 +182,11 @@ export function DualPaneBookingModal({
  // --- 会员信息状态 ---
  // 原 memberInfo 废弃，改为多轨电话数组
  const [phoneTracks, setPhoneTracks] = useState<string[]>(() => {
- if (editingBooking?.customerName && editingBooking.customerName !== "散客 Walk-in") {
+ if (editingBooking?.customerPhone) {
+ return editingBooking.customerPhone.split(',');
+ }
+ if (editingBooking?.customerName && editingBooking.customerName !== "散客 Walk-in" && !isNaN(Number(editingBooking.customerName.replace(/,/g, '')))) {
+ // 兼容老数据：如果 customerName 全是数字，也当做电话处理
  return editingBooking.customerName.split(',');
  }
  return [''];
