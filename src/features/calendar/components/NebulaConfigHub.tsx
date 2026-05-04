@@ -301,19 +301,16 @@ export const NebulaConfigHub = ({
  className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-transparent z-[102] flex flex-col pointer-events-auto"
  >
  {/* 头部 */}
-        <div className={cn("p-6 border-b flex items-center justify-between shrink-0", isLight ? "border-black/5" : "border-white/5")}>
+        <div className="p-6 flex items-center justify-between shrink-0">
           {/* 左侧：标题与图标 */}
           <div className="flex items-center gap-3">
             <div className={cn("w-8 h-8 rounded-full flex items-center justify-center relative", isLight ? "text-black" : "text-white")}>
               <Settings className="w-4 h-4" />
             </div>
             <div>
- <h2 className={cn("text-sm uppercase tracking-widest flex items-center gap-2", isLight ? "text-black" : "text-white")}>
- {t('txt_406bc4')}
+ <h2 className={cn("text-sm tracking-widest flex items-center gap-2", isLight ? "text-black" : "text-white")}>
+ {t('txt_406bc4')} ： {industryLabel}
  </h2>
- <p className={cn("text-[11px] uppercase mt-1 flex items-center gap-2", isLight ? "text-black" : "text-white")}>
- {industryLabel}
- </p>
  </div>
  </div>
 
@@ -369,7 +366,7 @@ export const NebulaConfigHub = ({
  </div>
 
  {/* 导航 Tabs */}
- <div className={cn("flex p-4 gap-2 border-b shrink-0 overflow-x-auto no-scrollbar", isLight ? "border-black/5" : "border-white/5")}>
+ <div className="flex p-4 gap-2 shrink-0 overflow-x-auto no-scrollbar">
  {[
  { id: "hours", label: t('txt_cc3307'), icon: Clock },
  { id: "staff", label: t('txt_bf9e5e'), icon: Users },
@@ -1339,8 +1336,25 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  <label className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_60f114')}</label>
  <input type="text" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className={cn("w-full bg-transparent border-b text-sm pb-1 focus:outline-none ", isLight ? "border-black/10 text-black" : "border-white/10 text-white")} placeholder={t('txt_480054')} />
  </div>
- </div>
- </div>
+ {/* System Linking */}
+  <div className="space-y-1.5 pt-2">
+  <div className={cn("flex items-center rounded-md border overflow-hidden", isLight ? "bg-black/5 border-black/10" : "bg-black/40 border-white/10")}>
+    <div className={cn("px-3 py-2 text-xs font-mono", isLight ? "text-black/60 bg-black/5 border-r border-black/10" : "text-white/60 bg-white/5 border-r border-white/10")}>ID</div>
+    <input 
+      type="text" 
+      value={(formData.frontendId || '').replace('GX-UR-', '')} 
+      onChange={e => {
+       const val = e.target.value.replace(/\D/g, ''); // 强制剔除非数字字符
+       setFormData({...formData, frontendId: val ? `GX-UR-${val}` : ''});
+     }} 
+     maxLength={6}
+     className={cn("w-full flex-1 text-xs p-2 focus:outline-none bg-transparent", isLight ? "text-black placeholder:text-black/40" : "text-white placeholder:text-white/40")} 
+      placeholder={t('txt_1e10a4')} 
+    />
+  </div>
+  </div>
+  </div>
+  </div>
 
  {/* Colors */}
  <div className="space-y-3">
@@ -1434,15 +1448,15 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  {/* 画笔提示区 */}
  {activeBrush && (
  <div className={cn("text-[10px] text-center py-1 animate-in fade-in", isLight ? "text-black/60" : "text-white/60")}>
- {activeBrush === 'day_off' && "👆 已激活【休息】画笔：点击下方日历进行单日涂鸦"}
- {activeBrush === 'leave' && "👆 已激活【请假】画笔：点击下方日历进行单日涂鸦"}
- {activeBrush === 'vacation' && "👆 已激活【休假】画笔：点击下方日历选择起始和结束日期"}
+ {activeBrush === 'day_off' && "点击下方日历设置休息日期"}
+ {activeBrush === 'leave' && "点击下方日历设置请假日期"}
+ {activeBrush === 'vacation' && "点击下方日历选择起始和结束日期"}
  {dragStartDate && activeBrush === 'vacation' && " (请选择结束日期)"}
  </div>
  )}
 
  {/* 迷你日历画板 (Mini Calendar Canvas) */}
- <div className={cn("p-3 rounded-lg border flex flex-col gap-3 select-none", isLight ? "bg-white border-black/10" : "bg-black/20 border-white/10")}>
+ <div className={cn("p-3 rounded-lg border flex flex-col gap-3 select-none", isLight ? "bg-transparent border-black/10" : "bg-transparent border-white/10")}>
  {/* 日历头部 */}
  <div className="flex items-center justify-between px-1">
  <button onClick={() => setCalendarMonthOffset(o => o - 1)} className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/5")}>
@@ -1532,7 +1546,7 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  
  <div className="flex justify-between items-center px-1">
  <span className={cn("text-[10px] opacity-50", isLight ? "text-black" : "text-white")}>
- {formData.scheduleExceptions?.length ? `已设置 ${formData.scheduleExceptions.length} 条排班异常` : '该员工全勤，无异常排班。'}
+ {formData.scheduleExceptions?.length ? `已设置 ${formData.scheduleExceptions.length} 条排班异常` : ''}
  </span>
  <button 
  onClick={() => setFormData({...formData, scheduleExceptions: []})}
@@ -1545,41 +1559,6 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  </div>
  </div>
  )}
-
- {/* System Linking */}
- <div className="space-y-4 p-4 rounded-xl border ">
- <div className="flex items-center gap-2 ">
- <LinkIcon className="w-4 h-4" />
- <span className="text-xs uppercase">{t('txt_dab60d')}</span>
- </div>
- <div className="space-y-3">
- <div className="space-y-1">
- <label className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_ab459e')}</label>
- <div className={cn("flex items-center rounded-md border overflow-hidden", isLight ? "bg-black/5 border-black/10" : "bg-black/40 border-white/10")}>
-   <div className={cn("px-3 py-2 text-xs font-mono", isLight ? "text-black/60 bg-black/5 border-r border-black/10" : "text-white/60 bg-white/5 border-r border-white/10")}>GX-UR-</div>
-   <input 
-     type="text" 
-     value={formData.frontendId.replace('GX-UR-', '')} 
-     onChange={e => {
-       const val = e.target.value.replace(/\D/g, ''); // 强制剔除非数字字符
-       setFormData({...formData, frontendId: val ? `GX-UR-${val}` : ''});
-     }} 
-     maxLength={6}
-     className={cn("w-full flex-1 text-xs p-2 focus:outline-none bg-transparent", isLight ? "text-black placeholder:text-black/40" : "text-white placeholder:text-white/40")} 
-     placeholder="000000" 
-   />
- </div>
- <p className={cn("text-[11px] mt-1", isLight ? "text-black" : "text-white")}>{t('txt_1e10a4')}</p>
- </div>
- <div className="space-y-1">
- <label className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_f6da71')}</label>
- <div className="relative">
- <Smartphone className={cn("absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3", isLight ? "text-black" : "text-white")} />
- <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className={cn("w-full rounded-md text-xs py-2 pl-7 pr-2 focus:outline-none ", isLight ? "bg-black/5 border border-black/10 text-black placeholder:text-black" : "bg-black/40 border border-white/10 text-white placeholder:text-white")} placeholder={t('txt_5c0b15')} />
- </div>
- </div>
- </div>
- </div>
  </div>
  )}
 
