@@ -98,16 +98,16 @@ export const EliteBookingBlock = ({
  const getBackgroundColor = () => {
     if (isPending) return '';
     if (isCheckedOut || isPast || isNoShow) return 'transparent';
-    // 废弃原来的 `${color}40` (25% opacity) 的半透明底色，直接使用实色
-    return isHexColor ? color : ''; 
+    // 恢复半透明底色，实现物理透视与重叠变深效果
+    return isHexColor ? `${color}b3` : ''; // 70% 透明度 (b3)
   };
 
  const getBorderColor = () => {
     if (isPending) return 'transparent';
     if (isNoShow) return 'rgba(255, 255, 255, 0.15)'; // 幽灵灰边框
     if (isCheckedOut) return 'rgba(255, 255, 255, 0.05)'; // 幽灵灰极暗边框
-    // 弱化整体外边框，仅作为结构辅助，不再抢戏 (15% 透明度)
-    return isHexColor ? (isPast ? `${color}40` : `${color}26`) : ''; 
+    // 强化全局物理边框，统一使用高可见度白色半透明边框，配合半透明底色实现透视切割
+    return isHexColor ? 'rgba(255, 255, 255, 0.5)' : ''; 
   };
 
  const getBoxShadow = () => {
@@ -165,21 +165,27 @@ export const EliteBookingBlock = ({
 
  {isMicro ? (
  // --- 极限微缩态 (15-25 分钟)：绝对左对齐，只有服务名称，超小字体，隐藏多余元素 ---
- <div className="flex items-center justify-start relative z-10 w-full truncate">
+ <div className="flex items-center justify-between relative z-10 w-full gap-1">
  <span 
- className={cn("text-[11px] leading-none font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] leading-none font-medium antialiased tracking-widest uppercase text-white truncate", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
  {title.replace(/ \+ /g, ' ')}
  </span>
+ {client && (
+ <span className={cn("text-[10px] leading-none font-medium text-white/80 shrink-0", (isCheckedOut || isNoShow) ? "opacity-50" : "")}>{client}</span>
+ )}
  </div>
  ) : isTiny ? (
  // --- 紧凑态 (30-40 分钟)：单行左对齐排版 ---
- <div className="flex items-center justify-start gap-2 relative z-10 w-full truncate px-0">
+ <div className="flex items-center justify-between relative z-10 w-full gap-1 px-0">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest uppercase shrink-0 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest uppercase text-white truncate", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
  >
  {title.replace(/ \+ /g, ' ')}
  </span>
+ {client && (
+ <span className={cn("text-[10px] font-medium text-white/80 shrink-0", (isCheckedOut || isNoShow) ? "opacity-50" : "")}>{client}</span>
+ )}
  </div>
  ) : (
  // --- 充足空间：左对齐排版 ---
@@ -198,6 +204,14 @@ export const EliteBookingBlock = ({
  )}
  </div>
  </div>
+ {/* 右下角客户极简 ID */}
+ {client && (
+ <div className="absolute bottom-1.5 right-2 z-10">
+ <span className={cn("text-[10px] font-medium antialiased tracking-widest text-white/80", (isCheckedOut || isNoShow) ? "opacity-50" : "")}>
+ {client}
+ </span>
+ </div>
+ )}
  </>
  )}
  </motion.div>

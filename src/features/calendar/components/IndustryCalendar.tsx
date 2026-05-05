@@ -1084,18 +1084,22 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       }
 
  baseResources = validStaffs
- .map(s => ({
+ .map(s => {
+ const res: any = {
  id: s.id,
  name: s.name,
  role: s.role,
  avatar: s.frontendId && staffAvatars[s.frontendId] ? staffAvatars[s.frontendId] : undefined,
  themeColor: s.color,
  status: (s.status === 'on_leave' ? 'away' : 'available') as "away" | "available" | "busy",
+ scheduleExceptions: s.scheduleExceptions,
  metadata: {
  originalStatus: s.status,
  frontendId: s.frontendId
  }
- }));
+ };
+ return res as MatrixResource;
+ });
  }
 
  // 动态 NEXUS 网络预约列逻辑：

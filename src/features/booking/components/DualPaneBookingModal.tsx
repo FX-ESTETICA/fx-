@@ -951,6 +951,24 @@ export function DualPaneBookingModal({
  // 其他情况保留原逻辑 (对于新建则是 CONFIRMED)
  const finalStatus = (editingBooking?.status === 'PENDING') ? 'CONFIRMED' : (editingBooking?.status || 'CONFIRMED');
 
+ // 【连单属性同步法则】：如果正在编辑一个连单，并且修改了客户信息（名字、电话、ID），
+ // 必须找出所有拥有相同 masterOrderId 的兄弟订单，把它们的信息一起物理更新掉，
+ // 否则就会出现“改了 A 订单，B 订单没同步”的 Bug。
+ const siblingBookingsToSync = (editingBooking?.isSuperBooking && editingBooking.relatedBookings) 
+ ? editingBooking.relatedBookings.filter(b => b.id !== editingBooking.id) 
+ : [];
+
+ siblingBookingsToSync.forEach(sibling => {
+ newBookings.push({
+ ...sibling,
+ customerId: finalCustomerId,
+ customerName: finalCustomerName,
+ customerPhone: customerPhoneStr,
+ // 需要打上被修改标记，让智能大脑一并写库
+ _needsTimeReflow: true 
+ });
+ });
+
  // 遍历每个员工的服务组
  Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup], groupIndex) => {
  const groupDuration = servicesInGroup.reduce((sum, s) => sum + (s.duration || 0), 0);
