@@ -13,8 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // 移除自定义的 sessionStorage，让 Supabase 默认使用跨标签页的 localStorage
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
-    lock: async <R,>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => await fn(),
+    detectSessionInUrl: true
   }
 });
 
