@@ -881,14 +881,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }
  }, [viewMode, phantomDate]);
 
- const getTodayLabel = () => {
- switch (viewMode) {
- case 'week': return '本周';
- case 'month': return '本月';
- default: return '今天';
- }
- };
-
  // 强化 Admin 判定：优先读取组件传入的 mode，同时作为兜底，同步读取本地通行证，防止刷新时的时序闪烁隐藏
  // 核心业务法则：只要能进这个日历并且身份是老板（boss/merchant），就绝对拥有 Admin 权限！
  const isAdmin = mode === "admin" || effectiveUserRole === 'boss' || effectiveUserRole === 'merchant';
@@ -1586,7 +1578,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  <div className="px-3 md:px-6 py-2 md:py-3 flex items-center justify-between bg-transparent">
  <div className="flex items-center gap-2 md:gap-6 shrink">
  <div 
- className="flex items-baseline gap-1.5 md:gap-4 cursor-pointer group shrink"
+ className="flex items-end gap-1.5 md:gap-4 cursor-pointer group shrink"
  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
  title={t('txt_84e0cd')}
  >
@@ -1609,11 +1601,29 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  {phantomDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()} {phantomDate.getDate()}
  </h3>
- <div className="flex flex-col shrink-0">
+ <div className="flex flex-col shrink-0 gap-0.5 justify-end pb-[2px] md:pb-[3px]">
  <span 
  suppressHydrationWarning 
  className={cn(
- "text-[11px] md:text-sm tracking-[0.1em] md:tracking-[0.4em] uppercase ", 
+ "text-[10px] md:text-xs tracking-[0.2em] md:tracking-[0.4em] uppercase leading-none font-medium opacity-80", 
+ phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
+ ? `bg-gradient-to-r ${visualSettings?.timelineColorTheme === 'blackgold' ? "from-[#8B7355]" : "from-[#FDF5E6]"} via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-`
+ : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
+ )} 
+ style={
+ phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
+ ? {}
+ : visualSettings.headerTitleColorTheme === 'purewhite' || visualSettings.headerTitleColorTheme === 'coreblack'
+ ? {}
+ : { textShadow: `0 0 10px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}66` }
+ }
+ >
+ {phantomDate.toLocaleDateString('zh-CN', { weekday: 'long' })}
+ </span>
+ <span 
+ suppressHydrationWarning 
+ className={cn(
+ "text-[10px] md:text-[11px] tracking-[0.1em] md:tracking-[0.4em] uppercase leading-none opacity-50", 
  phantomDate.toDateString() === new Date().toDateString() && !['coreblack', 'purewhite'].includes(visualSettings.headerTitleColorTheme)
  ? `bg-gradient-to-r ${visualSettings?.timelineColorTheme === 'blackgold' ? "from-[#8B7355]" : "from-[#FDF5E6]"} via-gx-purple to-gx-gold bg-[length:200%_auto] animate-[shimmer_8s_linear_infinite] text-transparent bg-clip-text drop-`
  : CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
@@ -1634,22 +1644,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  {/* 响应式控制中枢 (Unified Cyber Controls) */}
  <div className="flex items-center gap-1 md:gap-4 shrink-0">
- <div className="flex bg-transparent p-0.5 md:p-1 ">
- <button
- onClick={() => {
- const modes = ['day', 'week', 'month'] as const;
- const currentIndex = modes.indexOf(viewMode);
- setViewMode(modes[(currentIndex + 1) % modes.length]);
- }}
- className={cn(
- "px-2 md:px-6 py-1 md:py-1.5 text-[11px] md:text-[11px] uppercase min-w-[32px] md:w-20 text-center",
- CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
- )}
- >
- <span className="md:hidden">{viewMode.charAt(0)}</span>
- <span className="hidden md:inline">{viewMode}</span>
- </button>
- </div>
 
  <div className="flex items-center gap-0.5 md:gap-2">
  <button 
@@ -1659,21 +1653,26 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  <ChevronLeft className="w-4 h-4 md:w-4 md:h-4" />
  </button>
- <button 
+ <div className="flex bg-transparent p-0.5 md:p-1 ">
+ <button
  onClick={() => {
- const now = new Date();
- setCurrentDate(now);
- setPhantomDate(now);
+ const modes = ['day', 'week', 'month'] as const;
+ const currentIndex = modes.indexOf(viewMode);
+ setViewMode(modes[(currentIndex + 1) % modes.length]);
  }}
- className="px-1.5 md:px-4 py-1 md:py-2 text-[11px] rounded-lg tracking-widest flex items-center justify-center"
- style={{ 
- color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
- textShadow: visualSettings.headerTitleColorTheme === 'purewhite' || visualSettings.headerTitleColorTheme === 'coreblack' ? 'none' : `0 0 10px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}80` 
- }}
+ className={cn(
+ "px-2 md:px-6 py-1 md:py-1.5 text-[11px] md:text-[11px] uppercase min-w-[32px] md:min-w-[80px] whitespace-nowrap text-center",
+ CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].className
+ )}
  >
- <span className="md:hidden text-[11px] leading-none tracking-normal">今</span>
- <span className="hidden md:inline">{getTodayLabel()}</span>
+ <span className="md:hidden">
+ {viewMode === 'day' ? '日' : viewMode === 'week' ? '周' : '月'}
+ </span>
+ <span className="hidden md:inline">
+ {viewMode === 'day' ? '日视图' : viewMode === 'week' ? '周视图' : '月视图'}
+ </span>
  </button>
+ </div>
  <button 
  onClick={() => handleNavigate('next')}
  className="p-1 md:p-2 rounded-lg"
