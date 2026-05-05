@@ -753,23 +753,23 @@ export const BookingService = {
   },
 
   async getVoidedBookings(shopId: string): Promise<{ data: BookingRecord[] }> {
-    if (isMockMode) return { data: [] };
-    
-    if (!shopId || shopId === 'default') {
-      return { data: [] };
-    }
-    
-    const { data, error } = await supabase
-      .from('v_bookings')
-      .select('*')
-      .eq('shop_id', shopId)
-      .eq('status', 'VOID')
-      .order('date', { ascending: false }); // 按照时间倒序，最新的在上面
-      
-    if (error) {
-      console.error("[BookingService] getVoidedBookings Error:", error);
-      return { data: [] };
-    }
+     if (isMockMode) return { data: [] };
+     
+     if (!shopId || shopId === 'default') {
+       return { data: [] };
+     }
+     
+     const { data, error } = await supabase
+       .from('v_bookings')
+       .select('*')
+       .eq('shop_id', shopId)
+       .eq('status', 'VOID')
+       .order('updated_at', { ascending: false }); // 按照更新时间倒序，也就是最新被删除的在最上面
+       
+     if (error) {
+       console.error("[BookingService] getVoidedBookings Error:", error);
+       return { data: [] };
+     }
     
     const formatted: BookingRecord[] = (data || []).map((b) => ({
       id: b.id,

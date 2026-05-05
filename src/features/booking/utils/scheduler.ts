@@ -49,7 +49,6 @@ export const BookingScheduler = {
       };
 
       const absoluteBookings: any[] = [];
-      const pushdownBookings: any[] = [];
       const floatingBookings: any[] = [];
 
       // 2. 剥离并分类
@@ -80,26 +79,21 @@ export const BookingScheduler = {
           console.log(`[BookingScheduler] Evicted booking ${b.id} due to staff off on ${dateStr}`);
         } else if (b.resourceId === 'NO') {
           absoluteBookings.push(b);
-        } else if (b._needsTimeReflow && b.resourceId && !b.originalUnassigned) {
-          // 明确指定了员工，且被标记需要重新排盘（例如弹窗分配给 ALEXA）
-          pushdownBookings.push(b);
-        } else if (b.originalUnassigned) {
-          // 真正的未指定订单，清空记忆重新寻位
+        } else if (!b.resourceId) {
+          // 完全没有 resourceId，必须寻找
+          floatingBookings.push(b);
+        } else if (b.originalUnassigned && b._needsTimeReflow) {
+          // 刚创建的散客或被明确要求重新寻位的散客
           b.resourceId = undefined;
           floatingBookings.push(b);
-        } else if (b._needsTimeReflow && b.resourceId) {
-          // 原本无指定但刚刚被分配了目标，且需要顺延检测
-          pushdownBookings.push(b);
         } else {
-          // 正常已固定订单
+          // 【核心重构：废除顺延，确立固定法则】
+          // 只要有 resourceId，不管是老订单还是刚被指派的新订单（即使带有 _needsTimeReflow），
+          // 全部视为“实体砖”，直接钉死在它的 startTime 上，绝对不再向后顺延！
           absoluteBookings.push(b);
         }
       });
 
-      // 排序函数，优先按开始时间排
-      const sortByTime = (a: any, b: any) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
-      pushdownBookings.sort(sortByTime);
-      
       // 【散客路权保护法则】：浮动池（无指定）排序必须引入“资历”优先级。
       // _needsTimeReflow 为假的（老散客）排在前面，优先占坑。
       // 其次再按时间排序。
@@ -118,95 +112,35 @@ export const BookingScheduler = {
       const normalizeTime = (t: string | undefined | null) => t ? t.substring(0, 5) : "00:00";
 
       // 辅助函数：计算两个时间段的重叠分钟数
-      const calculateOverlap = (startA: number, endA: number, startB: number, endB: number) => {
-        const overlapStart = Math.max(startA, startB);
-        const overlapEnd = Math.min(endA, endB);
-        return Math.max(0, overlapEnd - overlapStart);
-      };
+       const calculateOverlap = (startA: number, endA: number, startB: number, endB: number) => {
+         const overlapStart = Math.max(startA, startB);
+         const overlapEnd = Math.min(endA, endB);
+         return Math.max(0, overlapEnd - overlapStart);
+       };
+ 
+       // 辅助函数：在一个员工列上寻找空位 (仅供散客初始寻位使用)
+       // 【核心重构：废除顺延】即使是散客寻位，我们也只找“当前时间点是否空闲”。如果被占了，我们不再向后推延（不再计算 conflictEndMin），
+       // 而是直接报告“这个点被占了”，让散客去别的员工那里找。如果所有员工都没空，散客才被迫接受重叠或者等待（这里保留基础寻位以确保它能降落）
+       const findSlotOnStaff = (booking: any, staffId: string, startMin: number, toleranceMins: number) => {
+         const duration = booking.duration || 60;
+         const currentEnd = startMin + duration;
+         
+         const conflict = placedBookings.find(placed => {
+           if (placed.resourceId !== staffId) return false;
+           if (placed.shopId && booking.shopId && placed.shopId !== booking.shopId) return false;
+           
+           const pStartMin = timeToMinutes(placed.startTime);
+           const pEndMin = pStartMin + (placed.duration || 60);
+           
+           const overlapMins = calculateOverlap(startMin, currentEnd, pStartMin, pEndMin);
+           return overlapMins > toleranceMins;
+         });
+         
+         // 返回冲突发生的时间点，如果没有冲突，则返回原始时间点
+         return conflict ? Infinity : startMin; 
+       };
 
-      // 辅助函数：在一个员工列上寻找/顺延空位 (引入重叠容忍度法则)
-      // toleranceMins: 允许与旧订单重叠的最大分钟数（例如 20）。如果是 0，代表绝对防撞（散客）。
-      const findSlotOnStaff = (booking: any, staffId: string, startMin: number, toleranceMins: number) => {
-        let currentStart = startMin;
-        const duration = booking.duration || 60;
-        
-        while (true) {
-          const currentEnd = currentStart + duration;
-          
-          // 检查该员工的所有已放置订单是否与我们发生碰撞
-          const conflict = placedBookings.find(placed => {
-            if (placed.resourceId !== staffId) return false;
-            if (placed.shopId && booking.shopId && placed.shopId !== booking.shopId) return false;
-            // 【水位线豁免】：如果这个被检查的订单是“强塞”进来的，它将被视为空气，不参与防撞检测
-            if (placed._isForceInsert) return false;
-            
-            const pStartMin = timeToMinutes(placed.startTime);
-            const pEndMin = pStartMin + (placed.duration || 60);
-            
-            // 计算新老订单的重叠时间
-            const overlapMins = calculateOverlap(currentStart, currentEnd, pStartMin, pEndMin);
-            
-            // 【核心重构：废弃起点检测，引入面积容忍度】
-            // 只要重叠时间大于容忍度，就判定为冲突（碍事了）
-            return overlapMins > toleranceMins;
-          });
-          
-          if (!conflict) {
-            return currentStart; // 找到空位，允许放置
-          } else {
-            // 发生不可容忍的冲突，必须顺延
-            // 【核心重构：绝对不许挤压别人，只能改变自己的落点】
-            // 我们把自己顺延到那个挡路订单的结束时间，然后再次循环检测
-            const conflictEndMin = timeToMinutes(conflict.startTime) + (conflict.duration || 60);
-            currentStart = conflictEndMin;
-          }
-        }
-      };
-
-      // 3. 处理指定了员工，但需要顺延检测的订单 (Pushdown - 轨道二：店长强塞容忍重叠)
-      pushdownBookings.forEach(bkg => {
-        const targetStaffId = bkg.resourceId;
-        const originalStartMin = timeToMinutes(bkg.startTime);
-        
-        // 【绝对特权】：如果订单带有 _isForceInsert 标记，无视一切防撞逻辑，直接钉死在原始时间！
-        if (bkg._isForceInsert) {
-          placedBookings.push(bkg);
-          return; // 结束当前订单的顺延计算
-        }
-
-        // 店长指定的，允许软穿透，容忍度设为 15 分钟 (符合门店实际可容忍等待时间)
-        // 如果是多项任务并发 (带有 _siblingIndex)，我们需要根据兄弟的情况进行接力判定
-        let actualStartMin = originalStartMin;
-        
-        if (bkg.masterOrderId && bkg._siblingIndex > 0) {
-          // 这是同一个客人的第 N 个项目。我们先去看看它的“前一个兄弟”目前被排到了什么时候
-          const prevSibling = placedBookings.find(p => p.masterOrderId === bkg.masterOrderId && p._siblingIndex === bkg._siblingIndex - 1);
-          if (prevSibling) {
-             // 我们先尝试让它和前一个兄弟“并发”（即使用原始时间 originalStartMin）
-             // 去看一眼如果放在 originalStartMin，会不会与员工的已有订单严重冲突
-             const testConflict = placedBookings.find(placed => {
-                if (placed.resourceId !== targetStaffId) return false;
-                if (placed.shopId && bkg.shopId && placed.shopId !== bkg.shopId) return false;
-                const pStartMin = timeToMinutes(placed.startTime);
-                const pEndMin = pStartMin + (placed.duration || 60);
-                const currentEnd = originalStartMin + (bkg.duration || 60);
-                return calculateOverlap(originalStartMin, currentEnd, pStartMin, pEndMin) > 15;
-             });
-
-             if (testConflict) {
-               // 如果严重冲突，说明无法并发！触发【智能接力】，它的起点必须在前一个兄弟结束之后
-               actualStartMin = timeToMinutes(prevSibling.startTime) + (prevSibling.duration || 60);
-             }
-          }
-        }
-
-        const newStartMin = findSlotOnStaff(bkg, targetStaffId, actualStartMin, 15);
-        bkg.startTime = minutesToTime(newStartMin);
-        
-        placedBookings.push(bkg);
-      });
-
-      // 4. 处理未指定员工的订单 (Floating - 轨道一：散客绝对防撞)
+      // 3. 处理未指定员工的订单 (Floating - 轨道一：散客绝对防撞)
       floatingBookings.forEach(bkg => {
         const originalStartMin = timeToMinutes(bkg.startTime);
         let foundStaffId = null;
@@ -252,39 +186,31 @@ export const BookingScheduler = {
         }
 
         // 如果在 originalStartMin 的时间，所有员工列都满了！
-        if (!foundStaffId) {
-          // 那我们就必须找一个“最早能接单”的员工进行顺延。
-          // 遍历所有可用员工，找出谁的 nextAvailableSlot 最小。
-          let earliestAvailableMin = Infinity;
-          let selectedStaffId = null;
-          
-          for (const staff of staffs) {
-            if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
-            // 同样跳过休息的员工
-            let isStaffOff = false;
-            if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
-              isStaffOff = staff.scheduleExceptions.some((exc: any) => {
-                if (exc.type === 'day_off' || exc.type === 'leave') { return exc.startDate === dateStr; }
-                else if (exc.type === 'vacation') { return dateStr >= exc.startDate && dateStr <= (exc.endDate || exc.startDate); }
-                return false;
-              });
-            }
-            if (isStaffOff) continue;
-
-            const slotMin = findSlotOnStaff(bkg, staff.id, originalStartMin, 0);
-            if (slotMin < earliestAvailableMin) {
-              earliestAvailableMin = slotMin;
-              selectedStaffId = staff.id;
-            }
-          }
-          
-          if (selectedStaffId) {
-            foundStaffId = selectedStaffId;
-            bestStartMin = earliestAvailableMin;
-          }
-        }
-
-        bkg.resourceId = foundStaffId;
+         if (!foundStaffId) {
+           // 【核心重构：废除向后顺延找空位】
+           // 既然全满了，我们不再向后几小时去寻找所谓的“最早能接单”的时间。
+           // 我们直接把这个散客强制“挤”进第一个没有休息的员工头上（容忍重叠）。
+           // 或者把它分配给默认的 UNASSIGNED_POOL 让它悬空。
+           // 这里我们选择最贴近真实业务的做法：直接原地塞给第一个可用员工，并在界面上暴露出红色的重叠警告。
+           for (const staff of staffs) {
+             if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
+             let isStaffOff = false;
+             if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
+               isStaffOff = staff.scheduleExceptions.some((exc: any) => {
+                 if (exc.type === 'day_off' || exc.type === 'leave') { return exc.startDate === dateStr; }
+                 else if (exc.type === 'vacation') { return dateStr >= exc.startDate && dateStr <= (exc.endDate || exc.startDate); }
+                 return false;
+               });
+             }
+             if (!isStaffOff) {
+               foundStaffId = staff.id;
+               bestStartMin = originalStartMin; // 原地强塞
+               break;
+             }
+           }
+         }
+ 
+         bkg.resourceId = foundStaffId;
         bkg.startTime = minutesToTime(bestStartMin);
         // 【核心修复：非常关键】必须将它 push 进 placedBookings，这样下一个无指定单就能看见它并绕开它！
         placedBookings.push(bkg);

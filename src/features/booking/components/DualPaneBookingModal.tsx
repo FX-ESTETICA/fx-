@@ -1039,17 +1039,8 @@ export function DualPaneBookingModal({
  const newBookingIds = new Set(newBookings.map(b => b.id));
  idsToDelete = idsToDelete.filter(id => !newBookingIds.has(id));
 
- if (idsToDelete.length > 0) {
- await BookingService.deleteBookings(idsToDelete);
- }
-
- // 2. 将当前操作产生的新订单加入全量列表并强制存入数据库，作为“锚定”基准
- const payload: BookingUpsertInput[] = newBookings.map(b => ({
- ...b,
- date: b.date || baseDate, // 确保有默认值
- startTime: b.startTime || "00:00"
- })) as BookingUpsertInput[];
- await BookingService.upsertBookings(payload);
+ // 这里之前有一个同步的 deleteBookings 和 upsertBookings
+ // 为了乐观更新，我们把这两个网络请求统统挪到下面的 setTimeout 异步宏任务里！
 
  // 3. 将刚刚入库的新订单注入到覆盖字典里，告诉智能大脑：这些是需要重新排盘的“浮动订单”
  const manualOverrides: Record<string, { resourceId?: string | null; originalUnassigned?: boolean; _needsTimeReflow: boolean; _isForceInsert?: boolean }> = {};
@@ -1072,20 +1063,42 @@ export function DualPaneBookingModal({
  }
  });
 
- // 4. 【世界顶端架构：呼叫 BookingScheduler 智能大脑】
- // 废弃掉 Modal 里这段简陋的老旧重排逻辑，直接调用刚刚升级过的强大智能磁吸引擎
- await BookingScheduler.reflowDayBookings(baseDate, currentShopId, staffs, manualOverrides);
- 
- // 核心修复：虽然有实时引擎，但是由于我们取消了全局重新拉取，
- // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据
- refreshBookings();
- trackAction();
- 
- // 关闭弹窗
+ // 【世界顶端架构：乐观更新与后台静默重排】
+ // 1. 瞬间关闭弹窗，消除阻塞感
  handleClose();
+ 
+ // 2. 派发一个临时的视觉更新事件，让日历组件把 newBookings 画出来（可选，如果不派发，稍后刷新也会出来）
+ // 3. 将耗时的网络请求转入异步宏任务
+   setTimeout(async () => {
+     try {
+       // 4. 【后台静默存盘】
+       if (idsToDelete.length > 0) {
+         await BookingService.deleteBookings(idsToDelete);
+       }
+       const payload: BookingUpsertInput[] = newBookings.map(b => ({
+         ...b,
+         date: b.date || baseDate, // 确保有默认值
+         startTime: b.startTime || "00:00"
+       })) as BookingUpsertInput[];
+       await BookingService.upsertBookings(payload);
+
+     // 5. 【后台呼叫 BookingScheduler 智能大脑】
+     // 废弃掉 Modal 里这段简陋的老旧重排逻辑，直接调用刚刚升级过的强大智能磁吸引擎
+     await BookingScheduler.reflowDayBookings(baseDate, currentShopId, staffs, manualOverrides);
+     
+     // 6. 核心修复：由于我们取消了全局重新拉取，
+     // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to save bookings to Supabase in background:", error);
+   } finally {
+     setIsSaving(false);
+   }
+ }, 0);
+ 
  } catch (error) {
- console.error("Failed to save bookings to Supabase:", error);
- } finally {
+ console.error("Failed to prepare bookings:", error);
  setIsSaving(false);
  }
  };

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useDragControls } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { isActiveBgColor, isActiveBorderColor } from "./utils";
 import React, { useRef, useEffect } from "react";
@@ -54,8 +54,8 @@ export const EliteBookingBlock = ({
 
  const handlePointerMove = (e: React.PointerEvent) => {
  if (isDraggingRef.current && onDrag) {
- // 模拟 info.offset.y
- onDrag(e, { offset: { y: e.clientY - dragStartYRef.current } });
+ // 模拟 info.offset，支持 2D (x, y) 拖拽
+ onDrag(e, { offset: { x: e.clientX, y: e.clientY - dragStartYRef.current } });
  }
  };
 
@@ -66,7 +66,7 @@ export const EliteBookingBlock = ({
  dragTimeoutRef.current = null;
  }
  if (isDraggingRef.current && onDragEnd) {
- onDragEnd(e, { offset: { y: e.clientY - dragStartYRef.current } });
+ onDragEnd(e, { offset: { x: e.clientX, y: e.clientY - dragStartYRef.current } });
  setTimeout(() => {
  isDraggingRef.current = false;
  }, 50);

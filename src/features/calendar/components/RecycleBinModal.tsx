@@ -33,15 +33,56 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
  };
 
  const handleRestore = async (id: string) => {
+ // 1. 【乐观更新】瞬间从 UI 列表中剔除
+ setVoidedBookings(prev => prev.filter(b => b.id !== id));
+ 
+ // 2. 【静默处理】放入宏任务异步执行
+ setTimeout(async () => {
+ try {
  await BookingService.restoreBookings([id]);
- await loadVoidedBookings();
  refreshBookings();
  trackAction();
+ } catch (e) {
+ console.error("Failed to restore booking in background:", e);
+ // 发生严重错误时，可以考虑在这里触发一次全量拉取恢复 UI
+ // loadVoidedBookings(); 
+ }
+ }, 0);
  };
 
  const handlePurge = async (id: string) => {
+ // 1. 【乐观更新】瞬间从 UI 列表中剔除
+ setVoidedBookings(prev => prev.filter(b => b.id !== id));
+
+ // 2. 【静默处理】放入宏任务异步执行
+ setTimeout(async () => {
+ try {
  await BookingService.purgeBookings([id]);
- await loadVoidedBookings();
+ trackAction();
+ } catch (e) {
+ console.error("Failed to purge booking in background:", e);
+ }
+ }, 0);
+ };
+
+ const handlePurgeAll = async () => {
+ if (voidedBookings.length === 0) return;
+ if (!confirm("Are you sure you want to permanently delete ALL voided bookings? This cannot be undone.")) return;
+
+ const idsToPurge = voidedBookings.map(b => b.id);
+ 
+ // 1. 【乐观更新】瞬间清空 UI 列表
+ setVoidedBookings([]);
+
+ // 2. 【静默处理】放入宏任务异步执行
+ setTimeout(async () => {
+ try {
+ await BookingService.purgeBookings(idsToPurge);
+ trackAction();
+ } catch (e) {
+ console.error("Failed to purge all bookings in background:", e);
+ }
+ }, 0);
  };
 
  if (!isOpen) return null;
