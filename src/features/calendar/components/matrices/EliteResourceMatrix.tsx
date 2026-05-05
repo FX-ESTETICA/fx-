@@ -1175,7 +1175,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  const isProcessing = processingOrderId === booking.id;
  const isBeingDragged = draggedBooking?.id === booking.id;
- const isFlashing = flashingBookingIds.has(booking.id) || (booking.order_no && flashingBookingIds.has(booking.order_no as string));
+ const isFlashing = flashingBookingIds.has(booking.id) || ((booking as any).order_no && flashingBookingIds.has((booking as any).order_no as string));
 
  return (
  <React.Fragment key={booking.id}>
