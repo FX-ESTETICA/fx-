@@ -999,7 +999,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  {waterfallData.nodes.map((node, idx) => {
  const isDayAnchor = node.isDayStart && idx > 0;
  const dateObj = new Date(node.dateStr.replace(/-/g, '/'));
- const dateLabel = `${dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${dateObj.getDate().toString().padStart(2, '0')}`;
+ const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+ const dayOfWeek = weekDays[dateObj.getDay()];
+ const dateLabel = `${dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${dateObj.getDate().toString().padStart(2, '0')} ${dayOfWeek}`;
 
  return (
  <div key={`bg-${node.id}`} className="absolute w-full z-0" style={{ top: node.top, height: node.height }}>
