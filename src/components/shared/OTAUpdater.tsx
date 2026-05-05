@@ -17,7 +17,7 @@ export function OTAUpdater() {
 
     const checkVersionAndSilentUpdate = async () => {
       try {
-        const res = await fetch("/api/version", { 
+        const res = await fetch(`/api/version?t=${Date.now()}`, { 
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -68,7 +68,10 @@ export function OTAUpdater() {
           
           // 稍作延迟让用户看清 100%
           setTimeout(() => {
-            window.location.reload(); 
+            // 物理强袭重载：在 URL 附加强制更新时间戳，彻底击穿 WKWebView 的顽固缓存
+            const url = new URL(window.location.href);
+            url.searchParams.set('gx_force_update', Date.now().toString());
+            window.location.href = url.toString();
           }, 800);
         }
       } catch (err) {
