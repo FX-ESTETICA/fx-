@@ -7,7 +7,7 @@ import { AppShell } from "@/components/shared/AppShell";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
 import { WeChatBrowserGuard } from "@/components/shared/WeChatBrowserGuard";
-import { PWAUpdater } from "@/components/shared/PWAUpdater";
+import { OTAUpdater } from "@/components/shared/OTAUpdater";
 // import { WebDownloadPrompt } from "@/components/shared/WebDownloadPrompt";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -216,7 +216,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
-        <PWAUpdater />
+        <OTAUpdater />
         <NextIntlClientProvider messages={messages}>
           <WeChatBrowserGuard />
           {/* Native environment bridge */}
