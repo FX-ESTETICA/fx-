@@ -198,6 +198,34 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  // --- 极致交互法则：多方剥离拆单状态引擎 ---
  const [implodedOrderId, setImplodedOrderId] = React.useState<string | null>(null);
  const [splitActiveEmployeeId, setSplitActiveEmployeeId] = React.useState<string | null>(null);
+ 
+ // --- 闪烁反馈法则：新订单降落时的视觉高亮 ---
+ const [flashingBookingIds, setFlashingBookingIds] = React.useState<Set<string>>(new Set());
+
+ useEffect(() => {
+   const handleFlashed = (e: Event) => {
+     const customEvent = e as CustomEvent<{ ids: string[] }>;
+     if (customEvent.detail && customEvent.detail.ids) {
+       setFlashingBookingIds(prev => {
+         const next = new Set(prev);
+         customEvent.detail.ids.forEach(id => next.add(id));
+         return next;
+       });
+       
+       // 4秒后自动移除闪烁状态
+       setTimeout(() => {
+         setFlashingBookingIds(prev => {
+           const next = new Set(prev);
+           customEvent.detail.ids.forEach(id => next.delete(id));
+           return next;
+         });
+       }, 4000);
+     }
+   };
+   
+   window.addEventListener('bookings-flashed', handleFlashed);
+   return () => window.removeEventListener('bookings-flashed', handleFlashed);
+ }, []);
  // 改用映射表：记录每个子项目被分配给了哪个员工 { serviceId: targetEmployeeId }
  const [splitServiceAssignments, setSplitServiceAssignments] = React.useState<Record<string, string>>({});
  // 物理防抖锁：防止网络延迟时的多重点选
@@ -1147,6 +1175,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  const isProcessing = processingOrderId === booking.id;
  const isBeingDragged = draggedBooking?.id === booking.id;
+ const isFlashing = flashingBookingIds.has(booking.id) || (booking.order_no && flashingBookingIds.has(booking.order_no as string));
 
  return (
  <React.Fragment key={booking.id}>
@@ -1156,6 +1185,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  "absolute pointer-events-auto implosion-container ",
  blockClass,
  isProcessing ? "" : "",
+ isFlashing ? "animate-pulse ring-2 ring-white drop-shadow-[0_0_12px_rgba(255,255,255,0.8)] z-50 rounded-xl" : "",
  isMicro && "hover:z-[200] " // 微缩态悬浮放大补偿
  )}
  style={{

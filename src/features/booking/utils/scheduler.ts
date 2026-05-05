@@ -20,7 +20,8 @@ export const BookingScheduler = {
       // 必须在应用 manualOverrides 之前记录，否则会把拖拽后的新时间当成旧时间，导致存盘被跳过！
       const originalStateMap = new Map(todayBookings.map(b => [b.id, {
         resourceId: b.resourceId,
-        startTime: b.startTime
+        startTime: b.startTime,
+        duration: b.duration // 引入 duration 检查，防止连单合并后的时长变化被忽略
       }]));
 
       // 应用手动内存覆盖 (防止视图延迟导致读取到旧状态)
@@ -104,7 +105,18 @@ export const BookingScheduler = {
       // 排序函数，优先按开始时间排
       const sortByTime = (a: any, b: any) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
       pushdownBookings.sort(sortByTime);
-      floatingBookings.sort(sortByTime);
+      
+      // 【散客路权保护法则】：浮动池（无指定）排序必须引入“资历”优先级。
+      // _needsTimeReflow 为假的（老散客）排在前面，优先占坑。
+      // 其次再按时间排序。
+      floatingBookings.sort((a: any, b: any) => {
+        const aIsNew = !!a._needsTimeReflow;
+        const bIsNew = !!b._needsTimeReflow;
+        if (aIsNew !== bIsNew) {
+          return aIsNew ? 1 : -1; // 老的 (false) 在前，新的 (true) 在后
+        }
+        return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+      });
 
       const placedBookings = [...absoluteBookings];
 
@@ -203,6 +215,12 @@ export const BookingScheduler = {
         let foundStaffId = null;
         let bestStartMin = originalStartMin;
 
+        // 【核心修复：水平堆叠 BUG】
+        // 如果当前时间点 (originalStartMin) 已经被别的无指定单抢占了，
+        // 我们不能让它们像幽灵一样全部挤在同一个坐标上。
+        // 所以我们必须把之前已经放置好的所有订单 (placedBookings) 作为障碍物，
+        // 强迫每一个新无指定单去进行真实的空位扫描。
+        
         // 从左到右扫描员工，看能不能在原始时间塞下
         for (const staff of staffs) {
           if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
@@ -225,7 +243,10 @@ export const BookingScheduler = {
           if (isStaffOff) continue;
 
           // 散客自己找位置，必须绝对无重叠 (容忍度 = 0)
+          // 这里的 findSlotOnStaff 内部会遍历 placedBookings 进行防撞检测
           const newStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin, 0);
+          
+          // 如果 newStartMin === originalStartMin，说明在这个员工列，当前时间是绝对空闲的！
           if (newStartMin === originalStartMin) {
             foundStaffId = staff.id;
             bestStartMin = newStartMin;
@@ -233,6 +254,7 @@ export const BookingScheduler = {
           }
         }
 
+        // 如果在 originalStartMin 的时间，所有员工列都满了！
         if (!foundStaffId) {
           // 【核心修复：全局比小，寻找最快结束的那列】
           // 如果所有人都放不下（都会顺延），不再无脑塞给第一个人！
@@ -281,6 +303,7 @@ export const BookingScheduler = {
 
         bkg.resourceId = foundStaffId;
         bkg.startTime = minutesToTime(bestStartMin);
+        // 【核心修复：非常关键】必须将它 push 进 placedBookings，这样下一个无指定单就能看见它并绕开它！
         placedBookings.push(bkg);
       });
 
@@ -375,7 +398,11 @@ export const BookingScheduler = {
                baseBooking.services = mergedServices;
                baseBooking.serviceName = uniqueServiceNames.join(' + ');
                
-               finalUpdatedBookings.push(baseBooking);
+               // 【极度纯净检查】：在这个庞然大物组装完毕后，再检查它跟之前到底有没有发生物理变化
+               const originalState = originalStateMap.get(baseBooking.id);
+               if (!originalState || baseBooking.resourceId !== originalState.resourceId || baseBooking.startTime !== originalState.startTime || baseBooking.duration !== originalState.duration) {
+                 finalUpdatedBookings.push(baseBooking);
+               }
              }
            });
         }
@@ -383,7 +410,19 @@ export const BookingScheduler = {
 
       // 6. 并发存盘：更新状态并销毁多余躯壳
       if (finalUpdatedBookings.length > 0) {
+        // 【数据纯净法则】：入库前抹除所有内存计算专用的瞬态标记，防止永久污染数据库
+        finalUpdatedBookings.forEach(b => {
+          delete b._needsTimeReflow;
+          delete b._isForceInsert;
+        });
+        
         await BookingService.upsertBookings(finalUpdatedBookings);
+        
+        // 【闪烁反馈法则】：向全网广播刚刚被重排或修改的订单ID，触发视觉高亮
+        if (typeof window !== 'undefined') {
+          const flashedIds = finalUpdatedBookings.map(b => b.id);
+          window.dispatchEvent(new CustomEvent('bookings-flashed', { detail: { ids: flashedIds } }));
+        }
       }
       if (idsToDelete.length > 0) {
         await BookingService.deleteBookings(idsToDelete);
