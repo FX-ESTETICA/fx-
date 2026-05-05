@@ -83,9 +83,15 @@ export const BookingScheduler = {
           // 明确指定了员工，且被标记需要重新排盘（例如弹窗分配给 ALEXA）
           pushdownBookings.push(b);
         } else if (b.originalUnassigned) {
-          // 真正的未指定订单，清空记忆重新寻位
-          b.resourceId = undefined;
-          floatingBookings.push(b);
+          // 【核心修复：老无指定订单物理锚定法则】
+          // 只有当前被编辑、新建或标记了需要重新寻位的散客，才剥夺它的固定座位
+          if (b._needsTimeReflow || !b.resourceId) {
+            b.resourceId = undefined; // 清空记忆重新寻位
+            floatingBookings.push(b);
+          } else {
+            // 历史已经排好坑位的散客，绝对不能因为别人的变动而被挤走！升格为 absolute！
+            absoluteBookings.push(b);
+          }
         } else if (b._needsTimeReflow && b.resourceId) {
           // 原本无指定但刚刚被分配了目标，且需要顺延检测
           pushdownBookings.push(b);
@@ -228,11 +234,48 @@ export const BookingScheduler = {
         }
 
         if (!foundStaffId) {
-          // 如果所有人都放不下（都会顺延），那就选第一个员工强制顺延
-          const fallbackStaff = staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO');
-          if (fallbackStaff) {
-            foundStaffId = fallbackStaff.id;
-            bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin, 0);
+          // 【核心修复：全局比小，寻找最快结束的那列】
+          // 如果所有人都放不下（都会顺延），不再无脑塞给第一个人！
+          let minStartMin = Infinity;
+          let bestStaffId = null;
+
+          for (const staff of staffs) {
+            if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
+            
+            let isStaffOff = false;
+            if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
+              isStaffOff = staff.scheduleExceptions.some((exc: any) => {
+                if (exc.type === 'day_off' || exc.type === 'leave') return exc.startDate === dateStr;
+                if (exc.type === 'vacation') {
+                  const start = exc.startDate;
+                  const end = exc.endDate || exc.startDate;
+                  return dateStr >= start && dateStr <= end;
+                }
+                return false;
+              });
+            }
+            if (isStaffOff) continue;
+
+            // 去探测这列如果要排，会被顺延到几点
+            const potentialStartMin = findSlotOnStaff(bkg, staff.id, originalStartMin, 0);
+            
+            // 谁结束得最早，也就是顺延时间最短，就给谁！
+            if (potentialStartMin < minStartMin) {
+              minStartMin = potentialStartMin;
+              bestStaffId = staff.id;
+            }
+          }
+
+          if (bestStaffId) {
+            foundStaffId = bestStaffId;
+            bestStartMin = minStartMin;
+          } else {
+            // 极限兜底：万一全体休假（理论上不该发生）
+            const fallbackStaff = staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO');
+            if (fallbackStaff) {
+              foundStaffId = fallbackStaff.id;
+              bestStartMin = findSlotOnStaff(bkg, fallbackStaff.id, originalStartMin, 0);
+            }
           }
         }
 
