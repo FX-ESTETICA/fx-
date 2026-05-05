@@ -431,8 +431,9 @@ export function DualPaneBookingModal({
 
  // 【结账舱独立价格状态】记录每个服务最终选定的结账价格，格式: { serviceId: price }
  const [checkoutPrices, setCheckoutPrices] = useState<Record<string, number>>({});
- const [editingCustomPriceId, setEditingCustomPriceId] = useState<string | null>(null);
- const [customPriceInput, setCustomPriceInput] = useState("");
+  const [editingCustomPriceId, setEditingCustomPriceId] = useState<string | null>(null);
+  const [customPriceInput, setCustomPriceInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
  // 【结账舱单项删除黑名单】记录已经被用户点击(X)删掉的项目 serviceId
   const [deletedCheckoutItemIds, setDeletedCheckoutItemIds] = useState<string[]>([]);
@@ -684,7 +685,52 @@ export function DualPaneBookingModal({
  // onClose();
  // };
 
- // --- 核心业务逻辑：标记爽约 (NO SHOW) ---
+ // --- Checkout Data Transformer ---
+  // 【状态隔离法则：专为结账计算的计算属性】
+  // 我们不再污染 selectedServices。
+  // 如果当前是连单（isSuperBooking = true），我们仅在这里（渲染结账单和计算总价时），
+  // 把 relatedBookings 里所有的 services 提取出来，形成一个“大账单”。
+  const checkoutAllServices = useMemo(() => {
+    let allServices: ServiceItem[] = [];
+  
+    if (!isCheckoutMode) {
+      allServices = selectedServices;
+    } else if (editingBooking?.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 0) {
+      // 1. 当前订单的服务
+      selectedServices.forEach(s => {
+        allServices.push({
+          ...s,
+          assignedEmployeeId: s.assignedEmployeeId || editingBooking.resourceId || 'unassigned'
+        });
+      });
+
+      // 2. 兄弟订单的服务
+      editingBooking.relatedBookings.forEach(rb => {
+        if (rb.id === editingBooking.id) return;
+  
+        if (rb.services && Array.isArray(rb.services)) {
+          rb.services.forEach(rs => {
+            const serviceItem = rs as unknown as ServiceItem;
+            allServices.push({
+              ...serviceItem,
+              assignedEmployeeId: serviceItem.assignedEmployeeId || rb.resourceId || 'unassigned'
+            });
+          });
+        }
+      });
+    } else {
+      // 非连单时，原样返回
+      allServices = selectedServices.map(s => ({
+        ...s,
+        assignedEmployeeId: s.assignedEmployeeId || editingBooking?.resourceId || 'unassigned'
+      }));
+    }
+       
+    // 【过滤黑名单】：如果在前端被点击了 X 删除了，则瞬间隐形，不参与结算与展示
+    return allServices.filter(s => !deletedCheckoutItemIds.includes(s.id));
+  }, [isCheckoutMode, selectedServices, editingBooking, deletedCheckoutItemIds]);
+
+  // --- 核心业务逻辑：标记爽约 (NO SHOW) ---
  const handleMarkAsNoShow = async () => {
  if (!editingBooking) return;
  
@@ -855,8 +901,11 @@ export function DualPaneBookingModal({
  alert("请至少选择一个服务项目");
  return;
  }
+ 
+ if (isSaving) return;
+  setIsSaving(true);
 
- // 1. 按员工归组 (Group by Employee)
+  // 1. 按员工归组 (Group by Employee)
  const groupedByEmployee = selectedServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
  // 如果没有指定员工，我们这里可以默认分配给一个特定员工，或者作为“待分配”状态
  // 为了沙盒演示，如果没有 assignedEmployeeId，我们将其分配给 default_unassigned
@@ -1018,6 +1067,8 @@ export function DualPaneBookingModal({
  handleClose();
  } catch (error) {
  console.error("Failed to save bookings to Supabase:", error);
+ } finally {
+ setIsSaving(false);
  }
  };
 
@@ -1064,50 +1115,7 @@ export function DualPaneBookingModal({
  return rawId;
  };
 
- // --- Checkout Data Transformer ---
- // 【状态隔离法则：专为结账计算的计算属性】
- // 我们不再污染 selectedServices。
- // 如果当前是连单（isSuperBooking = true），我们仅在这里（渲染结账单和计算总价时），
- // 把 relatedBookings 里所有的 services 提取出来，形成一个“大账单”。
- const checkoutAllServices = useMemo(() => {
- let allServices: ServiceItem[] = [];
- 
- if (!isCheckoutMode) {
- allServices = selectedServices;
- } else if (editingBooking?.isSuperBooking && editingBooking.relatedBookings && editingBooking.relatedBookings.length > 0) {
- // 1. 当前订单的服务
- selectedServices.forEach(s => {
- allServices.push({
- ...s,
- assignedEmployeeId: s.assignedEmployeeId || editingBooking.resourceId || 'unassigned'
- });
- });
 
- // 2. 兄弟订单的服务
- editingBooking.relatedBookings.forEach(rb => {
- if (rb.id === editingBooking.id) return;
- 
- if (rb.services && Array.isArray(rb.services)) {
- rb.services.forEach(rs => {
- const serviceItem = rs as unknown as ServiceItem;
- allServices.push({
- ...serviceItem,
- assignedEmployeeId: serviceItem.assignedEmployeeId || rb.resourceId || 'unassigned'
- });
- });
- }
- });
- } else {
-        // 非连单时，原样返回
-        allServices = selectedServices.map(s => ({
-          ...s,
-          assignedEmployeeId: s.assignedEmployeeId || editingBooking?.resourceId || 'unassigned'
-        }));
-      }
-      
-      // 【过滤黑名单】：如果在前端被点击了 X 删除了，则瞬间隐形，不参与结算与展示
-      return allServices.filter(s => !deletedCheckoutItemIds.includes(s.id));
-    }, [isCheckoutMode, selectedServices, editingBooking, deletedCheckoutItemIds]);
 
  // 将全量服务按员工进行分组，用于结账舱渲染
  // 注意：这里需要带上 bookingId 以便知道该服务属于哪个具体的订单
@@ -1954,10 +1962,10 @@ export function DualPaneBookingModal({
  </button>
  <button 
  onClick={handleConfirmBooking}
- disabled={selectedServices.length === 0}
+ disabled={selectedServices.length === 0 || isSaving}
  className={cn(
  "py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent transition-opacity hover:opacity-70",
- selectedServices.length > 0 
+ selectedServices.length > 0 && !isSaving
  ? (isLight 
  ? "text-black" 
  : "text-white")
@@ -1966,7 +1974,7 @@ export function DualPaneBookingModal({
  : "text-white/30 cursor-not-allowed")
  )}
  >
- 确 认
+ {isSaving ? "处 理 中" : "确 认"}
  </button>
  </div>
  </div>

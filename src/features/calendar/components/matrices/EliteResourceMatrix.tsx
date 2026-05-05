@@ -769,6 +769,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  // 只有垂直拖拽距离足够大，才认为是有效拖拽
  if (Math.abs(info.offset.y) < 15) return;
+ 
+ // 防止正在处理时的连击拖拽
+ if (processingOrderId === booking.id) return;
 
  // 获取原订单的开始时间(分钟)
  const startParts = booking.startTime.split(':');
@@ -794,6 +797,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
  }
 
+ setProcessingOrderId(booking.id); // 锁死，防止连续触发
+
+ try {
  // 触发智能排盘：人员不变，只改变时间
  await BookingScheduler.reflowDayBookings(booking.date, currentShopId, resources, {
  [booking.id]: {
@@ -806,6 +812,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  refreshBookings();
  trackAction();
+ } finally {
+ setProcessingOrderId(null); // 释放锁
+ }
  };
 
  return (

@@ -114,6 +114,9 @@ export const BookingScheduler = {
 
       const placedBookings = [...absoluteBookings];
 
+      // 辅助函数：时间降维归一化 (截断秒数，统一为 HH:mm)
+      const normalizeTime = (t: string | undefined | null) => t ? t.substring(0, 5) : "00:00";
+
       // 辅助函数：计算两个时间段的重叠分钟数
       const calculateOverlap = (startA: number, endA: number, startB: number, endB: number) => {
         const overlapStart = Math.max(startA, startB);
@@ -300,7 +303,7 @@ export const BookingScheduler = {
         if (!b.masterOrderId) {
            // 非连单，直接判断是否需要更新
            const originalState = originalStateMap.get(b.id);
-           if (!originalState || b.resourceId !== originalState.resourceId || b.startTime !== originalState.startTime) {
+           if (!originalState || b.resourceId !== originalState.resourceId || normalizeTime(b.startTime) !== normalizeTime(originalState.startTime)) {
              finalUpdatedBookings.push(b);
            }
            return;
@@ -315,7 +318,7 @@ export const BookingScheduler = {
         if (group.length === 1) {
            const b = group[0];
            const originalState = originalStateMap.get(b.id);
-           if (!originalState || b.resourceId !== originalState.resourceId || b.startTime !== originalState.startTime) {
+           if (!originalState || b.resourceId !== originalState.resourceId || normalizeTime(b.startTime) !== normalizeTime(originalState.startTime)) {
              finalUpdatedBookings.push(b);
            }
         } else {
@@ -347,7 +350,7 @@ export const BookingScheduler = {
              if (subGroup.length === 1) {
                const b = subGroup[0];
                const originalState = originalStateMap.get(b.id);
-               if (!originalState || b.resourceId !== originalState.resourceId || b.startTime !== originalState.startTime) {
+               if (!originalState || b.resourceId !== originalState.resourceId || normalizeTime(b.startTime) !== normalizeTime(originalState.startTime)) {
                  finalUpdatedBookings.push(b);
                }
              } else {
@@ -380,7 +383,7 @@ export const BookingScheduler = {
                
                // 【极度纯净检查】：在这个庞然大物组装完毕后，再检查它跟之前到底有没有发生物理变化
                const originalState = originalStateMap.get(baseBooking.id);
-               if (!originalState || baseBooking.resourceId !== originalState.resourceId || baseBooking.startTime !== originalState.startTime || baseBooking.duration !== originalState.duration) {
+               if (!originalState || baseBooking.resourceId !== originalState.resourceId || normalizeTime(baseBooking.startTime) !== normalizeTime(originalState.startTime) || baseBooking.duration !== originalState.duration) {
                  finalUpdatedBookings.push(baseBooking);
                }
              }
