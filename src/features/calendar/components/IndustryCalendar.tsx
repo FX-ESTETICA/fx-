@@ -1863,8 +1863,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  selectedStaffIds={selectedStaffIds}
  operatingHours={operatingHours} 
  currentDate={currentDate}
+ bookings={globalBookings}
  onGridClick={handleGridClick}
  onDateClick={handleWeekDateClick}
+ onBookingClick={handleBookingClick}
  />
  )}
  {dna.pivot === "resource" && viewMode === "month" && (
