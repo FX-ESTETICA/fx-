@@ -457,7 +457,7 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  className={`w-full px-4 py-3 flex items-center gap-3 group ${isLight ? 'text-black' : 'text-white'}`}
  >
  <UserPlus className="w-4 h-4 " />
- <span className="text-sm font-medium tracking-wide">添加好友</span>
+ <span className="text-sm font-medium tracking-wide">{t('add_friend')}</span>
  </button>
  )}
  <button 
@@ -465,7 +465,7 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  className={cn("w-full px-4 py-3 flex items-center gap-3 group", isLight ? "text-black" : "text-white")}
  >
  <Trash2 className="w-4 h-4 " />
- <span className="text-sm font-medium tracking-wide">清空聊天记录</span>
+ <span className="text-sm font-medium tracking-wide">{t('clear_history')}</span>
  </button>
  </div>
  </>

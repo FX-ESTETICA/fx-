@@ -5,6 +5,7 @@ import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
+import { useTranslations } from "next-intl";
 
 export interface EliteWeekMatrixProps {
  industry: IndustryType;
@@ -19,13 +20,14 @@ export interface EliteWeekMatrixProps {
  bookings?: any[];
 }
 
-const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-
 export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, onGridClick, onDateClick, currentDate, bookings = [], onBookingClick }: EliteWeekMatrixProps) => {
  const [isMounted, setIsMounted] = React.useState(false);
  React.useEffect(() => setIsMounted(true), []);
  const currentHour = isMounted ? new Date().getHours() : -1;
  const { settings: visualSettings } = useVisualSettings();
+ const t = useTranslations('EliteWeekMatrix');
+ 
+ const DAYS_OF_WEEK = [t('txt_mon'), t('txt_tue'), t('txt_wed'), t('txt_thu'), t('txt_fri'), t('txt_sat'), t('txt_sun')];
 
  // 生成当前周的日期
  const weekDates = useMemo(() => {

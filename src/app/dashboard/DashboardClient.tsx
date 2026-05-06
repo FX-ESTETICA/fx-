@@ -212,7 +212,7 @@ export default function DashboardClient() {
  onClick={() => setShowAdminPwd(v => !v)}
  >
  {showAdminPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
- {showAdminPwd ? "隐藏" : "显示"}
+ {showAdminPwd ? t('txt_dce537') : t('txt_4d775d')}
  </Button>
  <Button
  variant="ghost"

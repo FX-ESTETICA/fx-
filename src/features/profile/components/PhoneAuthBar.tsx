@@ -246,7 +246,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className, mode = "life" }: Ph
  "text-[11px] tracking-widest ",
  isPressing ? (isLight ? 'text-black scale-105' : 'text-white scale-105') : (isLight ? 'text-black ' : 'text-white ')
  )}>
- {isPressing ? ">>> 强制授权中 <<<" : "长按左侧重置终端"}
+ {isPressing ? t('txt_force_auth') : t('txt_reset_terminal')}
  </span>
  </div>
  </div>
@@ -303,7 +303,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className, mode = "life" }: Ph
  disabled={isUpdatingPhone || !phoneInput.trim()}
  className={cn("h-full shrink-0 px-4 tracking-widest text-[11px] disabled:opacity-40 disabled:cursor-not-allowed border-l", isLight ? "bg-black/5 text-black hover:bg-black/10 hover:text-black disabled:hover:bg-black/5 disabled:hover:text-black border-black/5" : "bg-white/5 text-white hover:bg-white/10 hover:text-white disabled:hover:bg-white/5 disabled:hover:text-white border-white/5")}
  >
- {isUpdatingPhone ? "..." : (mode === "merchant" || mode === "boss" ? "绑定" : "验证")}
+ {isUpdatingPhone ? "..." : (mode === "merchant" || mode === "boss" ? t('txt_bind') : t('txt_verify'))}
  </button>
  </>
  ) : (
@@ -321,7 +321,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className, mode = "life" }: Ph
  disabled={isUpdatingPhone || verificationCode.length < 6}
  className={cn("h-full shrink-0 px-5 tracking-widest text-[11px] disabled:opacity-40 disabled:cursor-not-allowed border-l", isLight ? "bg-black/10 text-black hover:bg-black/20 hover:text-black disabled:hover:bg-black/10 disabled:hover:text-black border-black/50/20" : "bg-white/10 text-white hover:text-white disabled:hover:bg-white/10 disabled:hover:text-white border-white/50/20")}
  >
- {isUpdatingPhone ? "..." : "确认"}
+ {isUpdatingPhone ? "..." : t('txt_confirm')}
  </button>
  </>
  )}

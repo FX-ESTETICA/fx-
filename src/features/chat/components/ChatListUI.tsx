@@ -13,6 +13,8 @@ import { ContactsUI } from './ContactsUI';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { PrivacySettings } from '@/features/profile/components/PrivacySettings';
 
+import { useTranslations } from "next-intl";
+
 export interface ChatListUIProps {
  currentUserId: string;
  currentRole: string;
@@ -40,7 +42,9 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  const { activeChat, showPrivacyGateway, setShowPrivacyGateway } = useChatStore();
  const { recentChats } = useRecentChats(currentUserId, currentRole, activeChat?.id);
  
- // 顶级 IM 极简交友架构：利用 SWR 和 Local-First 引擎实现 0 延迟的好友名单加载
+ const t = useTranslations('ChatListUI');
+
+  // 顶级 IM 极简交友架构：利用 SWR 和 Local-First 引擎实现 0 延迟的好友名单加载
  const getCachedFriends = (userId: string, role: string) => {
  if (typeof window === 'undefined' || !userId) return [];
  try {
@@ -452,7 +456,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  type="text"
  value={searchQuery}
  onChange={(e) => setSearchQuery(e.target.value)}
- placeholder="搜索"
+ placeholder={t('search')}
  className={cn(
  "flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-[15px]",
  isLight ? "text-black placeholder:text-black" : "text-white placeholder:text-white"
@@ -471,12 +475,12 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  {/* 1.5 导航切换: 纯黑白反转镂空胶囊 (Inverted Outline Capsule) */}
  <div className="px-2 pt-[6px] pb-2 shrink-0 z-20 flex items-center w-full overflow-x-auto no-scrollbar whitespace-nowrap gap-2.5">
  {[
- { id: 'chats', label: '聊天' },
- { id: 'contacts', label: '好友' },
- { id: 'group', label: '群聊' },
- { id: 'moments', label: '动态' },
- { id: 'nearby', label: '附近' },
- { id: 'strangers', label: '陌生人' }
+ { id: 'chats', label: t('tabs.chats') },
+ { id: 'contacts', label: t('tabs.contacts') },
+ { id: 'group', label: t('tabs.group') },
+ { id: 'moments', label: t('tabs.moments') },
+ { id: 'nearby', label: t('tabs.nearby') },
+ { id: 'strangers', label: t('tabs.strangers') }
  ].map(tab => {
  const isActive = navTab === tab.id;
  return (
@@ -566,9 +570,9 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
               isLight ? "text-black" : "text-white"
             )}
           >
-            切换身份
+            {t('switch_identity')}
           </button>
- </div>
+        </div>
 
  {/* 右轨：雷达星轨 (The Stream) - 独立滑动容器，到达左侧自动截断 */}
  <div 
@@ -824,7 +828,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  "text-sm tracking-[0.2em] font-light",
  isLight ? "text-black" : "text-white"
  )}>
- {navTab === 'group' ? '暂无群聊' : '开启新聊天'}
+ {navTab === 'group' ? '暂无群聊' : t('start_new_chat')}
  </p>
  </div>
  )}
@@ -1003,7 +1007,7 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  )}
  >
  <Trash2 className="w-4 h-4 " />
- <span className="text-sm font-medium tracking-wide">删除聊天</span>
+ <span className="text-sm font-medium tracking-wide">{t('delete_chat')}</span>
  </button>
  </div>
  </>

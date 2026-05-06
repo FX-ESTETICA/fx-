@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
+import { useTranslations } from "next-intl";
 
 export interface EliteMonthMatrixProps {
  industry: IndustryType;
@@ -10,38 +11,41 @@ export interface EliteMonthMatrixProps {
  resources: MatrixResource[];
  selectedStaffIds: string[];
  currentDate: Date;
- sandboxBookings?: any[]; // 新增 sandboxBookings 属性，允许传入真实数据
+ bookings?: any[]; // 修正为 bookings 属性
  onGridClick?: () => void;
  onDateClick?: (date: Date) => void;
+ onBookingClick?: (bookingId: string) => void; // 补上在外部调用的缺失属性
 }
 
-const DAYS_OF_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, bookings = [], onGridClick, onDateClick }: EliteMonthMatrixProps) => {
+ const t = useTranslations('EliteWeekMatrix');
+ 
+ const DAYS_OF_WEEK = [t('txt_mon'), t('txt_tue'), t('txt_wed'), t('txt_thu'), t('txt_fri'), t('txt_sat'), t('txt_sun')];
 
-export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, sandboxBookings = [], onGridClick, onDateClick }: EliteMonthMatrixProps) => {
  // 生成当前月的日历网格数据
  const calendarDays = useMemo(() => {
  const year = currentDate.getFullYear();
  const month = currentDate.getMonth();
- 
+
  const firstDayOfMonth = new Date(year, month, 1);
  const lastDayOfMonth = new Date(year, month + 1, 0);
  
  const daysInMonth = lastDayOfMonth.getDate();
- // 0 is Sunday, convert to 1-7 (Mon-Sun)
- let firstDayOfWeek = firstDayOfMonth.getDay();
- firstDayOfWeek = firstDayOfWeek === 0 ? 7 : firstDayOfWeek;
+ // JavaScript 中 0 是周日，我们将其转换为 0=周一, 6=周日，以便适配 DAYS_OF_WEEK
+ let startDayOfWeek = firstDayOfMonth.getDay() - 1;
+ if (startDayOfWeek === -1) startDayOfWeek = 6;
  
  const days = [];
  
  // 补齐上个月的尾巴
- const prevMonthLastDay = new Date(year, month, 0).getDate();
- for (let i = firstDayOfWeek - 1; i > 0; i--) {
- days.push({
- day: prevMonthLastDay - i + 1,
- isCurrentMonth: false,
- date: new Date(year, month - 1, prevMonthLastDay - i + 1)
- });
- }
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+  for (let i = startDayOfWeek; i > 0; i--) {
+   days.push({
+   day: prevMonthLastDay - i + 1,
+   isCurrentMonth: false,
+   date: new Date(year, month - 1, prevMonthLastDay - i + 1)
+   });
+  }
  
  // 当前月
  for (let i = 1; i <= daysInMonth; i++) {
@@ -124,7 +128,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
  const dateStr = cell.date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
  
  // 查找该员工在该天是否有真实的订单
- const hasRealBooking = sandboxBookings.some(b => b.resourceId === res.id && b.date === dateStr);
+ const hasRealBooking = bookings.some(b => b.resourceId === res.id && b.date === dateStr);
 
  if (!hasRealBooking) return null;
 
@@ -150,7 +154,7 @@ export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, san
  
  // 【商业级数据脱水法则：防膨胀与人员过滤】
  // 1. 只打捞当前日期、且状态有效、且在当前选中员工列表里的订单
- const validBookings = sandboxBookings.filter(b => {
+ const validBookings = bookings.filter(b => {
    return b.date === dateStr && b.status !== 'VOID' && b.resourceId && selectedStaffIds.includes(b.resourceId);
  });
 

@@ -387,7 +387,7 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  onClick={handleAscensionSubmit}
  disabled={applicationStatus === "submitting"}
  >
- {applicationStatus === "submitting" ? "解析中..." : "提交申请"}
+ {applicationStatus === "submitting" ? t('txt_0b7da7') : t('txt_0830b4')}
  </Button>
  <p className={`text-center text-[11px] ${isLight ? "text-black" : "text-white"} mt-6 tracking-widest`}>
  {t('txt_a2e766')}</p>
@@ -443,7 +443,7 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  </div>
  <div>
  <h3 className={`text-xs tracking-widest ${isLight ? "text-black" : "text-white"}`}>{t('txt_58d6be')}</h3>
- <p className={`text-[11px] ${isLight ? "text-black" : "text-white"} mt-0.5 tracking-widest`}>[{formData.brandName || "未知名称"}]</p>
+ <p className={`text-[11px] ${isLight ? "text-black" : "text-white"} mt-0.5 tracking-widest`}>[{formData.brandName || t('txt_ed759e')}]</p>
  </div>
  </div>
  </div>
@@ -571,7 +571,8 @@ export const UserDashboard = ({ profile, initialShowOnboarding = false }: UserDa
  }}
  >
  <LogOut className="w-3 h-3" />
- {t('txt_4d90f0')}</Button>
+ {t('txt_4d90f0')}
+ </Button>
  </motion.div>
 
  {/* ------------------------------------------------------------------ */}

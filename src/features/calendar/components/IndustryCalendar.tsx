@@ -42,7 +42,7 @@ import { Trash2 } from "lucide-react";
 import { RecycleBinModal } from "./RecycleBinModal";
 import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
 import { BookingSearch } from "./BookingSearch";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
 import { useViewStack } from "@/hooks/useViewStack";
@@ -217,6 +217,7 @@ const CyberClock = () => {
 
 export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }: AuroraSchedulerProps) => {
  const t = useTranslations('IndustryCalendar');
+ const locale = useLocale();
 
  const [industry] = useState<IndustryType>(initialIndustry);
  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
@@ -1252,9 +1253,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  "absolute top-0 left-0 z-50 p-2 opacity-100",
  visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white"
  )}
- title="隐藏"
+ title={t('txt_hide')}
  >
- <span className="text-[11px] uppercase tracking-[0.2em] font-medium">隐藏</span>
+ <span className="text-[11px] uppercase tracking-[0.2em] font-medium">{t('txt_hide')}</span>
  </button>
 
  <div className="w-[260px] h-full flex flex-col">
@@ -1420,7 +1421,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  {/* 原生卡片 3：今日已结账 */}
  <div className="p-3 bg-transparent flex flex-col items-center">
- <span className={cn("text-[11px] uppercase text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>已结账</span>
+ <span className={cn("text-[11px] uppercase text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_completed_count') || '已结账'}</span>
  <div className="flex items-center justify-center mt-1">
  <span className={cn("text-xl tracking-tighter text-center", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-[#39FF14]")}>{todayCompletedCount.toString().padStart(2, '0')}</span>
  </div>
@@ -1522,7 +1523,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  )}
  >
  <span className={cn(" tracking-widest text-xs uppercase ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : `${visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>
- 极速入店
+ {t('txt_fast_checkin')}
  </span>
  </button>
  </div>
@@ -1536,7 +1537,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  )}
  >
  <div className="flex items-center justify-center relative z-10">
- <span className={cn("text-xs tracking-widest uppercase ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>财务核算</span>
+ <span className={cn("text-xs tracking-widest uppercase ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_finance_dashboard')}</span>
  <div className="absolute -right-6 flex items-center gap-1">
  <div className={cn("w-0.5 h-3 rounded-full animate-[pulse_1s_ease-in-out_infinite]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
  <div className={cn("w-0.5 h-4 rounded-full animate-[pulse_1.2s_ease-in-out_infinite_0.2s]", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-purple-600" : "bg-purple-400")} />
@@ -1618,7 +1619,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  : { textShadow: `0 0 10px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.headerTitleColorTheme]?.hex || '#fff'}66` }
  }
  >
- {phantomDate.toLocaleDateString('zh-CN', { weekday: 'long' })}
+ {phantomDate.toLocaleDateString(locale === 'it' ? 'it-IT' : locale === 'en' ? 'en-US' : 'zh-CN', { weekday: 'long' })}
  </span>
  <span 
  suppressHydrationWarning 
@@ -1666,10 +1667,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  )}
  >
  <span className="md:hidden">
- {viewMode === 'day' ? '日' : viewMode === 'week' ? '周' : '月'}
+ {viewMode === 'day' ? t('txt_view_day_short') : viewMode === 'week' ? t('txt_view_week_short') : t('txt_view_month_short')}
  </span>
  <span className="hidden md:inline">
- {viewMode === 'day' ? '日视图' : viewMode === 'week' ? '周视图' : '月视图'}
+ {viewMode === 'day' ? t('txt_view_day') : viewMode === 'week' ? t('txt_view_week') : t('txt_view_month')}
  </span>
  </button>
  </div>
@@ -1876,7 +1877,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  resources={resources}
  selectedStaffIds={selectedStaffIds}
  currentDate={currentDate}
- sandboxBookings={globalBookings}
+ bookings={globalBookings}
  onGridClick={handleGridClick}
  onDateClick={(date) => {
  setCurrentDate(date);

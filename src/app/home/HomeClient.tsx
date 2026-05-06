@@ -812,7 +812,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  ? (isLight ? "text-black " : "text-white ")
  : (isLight ? "text-black font-normal" : "text-white font-normal")
  )}>
- {cat.id === "all" && activeTab === "gx_pro" ? "全部" : t(`categories.${cat.id}`)}
+ {t(`categories.${cat.id}`)}
  </span>
  </div>
  

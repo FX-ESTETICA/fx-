@@ -87,7 +87,7 @@ export const MainStage = () => {
  const activeTab = useActiveTab();
  const tabProps = useViewStack((state) => state.tabProps);
  const overlays = useViewStack((state) => state.overlays);
- const { user, isLoading } = useAuth();
+ const { user } = useAuth();
  const [mounted, setMounted] = useState(false);
  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set([activeTab])); // 默认先挂载基于真实URL解析出的首帧tab
 

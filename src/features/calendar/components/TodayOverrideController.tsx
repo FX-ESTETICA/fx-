@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2 } from "lucide-react";
 import { OperatingHour, DailyOverride, ShopOperatingConfig, resolveOperatingHours } from "./IndustryCalendar";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { useTranslations } from 'next-intl';
 
 interface TodayOverrideControllerProps {
  todayOverride: DailyOverride | null;
@@ -21,6 +22,7 @@ export const TodayOverrideController = ({
 }: TodayOverrideControllerProps) => {
  const { settings } = useVisualSettings();
  const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const t = useTranslations('TodayOverrideController');
 
  const todayDateStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
 
@@ -148,7 +150,7 @@ export const TodayOverrideController = ({
  <div className="absolute top-0 left-0 w-1 h-full " />
  <div className="flex items-center justify-between pl-4">
  <div className="flex items-center gap-4">
- <span className={cn("text-xs ", isLight ? "text-black" : "text-white")}>今日营业时间</span>
+ <span className={cn("text-xs ", isLight ? "text-black" : "text-white")}>{t('txt_today_hours')}</span>
  <button 
  type="button"
  onClick={() => handleToggleClosedToday(isEffectiveClosed)}
@@ -156,7 +158,7 @@ export const TodayOverrideController = ({
  isLight ? "text-black" : "text-white"
  )}
  >
- {isEffectiveClosed ? '关门' : '营业'}
+ {isEffectiveClosed ? t('txt_closed') : t('txt_open')}
  </button>
  </div>
  <div className="flex items-center gap-2">
@@ -166,7 +168,7 @@ export const TodayOverrideController = ({
  onClick={handleAddEffectiveHour} 
  className={cn("text-[11px] flex items-center gap-1 ", isLight ? "text-black" : "text-white")}
  >
- <Plus className="w-3 h-3" /> 添加
+ <Plus className="w-3 h-3" /> {t('txt_add')}
  </button>
  )}
  </div>
@@ -181,13 +183,13 @@ export const TodayOverrideController = ({
  )
  ) : (
  <div className={cn("flex items-center justify-center py-2 mt-2 border-t relative", isLight ? "border-black/5" : "border-white/5")}>
- <span className={cn("text-[11px] tracking-widest", isLight ? "text-black" : "text-white")}>无营业时段</span>
+ <span className={cn("text-[11px] tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_no_hours')}</span>
  </div>
  )
  ) : (
  <div className="relative mt-2" onClick={() => handleToggleClosedToday(isEffectiveClosed)}>
  <div className={cn("flex items-center justify-center py-2 border-t cursor-pointer", isLight ? "border-black/5" : "border-white/5")}>
- <span className={cn("text-[11px] tracking-widest", isLight ? "text-black" : "text-white")}>今日休息 (点击恢复)</span>
+ <span className={cn("text-[11px] tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_closed_today')}</span>
  </div>
  </div>
  )}

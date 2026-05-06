@@ -293,18 +293,31 @@
     "txt_93efd5": "洗剪吹",
     "txt_e49d53": "爽约",
     "txt_d4f32e": "占位",
-    "txt_6700c4": "新客建档",
-    "txt_81c4b2": "爽约",
-    "txt_8fc52a": "取消",
+    "txt_6700c4": "No History / 新客建档",
+    "txt_81c4b2": "爽约 / NO SHOW",
+    "txt_8fc52a": "取消 / CANCEL",
     "txt_d0dea7": "点击重新分配员工",
     "txt_9be070": "输入主电话...",
     "txt_f3a023": "输入电话...",
     "txt_bf9b52": "添加客户偏好备注 (如：喜欢安静、对染发剂过敏)...",
     "txt_cfbf6f": "微信",
     "txt_ccd097": "支付宝",
+    "txt_force_insert": "加 塞",
+    "txt_confirm": "确 认",
+    "txt_processing": "处 理 中",
+    "txt_delete": "删 除",
+    "txt_delete_this": "删 本 单",
+    "txt_delete_linked": "删 联 单",
+    "txt_read_only": "只读模式 / READ ONLY",
     "txt_e7c090": "现金",
     "txt_774267": "银行卡",
-    "txt_246874": "会员卡扣款",
+    "txt_dfba60": "会员卡扣款",
+    "txt_target_entity": "TARGET ENTITY",
+    "txt_total_amount": "TOTAL AMOUNT",
+    "txt_select_payment": "[ 请先选择支付方式 ]",
+    "txt_payment_verified": "/// PAYMENT VERIFIED ///",
+    "txt_slide_to_pay": ">>> SLIDE TO PAY >>>",
+    "txt_customer_name_placeholder": "客户名字...",
     "txt_371c35": "赛博浪客 (备注: 王总)",
     "txt_025971": "已匹配 C 端",
     "txt_7c0795": "LV.4 先驱",
@@ -341,7 +354,27 @@
     "txt_fb852f": "进行中",
     "txt_65dd9e": "等待中",
     "txt_7708f1": "新预约提醒",
-    "txt_9874b3": "点击定位"
+    "txt_9874b3": "点击定位",
+    "txt_hide": "隐藏",
+    "txt_fast_checkin": "极速入店",
+    "txt_finance_dashboard": "财务核算",
+    "txt_view_day_short": "日",
+    "txt_view_week_short": "周",
+    "txt_view_month_short": "月",
+    "txt_view_day": "日视图",
+    "txt_view_week": "周视图",
+    "txt_view_month": "月视图",
+    "txt_search_placeholder": "搜索名字或电话...",
+    "txt_completed_count": "已结账"
+  },
+  "EliteWeekMatrix": {
+    "txt_mon": "周一",
+    "txt_tue": "周二",
+    "txt_wed": "周三",
+    "txt_thu": "周四",
+    "txt_fri": "周五",
+    "txt_sat": "周六",
+    "txt_sun": "周日"
   },
   "NebulaConfigHub": {
     "txt_406bc4": "全局运营配置",
@@ -443,7 +476,7 @@
     "txt_48247a": "AI 管家专属：输入全称/别名（如：Manicure 只修手）"
   },
   "OrbitalPossessionProfile": {
-    "txt_680885": "监视节点:",
+    "txt_680885": "监视节点: ",
     "txt_36386d": "返回个人看板"
   },
   "RecycleBinModal": {
@@ -494,6 +527,10 @@
     "txt_4a81e7": "建立系统关联",
     "txt_330363": "成功",
     "txt_a75625": "管理预约与排班",
+    "txt_completed_count": "已结账",
+    "txt_switch_store": "多门店切换",
+    "txt_decorate_store": "装修门店",
+    "txt_unknown_store": "未知门店",
     "txt_66cf43": "全息视觉引擎",
     "txt_999d5c": "记忆碎片",
     "txt_0467cc": "查看全部",
@@ -517,6 +554,14 @@
     "status_closed_today": "今日已临时歇业",
     "status_vacation": "处于长期休假中"
   },
+  "TodayOverrideController": {
+    "txt_today_hours": "今日营业时间",
+    "txt_closed": "关门",
+    "txt_open": "营业",
+    "txt_add": "添加",
+    "txt_no_hours": "无营业时段",
+    "txt_closed_today": "今日休息 (点击恢复)"
+  },
   "PhoneAuthBar": {
     "txt_398180": "手机号绑定",
     "txt_d369f4": "获取验证码",
@@ -524,7 +569,7 @@
     "txt_83a991": "激活",
     "txt_879792": "等待",
     "txt_1535fc": "发送",
-    "txt_421f72": "手机",
+    "txt_421f72": "身份标识:",
     "txt_732906": "退出系统",
     "txt_7d4d29": "输入手机号",
     "txt_cc2ddc": "输入 6 位验证码",
@@ -536,7 +581,12 @@
     "verifying": "正在验证...",
     "bind_success": "绑定成功",
     "invalid_code": "验证码错误或已过期",
-    "phone_taken": "该终端已被其他实体绑定"
+    "phone_taken": "该终端已被其他实体绑定",
+    "txt_force_auth": ">>> 强制授权中 <<<",
+    "txt_reset_terminal": "长按左侧重置终端",
+    "txt_bind": "绑定",
+    "txt_verify": "验证",
+    "txt_confirm": "确认"
   },
   "ProfileHeader": {
     "rename": "改名",
@@ -688,7 +738,6 @@
     "txt_37baa5": "智能寻位",
     "txt_ebd64e": "智能排班"
   },
-  "EliteWeekMatrix": {},
   "TimelineMatrix": {
     "txt_d2abd2": "房号列表",
     "txt_c4767b": "3月",
@@ -763,12 +812,35 @@
   "ChatListUI": {
     "txt_8fc78c": "正在扫描宇宙信号...",
     "txt_5ac66f": "当前频道暂无通讯记录",
-    "txt_8a6e8e": "搜索信号 / 扫码 / 输入ID加人"
+    "txt_8a6e8e": "搜索信号 / 扫码 / 输入ID加人",
+    "search": "搜索",
+    "tabs": {
+      "chats": "聊天",
+      "contacts": "好友",
+      "group": "群聊",
+      "moments": "动态",
+      "nearby": "附近",
+      "strangers": "陌生人"
+    },
+    "switch_identity": "切换身份",
+    "start_new_chat": "开启新聊天",
+    "delete_chat": "删除聊天"
+  },
+  "PrivacySettings": {
+    "txt_title": "隐私防御网关 (PRIVACY)",
+    "txt_phone_title": "允许通过手机号搜索我",
+    "txt_phone_desc": "关闭后，他人无法通过手机号找到你的物理与数字档案",
+    "txt_id_title": "允许通过 GX ID 搜索我",
+    "txt_id_desc": "关闭后，将隐藏你的专属数字编码搜索入口",
+    "txt_stranger_title": "允许接收陌生人随意消息",
+    "txt_stranger_desc": "关闭后，陌生人首次对话仅能发送一条消息，待回复后解除"
   },
   "ChatRoomUI": {
     "txt_be6f6a": "信号稳定 (0ms)",
     "txt_fad9fb": "等待接入信号...",
-    "txt_0bbdcf": "输入指令..."
+    "txt_0bbdcf": "输入指令...",
+    "clear_history": "清空聊天记录",
+    "add_friend": "添加好友"
   },
   "DataMatrixAssets": {
     "echo_1": "今天在 XX 咖啡馆体验了手冲，环境非常赛博朋克。",

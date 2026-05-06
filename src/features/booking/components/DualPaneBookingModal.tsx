@@ -1226,9 +1226,9 @@ export function DualPaneBookingModal({
  </button>
 
  {/* Top Anchor: VIP 身份图腾 */}
- <div className="mt-2 mb-4 flex flex-col items-center text-center space-y-1">
- <span className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-[#39FF14]")}>Target Entity</span>
- <h1 className={cn(
+              <div className="mt-2 mb-4 flex flex-col items-center text-center space-y-1">
+                <span className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-[#39FF14]")}>{t('txt_target_entity')}</span>
+                <h1 className={cn(
  "text-3xl md:text-4xl tracking-[0.2em] uppercase",
  customerId.startsWith('CO')
  ? (isLight ? "text-black" : "text-white")
@@ -1422,13 +1422,13 @@ export function DualPaneBookingModal({
  : (isLight ? "bg-transparent text-black " : "bg-transparent text-white ")
  )}
  >
- [{method}]
+ [{method === '微信' ? t('txt_cfbf6f') : method === '支付宝' ? t('txt_ccd097') : method === '现金' ? t('txt_e7c090') : method === '银行卡' ? t('txt_774267') : method === '会员卡扣款' ? t('txt_dfba60') : method}]
  </button>
  );
  })}
  </div>
  
- <div className="text-[11px] text-[#39FF14] tracking-[0.3em] uppercase mb-1">Total Amount</div>
+ <div className="text-[11px] text-[#39FF14] tracking-[0.3em] uppercase mb-1">{t('txt_total_amount')}</div>
  <div className={cn(
  "text-5xl tabular-nums tracking-tighter mb-4",
  isAlreadyCompleted
@@ -1463,7 +1463,7 @@ export function DualPaneBookingModal({
  : (isLight ? "text-black" : "text-white"),
  !isAlreadyCompleted && checkoutSlideProgress > 20 && "opacity-0"
  )}>
- {isAlreadyCompleted ? "/// PAYMENT VERIFIED ///" : isCheckoutReady ? ">>> SLIDE TO PAY >>>" : "[ 请先选择支付方式 ]"}
+ {isAlreadyCompleted ? t('txt_payment_verified') : isCheckoutReady ? t('txt_slide_to_pay') : t('txt_select_payment')}
  </span>
  </div>
 
@@ -1937,7 +1937,7 @@ export function DualPaneBookingModal({
       )}>
  {isReadOnly ? (
  <div className={cn("w-full md:w-64 py-3 text-center rounded-xl text-[11px] uppercase tracking-widest", isLight ? "bg-black/5 text-black" : "bg-white/5 text-white")}>
- 只读模式 / READ ONLY
+ {t('txt_read_only')}
  </div>
  ) : (
  <>
@@ -1953,7 +1953,7 @@ export function DualPaneBookingModal({
  isLight ? "text-black" : "text-white"
  )}
  >
- 删 本 单
+ {t('txt_delete_this')}
  </button>
  <button 
  onClick={() => handleDeleteBooking(true)}
@@ -1962,7 +1962,7 @@ export function DualPaneBookingModal({
  isLight ? "text-black" : "text-white"
  )}
  >
- 删 联 单
+ {t('txt_delete_linked')}
  </button>
  </div>
  ) : (
@@ -1973,7 +1973,7 @@ export function DualPaneBookingModal({
  isLight ? "text-black" : "text-white"
  )}
  >
- 删 除
+ {t('txt_delete')}
  </button>
  )}
  </>
@@ -1989,7 +1989,7 @@ export function DualPaneBookingModal({
  : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
  )}
  >
- 加 塞
+ {t('txt_force_insert')}
  </button>
  <button 
  onClick={handleConfirmBooking}
@@ -2005,7 +2005,7 @@ export function DualPaneBookingModal({
  : "text-white/30 cursor-not-allowed")
  )}
  >
- {isSaving ? "处 理 中" : "确 认"}
+ {isSaving ? t('txt_processing') : t('txt_confirm')}
  </button>
  </div>
  </div>
@@ -2234,7 +2234,7 @@ export function DualPaneBookingModal({
  <input 
  type="text"
  autoComplete="off"
- placeholder="客户名字..."
+ placeholder={t('txt_customer_name_placeholder')}
  className={cn(
  "bg-transparent outline-none text-sm w-32 placeholder:tracking-widest",
  isLight ? "text-black placeholder:text-black/50" : "text-white placeholder:text-white/50"
@@ -2292,7 +2292,7 @@ export function DualPaneBookingModal({
  )}
  onClick={() => !isPhoneMasked && setEditingPhoneIndex(index)}
  >
- {displayPhone(phone) || "无电话记录"}
+ {displayPhone(phone) || t('txt_a5c2b3')}
  </span>
  )}
  

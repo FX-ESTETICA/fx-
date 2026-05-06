@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { useShop } from '@/features/shop/ShopContext';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 export interface BookingSearchProps {
   visualSettings: any;
@@ -26,6 +27,7 @@ export const BookingSearch = ({
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations('IndustryCalendar');
 
   // Debounce search term
   useEffect(() => {
@@ -118,15 +120,15 @@ export const BookingSearch = ({
           "bg-transparent"
         )}>
           <Search className={cn("w-4 h-4", isLight ? "text-black/50" : "text-white/50")} />
-          <input 
+          <input
             type="text"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
-              setIsOpen(true);
+              if (!isOpen) setIsOpen(true);
             }}
             onFocus={() => setIsOpen(true)}
-            placeholder="搜索名字或电话..."
+            placeholder={t('txt_search_placeholder')}
             className={cn(
               "w-full bg-transparent border-none outline-none text-xs tracking-widest",
               isLight ? "text-black placeholder:text-black/30" : "text-white placeholder:text-white/30"

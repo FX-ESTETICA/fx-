@@ -298,17 +298,17 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  return (
  <>
  <StatsCard 
- label="今日预约" 
+ label={t('txt_5af2c6')} 
  value={todayBookingsCount.toString().padStart(2, '0')} 
  isLight={isLight}
  />
  <StatsCard 
- label="待处理" 
+ label={t('txt_047109')} 
  value={todayPendingCount.toString().padStart(2, '0')} 
  isLight={isLight}
  />
  <StatsCard 
- label="已结账" 
+ label={t('txt_completed_count')} 
  value={todayCompletedCount.toString().padStart(2, '0')} 
  isLight={isLight}
  />
@@ -344,7 +344,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  )}>▼</div>
  </h3>
  <div className={`${isLight ? "text-black" : "text-white"} text-[11px] md:text-[11px] uppercase tracking-widest ${isLight ? "group-hover:text-black" : "group-hover:text-white"} mt-0.5 text-center w-full truncate`}>
- <div>多门店切换</div>
+ <div>{t('txt_switch_store')}</div>
  </div>
 
  {/* 悬浮下拉菜单 (Glassmorphism 赛博空间) */}
@@ -385,7 +385,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  : (isLight ? "text-black hover:bg-black/5 hover:text-black" : "text-white hover:bg-white/5 hover:text-white")
  )}
  >
- <span className="truncate">{shop.shopName || "未知门店"}</span>
+ <span className="truncate">{shop.shopName || t('txt_unknown_store')}</span>
  {shop.shopId === activeShopId && (
  <div className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-black" : "bg-white"}`} />
  )}
@@ -410,7 +410,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  className={`flex items-center justify-center gap-1.5 md:gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-full ${isLight ? "bg-black/5" : "bg-white/5"} border ${isLight ? "border-black/10" : "border-white/10"} ${isLight ? "hover:bg-black/10 hover:border-black/30 hover:text-black" : "hover:bg-white/10 hover:border-white/30 hover:text-white"} text-[11px] md:text-[11px] tracking-widest ${isLight ? "text-black" : "text-white"} w-full max-w-[120px]`}
  >
  <MonitorSmartphone className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
- <span className="truncate">装修门店</span>
+ <span className="truncate">{t('txt_decorate_store')}</span>
  </button>
  </div>
  </div>

@@ -15,7 +15,7 @@ import { usePathname } from 'next/navigation';
 import { useActiveTab } from '@/hooks/useActiveTab';
 
 export default function ChatListPage() {
- const { user, activeRole, isRoleLoaded } = useAuth();
+  const { user, activeRole, isRoleLoaded } = useAuth();
  const searchParams = useSearchParams();
  
  const tokenParam = searchParams.get('t'); // 新增：监听加密 Token
@@ -177,7 +177,7 @@ export default function ChatListPage() {
  className="absolute inset-0 w-full h-full flex flex-col items-center justify-center z-10"
  >
  <p className={`text-sm tracking-[0.2em] font-light ${isLight ? 'text-black' : 'text-white'}`}>
- 开启新聊天
+ START NEW CHAT
  </p>
  </motion.div>
  )}
