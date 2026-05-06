@@ -131,48 +131,48 @@ export const MainStage = () => {
  }, [activeTab]);
 
  // 全局事件监听器
- useEffect(() => {
- const handleReturnHome = () => setActiveTab('home');
- const handleSetTab = (e: Event) => {
- const customEvent = e as CustomEvent<string>;
- if (customEvent.detail) {
- setActiveTab(customEvent.detail as any);
- }
- };
- 
- window.addEventListener('gx-return-home', handleReturnHome);
- window.addEventListener('gx-set-tab', handleSetTab);
- 
- return () => {
- window.removeEventListener('gx-return-home', handleReturnHome);
- window.removeEventListener('gx-set-tab', handleSetTab);
- };
- }, [setActiveTab]);
+  useEffect(() => {
+    const handleReturnHome = () => setActiveTab('home');
+    const handleSetTab = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
+    
+    window.addEventListener('gx-return-home', handleReturnHome);
+    window.addEventListener('gx-set-tab', handleSetTab);
+    
+    return () => {
+      window.removeEventListener('gx-return-home', handleReturnHome);
+      window.removeEventListener('gx-set-tab', handleSetTab);
+    };
+  }, [setActiveTab]);
 
- const isHydrating = isLoading;
+  // 世界顶端 0 妥协法则：废除 isHydrating 网络锁，彻底放开 Local-First 的渲染权限。
+  // 只要组件 mounted (客户端接管)，哪怕 user 还没从网络拉回来，也立刻呈现 0 毫秒快照！
+  if (!mounted) {
+    return (
+      <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-between">
+        {/* 顶部环境光模糊占位 */}
+        <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent" />
+        
+        {/* 核心能量场模糊占位 */}
+        <div className="flex-1 flex items-center justify-center ">
+          <div className="w-32 h-32 rounded-full bg-white/10" />
+        </div>
+        
+        {/* 底导栏物理轮廓锚定 (防止页面初载时下方太空) */}
+        <div className="w-full h-[84px] border-t border-white/5 bg-black/40 flex justify-around items-center px-6 pb-safe z-50">
+          {[1,2,3,4].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10" />)}
+        </div>
+      </div>
+    );
+  }
 
- if (!mounted || isHydrating) {
- return (
- <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden flex flex-col justify-between">
- {/* 顶部环境光模糊占位 */}
- <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent" />
- 
- {/* 核心能量场模糊占位 */}
- <div className="flex-1 flex items-center justify-center ">
- <div className="w-32 h-32 rounded-full bg-white/10" />
- </div>
- 
- {/* 底导栏物理轮廓锚定 (防止页面初载时下方太空) */}
- <div className="w-full h-[84px] border-t border-white/5 bg-black/40 flex justify-around items-center px-6 pb-safe z-50">
- {[1,2,3,4].map(i => <div key={i} className="w-6 h-6 rounded-full bg-white/10" />)}
- </div>
- </div>
- );
- }
-
- const renderMeTab = () => {
- return user ? <DashboardClient /> : <MeClient />;
- };
+  const renderMeTab = () => {
+    return user ? <DashboardClient /> : <MeClient />;
+  };
 
  return (
  <div className="relative w-full h-[100dvh] bg-transparent overflow-hidden">
