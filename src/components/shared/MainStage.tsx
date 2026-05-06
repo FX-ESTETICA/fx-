@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, memo } from "react";
+import { useEffect, useState, Suspense, memo, Component, ErrorInfo, ReactNode } from "react";
 import { useViewStack } from "@/hooks/useViewStack";
 import { useActiveTab } from "@/hooks/useActiveTab";
 import { cn } from "@/utils/cn";
@@ -16,6 +16,52 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const NebulaOverlay = dynamic(() => import("@/features/nebula/components/NebulaOverlay").then(mod => mod.NebulaOverlay), { ssr: false });
 const StudioOverlay = dynamic(() => import("@/features/studio/components/StudioOverlay").then(mod => mod.StudioOverlay), { ssr: false });
+
+// 物理级防爆门：React Error Boundary
+class TabErrorBoundary extends Component<{ children: ReactNode, tabName: string }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode, tabName: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(_: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error(`[GX Auto-Heal] ${this.props.tabName} crashed:`, error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full w-full bg-black/50 text-white p-6 text-center z-50">
+          <div className="text-red-500 mb-2 animate-pulse">
+            <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-black tracking-widest mb-2 uppercase">System Fault</h2>
+          <p className="text-xs text-white/60 mb-6 max-w-xs">{this.props.tabName} 节点发生崩溃，已安全隔离以保护系统核心。</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-6 py-2.5 border border-white/20 rounded-full text-xs tracking-widest hover:bg-white/10 transition-colors"
+          >
+            重启终端 (REBOOT)
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// 物理级挂起兜底：Suspense Fallback
+const TabSuspenseFallback = () => (
+  <div className="flex items-center justify-center w-full h-[100dvh] bg-transparent">
+    <div className="w-8 h-8 border border-white/20 border-t-white/80 rounded-full animate-spin" />
+  </div>
+);
 
 // 极致性能：React 渲染深度冻结舱 + GPU 显存级回收 (DOM 内存释放)
 // 1. memo: 彻底阻断来自父级或全局的 React Re-render 僵尸计算。如果没激活，直接短路渲染流程！
@@ -139,37 +185,55 @@ export const MainStage = () => {
  {/* 1. 首页 */}
  {mountedTabs.has('home') && (
  <TabContainer active={activeTab === 'home'}>
+ <TabErrorBoundary tabName="Home">
+ <Suspense fallback={<TabSuspenseFallback />}>
  <HomeClient initialRealShops={[]} isActive={activeTab === 'home'} />
+ </Suspense>
+ </TabErrorBoundary>
  </TabContainer>
  )}
 
  {/* 2. 发现 */}
  {mountedTabs.has('discovery') && (
  <TabContainer active={activeTab === 'discovery'}>
+ <TabErrorBoundary tabName="Discovery">
+ <Suspense fallback={<TabSuspenseFallback />}>
  <DiscoveryClient />
+ </Suspense>
+ </TabErrorBoundary>
  </TabContainer>
  )}
 
  {/* 3. 日历 */}
  {mountedTabs.has('calendar') && (
  <TabContainer active={activeTab === 'calendar'}>
- <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-white">Loading Calendar...</div>}>
+ <TabErrorBoundary tabName="Calendar">
+ <Suspense fallback={<TabSuspenseFallback />}>
  <IndustryCalendar initialIndustry={tabProps['calendar']?.industry || "beauty"} mode="admin" />
  </Suspense>
+ </TabErrorBoundary>
  </TabContainer>
  )}
 
  {/* 4. 聊天 */}
  {mountedTabs.has('chat') && (
  <TabContainer active={activeTab === 'chat'}>
+ <TabErrorBoundary tabName="Chat">
+ <Suspense fallback={<TabSuspenseFallback />}>
  <ChatListClient />
+ </Suspense>
+ </TabErrorBoundary>
  </TabContainer>
  )}
 
  {/* 5. 我的/智控 */}
  {mountedTabs.has('me') && (
  <TabContainer active={activeTab === 'me'}>
+ <TabErrorBoundary tabName="Dashboard">
+ <Suspense fallback={<TabSuspenseFallback />}>
  {renderMeTab()}
+ </Suspense>
+ </TabErrorBoundary>
  </TabContainer>
  )}
  </div>
