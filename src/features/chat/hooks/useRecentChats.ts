@@ -30,8 +30,9 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
 
   if (error) {
     // 物理拦截: 忽略因为组件卸载或页面跳转导致的 Abort/Fetch 错误，实现 0 报错控制台
+    // 修复：网络失败时必须 throw error，而不是 return []。这样 SWR 才会触发 keepPreviousData 保留旧缓存，而不是把列表打空
     if (error.message?.includes('Failed to fetch') || error.message?.includes('AbortError')) {
-      return [];
+      throw error;
     }
     console.error('拉取最近聊天失败:', error);
     throw new Error(error.message);

@@ -27,6 +27,9 @@ export const GlobalWormholeCapsule = () => {
  ? settings.calendarBgIndex !== 0 
  : settings.frontendBgIndex !== 0;
  
+ const [isMounted, setIsMounted] = useState(false);
+ useEffect(() => setIsMounted(true), []);
+
  // 拖拽防误触系统
  const isDragging = useRef(false);
 
@@ -41,7 +44,7 @@ export const GlobalWormholeCapsule = () => {
  return () => document.removeEventListener("mousedown", handleClickOutside);
  }, []);
 
- if (!availableShops || availableShops.length === 0) return null;
+ if (!isMounted || !availableShops || availableShops.length === 0) return null;
 
  // 新增逻辑：如果订阅即将到期（< 5分钟）或者已过期，则强制显示红色警告胶囊
  const isEmergency = subscription.subscriptionTier !== 'FREE' && 

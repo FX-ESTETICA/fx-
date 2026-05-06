@@ -11,6 +11,7 @@ import { OTAUpdater } from "@/components/shared/OTAUpdater";
 // import { WebDownloadPrompt } from "@/components/shared/WebDownloadPrompt";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { GlobalSyncProvider } from "@/providers/GlobalSyncProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -111,6 +112,7 @@ export default async function RootLayout({
       <head>
         {/* 0毫秒瞬间注入原生壁纸，彻底消灭 React 渲染延迟与二次闪烁 */}
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -146,6 +148,7 @@ export default async function RootLayout({
         />
         {/* 终极防线：0毫秒瞬间拦截 PWA 白屏/资源丢失的死锁状态 */}
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -224,13 +227,15 @@ export default async function RootLayout({
           <div className="fixed inset-0 z-[-1] pointer-events-none bg-transparent">
             <NebulaBackground />
           </div>
-          <AuthProvider>
-            <ShopProvider>
-              <AppShell>
-                {children}
-              </AppShell>
-            </ShopProvider>
-          </AuthProvider>
+          <GlobalSyncProvider>
+            <AuthProvider>
+              <ShopProvider>
+                <AppShell>
+                  {children}
+                </AppShell>
+              </ShopProvider>
+            </AuthProvider>
+          </GlobalSyncProvider>
           {/* <WebDownloadPrompt /> */}
         </NextIntlClientProvider>
       </body>

@@ -140,6 +140,17 @@ function useNebulaData(bossId: string | undefined, openSubscriptionModal: (mode:
  fetchNodes();
  }, [bossId]);
 
+ // 世界顶端架构：统一静默同步总线接管
+ useEffect(() => {
+ const handleGlobalSync = (e: Event) => {
+ const customEvent = e as CustomEvent;
+ console.log(`[Nebula] 收到全局同步指令 (${customEvent.detail?.reason})，静默刷新星云节点...`);
+ fetchNodes();
+ };
+ window.addEventListener("gx-global-sync", handleGlobalSync);
+ return () => window.removeEventListener("gx-global-sync", handleGlobalSync);
+ }, [bossId]);
+
  // 激活/更新节点
  const updateNode = async (id: string, updates: any): Promise<PlanetData | null> => {
  try {

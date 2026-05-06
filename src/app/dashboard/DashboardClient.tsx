@@ -79,13 +79,14 @@ export default function DashboardClient() {
  availableRoles.push('merchant');
  }
 
- // 完美体验拦截：在认证状态完全就绪之前，渲染一个空底盘以防止视觉闪烁
- const isHydrating = isLoading;
- 
- if (isHydrating) {
+ // 完美体验拦截：在认证状态完全就绪之前，如果是空状态则渲染骨架屏
+ // 废除 return <main /> 的空心设计，保证 0ms 呈现可信快照
+ if (isLoading && !user) {
  return (
- <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden">
- {/* 背景光效已清理 */}
+ <main className="min-h-[100dvh] bg-transparent text-white relative overflow-hidden flex items-center justify-center">
+ <div className="text-white/30 text-sm tracking-widest animate-pulse">
+ LOADING PROFILE...
+ </div>
  </main>
  );
  }

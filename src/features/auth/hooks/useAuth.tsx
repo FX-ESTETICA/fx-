@@ -73,7 +73,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * 实现用户 Session 的物理挂载与状态同步
  */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<SandboxUser | User | null>(null);
+  const [user, setUser] = useState<SandboxUser | User | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("gx_cached_user");
+        if (cached) return JSON.parse(cached);
+      } catch (e) {}
+    }
+    return null;
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(true);
@@ -683,10 +691,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isMockMode) return;
     if (typeof window === "undefined") return;
-    const handleVisibility = async () => {
-      if (document.visibilityState !== "visible") return;
-      
-      // 世界顶端 0 妥协法则：静默唤醒 (Silent Hydration)
+    const handleGlobalSync = async () => {
+      // 世界顶端 0 妥协法则：统一静默唤醒 (Silent Hydration)
       // 绝不触发 setIsLoading(true) 摧毁当前 DOM，而是像幽灵一样在后台静默获取最新数据，
       // 获取后通过 React 响应式精准替换脏数据，让前台画面纹丝不动。
       const { data: { session: nextSession } } = await supabase.auth.getSession();
@@ -696,10 +702,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await syncDeviceSession(nextSession);
       }
     };
-    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("gx-global-sync", handleGlobalSync);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("gx-global-sync", handleGlobalSync);
     };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 

@@ -170,17 +170,21 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [resolvedActiveShopId]);
 
+  // 统一静默同步总线接管：处理从后台唤醒、断网恢复、Capacitor 重连
   useEffect(() => {
-    const handleOnline = async () => {
-      console.log("[ShopContext] 🌐 网络已连接，触发离线队列重传");
-      await BookingService.syncOfflineMutations();
-      refreshBookings(); // 重传完后拉取最新云端数据，修正乐观更新可能存在的ID偏差
+    const handleGlobalSync = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      console.log(`[ShopContext] 收到全局唤醒信号 (${customEvent.detail?.reason})，执行静默全量同步...`);
+      
+      if (customEvent.detail?.reason === "network_online") {
+        console.log("[ShopContext] 🌐 网络已连接，触发离线队列重传");
+        await BookingService.syncOfflineMutations();
+      }
+      
+      refreshBookings();
     };
-    
-    window.addEventListener('online', handleOnline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-    };
+    window.addEventListener("gx-global-sync", handleGlobalSync);
+    return () => window.removeEventListener("gx-global-sync", handleGlobalSync);
   }, [refreshBookings]);
 
   useEffect(() => {

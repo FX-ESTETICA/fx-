@@ -463,7 +463,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  queryKey,
  fetcher,
  {
- revalidateOnFocus: false, // 防止切换窗口时过度刷新
+ revalidateOnFocus: true, // 必须开启，保证焦点恢复/后台切回时一定能拿到最新
  dedupingInterval: 60000, // 1分钟内相同的请求会被去重
  keepPreviousData: true, // 在请求新数据时保留旧数据，防止闪烁
  fallbackData: getCachedPlacesData(queryKey), // 物理秒开：0毫秒同步灌入上次硬盘缓存
@@ -474,9 +474,10 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  }
  },
  onError: (err) => {
- // 断网防御：如果报错是因为网络问题，且本地有缓存，静默忽略以保留 fallbackData
+ // 断网防御：如果报错是因为网络问题，且本地有缓存，抛出异常交由 SWR 拦截以保留 fallbackData
  if (err.message?.includes('Failed to fetch') || err.message?.includes('AbortError')) {
  console.warn("[Local-First Shield] Network offline, preserving cached places data.");
+ throw err;
  }
  }
  }

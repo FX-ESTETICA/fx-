@@ -82,30 +82,19 @@ export function OTAUpdater() {
     // 初始检查
     checkVersionAndSilentUpdate();
 
-    // 每次 APP 从后台切回前台时，主动触发静默检查
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkVersionAndSilentUpdate();
-      }
+    // 统一接管：监听全局静默同步总线
+    const handleGlobalSync = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      console.log(`[GX Updater] 收到全局唤醒信号 (${customEvent.detail?.reason})，触发版本检查...`);
+      checkVersionAndSilentUpdate();
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Capacitor AppState 唤醒时检查
-    let appStateListener: { remove: () => void } | null = null;
-    if (typeof App !== 'undefined' && App.addListener) {
-      App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) checkVersionAndSilentUpdate();
-      }).then(listener => {
-        appStateListener = listener;
-      }).catch(() => {});
-    }
+    window.addEventListener("gx-global-sync", handleGlobalSync);
 
     // 轮询探针（每3分钟检测一次，确保长驻前台也能收到更新）
     const interval = setInterval(checkVersionAndSilentUpdate, 3 * 60 * 1000);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (appStateListener && appStateListener.remove) appStateListener.remove();
+      window.removeEventListener("gx-global-sync", handleGlobalSync);
       clearInterval(interval);
     };
   }, []);
