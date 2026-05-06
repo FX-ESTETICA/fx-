@@ -177,9 +177,41 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       refreshBookings(); // 重传完后拉取最新云端数据，修正乐观更新可能存在的ID偏差
     };
     
+    // 【世界顶端：三位一体唤醒引擎】
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("[ShopContext] 👁️ 网页从后台切回可见状态，触发强制数据重载");
+        refreshBookings();
+      }
+    };
+    
+    const handleFocus = () => {
+      console.log("[ShopContext] 🎯 窗口重新获得焦点，触发强制数据重载");
+      refreshBookings();
+    };
+    
     window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    // Capacitor 原生系统级后台唤醒探针
+    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) {
+            console.log('[ShopContext] 📱 原生 App 从后台唤醒，执行物理级强制重载');
+            refreshBookings();
+          }
+        });
+      }).catch(e => {
+        console.error("Failed to load @capacitor/app", e);
+      });
+    }
+
     return () => {
       window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [refreshBookings]);
 

@@ -460,19 +460,25 @@ export const BookingService = {
        return { data: [] };
     }
     
-    const { data, error } = await supabase
+    // 【物理缓存击穿】：强行注入无害时间戳参数，彻底粉碎 Next.js 和浏览器的隐式 GET 缓存
+    // 确保无论怎么唤醒、怎么重载，获取的绝对是最新的物理数据
+    // 正确的击穿方式是在 headers 里注入
+    const { data: realData, error: realError } = await supabase
       .from('v_bookings')
       .select('*')
       .eq('shop_id', shopId)
-      .neq('status', 'VOID'); // 过滤被丢入黑洞的卡片
+      .neq('status', 'VOID')
+      .setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+      .setHeader('Pragma', 'no-cache')
+      .setHeader('Expires', '0');
       
-    if (error) {
-      console.error("[BookingService] getBookings Error:", error);
+    if (realError) {
+      console.error("[BookingService] getBookings Error:", realError);
       return { data: [] };
     }
     
     // 铺平 JSONB
-    const formatted: BookingRecord[] = (data || []).map((b) => ({
+    const formatted: BookingRecord[] = (realData || []).map((b) => ({
       id: b.id,
       shopId: b.shop_id,
       date: b.date,
