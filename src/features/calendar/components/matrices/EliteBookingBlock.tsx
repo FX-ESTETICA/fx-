@@ -219,9 +219,9 @@ export const EliteBookingBlock = ({
  )}
  </div>
  </div>
- {/* 右下角客户极简 ID 或 连单基因圆点 */}
+ {/* 底部居中连单基因圆点 */}
  {(nexusId && nexusColor) && (
- <div className="absolute bottom-1 right-1.5 z-10 flex items-center justify-center">
+ <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 flex items-center justify-center">
  <div 
  className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm transition-opacity", isCheckedOut ? "opacity-40" : "opacity-100")}
  style={{ 
