@@ -143,7 +143,7 @@ export const EliteBookingBlock = ({
   onPointerCancel={handlePointerUp}
   className={cn(
           "absolute inset-x-1.5 top-0 z-10 rounded border flex cursor-pointer group overflow-hidden",
-          isMicro ? "py-0 px-2 pl-[4px] items-center justify-start" : (isTiny ? "p-1 pl-[4px] items-center justify-start" : "p-3 pl-[4px] flex-col justify-start"),
+          isMicro ? "py-0 pr-1 pl-[4px] items-center justify-start" : (isTiny ? "py-1 pr-1 pl-[4px] items-center justify-start" : "py-3 pr-1 pl-[4px] flex-col justify-start"),
           !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),
           !isHexColor && !isCheckedOut && !isNoShow && isActiveBorderColor(accent || ''),
           isPending && "border-transparent bg-black/60 m-[2px]" // 如果有跑马灯，缩小一圈并让自身边框透明
@@ -172,8 +172,8 @@ export const EliteBookingBlock = ({
  // --- 极限微缩态 (15-25 分钟)：绝对左对齐，只有服务名称，超小字体，隐藏多余元素 ---
  <div className="flex items-center justify-between relative z-10 w-full gap-1">
  <span 
- className={cn("text-[11px] leading-none font-medium antialiased tracking-widest text-white truncate", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
- >
+            className={cn("text-[11px] leading-none font-medium antialiased tracking-wider text-white truncate", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
+          >
  {title.replace(/ \+ /g, ' ')}
  </span>
  {(nexusId && nexusColor) && (
@@ -189,8 +189,8 @@ export const EliteBookingBlock = ({
  // --- 紧凑态 (30-40 分钟)：单行左对齐排版 ---
  <div className="flex items-center justify-between relative z-10 w-full gap-1 px-0">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest text-white truncate", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
- >
+            className={cn("text-[11px] font-medium antialiased tracking-wider text-white truncate", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
+          >
  {title.replace(/ \+ /g, ' ')}
  </span>
  {(nexusId && nexusColor) && (
@@ -208,8 +208,8 @@ export const EliteBookingBlock = ({
  <div className="flex flex-col gap-1 relative z-10 w-full">
  <div className="flex justify-between items-start">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest leading-tight line-clamp-2 text-white", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
- >
+                className={cn("text-[11px] font-medium antialiased tracking-wider leading-tight line-clamp-2 text-white", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
+              >
  {title.replace(/ \+ /g, ' ')}
  </span>
  {delayMins > 0 && !isCheckedOut && !isNoShow && (
