@@ -21,11 +21,34 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // 探针 1.5: 补充网页焦点事件 (Focus) 解决 WebView/套壳 唤醒盲区
+    const handleFocus = () => {
+      triggerGlobalSync("window_focus");
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // 探针 1.6: 补充 BFCache 恢复事件 (PageShow) 解决 iOS 返回缓存盲区
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        triggerGlobalSync("page_show_persisted");
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
     // 探针 2: 网络恢复 (Online)
     const handleOnline = () => {
       triggerGlobalSync("network_online");
     };
     window.addEventListener("online", handleOnline);
+
+    // 万能探针：供任何第三方 App 套壳 (WebView) 从原生端手动触发
+    // iOS (Swift): webView.evaluateJavaScript("window.gxForceWakeUp && window.gxForceWakeUp()")
+    // Android (Java/Kotlin): webView.evaluateJavascript("window.gxForceWakeUp && window.gxForceWakeUp()", null)
+    if (typeof window !== "undefined") {
+      (window as any).gxForceWakeUp = () => {
+        triggerGlobalSync("manual_force_wakeup");
+      };
+    }
 
     // 探针 3: Capacitor APP 原生前后台唤醒 (AppState Change)
     let appStateListener: any = null;
@@ -43,7 +66,12 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handlePageShow);
       window.removeEventListener("online", handleOnline);
+      if (typeof window !== "undefined") {
+        delete (window as any).gxForceWakeUp;
+      }
       if (appStateListener && appStateListener.remove) {
         appStateListener.remove();
       }
@@ -64,9 +92,21 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
             if (document.visibilityState === "visible") callback();
           };
           const onFocus = () => callback();
+          const onPageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) callback();
+          };
 
           document.addEventListener("visibilitychange", onVisibilityChange);
           window.addEventListener("focus", onFocus);
+          window.addEventListener("pageshow", onPageShow);
+
+          if (typeof window !== "undefined") {
+            const originalForceWakeUp = (window as any).gxForceWakeUp;
+            (window as any).gxForceWakeUp = () => {
+              if (originalForceWakeUp) originalForceWakeUp();
+              callback();
+            };
+          }
 
           if (Capacitor.isNativePlatform() && App && App.addListener) {
             App.addListener('appStateChange', ({ isActive }) => {
@@ -79,6 +119,7 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
           return () => {
             document.removeEventListener("visibilitychange", onVisibilityChange);
             window.removeEventListener("focus", onFocus);
+            window.removeEventListener("pageshow", onPageShow);
             if (appStateListener && appStateListener.remove) appStateListener.remove();
           };
         }
