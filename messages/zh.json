@@ -349,8 +349,8 @@
     "txt_84e0cd": "点击切换左侧边栏",
     "txt_6508a1": "回收站",
     "txt_677a64": "全局运营配置",
-    "txt_3353f0": "今日预约",
-    "txt_047109": "待处理",
+    "txt_3353f0": "今日",
+    "txt_047109": "待办",
     "txt_fb852f": "进行中",
     "txt_65dd9e": "等待中",
     "txt_7708f1": "新预约提醒",
@@ -365,7 +365,7 @@
     "txt_view_week": "周视图",
     "txt_view_month": "月视图",
     "txt_search_placeholder": "搜索名字或电话...",
-    "txt_completed_count": "已结账"
+    "txt_completed_count": "已结"
   },
   "EliteWeekMatrix": {
     "txt_mon": "周一",
@@ -476,7 +476,7 @@
     "txt_48247a": "AI 管家专属：输入全称/别名（如：Manicure 只修手）"
   },
   "OrbitalPossessionProfile": {
-    "txt_680885": "监视节点: ",
+    "txt_680885": "位置: ",
     "txt_36386d": "返回个人看板"
   },
   "RecycleBinModal": {
@@ -512,22 +512,22 @@
     "txt_b170b6": "日历后台",
     "txt_9f7256": "星云入口",
     "txt_932519": "预约看板",
-    "txt_047109": "待处理",
+    "txt_047109": "待办",
     "txt_4113e7": "已确认",
     "txt_a8b0c2": "全部",
     "txt_afddef": "暂无相关预约记录",
     "txt_2882c0": "人员绑定",
     "txt_ab459e": "前端绑定 ID",
     "txt_c95928": "绑定后该用户可直接在其「我的」界面进入专属管理日历。",
-    "txt_f49d92": "待处理",
+    "txt_f49d92": "待办",
     "txt_733f4a": "已确认",
-    "txt_5af2c6": "今日预约",
+    "txt_5af2c6": "今日",
     "txt_5cd6e4": "例如: GX_USR_1001",
     "txt_edff9d": "绑定中...",
     "txt_4a81e7": "建立系统关联",
     "txt_330363": "成功",
     "txt_a75625": "管理预约与排班",
-    "txt_completed_count": "已结账",
+    "txt_completed_count": "已结",
     "txt_switch_store": "多门店切换",
     "txt_decorate_store": "装修门店",
     "txt_unknown_store": "未知门店",

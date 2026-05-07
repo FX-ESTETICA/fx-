@@ -30,9 +30,11 @@ import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSett
 import { createPortal } from "react-dom";
 import { DualPaneBookingModal, type BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
-import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/features/auth/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+  import { useSearchParams } from "next/navigation";
+  import { QuickCommandPalette } from "./QuickCommandPalette";
+  import { useAuth } from "@/features/auth/hooks/useAuth";
+  
+  import { supabase } from "@/lib/supabase";
 import { useShop } from "@/features/shop/ShopContext";
 import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
@@ -385,7 +387,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 获取当前商户的专属 shopId，实现多租户数据物理隔离
   // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
-  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction } = useShop();
+  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction, refreshBookings } = useShop();
   const urlShopId = searchParams.get('shopId');
   const shopId = urlShopId || activeShopId || 'default';
 
@@ -1917,6 +1919,21 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </div>
  </motion.div>
  </AnimatePresence>
+
+ {/* --- 纯键盘流：极速开单控制台 (Quick Command Palette) --- */}
+ <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+   <QuickCommandPalette 
+     services={services}
+     staffs={staffs}
+     shopId={shopId}
+     currentDate={phantomDate}
+     onBookingCreated={() => {
+       refreshBookings();
+       trackAction();
+     }}
+     visualSettings={visualSettings}
+   />
+ </div>
 
  </div>
  </div>

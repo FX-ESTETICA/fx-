@@ -38,9 +38,9 @@ interface MerchantDashboardProps {
 
 const StatsCard = ({ label, value, isLight }: { label: string; value: number | string; isLight?: boolean }) => {
  return (
- <div className="flex flex-col items-center justify-center p-4 md:p-6 hover:bg-white/[0.02] text-center">
- <span className={`text-[11px] ${isLight ? "text-black" : "text-white"} uppercase tracking-widest mb-1`}>{label}</span>
- <span className={cn("text-2xl md:text-3xl font-black tracking-tight", isLight ? "text-black" : isLight ? "text-black" : "text-white")}>{value}</span>
+ <div className="flex flex-col items-center justify-center p-4 md:p-6 hover:bg-white/[0.02] text-center min-w-0">
+ <span className={`text-[11px] ${isLight ? "text-black" : "text-white"} uppercase tracking-widest mb-1 truncate max-w-full`}>{label}</span>
+ <span className={cn("text-2xl md:text-3xl font-black tracking-tight truncate max-w-full", isLight ? "text-black" : "text-white")}>{value}</span>
  </div>
  );
 };
