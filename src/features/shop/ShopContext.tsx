@@ -351,10 +351,22 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 30000);
 
+    // 【全局唤醒探针接管】：当 APP 从后台切回、或网络恢复时，强制刷新全局核心数据
+    const handleGlobalSync = () => {
+      console.log(`[ShopContext] Global sync triggered, force refreshing bookings and config for shop ${resolvedActiveShopId}...`);
+      if (isMounted) {
+        fetchShopConfig();
+        refreshBookings();
+      }
+    };
+    window.addEventListener("gx-global-sync", handleGlobalSync);
+
     return () => {
       isMounted = false;
+      if (configDebounceTimer) clearTimeout(configDebounceTimer);
       if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       clearInterval(heartbeatTimer);
+      window.removeEventListener("gx-global-sync", handleGlobalSync);
       supabase.removeChannel(channelConfig);
       if (channelBookings) {
         BookingService.unsubscribe(channelBookings);

@@ -364,6 +364,7 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
     window.addEventListener('gx_chat_cleared', handleUpdate);
     window.addEventListener('gx_chat_message_deleted', handleUpdate);
     window.addEventListener('gx_chat_read_updated', handleUpdate);
+    window.addEventListener('gx-global-sync', handleUpdate); // 绑定全局静默同步总线
 
     // 监听新消息到达，更新列表 (化假为真的关键)
     // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state

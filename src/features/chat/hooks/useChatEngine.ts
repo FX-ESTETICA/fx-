@@ -134,7 +134,7 @@ export function useChatEngine(currentUserId: string, currentRole: string, roomId
     }
   }, [localMessages, swrKey]);
 
-  // 监听全局清空事件
+  // 监听全局清空事件与唤醒事件
   useEffect(() => {
     const handleClear = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -148,8 +148,17 @@ export function useChatEngine(currentUserId: string, currentRole: string, roomId
         mutate([], false); // 同步清空缓存，不触发重新验证
       }
     };
+
+    const handleGlobalSync = () => {
+      mutate(); // 后台唤醒或网络恢复时强制 SWR 拉取最新消息
+    };
+
     window.addEventListener('gx_chat_cleared', handleClear);
-    return () => window.removeEventListener('gx_chat_cleared', handleClear);
+    window.addEventListener('gx-global-sync', handleGlobalSync);
+    return () => {
+      window.removeEventListener('gx_chat_cleared', handleClear);
+      window.removeEventListener('gx-global-sync', handleGlobalSync);
+    };
   }, [roomId, receiverId, receiverRole, mutate]);
 
   // 2. 监听 Realtime

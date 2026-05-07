@@ -393,11 +393,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.warn("[AuthProvider] Session Error (e.g. Invalid Refresh Token), clearing session...", sessionError);
-          await supabase.auth.signOut(); // 自动清除损坏的 token
-          setSession(null);
-          setUser(null);
-          localStorage.removeItem("gx_cached_user"); // 清除脏缓存
+          console.warn("[AuthProvider] Session Error:", sessionError);
+          // 【核心修复：防误踢保护】
+          // 区分网络错误与真正的 Token 失效。套壳 APP 刚唤醒时极易发生 FetchError。
+          const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
+                                 sessionError.message?.toLowerCase().includes('network') || 
+                                 (sessionError as any).status === 0 || 
+                                 (sessionError as any).status >= 500 || 
+                                 sessionError.name === 'AuthRetryableFetchError';
+                                 
+          if (!isNetworkError) {
+            console.warn("[AuthProvider] Invalid Refresh Token confirmed, clearing session...");
+            await supabase.auth.signOut(); // 自动清除损坏的 token
+            setSession(null);
+            setUser(null);
+            localStorage.removeItem("gx_cached_user"); // 清除脏缓存
+          } else {
+            console.warn("[AuthProvider] Network error detected during getSession, preserving offline cache...");
+            // 网络错误时不踢人，保持现有离线缓存。SWR 和后续重连会自动接管。
+          }
           setIsLoading(false);
           return;
         }
@@ -695,7 +709,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 世界顶端 0 妥协法则：统一静默唤醒 (Silent Hydration)
       // 绝不触发 setIsLoading(true) 摧毁当前 DOM，而是像幽灵一样在后台静默获取最新数据，
       // 获取后通过 React 响应式精准替换脏数据，让前台画面纹丝不动。
-      const { data: { session: nextSession } } = await supabase.auth.getSession();
+      const { data: { session: nextSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      // 【核心修复：防误踢】唤醒瞬间极易发生网络抖动（FetchError）。
+      // 绝对不能把网络失败导致的 null session 传给 hydrateSession（会导致物理抹除用户数据）！
+      if (sessionError) {
+        console.warn("[GlobalSync] getSession failed on wakeup, aborting sync to prevent false logout.", sessionError);
+        return; // 物理拦截，保留本地缓存，等网络彻底恢复后 SWR 会接管重试
+      }
+      
       await hydrateSession(nextSession);
       await refreshUserData(nextSession);
       if (nextSession?.user) {
