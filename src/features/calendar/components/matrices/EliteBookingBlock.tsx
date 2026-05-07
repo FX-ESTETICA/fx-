@@ -19,6 +19,8 @@ export interface EliteBookingBlockProps {
  isCheckedOut?: boolean; // 新增：是否已结账（生命周期终结）
  isNoShow?: boolean; // 新增：是否爽约（幽灵灰降维）
  delayMins?: number; // 新增：挤压延误时间，若大于 0，渲染红色沙漏警示
+ nexusId?: number; // 新增：连单基因序号
+ nexusColor?: string; // 新增：连单基因专属色
  onClick?: (e: React.MouseEvent) => void;
  onDragStart?: () => void;
  onDrag?: (e: any, info: any) => void;
@@ -33,6 +35,7 @@ export interface EliteBookingBlockProps {
 export const EliteBookingBlock = ({ 
  title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false,
  isPast = false, isCheckedOut = false, isNoShow = false, delayMins = 0,
+ nexusId, nexusColor,
  onClick, onDragStart, onDrag, onDragEnd, isReadOnly 
 }: EliteBookingBlockProps) => {
  // Check if the color is a hex code
@@ -105,15 +108,17 @@ export const EliteBookingBlock = ({
  const getBorderColor = () => {
     if (isPending) return 'transparent';
     if (isNoShow) return 'rgba(255, 255, 255, 0.15)'; // 幽灵灰边框
-    if (isCheckedOut) return 'rgba(255, 255, 255, 0.05)'; // 幽灵灰极暗边框
-    // 强化全局物理边框，统一使用高可见度白色半透明边框，配合半透明底色实现透视切割
+    if (isCheckedOut) return 'rgba(0, 240, 255, 0.5)'; // 浅蓝色透明线框，代表已安全落袋
+    if (isPast) return isHexColor ? color : 'rgba(255, 255, 255, 0.8)'; // 已结束未结账：保留原本的特征色边框
+    // 未来/进行中：统一使用高可见度白色半透明边框，配合半透明底色实现透视切割
     return isHexColor ? 'rgba(255, 255, 255, 0.5)' : ''; 
   };
 
  const getBoxShadow = () => {
  if (isPending) return '';
- if (isCheckedOut || isPast || isNoShow) return 'none'; // 已过时完全去除发光阴影，变成静态死线框
- return 'none'; // 彻底移除黑色阴影
+ if (isCheckedOut || isNoShow) return 'none'; // 已结账/爽约：完全去除发光阴影，变成静态死线框
+ if (isPast) return isHexColor ? `0 0 10px ${color}80, inset 0 0 4px ${color}40` : 'none'; // 已结束未结账：强烈特征色发光警示
+ return 'none'; // 未来状态：底层已有底色，去除外发光
  };
 
  return (
@@ -138,7 +143,7 @@ export const EliteBookingBlock = ({
   onPointerCancel={handlePointerUp}
   className={cn(
           "absolute inset-x-1.5 top-0 z-10 rounded border flex cursor-pointer group overflow-hidden",
-          isMicro ? "py-0 px-2 pl-[10px] items-center justify-start" : (isTiny ? "p-1 pl-[10px] items-center justify-start" : "p-3 pl-[12px] flex-col justify-start"),
+          isMicro ? "py-0 px-2 pl-[4px] items-center justify-start" : (isTiny ? "p-1 pl-[4px] items-center justify-start" : "p-3 pl-[4px] flex-col justify-start"),
           !isHexColor && !isCheckedOut && !isNoShow && !isPast && isActiveBgColor(accent || ''),
           !isHexColor && !isCheckedOut && !isNoShow && isActiveBorderColor(accent || ''),
           isPending && "border-transparent bg-black/60 m-[2px]" // 如果有跑马灯，缩小一圈并让自身边框透明
@@ -167,24 +172,34 @@ export const EliteBookingBlock = ({
  // --- 极限微缩态 (15-25 分钟)：绝对左对齐，只有服务名称，超小字体，隐藏多余元素 ---
  <div className="flex items-center justify-between relative z-10 w-full gap-1">
  <span 
- className={cn("text-[11px] leading-none font-medium antialiased tracking-widest uppercase text-white truncate", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] leading-none font-medium antialiased tracking-widest text-white truncate", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
  >
  {title.replace(/ \+ /g, ' ')}
  </span>
- {client && (
- <span className={cn("text-[10px] leading-none font-medium text-white/80 shrink-0", (isCheckedOut || isNoShow) ? "opacity-50" : "")}>{client}</span>
+ {(nexusId && nexusColor) && (
+ <div 
+ className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm shrink-0 transition-opacity", isCheckedOut ? "opacity-40" : "opacity-100")}
+ style={{ backgroundColor: nexusColor, border: '0.5px solid rgba(255, 255, 255, 0.8)', boxShadow: isCheckedOut ? 'none' : `0 0 6px ${nexusColor}80` }}
+ >
+ <span className="text-[9px] font-bold leading-none" style={{ color: '#000' }}>{nexusId}</span>
+ </div>
  )}
  </div>
  ) : isTiny ? (
  // --- 紧凑态 (30-40 分钟)：单行左对齐排版 ---
  <div className="flex items-center justify-between relative z-10 w-full gap-1 px-0">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest uppercase text-white truncate", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest text-white truncate", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
  >
  {title.replace(/ \+ /g, ' ')}
  </span>
- {client && (
- <span className={cn("text-[10px] font-medium text-white/80 shrink-0", (isCheckedOut || isNoShow) ? "opacity-50" : "")}>{client}</span>
+ {(nexusId && nexusColor) && (
+ <div 
+ className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm shrink-0 transition-opacity", isCheckedOut ? "opacity-40" : "opacity-100")}
+ style={{ backgroundColor: nexusColor, border: '0.5px solid rgba(255, 255, 255, 0.8)', boxShadow: isCheckedOut ? 'none' : `0 0 6px ${nexusColor}80` }}
+ >
+ <span className="text-[9px] font-bold leading-none" style={{ color: '#000' }}>{nexusId}</span>
+ </div>
  )}
  </div>
  ) : (
@@ -193,7 +208,7 @@ export const EliteBookingBlock = ({
  <div className="flex flex-col gap-1 relative z-10 w-full">
  <div className="flex justify-between items-start">
  <span 
- className={cn("text-[11px] font-medium antialiased tracking-widest uppercase leading-tight line-clamp-2 text-white", (isCheckedOut || isNoShow) ? "" : "opacity-100")}
+ className={cn("text-[11px] font-medium antialiased tracking-widest leading-tight line-clamp-2 text-white", isCheckedOut ? "opacity-30" : isNoShow ? "opacity-20" : isPast ? "opacity-90" : "opacity-100")}
  >
  {title.replace(/ \+ /g, ' ')}
  </span>
@@ -204,12 +219,19 @@ export const EliteBookingBlock = ({
  )}
  </div>
  </div>
- {/* 右下角客户极简 ID */}
- {client && (
- <div className="absolute bottom-1.5 right-2 z-10">
- <span className={cn("text-[10px] font-medium antialiased tracking-widest text-white/80", (isCheckedOut || isNoShow) ? "opacity-50" : "")}>
- {client}
- </span>
+ {/* 右下角客户极简 ID 或 连单基因圆点 */}
+ {(nexusId && nexusColor) && (
+ <div className="absolute bottom-1 right-1.5 z-10 flex items-center justify-center">
+ <div 
+ className={cn("w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm transition-opacity", isCheckedOut ? "opacity-40" : "opacity-100")}
+ style={{ 
+ backgroundColor: nexusColor, 
+ border: '0.5px solid rgba(255, 255, 255, 0.8)',
+ boxShadow: isCheckedOut ? 'none' : `0 0 6px ${nexusColor}80` 
+ }}
+ >
+ <span className="text-[9px] font-bold leading-none" style={{ color: '#000' }}>{nexusId}</span>
+ </div>
  </div>
  )}
  </>

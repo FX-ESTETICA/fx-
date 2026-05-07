@@ -231,6 +231,50 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  // 物理防抖锁：防止网络延迟时的多重点选
  const [processingOrderId, setProcessingOrderId] = React.useState<string | null>(null);
 
+ // --- 连单基因嗅探器 (Nexus Mappings) ---
+ const nexusMappings = useMemo(() => {
+ if (!bookings || bookings.length === 0) return {};
+ const mappings: Record<string, { id: number, color: string }> = {};
+ // 极简高级赛博色带库 (避开刺眼的纯红纯绿)
+ const palette = ['#00f0ff', '#ff00ff', '#ffff00', '#ff8c00', '#00ff00', '#ff0055', '#00bfff', '#9400d3'];
+ 
+ const byDate: Record<string, MatrixBooking[]> = {};
+ bookings.forEach(b => {
+ if (!b.date) return;
+ if (!byDate[b.date]) byDate[b.date] = [];
+ byDate[b.date].push(b);
+ });
+
+ Object.keys(byDate).forEach(date => {
+ const dayBookings = byDate[date];
+ const byGroup: Record<string, MatrixBooking[]> = {};
+ 
+ dayBookings.forEach(b => {
+ // 优先级：masterOrderId -> order_no -> customerId
+ const groupId = b.masterOrderId || (b as any).order_no || b.customerId;
+ if (!groupId) return;
+ // 如果名称/ID 明确是散客或为空，跳过连单计算
+ if (groupId.toLowerCase().includes('walk-in') || groupId.toLowerCase() === 'guest' || groupId.toLowerCase().includes('散客')) return;
+ 
+ if (!byGroup[groupId]) byGroup[groupId] = [];
+ byGroup[groupId].push(b);
+ });
+
+ let nexusCounter = 1;
+ Object.keys(byGroup).forEach(groupId => {
+ if (byGroup[groupId].length > 1) {
+ const color = palette[(nexusCounter - 1) % palette.length];
+ byGroup[groupId].forEach(b => {
+ mappings[b.id] = { id: nexusCounter, color };
+ });
+ nexusCounter++;
+ }
+ });
+ });
+
+ return mappings;
+ }, [bookings]);
+
  // --- 拖拽物理辅助线状态 ---
  const [dragTimeline, setDragTimeline] = React.useState<{ active: boolean, x: number, y: number, time: string, targetResourceId?: string | null, targetColor?: string | null, targetAccent?: string | null }>({ active: false, x: 0, y: 0, time: '' });
  const dragLockRef = useRef<boolean>(false);
@@ -1407,6 +1451,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  isCheckedOut={isCheckedOut} // 已结账
  isNoShow={isNoShow} // 爽约幽灵降维
  delayMins={(booking as any)._delayMins} // 注入延误时间
+ nexusId={nexusMappings[booking.id]?.id} // 注入连单序号
+ nexusColor={nexusMappings[booking.id]?.color} // 注入连单专属色
  />
 
  {/* 渲染内爆菜单 (微缩派单器，只在第一个子订单处渲染) */}
@@ -1672,6 +1718,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
           isCheckedOut={false}
           isPast={false}
           isNoShow={false}
+          nexusId={nexusMappings[draggedBooking.id]?.id}
+          nexusColor={nexusMappings[draggedBooking.id]?.color}
         />
       </div>
     );
