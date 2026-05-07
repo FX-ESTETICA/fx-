@@ -350,55 +350,53 @@ export function QuickCommandPalette({
 
       <div 
         className={cn(
-          "w-[95%] max-w-[600px] h-12 flex items-center rounded-full border transition-all duration-300 relative",
+          "w-[95%] max-w-[600px] min-h-[3rem] py-1.5 px-4 gap-2 flex flex-wrap items-center rounded-[1.5rem] border transition-all duration-300 relative",
           borderColor,
           glowShadow,
           "bg-transparent backdrop-blur-sm"
         )}
         onClick={() => inputRef.current?.focus()}
       >
-        <div className="flex items-center pl-4 gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar flex-shrink-0">
-          {/* Capsules */}
-          {selectedServices.length > 0 && editingStage !== 'service' && (
-            <div 
-              onClick={() => { setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }}
-              className="flex items-center gap-1 cursor-pointer transition-opacity hover:opacity-70"
-            >
-              {selectedServices.map((srv, idx) => (
-                <div key={idx} className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}>
-                  {srv.name}
-                </div>
-              ))}
-            </div>
-          )}
-          {selectedStaff && editingStage !== 'staff' && (
-            <div 
-              onClick={() => { setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }}
-              className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-            >
-              {selectedStaff.name}
-            </div>
-          )}
-          {selectedCustomer && editingStage !== 'customer' && (
-            <div 
-              onClick={() => { setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }}
-              className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-            >
-              {selectedCustomer.name || selectedCustomer.phone}
-            </div>
-          )}
-          {selectedTime && editingStage !== 'time' && (
-            <div 
-              onClick={() => { setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }}
-              className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-            >
-              {formattedDate} {selectedTime}
-            </div>
-          )}
-        </div>
+        {/* Capsules */}
+        {selectedServices.length > 0 && editingStage !== 'service' && (
+          <div 
+            onClick={() => { setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }}
+            className="flex flex-wrap items-center gap-1 cursor-pointer transition-opacity hover:opacity-70"
+          >
+            {selectedServices.map((srv, idx) => (
+              <div key={idx} className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}>
+                {srv.name}
+              </div>
+            ))}
+          </div>
+        )}
+        {selectedStaff && editingStage !== 'staff' && (
+          <div 
+            onClick={() => { setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }}
+            className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+          >
+            {selectedStaff.name}
+          </div>
+        )}
+        {selectedCustomer && editingStage !== 'customer' && (
+          <div 
+            onClick={() => { setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }}
+            className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+          >
+            {selectedCustomer.name || selectedCustomer.phone}
+          </div>
+        )}
+        {selectedTime && editingStage !== 'time' && (
+          <div 
+            onClick={() => { setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }}
+            className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+          >
+            {formattedDate} {selectedTime}
+          </div>
+        )}
 
         {stage === 'confirm' && !editingStage ? (
-          <div className="flex-1 flex items-center justify-end pr-4 gap-3">
+          <div className="flex-1 flex items-center justify-end min-w-[120px] gap-3 ml-auto py-0.5">
             <button 
               onClick={resetAll}
               className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110", isLight ? "border-black/30 text-black/50 hover:text-black hover:border-black" : "border-white/30 text-white/50 hover:text-white hover:border-white")}
@@ -420,7 +418,7 @@ export function QuickCommandPalette({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             className={cn(
-              "flex-1 h-full bg-transparent outline-none px-4 text-sm tracking-widest placeholder:opacity-40 min-w-[100px]",
+              "flex-1 min-w-[100px] h-8 bg-transparent outline-none text-sm tracking-widest placeholder:opacity-40 py-0.5",
               textColor
             )}
             placeholder={
