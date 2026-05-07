@@ -161,12 +161,21 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         duration: booking.duration ?? 0
       }));
       setGlobalBookings(safeBookings);
-      // 【快照覆写】：真实数据就绪后，静默写入硬盘，供下次 0 秒打开
+      // 【快照覆写】：带上时间戳的物理封装
       if (typeof window !== "undefined") {
-        localStorage.setItem(`gx_bookings_snapshot_${resolvedActiveShopId}`, JSON.stringify(safeBookings));
+        const snapshotPayload = {
+          timestamp: Date.now(),
+          data: safeBookings
+        };
+        localStorage.setItem(`gx_bookings_snapshot_${resolvedActiveShopId}`, JSON.stringify(snapshotPayload));
       }
     } catch (e) {
       console.error("[ShopContext] Failed to load cloud bookings:", e);
+      // 【防御性自毁】：如果连续网络失败导致抓取不到真数据，不能让旧快照永远骗人
+      // 这里如果抛错，我们物理摧毁本地缓存，逼迫下一次渲染必须等真数据
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
+      }
     }
   }, [resolvedActiveShopId]);
 
@@ -199,16 +208,39 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     setIsShopConfigLoaded(false);
 
     // 【水合安全 0秒快照加载】: 在发起网络请求前，瞬间同步读取并更新状态。
-    // React 18 会将这个 Effect 中的同步状态更新合并并在绘制前（paint）刷新，从而实现既不报 Hydration Error 又无闪烁的完美 0 秒开屏！
     try {
-      const cachedConfig = localStorage.getItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
-      if (cachedConfig && isMounted) {
-        setShopConfig(JSON.parse(cachedConfig));
-        setIsShopConfigLoaded(true);
+      const cachedConfigRaw = localStorage.getItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
+      if (cachedConfigRaw && isMounted) {
+        const parsedConfig = JSON.parse(cachedConfigRaw);
+        // 兼容新旧格式：如果有 timestamp，且在 24 小时内，才使用其 data
+        if (parsedConfig.timestamp && parsedConfig.data) {
+          if (Date.now() - parsedConfig.timestamp < 24 * 60 * 60 * 1000) {
+            setShopConfig(parsedConfig.data);
+            setIsShopConfigLoaded(true);
+          } else {
+             localStorage.removeItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
+          }
+        } else {
+          // 旧版无时间戳格式，直接使用但标记过期
+          setShopConfig(parsedConfig);
+          setIsShopConfigLoaded(true);
+        }
       }
-      const cachedBookings = localStorage.getItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
-      if (cachedBookings && isMounted) {
-        setGlobalBookings(JSON.parse(cachedBookings));
+
+      const cachedBookingsRaw = localStorage.getItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
+      if (cachedBookingsRaw && isMounted) {
+        const parsedBookings = JSON.parse(cachedBookingsRaw);
+        if (parsedBookings.timestamp && parsedBookings.data) {
+          // 订单快照 TTL：严格的 12 小时淘汰
+          if (Date.now() - parsedBookings.timestamp < 12 * 60 * 60 * 1000) {
+            setGlobalBookings(parsedBookings.data);
+          } else {
+            localStorage.removeItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
+          }
+        } else {
+          // 旧版格式，直接使用
+          setGlobalBookings(parsedBookings);
+        }
       }
     } catch (e) {
       console.error("[ShopContext] Failed to load snapshot", e);
@@ -228,13 +260,21 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           const finalConfig = data?.config || {};
           setShopConfig(finalConfig);
           setIsShopConfigLoaded(true);
-          // 【快照覆写】：真实数据就绪后，静默写入硬盘，供下次 0 秒打开
+          // 【快照覆写】：带上时间戳的物理封装
           if (typeof window !== "undefined") {
-            localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(finalConfig));
+            const configSnapshot = {
+              timestamp: Date.now(),
+              data: finalConfig
+            };
+            localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(configSnapshot));
           }
         }
       } catch (err) {
         console.error("[ShopContext] Failed to load shop config:", err);
+        // 【防御性自毁】：连续网络错误导致配置无法拉取，清理过期配置快照
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
+        }
         if (isMounted) setIsShopConfigLoaded(true);
       }
     };
@@ -278,7 +318,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       }, 300); // 300ms 防抖，将几十次连续插入合并为 1 次 Fetch
     };
 
-    const channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
+    let channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
       console.log(`[ShopContext] Realtime Bookings change received for shop ${resolvedActiveShopId}:`, payload);
       handleBookingUpdate();
     }, () => {
@@ -290,9 +330,31 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    // 【终极保底探针】：每 30 秒检查一次核心 WebSocket 通道，防止被系统静默掐断
+    const heartbeatTimer = setInterval(() => {
+      if (isMounted && resolvedActiveShopId) {
+        const activeChannels = supabase.getChannels();
+        const hasBookingChannel = activeChannels.some(c => c.topic === `realtime:public:bookings:${resolvedActiveShopId}`);
+        if (!hasBookingChannel) {
+          console.warn(`[ShopContext] 💔 探针发现 Booking Realtime 通道假死或丢失，执行物理重建...`);
+          // 先尝试清理旧的
+          if (channelBookings) {
+            try { BookingService.unsubscribe(channelBookings); } catch(e) {}
+          }
+          // 强行重建
+          channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
+            handleBookingUpdate();
+          }, () => {
+            handleBookingUpdate();
+          });
+        }
+      }
+    }, 30000);
+
     return () => {
       isMounted = false;
       if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+      clearInterval(heartbeatTimer);
       supabase.removeChannel(channelConfig);
       if (channelBookings) {
         BookingService.unsubscribe(channelBookings);
