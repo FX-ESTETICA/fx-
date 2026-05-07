@@ -14,6 +14,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true
+  },
+  global: {
+    // 彻底物理粉碎 Next.js App Router 针对 fetch 的变态缓存 (force-cache) 陷阱
+    // 确保任何时候通过 Supabase 发起的请求都是绝对新鲜的
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        cache: 'no-store',
+      });
+    }
   }
 });
 
