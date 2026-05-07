@@ -74,6 +74,7 @@ export type BookingEdit = {
 };
 
 import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { parsePhoneNumber, CountryCode } from 'libphonenumber-js';
 
 export function DualPaneBookingModal({
  isOpen,
@@ -88,7 +89,7 @@ export function DualPaneBookingModal({
  isPhoneMasked
 }: DualPaneBookingModalProps) {
  const t = useTranslations('DualPaneBookingModal');
- const { activeShopId, refreshBookings, trackAction } = useShop();
+ const { activeShopId, availableShops, refreshBookings, trackAction } = useShop();
  const { settings } = useVisualSettings();
  const isLight = settings.headerTitleColorTheme === 'coreblack';
 
@@ -98,6 +99,80 @@ export function DualPaneBookingModal({
  const displayPhone = (p?: string) => {
    if (!p) return "";
    return isPhoneMasked && p.length >= 7 ? p.replace(/(\d{3})\d{4}(\d*)/, '$1****$2') : p;
+ };
+
+ const handleWhatsAppClick = (rawPhone: string) => {
+   if (!rawPhone) return;
+   
+   let parsedNumber = null;
+   let targetCountryCode = 'IT'; // fallback
+   
+   try {
+     // 1. 如果自带 + 号或 00，直接解析
+     if (rawPhone.startsWith('+') || rawPhone.startsWith('00')) {
+       const phoneToParse = rawPhone.startsWith('00') ? '+' + rawPhone.substring(2) : rawPhone;
+       const parsed = parsePhoneNumber(phoneToParse);
+       if (parsed && parsed.isValid()) {
+         parsedNumber = parsed.format('E.164');
+         targetCountryCode = parsed.country || 'IT';
+       }
+     } else {
+       // 2. 遍历核心国家库，进行物理号段碰撞
+       const targetMarkets: CountryCode[] = ['IT', 'CN', 'US', 'FR', 'ES', 'DE', 'GB', 'AU'];
+       for (const country of targetMarkets) {
+         try {
+           const parsed = parsePhoneNumber(rawPhone, country);
+           if (parsed && parsed.isValid()) {
+             parsedNumber = parsed.format('E.164');
+             targetCountryCode = country;
+             break;
+           }
+         } catch (e) {
+           // Ignore parsing errors for specific countries and continue
+         }
+       }
+     }
+   } catch (e) {
+     console.warn("Phone number parsing failed", e);
+   }
+   
+   // 如果全都没匹配上，强制使用 IT 兜底清洗 (移除非数字)
+   if (!parsedNumber) {
+     const cleanNumber = rawPhone.replace(/\D/g, '');
+     parsedNumber = `+39${cleanNumber}`;
+     targetCountryCode = 'IT';
+   }
+
+   // 去除加号用于 WhatsApp 链接
+   const waNumber = parsedNumber.replace('+', '');
+   
+   // 格式化日期
+   let displayDate = selectedDate; // 默认 YYYY/MM/DD
+   try {
+      const parts = selectedDate.split('/');
+      if (parts.length === 3) {
+          displayDate = `${parts[1]}/${parts[2]}`; // MM/DD
+      }
+   } catch(e){}
+
+   const activeShopName = availableShops?.find((s: any) => s.shopId === activeShopId)?.shopName || "Our Shop";
+
+   // 动态多语言模板映射
+   const messages: Record<string, string> = {
+     'IT': `Hai un appuntamento presso ${activeShopName} il ${displayDate} alle ${selectedTime}. Per confermare l'appuntamento non è necessaria alcuna risposta, se hai bisogno di modificare o annullare l'appuntamento ti preghiamo di farcelo sapere.`,
+     'CN': `您在 ${activeShopName} 于 ${displayDate} ${selectedTime} 有一个预约。确定预约无需回复，如果您需要更改或取消预约，请告知我们。`,
+     'US': `You have an appointment at ${activeShopName} on ${displayDate} at ${selectedTime}. No reply is needed to confirm. If you need to change or cancel your appointment, please let us know.`,
+     'GB': `You have an appointment at ${activeShopName} on ${displayDate} at ${selectedTime}. No reply is needed to confirm. If you need to change or cancel your appointment, please let us know.`,
+     'FR': `Vous avez un rendez-vous chez ${activeShopName} le ${displayDate} à ${selectedTime}. Aucune réponse n'est nécessaire pour confirmer. Si vous devez modifier ou annuler votre rendez-vous, veuillez nous en informer.`,
+     'ES': `Tienes una cita en ${activeShopName} el ${displayDate} a las ${selectedTime}. No es necesario responder para confirmar. Si necesitas cambiar o cancelar tu cita, por favor háznoslo saber.`,
+     'DE': `Sie haben einen Termin bei ${activeShopName} am ${displayDate} um ${selectedTime}. Eine Bestätigung ist nicht erforderlich. Wenn Sie Ihren Termin ändern oder absagen müssen, lassen Sie es uns bitte wissen.`
+   };
+
+   // 匹配语言，默认英语
+   const text = messages[targetCountryCode] || messages['US'];
+   
+   const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
+   window.open(url, '_blank');
  };
 
  // --- 结账模式状态 (Neon Core Checkout) ---
@@ -196,6 +271,7 @@ export function DualPaneBookingModal({
  });
  // 当前正在编辑的电话索引，null 代表静默态
  const [editingPhoneIndex, setEditingPhoneIndex] = useState<number | null>(null);
+ const [activePhoneMenuIndex, setActivePhoneMenuIndex] = useState<number | null>(null);
 
  // 核心：客户ID (例如 CO 0000001, GV 0001)
  // 核心：新建会员时的分类 (GV/AD/AN/UM)，null代表散客
@@ -2268,7 +2344,7 @@ export function DualPaneBookingModal({
  {/* 电话多轨流 */}
  <div className="flex items-center gap-2">
  {phoneTracks.map((phone, index) => (
- <div key={index} className="flex items-center gap-1 group/phone">
+ <div key={index} className="flex items-center gap-1 group/phone relative">
  {editingPhoneIndex === index ? (
  <input 
  type="text" 
@@ -2285,15 +2361,74 @@ export function DualPaneBookingModal({
  autoFocus
  />
  ) : (
+ <div className="relative flex items-center">
  <span
  className={cn(
- "text-xs cursor-pointer tracking-wider",
- isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80"
+ "text-xs cursor-pointer tracking-wider relative transition-all duration-300",
+ isLight ? "text-black/40 hover:text-black/80 hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]" : "text-white/40 hover:text-white/80 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
  )}
- onClick={() => !isPhoneMasked && setEditingPhoneIndex(index)}
+ onClick={() => {
+   if (isPhoneMasked) return;
+   if (!phone) {
+     setEditingPhoneIndex(index);
+   } else {
+     setActivePhoneMenuIndex(activePhoneMenuIndex === index ? null : index);
+   }
+ }}
  >
  {displayPhone(phone) || t('txt_a5c2b3')}
  </span>
+
+ <AnimatePresence>
+ {activePhoneMenuIndex === index && (
+ <>
+ <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setActivePhoneMenuIndex(null); }} />
+ <motion.div 
+ initial={{ opacity: 0, y: 5, scale: 0.95 }}
+ animate={{ opacity: 1, y: 0, scale: 1 }}
+ exit={{ opacity: 0, y: 5, scale: 0.95 }}
+ transition={{ duration: 0.15 }}
+ className={cn(
+ "absolute top-full left-0 mt-2 p-1.5 flex flex-col gap-1 border rounded-xl z-[100] min-w-[130px] backdrop-blur-xl shadow-2xl",
+ isLight ? "bg-white/90 border-black/10" : "bg-black/90 border-white/10"
+ )}
+ >
+ <button        
+ onClick={() => {
+   setActivePhoneMenuIndex(null);
+   handleWhatsAppClick(phone);
+ }}
+ className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[11px] tracking-widest uppercase transition-colors text-left", isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/5 text-white")}
+ >
+ <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+ WhatsApp
+ </button>
+ <button 
+ onClick={() => {
+   setActivePhoneMenuIndex(null);
+   // 预留内置聊天拉起逻辑
+ }}
+ className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[11px] tracking-widest uppercase transition-colors text-left", isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/5 text-white")}
+ >
+ <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+ 内置聊天
+ </button>
+ <div className={cn("h-px w-full my-0.5", isLight ? "bg-black/10" : "bg-white/10")} />
+ <button 
+ onClick={() => {
+   setActivePhoneMenuIndex(null);
+   setEditingPhoneIndex(index);
+ }}
+ className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[11px] tracking-widest uppercase transition-colors text-left", isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/5 text-white")}
+ >
+ <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+ 编辑号码
+ </button>
+ </motion.div>
+ </>
+ )}
+ </AnimatePresence>
+ </div>
  )}
  
  {/* 动态增减按钮 (透明度极简降维) */}

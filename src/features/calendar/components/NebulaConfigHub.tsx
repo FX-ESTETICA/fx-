@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, ChevronRight, Check, Shield, CreditCard, Calendar as CalendarIcon, Smartphone, Briefcase, Eye, Link as LinkIcon, MonitorPlay, TrendingUp, Crown } from "lucide-react";
+import { X, Settings, Users, Scissors, Clock, Plus, Trash2, User, ChevronLeft, ChevronRight, Check, Shield, CreditCard, Calendar as CalendarIcon, Briefcase, Eye, Link as LinkIcon, MonitorPlay, TrendingUp, Crown } from "lucide-react";
 import { cn } from "@/utils/cn";
 import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -2148,7 +2148,7 @@ const ServicesConfig = ({
  onChange={(e) => handleDurationChange(service.id, parseInt(e.target.value, 10))}
  className={cn("bg-transparent text-[11px] outline-none cursor-pointer appearance-none text-center", isLight ? "text-black " : "text-white ")}
  >
- {Array.from({length: 16}, (_, i) => (i + 1) * 15).map(m => (
+ {[5, 10, 15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240].map(m => (
  <option key={m} value={m} className={cn(isLight ? "bg-white text-black" : "bg-black text-white")}>{m} min</option>
  ))}
  </select>
