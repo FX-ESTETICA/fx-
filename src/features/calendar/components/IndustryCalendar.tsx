@@ -617,22 +617,36 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  }, [isSidebarOpen, registerBack, unregisterBack]);
 
  // 【智能折叠协议】: 监听屏幕宽度，实现 PC 端常驻、移动端自动折叠
- useEffect(() => {
- const handleResize = () => {
- if (window.innerWidth < 1024) {
- setIsSidebarOpen(false); // 手机/小尺寸平板竖屏：让出宝贵空间
- } else {
- setIsSidebarOpen(true); // PC/大尺寸平板横屏：指挥舱全开
- }
- };
+  useEffect(() => {
+    let prevWidth = window.innerWidth;
+    
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      
+      // 【世界顶端物理结界】：如果屏幕宽度完全没变，说明是手机软键盘弹起改变了高度
+      // 此时必须绝对拦截，坚决不能执行后续的折叠/展开逻辑，防止输入框丢失！
+      if (currentWidth === prevWidth) return;
+      
+      if (currentWidth < 1024) {
+        setIsSidebarOpen(false); // 手机/小尺寸平板竖屏：让出宝贵空间
+      } else {
+        setIsSidebarOpen(true); // PC/大尺寸平板横屏：指挥舱全开
+      }
+      
+      prevWidth = currentWidth;
+    };
 
- // 初始挂载时执行一次扫描
- handleResize();
+    // 初始挂载时执行一次扫描（不调用 handleResize，直接判断）
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    } else {
+      setIsSidebarOpen(true);
+    }
 
- // 挂载监听器
- window.addEventListener('resize', handleResize);
- return () => window.removeEventListener('resize', handleResize);
- }, []);
+    // 挂载监听器
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
  // 【世界级靶向雷达】：监听 targetBookingId 信标
  // 只要信标存在，我们就不断扫描 DOM 树，一旦找到目标元素，瞬间击发物理位移并销毁信标
