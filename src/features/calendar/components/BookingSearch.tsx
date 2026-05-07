@@ -113,7 +113,18 @@ export const BookingSearch = ({
   const isLight = visualSettings?.headerTitleColorTheme === 'coreblack';
 
   return (
-    <div className="px-8 mt-4 pointer-events-auto relative z-[60]" ref={containerRef}>
+    <div 
+      className="px-8 mt-4 pointer-events-auto relative z-[60]" 
+      ref={containerRef}
+      onClick={(e) => {
+        // 【物理级结界】：阻止点击事件向上传播，防止在手机端误触侧边栏的折叠逻辑
+        e.stopPropagation();
+      }}
+      onPointerDown={(e) => {
+        // 针对触摸屏的额外阻断
+        e.stopPropagation();
+      }}
+    >
       <div className="relative group">
         <div className={cn(
           "flex items-center gap-2 px-3 py-2.5 rounded transition-all duration-300",
