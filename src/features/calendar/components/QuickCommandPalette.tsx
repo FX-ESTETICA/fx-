@@ -37,7 +37,8 @@ export function QuickCommandPalette({
 
   const currentStage = editingStage || stage;
 
-  const [selectedService, setSelectedService] = useState<any | null>(null);
+  // 将 selectedService 升级为数组，以支持连单
+  const [selectedServices, setSelectedServices] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null); // 'unassigned' or staff object
   const [selectedCustomer, setSelectedCustomer] = useState<{ name: string; phone: string; gx_id?: string } | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -130,10 +131,11 @@ export function QuickCommandPalette({
   const resetAll = () => {
     setStage('service');
     setQuery('');
-    setSelectedService(null);
+    setSelectedServices([]);
     setSelectedStaff(null);
     setSelectedCustomer(null);
     setSelectedTime(null);
+    setEditingStage(null);
     if (inputRef.current) inputRef.current.focus();
   };
 
@@ -146,7 +148,7 @@ export function QuickCommandPalette({
       else if (stage === 'confirm') { setStage('time'); setQuery(''); setSelectedTime(null); }
       else if (stage === 'time') { setStage('customer'); setQuery(''); setSelectedCustomer(null); }
       else if (stage === 'customer') { setStage('staff'); setQuery(''); setSelectedStaff(null); }
-      else if (stage === 'staff') { setStage('service'); setQuery(''); setSelectedService(null); }
+      else if (stage === 'staff') { setStage('service'); setQuery(''); setSelectedServices([]); }
       else resetAll();
       e.preventDefault();
       return;
@@ -166,28 +168,59 @@ export function QuickCommandPalette({
 
     if (e.key === 'Enter') {
       e.preventDefault();
+      
+      // 【终极盲打法则】：当按下回车时，如果下拉列表中有选项，默认直接抓取第一个（或者当前选中的那一个）
+      // 彻底消灭了手机端需要用手去点列表导致的键盘收起闪烁问题。
+      const targetItem = currentList[selectedIndex] || currentList[0];
+
       if (currentStage === 'service') {
-        const item = currentList[selectedIndex];
-        if (item) {
-          setSelectedService(item);
-          if (editingStage) setEditingStage(null);
-          else setStage('staff');
-          setQuery('');
+        // 【一键连单切片法则】
+        // 允许输入类似 "MN PN SOP"，用空格分割
+        const tokens = query.trim().split(/\s+/).filter(Boolean);
+        if (tokens.length > 1) {
+          // 多选模式：遍历每个 token，去 services 里找第一匹配项
+          const matchedServices = tokens.map(token => {
+            const q = token.toLowerCase();
+            const match = services.find(s => 
+              (s.name && s.name.toLowerCase().includes(q)) || 
+              (s.pinyin && s.pinyin.toLowerCase().includes(q))
+            );
+            return match;
+          }).filter(Boolean);
+
+          if (matchedServices.length > 0) {
+            setSelectedServices(matchedServices);
+            if (editingStage) setEditingStage(null);
+            else setStage('staff');
+            setQuery('');
+          }
+        } else {
+          // 单选模式：直接用下拉列表里的选中项
+          if (targetItem) {
+            setSelectedServices([targetItem]);
+            if (editingStage) setEditingStage(null);
+            else setStage('staff');
+            setQuery('');
+          }
         }
       } else if (currentStage === 'staff') {
-        const item = currentList[selectedIndex];
-        if (item) {
-          setSelectedStaff(item);
+        if (targetItem) {
+          setSelectedStaff(targetItem);
+          if (editingStage) setEditingStage(null);
+          else setStage('customer');
+          setQuery('');
+        } else if (query.trim() === '') {
+          // 特殊处理：如果没有输入任何内容直接回车，默认指派给“无指定” (unassigned)
+          setSelectedStaff({ id: 'unassigned', name: '无指定' });
           if (editingStage) setEditingStage(null);
           else setStage('customer');
           setQuery('');
         }
       } else if (currentStage === 'customer') {
-        const item = currentList[selectedIndex];
-        if (item) {
-          setSelectedCustomer({ name: item.name, phone: item.phone, gx_id: item.gx_id });
+        if (targetItem) {
+          setSelectedCustomer({ name: targetItem.name, phone: targetItem.phone, gx_id: targetItem.gx_id });
         } else {
-          // New customer from query
+          // 如果列表里什么都没匹配到，把当前的输入直接作为散客录入
           const isPhone = /^[0-9]+$/.test(query);
           setSelectedCustomer({ 
             name: isPhone ? "" : query, 
@@ -198,9 +231,10 @@ export function QuickCommandPalette({
         else setStage('time');
         setQuery('');
       } else if (currentStage === 'time') {
-        const item = currentList[selectedIndex] || query;
-        if (item) {
-          setSelectedTime(item);
+        // 如果输入了如 143，但没有匹配到精确时间，可以尝试自动补全，或者直接取第一个匹配到的
+        const finalTime = targetItem || query;
+        if (finalTime) {
+          setSelectedTime(finalTime as string);
           if (editingStage) setEditingStage(null);
           else setStage('confirm');
           setQuery('');
@@ -213,46 +247,50 @@ export function QuickCommandPalette({
   };
 
   const submitBooking = async () => {
-    if (!selectedService || !selectedStaff || !selectedCustomer || !selectedTime) return;
+    if (selectedServices.length === 0 || !selectedStaff || !selectedCustomer || !selectedTime) return;
 
     const baseDate = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
     const masterOrderId = `ORD-${Date.now()}`;
     const finalCustomerId = selectedCustomer.gx_id || await BookingService.getAvailableCustomerId(shopId, 'CO');
 
-    const duration = selectedService.duration || 60;
-
-    const bookingPayload = {
-      id: `BKG-${Date.now()}`,
-      masterOrderId,
-      _siblingIndex: 0,
-      resourceId: selectedStaff.id === 'unassigned' ? undefined : selectedStaff.id,
-      customerId: finalCustomerId,
-      customerName: selectedCustomer.name || selectedCustomer.phone || "散客 Walk-in",
-      customerPhone: selectedCustomer.phone,
-      serviceName: selectedService.name,
-      date: baseDate,
-      startTime: selectedTime,
-      duration: duration,
-      status: 'CONFIRMED',
-      is_staff_requested: selectedStaff.id !== 'unassigned',
-      services: [{...selectedService, assignedEmployeeId: selectedStaff.id === 'unassigned' ? null : selectedStaff.id}],
-      originalUnassigned: selectedStaff.id === 'unassigned',
-      shopId: shopId,
-      _needsTimeReflow: true,
-      _isForceInsert: false
-    };
-
-    const manualOverrides = {
-      [bookingPayload.id]: {
-        resourceId: bookingPayload.resourceId as string | null,
-        originalUnassigned: bookingPayload.originalUnassigned,
+    // 【连单裂变生成法则】
+    const bookingPayloads = selectedServices.map((service, index) => {
+      const duration = service.duration || 60;
+      
+      return {
+        id: `BKG-${Date.now()}-${index}`,
+        masterOrderId,
+        _siblingIndex: index,
+        resourceId: selectedStaff.id === 'unassigned' ? undefined : selectedStaff.id,
+        customerId: finalCustomerId,
+        customerName: selectedCustomer.name || selectedCustomer.phone || "散客 Walk-in",
+        customerPhone: selectedCustomer.phone,
+        serviceName: service.name,
+        date: baseDate,
+        startTime: selectedTime,
+        duration: duration,
+        status: 'CONFIRMED',
+        is_staff_requested: selectedStaff.id !== 'unassigned',
+        services: [{...service, assignedEmployeeId: selectedStaff.id === 'unassigned' ? null : selectedStaff.id}],
+        originalUnassigned: selectedStaff.id === 'unassigned',
+        shopId: shopId,
         _needsTimeReflow: true,
         _isForceInsert: false
-      }
-    };
+      };
+    });
+
+    const manualOverrides: Record<string, any> = {};
+    bookingPayloads.forEach(payload => {
+      manualOverrides[payload.id] = {
+        resourceId: payload.resourceId as string | null,
+        originalUnassigned: payload.originalUnassigned,
+        _needsTimeReflow: true,
+        _isForceInsert: false
+      };
+    });
 
     try {
-      await BookingService.upsertBookings([bookingPayload]);
+      await BookingService.upsertBookings(bookingPayloads);
       await BookingScheduler.reflowDayBookings(baseDate, shopId, staffs, manualOverrides);
       onBookingCreated();
       resetAll();
@@ -296,7 +334,7 @@ export function QuickCommandPalette({
                   onClick={() => {
                     setSelectedIndex(idx);
                     // trigger enter programmatically would be ideal, but direct logic is fine
-                    if (currentStage === 'service') { setSelectedService(item); if(editingStage) setEditingStage(null); else setStage('staff'); setQuery(''); }
+                    if (currentStage === 'service') { setSelectedServices([item]); if(editingStage) setEditingStage(null); else setStage('staff'); setQuery(''); }
                     else if (currentStage === 'staff') { setSelectedStaff(item); if(editingStage) setEditingStage(null); else setStage('customer'); setQuery(''); }
                     else if (currentStage === 'customer') { setSelectedCustomer({ name: item.name, phone: item.phone, gx_id: item.gx_id }); if(editingStage) setEditingStage(null); else setStage('time'); setQuery(''); }
                     else if (currentStage === 'time') { setSelectedTime(item as string); if(editingStage) setEditingStage(null); else setStage('confirm'); setQuery(''); }
@@ -312,7 +350,7 @@ export function QuickCommandPalette({
 
       <div 
         className={cn(
-          "w-[600px] h-12 flex items-center rounded-full border transition-all duration-300 relative",
+          "w-[95%] max-w-[600px] h-12 flex items-center rounded-full border transition-all duration-300 relative",
           borderColor,
           glowShadow,
           "bg-transparent backdrop-blur-sm"
@@ -321,12 +359,16 @@ export function QuickCommandPalette({
       >
         <div className="flex items-center pl-4 gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar flex-shrink-0">
           {/* Capsules */}
-          {selectedService && editingStage !== 'service' && (
+          {selectedServices.length > 0 && editingStage !== 'service' && (
             <div 
               onClick={() => { setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }}
-              className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+              className="flex items-center gap-1 cursor-pointer transition-opacity hover:opacity-70"
             >
-              {selectedService.name}
+              {selectedServices.map((srv, idx) => (
+                <div key={idx} className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}>
+                  {srv.name}
+                </div>
+              ))}
             </div>
           )}
           {selectedStaff && editingStage !== 'staff' && (
