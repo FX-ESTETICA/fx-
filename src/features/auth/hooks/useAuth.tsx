@@ -722,7 +722,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log("[Phantom Heartbeat] App resumed, silently refreshing session...");
           const { error } = await supabase.auth.getSession();
           if (error) {
-            console.warn("[Phantom Heartbeat] Silent refresh failed (likely network jitter), preserving cache.");
+            const isNetworkError = error.message?.toLowerCase().includes('fetch') || 
+                                   error.message?.toLowerCase().includes('network') || 
+                                   (error as any).status === 0 || 
+                                   (error as any).status >= 500 || 
+                                   error.name === 'AuthRetryableFetchError';
+                                   
+            if (!isNetworkError) {
+              console.warn("[Phantom Heartbeat] Invalid session confirmed, triggering physical reload to resurrect SDK...");
+              // 世界顶端法则：绝不踢人，绝不清除 UI 缓存。
+              // 直接物理重载，让 SDK 从 LocalStorage 重新读取持久化的 Refresh Token 满血复活，彻底粉碎内存僵尸态。
+              window.location.reload();
+            } else {
+              console.warn("[Phantom Heartbeat] Silent refresh failed (likely network jitter), preserving cache.");
+            }
           }
         }, 3000);
       } else {
@@ -750,8 +763,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 【核心修复：防误踢】唤醒瞬间极易发生网络抖动（FetchError）。
       // 绝对不能把网络失败导致的 null session 传给 hydrateSession（会导致物理抹除用户数据）！
       if (sessionError) {
-        console.warn("[GlobalSync] getSession failed on wakeup, aborting sync to prevent false logout.", sessionError);
-        return; // 物理拦截，保留本地缓存，等网络彻底恢复后 SWR 会接管重试
+        const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
+                               sessionError.message?.toLowerCase().includes('network') || 
+                               (sessionError as any).status === 0 || 
+                               (sessionError as any).status >= 500 || 
+                               sessionError.name === 'AuthRetryableFetchError';
+                               
+        if (!isNetworkError) {
+          console.warn("[GlobalSync] Invalid session confirmed, triggering physical reload to resurrect SDK...");
+          // 世界顶端法则：绝不踢人，绝不清除 UI 缓存。
+          // 直接物理重载，让 SDK 从 LocalStorage 重新读取持久化的 Refresh Token 满血复活，彻底粉碎内存僵尸态。
+          window.location.reload();
+          return;
+        } else {
+          console.warn("[GlobalSync] getSession failed on wakeup, aborting sync to prevent false logout.", sessionError);
+          return; // 物理拦截，保留本地缓存，等网络彻底恢复后 SWR 会接管重试
+        }
       }
       
       await hydrateSession(nextSession);
