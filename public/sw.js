@@ -14,21 +14,20 @@ if (isLocalhost) {
     event.waitUntil(
       caches.keys().then((cacheNames) => {
         return Promise.all(
-          cacheNames.map((cacheName) => {
-            return caches.delete(cacheName);
-          })
+          cacheNames.map((cacheName) => caches.delete(cacheName))
         );
       })
     );
     self.registration.unregister();
     self.clients.claim();
   });
-  self.addEventListener('fetch', (event) => {
+  self.addEventListener('fetch', () => {
     // 本地开发绝对不拦截 fetch
     return;
   });
 } else {
-  const CACHE_NAME = 'gx-core-cache-v4'; // 升级版本号以强制触发安装
+  // 升级版本号 v5，强制所有设备废弃旧的僵尸缓存并应用新规则
+  const CACHE_NAME = 'gx-core-cache-v5';
 
   // 核心的静态资源，安装时预先缓存
   const PRE_CACHED_ASSETS = [
@@ -73,7 +72,7 @@ if (isLocalhost) {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log('[GX SW] 清除过期缓存:', cacheName);
+              console.log('[GX SW] 斩杀旧版缓存:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -90,41 +89,71 @@ if (isLocalhost) {
     if (event.request.method !== 'GET') return;
     if (!url.href.startsWith(self.location.origin)) return;
 
-    // 2. 排除项：不缓存 Next.js 的图片优化和自身 API
-    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/image')) {
+    // 2. 绝对真空区：Next.js RSC, API, Data 必须物理穿透，绝对禁止碰触 caches
+    const isRSC = url.searchParams.has('_rsc') || event.request.headers.get('RSC') === '1';
+    const isNextData = url.pathname.startsWith('/_next/data/');
+    const isApi = url.pathname.startsWith('/api/');
+
+    if (isRSC || isNextData || isApi) {
+      // 物理级穿透：强行注入 no-store，撕裂套壳 WebView 的底层原生缓存黑洞
+      event.respondWith(
+        fetch(event.request, { cache: 'no-store' }).catch(() => {
+          // 兼容性兜底：如果老旧内核不支持 Request 覆写，退回普通 fetch
+          return fetch(event.request);
+        })
+      );
+      return; // 彻底阻断，不往下执行
+    }
+
+    // Next.js 自带的图片优化，直接放行
+    if (url.pathname.startsWith('/_next/image')) {
       return;
     }
 
-    // 3. Next.js RSC 请求识别
-    const isRSC = url.searchParams.has('_rsc') || event.request.headers.get('RSC') === '1';
+    // 3. 导航请求 (HTML) 倒置策略：Network First (网络优先)
+    // 彻底解决退出账号白屏、以及死锁旧 HTML 的元凶
+    const isNavigate = event.request.mode === 'navigate';
+    if (isNavigate) {
+      event.respondWith(
+        (async () => {
+          try {
+            // 永远去网络拿最新的 HTML，保证入口指针和 Cookie 状态最新
+            const networkResponse = await fetch(event.request);
+            if (networkResponse && networkResponse.status === 200) {
+              const cache = await caches.open(CACHE_NAME);
+              cache.put(event.request, networkResponse.clone());
+              return networkResponse;
+            }
+            throw new Error('Network HTML non-200');
+          } catch (err) {
+            console.warn('[GX SW] 导航断网，降级使用离线 HTML:', url.pathname);
+            const cache = await caches.open(CACHE_NAME);
+            const cachedResponse = await cache.match(event.request);
+            if (cachedResponse) return cachedResponse;
+            // 终极兜底
+            return cache.match('/');
+          }
+        })()
+      );
+      return;
+    }
 
+    // 4. 静态资产 (JS, CSS, 字体, 图片等)：Stale-While-Revalidate 保障秒开
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
         const cachedResponse = await cache.match(event.request);
 
-        // Stale-While-Revalidate 核心逻辑：
-        // 永远在后台发起真实网络请求去获取最新版，并静默更新到缓存中
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // 只缓存 HTTP 200 且未加密的基础响应
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
-        }).catch((err) => {
-          console.warn('[GX SW] 物理网络断开 (Offline)', url.pathname);
-          
-          // 终极断网兜底：如果连缓存都没有，且用户是在请求 HTML 页面，强行抛出根目录的 HTML
-          if (!cachedResponse && event.request.mode === 'navigate') {
-            return cache.match('/');
-          }
-          
-          // 如果是 JS Chunk 或 RSC 失败且无缓存，顺其自然报错，前端的 layout.tsx 嗅探器会接管
-          throw err;
+        }).catch(() => {
+          // 静态资源后台刷新失败，无视即可
         });
 
-        // 【秒开奥义】：只要缓存里有东西，瞬间扔给用户！
-        // 后台的 fetchPromise 会静默执行并更新缓存，等下次用户打开时就是新版了。
+        // 核心奥义：只要缓存里有静态文件，瞬间扔给用户，后台静默更新
         return cachedResponse || fetchPromise;
       })()
     );
