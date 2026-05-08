@@ -1056,9 +1056,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         { id: '4', name: '赵医生', role: '主治医师', avatar: '👩‍🔬', themeColor: '#f59e0b' },
       ];
     } else {
-      // 使用全局 staffs 状态，仅过滤掉离职员工。不再动态删减今天休息的员工（保留列宽）
+      // 使用全局 staffs 状态，仅过滤掉离职员工和旁观者。不再动态删减今天休息的员工（保留列宽）
       let validStaffs = staffs.filter(s => {
-        if (s.status === 'resigned') return false;
+        if (s.status === 'resigned' || s.status === 'spectator') return false;
         
         return true;
       });
