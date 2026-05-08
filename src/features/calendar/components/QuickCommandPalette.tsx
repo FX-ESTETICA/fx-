@@ -72,7 +72,8 @@ export function QuickCommandPalette({
   }, [currentStage, query, services]);
 
   const staffOptions = useMemo(() => {
-    return [{ id: 'unassigned', name: '无指定' }, ...staffs];
+    const validStaffs = staffs.filter(s => s.status !== 'resigned' && s.status !== 'spectator');
+    return [{ id: 'unassigned', name: '无指定' }, ...validStaffs];
   }, [staffs]);
 
   const filteredStaffs = useMemo(() => {
