@@ -404,10 +404,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                  
           if (!isNetworkError) {
             console.warn("[AuthProvider] Invalid Refresh Token confirmed, clearing session...");
-            await supabase.auth.signOut(); // 自动清除损坏的 token
+            // 【致命修复】：将清理逻辑提前，网络请求用 try/catch 隔离，防止 401 熔断导致死缓存
             setSession(null);
             setUser(null);
             localStorage.removeItem("gx_cached_user"); // 清除脏缓存
+            
+            try {
+              await supabase.auth.signOut(); // 自动清除损坏的 token
+            } catch (err) {
+              console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);
+            }
           } else {
             console.warn("[AuthProvider] Network error detected during getSession, preserving offline cache...");
             // 网络错误时不踢人，保持现有离线缓存。SWR 和后续重连会自动接管。
@@ -702,6 +708,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user?.id, 'gxId' in (user || {}) ? (user as any).gxId : null, refreshUserData]); // 仅当核心 ID 变化时重新订阅，打破死循环
 
+  // 【世界顶端：幽灵心跳保活引擎 (Phantom Heartbeat)】
+  // 专门对抗 PWA/移动端长时间挂起导致的 Token 自然饿死
+  useEffect(() => {
+    if (isMockMode) return;
+    if (typeof document === "undefined") return;
+    
+    let heartbeatTimer: NodeJS.Timeout;
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        heartbeatTimer = setTimeout(async () => {
+          console.log("[Phantom Heartbeat] App resumed, silently refreshing session...");
+          const { error } = await supabase.auth.getSession();
+          if (error) {
+            console.warn("[Phantom Heartbeat] Silent refresh failed (likely network jitter), preserving cache.");
+          }
+        }, 3000);
+      } else {
+        if (heartbeatTimer) clearTimeout(heartbeatTimer);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (heartbeatTimer) clearTimeout(heartbeatTimer);
+    };
+  }, []);
+
   useEffect(() => {
     if (isMockMode) return;
     if (typeof window === "undefined") return;
@@ -764,24 +800,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("gx_active_shop_id"); // 强制销毁店铺缓存
     localStorage.removeItem("gx_cached_user"); // 清理幽灵缓存
     localStorage.removeItem("gx_guest_mode"); // 清理历史遗留
+    localStorage.removeItem("gx_view_role"); // 立即物理抹除视图角色
+    
+    // 内存状态清空
+    setUser(null);
     
     if (isMockMode) {
-      setUser(null);
-      localStorage.removeItem("gx_view_role");
       window.location.href = '/login'; // 无状态重载
       return;
     }
-    const deviceId = getDeviceId();
-    if (deviceId) {
-      await supabase
-        .from('device_sessions')
-        .delete()
-        .eq('device_id', deviceId);
+
+    try {
+      const deviceId = getDeviceId();
+      if (deviceId) {
+        await supabase
+          .from('device_sessions')
+          .delete()
+          .eq('device_id', deviceId);
+      }
+      await supabase.auth.signOut();
+    } catch (err) {
+      // 物理吃掉 401 错误，绝不影响后续跳转
+      console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);
+    } finally {
+      window.location.href = '/login'; // 无状态重载
     }
-    await supabase.auth.signOut();
-    setUser(null);
-    localStorage.removeItem("gx_view_role");
-    window.location.href = '/login'; // 无状态重载
   };
 
   const value = {
