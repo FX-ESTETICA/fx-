@@ -3,11 +3,13 @@
 import React, { useMemo, useRef, UIEvent } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
-import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
-import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
-import { useTranslations } from "next-intl";
+ import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
+ import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
+ import { useTranslations } from "next-intl";
+ import { Calendar as CalendarIcon } from "lucide-react";
+ import { MiniCalendarPopover } from "../MiniCalendarPopover";
 
-export interface EliteWeekMatrixProps {
+ export interface EliteWeekMatrixProps {
  industry: IndustryType;
  dna: IndustryDNA;
  resources: MatrixResource[];
@@ -91,21 +93,55 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  }, [operatingHours, bookings, weekDates]);
 
  const timeColumnRef = useRef<HTMLDivElement>(null);
+ const headerScrollRef = useRef<HTMLDivElement>(null);
+ const triggerRef = useRef<HTMLButtonElement>(null);
+ const [isMiniCalendarOpen, setIsMiniCalendarOpen] = React.useState(false);
 
  const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
  if (timeColumnRef.current) {
  timeColumnRef.current.scrollTop = e.currentTarget.scrollTop;
+ }
+ if (headerScrollRef.current) {
+ headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
  }
  };
 
  return (
  <div className="flex flex-col h-full overflow-hidden bg-transparent">
  {/* 周视图表头 (X轴：时间维度) */}
- <div className="flex bg-transparent h-[76px] overflow-hidden shrink-0">
+ <div className="flex bg-transparent h-[76px] overflow-hidden shrink-0 pointer-events-auto">
  {/* 左侧固定：空位占位符 */}
- <div className="w-24 shrink-0 flex items-center justify-center z-10">
+ <div className="w-24 shrink-0 flex items-center justify-center z-10 border-r border-transparent relative pt-1 pointer-events-auto">
+ <div className="absolute inset-0 flex items-center justify-center">
+ <button 
+ ref={triggerRef}
+ onClick={(e) => { e.stopPropagation(); setIsMiniCalendarOpen(!isMiniCalendarOpen); }}
+ className={cn(
+ "p-2 rounded-xl transition-all duration-300 pointer-events-auto",
+ visualSettings.timelineColorTheme === 'purewhite' 
+ ? "hover:bg-white/10 text-white/50 hover:text-white" 
+ : visualSettings.timelineColorTheme === 'coreblack'
+ ? "hover:bg-black/5 text-black/40 hover:text-black"
+ : "hover:bg-white/10 text-white/50 hover:text-white"
+ )}
+ >
+ <CalendarIcon className="w-5 h-5" />
+ </button>
+ <MiniCalendarPopover
+ isOpen={isMiniCalendarOpen}
+ onClose={() => setIsMiniCalendarOpen(false)}
+ currentDate={currentDate}
+ triggerRef={triggerRef}
+ onDateSelect={(date: Date) => {
+ onDateClick?.(date);
+ setIsMiniCalendarOpen(false);
+ }}
+ isLight={visualSettings.timelineColorTheme === 'purewhite' || visualSettings.timelineColorTheme === 'coreblack'}
+ />
  </div>
- <div className="flex-1 grid grid-cols-7 h-full">
+ </div>
+ <div ref={headerScrollRef} className="flex-1 overflow-hidden">
+ <div className="grid h-full min-w-fit" style={{ gridTemplateColumns: 'repeat(7, minmax(120px, 1fr))' }}>
  {weekDates.map((date, idx) => {
  const isToday = isMounted ? date.toDateString() === new Date().toDateString() : false;
  return (
@@ -124,6 +160,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  </div>
  );
  })}
+ </div>
  </div>
  </div>
 
@@ -167,7 +204,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  {/* 核心网格 */}
  <div 
  onScroll={handleMatrixScroll}
- className="flex-1 overflow-x-hidden overflow-y-auto relative no-scrollbar"
+ className="flex-1 overflow-x-auto overflow-y-auto relative no-scrollbar"
  >
  <div className="min-w-fit flex flex-col h-full">
  {/* 矩阵主体同步修改底部留白为 pb-16 */}

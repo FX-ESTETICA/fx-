@@ -29,9 +29,10 @@ import { Settings } from "lucide-react";
 import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
 import { createPortal } from "react-dom";
 import { DualPaneBookingModal, type BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
-import { BookingScheduler } from "@/features/booking/utils/scheduler";
-  import { useSearchParams } from "next/navigation";
-  import { QuickCommandPalette } from "./QuickCommandPalette";
+ import { BookingScheduler } from "@/features/booking/utils/scheduler";
+ import { useSearchParams } from "next/navigation";
+ import { QuickCommandPalette } from "./QuickCommandPalette";
+ import { MiniCalendarPopover } from "./MiniCalendarPopover";
   import { useAuth } from "@/features/auth/hooks/useAuth";
   
   import { supabase } from "@/lib/supabase";
@@ -232,6 +233,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const [isFinanceDashboardOpen, setIsFinanceDashboardOpen] = useState(false); 
  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
  const [bookingModalKey, setBookingModalKey] = useState(0);
+ const [isMiniCalendarOpen, setIsMiniCalendarOpen] = useState(false);
+ const triggerRef = useRef<HTMLButtonElement>(null);
  const [isMounted] = useState(() => typeof window !== "undefined");
  
  // 【世界顶端 0 冲突架构】：防反补锁 (Hydration Lock)
@@ -1726,9 +1729,37 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  {/* [CONTAINER 3] 服务人员列 (Resource Column Header) / 员工筛选器 */}
  {viewMode === 'day' && dna.pivot === 'resource' && (
- <div className="flex bg-transparent h-14 overflow-hidden">
+ <div className="flex bg-transparent h-14 overflow-hidden z-40 relative">
  {/* 左侧固定：空位占位符，与下方时间轴对齐 */}
- <div className="w-[60px] md:w-20 shrink-0 flex items-center justify-center z-10 bg-transparent">
+ <div className="w-[60px] md:w-20 shrink-0 flex items-center justify-center z-10 bg-transparent border-r border-transparent relative pointer-events-auto">
+ <div className="absolute inset-0 flex items-center justify-center">
+ <button 
+ ref={triggerRef}
+ onClick={(e) => { e.stopPropagation(); setIsMiniCalendarOpen(!isMiniCalendarOpen); }}
+ className={cn(
+ "p-2 rounded-xl transition-all duration-300 pointer-events-auto",
+ visualSettings.timelineColorTheme === 'purewhite' 
+ ? "hover:bg-white/10 text-white/50 hover:text-white" 
+ : visualSettings.timelineColorTheme === 'coreblack'
+ ? "hover:bg-black/5 text-black/40 hover:text-black"
+ : "hover:bg-white/10 text-white/50 hover:text-white"
+ )}
+ >
+ <CalendarIcon className="w-5 h-5" />
+ </button>
+ <MiniCalendarPopover
+ isOpen={isMiniCalendarOpen}
+ onClose={() => setIsMiniCalendarOpen(false)}
+ currentDate={currentDate}
+ triggerRef={triggerRef}
+ onDateSelect={(date) => {
+ setCurrentDate(date);
+ setPhantomDate(date);
+ setIsMiniCalendarOpen(false);
+ }}
+ isLight={visualSettings.timelineColorTheme === 'purewhite' || visualSettings.timelineColorTheme === 'coreblack'}
+ />
+ </div>
  </div>
  
  {/* 右侧滚动：员工卡片横向滚动区 (采用 flex 完美对齐) */}

@@ -6,10 +6,10 @@ import { motion, PanInfo } from "framer-motion";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { EliteBookingBlock } from "./EliteBookingBlock";
 import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../IndustryCalendar";
-import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
+ import { useVisualSettings, CYBER_COLOR_DICTIONARY } from "@/hooks/useVisualSettings";
  
 
-import { BookingService } from "@/features/booking/api/booking";
+ import { BookingService } from "@/features/booking/api/booking";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
 import { useShop } from "@/features/shop/ShopContext";
 
