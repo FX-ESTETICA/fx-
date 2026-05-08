@@ -255,9 +255,38 @@ export function DualPaneBookingModal({
  }, [staffs, selectedDate]);
  
  const [retargetingServiceId, setRetargetingServiceId] = useState<string | null>(null);
- const [activeCategory, setActiveCategory] = useState<string | null>(() => categories[0]?.id || null);
- 
- // --- 会员信息状态 ---
+  const [activeCategory, setActiveCategory] = useState<string | null>(() => categories[0]?.id || null);
+
+  // ==========================================
+  // 世界顶端的事件黑洞：Capture-Phase Event Blackhole
+  // ==========================================
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // 记录弹窗挂载的绝对物理时间
+    const mountTime = performance.now();
+    
+    // 捕获期全局拦截器
+    const captureClickShield = (e: MouseEvent) => {
+      // 移动端合成事件的极限阈值通常在 300ms-400ms，为适配低端机型放宽至 450ms
+      const timeSinceMount = performance.now() - mountTime;
+      if (timeSinceMount < 450) {
+        // 如果是由于底层 touchup 引发的合成点击，在捕获阶段（事件还未触及任何业务组件）直接粉碎
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+
+    // 挂载高维监听器，必须指定 { capture: true } 才能在事件向下捕获时率先拿到控制权
+    document.addEventListener('click', captureClickShield, { capture: true });
+    
+    return () => {
+      // 卸载时立刻物理抹除监听器
+      document.removeEventListener('click', captureClickShield, { capture: true });
+    };
+  }, [isOpen]);
+  
+  // --- 会员信息状态 ---
  // 原 memberInfo 废弃，改为多轨电话数组
  const [phoneTracks, setPhoneTracks] = useState<string[]>(() => {
  if (editingBooking?.customerPhone) {
@@ -1255,19 +1284,7 @@ export function DualPaneBookingModal({
  "fixed inset-0 z-[100] font-sans animate-in fade-in ",
  isLight ? "text-black" : "text-white"
  )}
- style={{
- // 【幽灵点击终极防弹衣】：在弹窗刚挂载的 350ms 内，使其处于绝对物理真空状态 (pointer-events-none)
- // 等待浏览器底层 300ms 的延迟 Click 事件发射完毕并打空后，再恢复 pointer-events-auto
- animation: "ghost-click-shield 350ms forwards"
- }}
  >
- <style dangerouslySetInnerHTML={{__html: `
- @keyframes ghost-click-shield {
- 0% { pointer-events: none; }
- 99% { pointer-events: none; }
- 100% { pointer-events: auto; }
- }
- `}} />
  {/* 背景暗场遮罩 (固定在底层，不随滚动条滚动) */}
  {/* 【硬派商业系统法则】：彻底移除 onClick={handleClose} 属性，防止幽灵点击闪退及防止店长误触导致填单数据丢失 */}
  <div 
