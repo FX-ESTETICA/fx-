@@ -427,7 +427,6 @@ export function QuickCommandPalette({
               currentStage === 'customer' ? "输入客户电话/名字..." :
               "输入时间 (如 1430)..."
             }
-            autoFocus
           />
         )}
       </div>
