@@ -155,6 +155,7 @@ export const BookingScheduler = {
         // 从左到右扫描员工，看能不能在原始时间塞下
         for (const staff of staffs) {
           if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
+          if (staff.status === 'resigned' || staff.status === 'spectator') continue;
           
           // 【物理阻断法则】：检查该员工在当前日期是否处于休息/请假状态
           let isStaffOff = false;
@@ -194,6 +195,7 @@ export const BookingScheduler = {
            // 这里我们选择最贴近真实业务的做法：直接原地塞给第一个可用员工，并在界面上暴露出红色的重叠警告。
            for (const staff of staffs) {
              if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
+             if (staff.status === 'resigned' || staff.status === 'spectator') continue;
              let isStaffOff = false;
              if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
                isStaffOff = staff.scheduleExceptions.some((exc: any) => {
