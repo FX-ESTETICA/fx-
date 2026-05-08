@@ -227,13 +227,13 @@ export function DualPaneBookingModal({
  return `${nextHour.toString().padStart(2, '0')}:00`;
  });
  
- // 基于当前选择的日期过滤员工（排除离职、当日休息、请假、休假的员工）
+ // 基于当前选择的日期过滤员工（排除离职、旁观者、当日休息、请假、休假的员工）
  const activeStaffs = useMemo(() => {
- if (!selectedDate) return staffs.filter(s => s.status !== 'resigned');
+ if (!selectedDate) return staffs.filter(s => s.status !== 'resigned' && s.status !== 'spectator');
  
  const dateStr = selectedDate.replace(/\//g, '-'); // YYYY-MM-DD
  return staffs.filter(s => {
- if (s.status === 'resigned') return false;
+ if (s.status === 'resigned' || s.status === 'spectator') return false;
  
  const exceptions = (s as any).scheduleExceptions;
  if (Array.isArray(exceptions) && exceptions.length > 0) {

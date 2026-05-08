@@ -1345,7 +1345,7 @@ function NebulaSubSystem({ targetPlanet }: { targetPlanet: PlanetData }) {
  
  if (!error && data?.config?.staffs) {
  // 过滤掉已离职的员工
- const activeStaffs = data.config.staffs.filter((s: any) => s.status !== 'resigned');
+ const activeStaffs = data.config.staffs.filter((s: any) => s.status !== 'resigned' && s.status !== 'spectator');
  setStaffs(activeStaffs);
  }
  } catch (e) {

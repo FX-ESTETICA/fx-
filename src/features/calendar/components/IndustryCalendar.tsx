@@ -447,7 +447,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  if (!isShopConfigLoaded || !shopConfig) return;
  
  // 从全局 shopConfig 中提取数据
- const activeStaffs = (shopConfig.staffs as unknown as { id: string, status?: string }[] || []).filter(s => s.status !== 'resigned');
+ const activeStaffs = (shopConfig.staffs as unknown as { id: string, status?: string }[] || []).filter(s => s.status !== 'resigned' && s.status !== 'spectator');
  if (shopConfig.staffs && activeStaffs.length > 0) {
  setStaffs(shopConfig.staffs as unknown as StaffMember[]);
  setSelectedStaffIds(activeStaffs.map((s) => s.id));

@@ -1003,7 +1003,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight
  <div 
  className={cn(
  "w-10 h-10 rounded-full flex items-center justify-center relative overflow-hidden ",
- staff.status === "resigned" ? "grayscale " : ""
+ (staff.status === "resigned" || staff.status === "spectator") ? "grayscale opacity-60 " : ""
  )}
  style={{ backgroundColor: `${staff.color || '#FFFFFF'}20`, border: `1px solid ${staff.color || '#FFFFFF'}40` }}
  >
@@ -1011,8 +1011,9 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight
  </div>
  <div className="flex flex-col">
  <div className="flex items-center gap-2">
- <span className={cn("text-xs ", staff.status === "resigned" ? (isLight ? "text-black line-through" : "text-white line-through") : (isLight ? "text-black" : "text-white"))}>{staff.name}</span>
+ <span className={cn("text-xs ", (staff.status === "resigned" || staff.status === "spectator") ? (isLight ? "text-black/60" : "text-white/60") : (isLight ? "text-black" : "text-white"))}>{staff.name}</span>
  {staff.status === "resigned" && <span className={cn("px-1.5 py-0.5 rounded text-[11px] border", isLight ? "bg-black/5 text-black border-black/30" : "bg-white/5 text-white border-white/30")}>{t('txt_583e79')}</span>}
+ {staff.status === "spectator" && <span className={cn("px-1.5 py-0.5 rounded text-[11px] border", isLight ? "bg-black/5 text-black border-black/30" : "bg-white/5 text-white border-white/30")}>旁观者</span>}
  {staff.status === "active" && staff.scheduleExceptions && staff.scheduleExceptions.length > 0 && (
  <span className="px-1.5 py-0.5 rounded text-[11px] bg-blue-500/20 text-blue-500 border border-blue-500/30">动态排班</span>
  )}
@@ -1383,9 +1384,10 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  {/* Status */}
  <div className="space-y-2">
  <label className={cn("text-[11px] uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_70240b')}</label>
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-3 gap-2">
  {[
  { id: "active", label: t('txt_238a27'), color: " " },
+ { id: "spectator", label: "旁观者 (隐藏)", color: isLight ? "text-black border-black/20 bg-black/5" : "text-white border-white/20 bg-white/5" },
  { id: "resigned", label: t('txt_151a99'), color: isLight ? "text-black border-black/20 bg-black/10" : "text-white border-white/20 bg-white/10" },
  ].map(s => (
  <button
