@@ -926,6 +926,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  const handleWeekDateClick = useCallback((date: Date) => {
  setCurrentDate(date);
+ setPhantomDate(date);
  setViewMode("day");
  }, []);
 
