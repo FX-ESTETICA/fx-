@@ -40,7 +40,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
         },
         async () => {
           console.warn("💀 [Ghost Kicker] 侦测到中央档案已被销毁，前端即将强制自爆并清除缓存...");
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           window.location.href = '/login';
         }
       )

@@ -410,7 +410,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.removeItem("gx_cached_user"); // 清除脏缓存
             
             try {
-              await supabase.auth.signOut(); // 自动清除损坏的 token
+              await supabase.auth.signOut({ scope: 'local' }); // 自动清除损坏的 token
             } catch (err) {
               console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);
             }
@@ -818,7 +818,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .delete()
           .eq('device_id', deviceId);
       }
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (err) {
       // 物理吃掉 401 错误，绝不影响后续跳转
       console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);

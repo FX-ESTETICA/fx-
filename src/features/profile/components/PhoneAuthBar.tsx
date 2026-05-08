@@ -230,7 +230,7 @@ export const PhoneAuthBar = ({ initialPhone = "", className, mode = "life" }: Ph
  {/* 右侧：退出系统区 */}
  <button
  onClick={async () => {
- await supabase.auth.signOut();
+ await supabase.auth.signOut({ scope: 'local' });
  window.location.href = "/login";
  }}
  className={cn("flex items-center justify-center px-4 py-2 text-[11px] tracking-widest group", isLight ? "text-black" : "text-white")}
