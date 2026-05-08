@@ -63,84 +63,12 @@ export type MatrixBooking = {
 // 独立挂载，绝对不引起外层矩阵重绘。包含 0 冲突物理级居中算法。
 const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCoordinate: (dateStr: string, timeStr: string) => number, matrixRef?: React.RefObject<HTMLDivElement> }) => {
  const [now, setNow] = React.useState(new Date());
- const [isWarning, setIsWarning] = React.useState(false);
- const animationFrameRef = useRef<number | null>(null);
- const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
- const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
  useEffect(() => {
  // 每一分钟（60000ms）更新一次自己
  const timer = setInterval(() => setNow(new Date()), 60000);
  return () => clearInterval(timer);
  }, []);
-
- const stopAutoScroll = useCallback(() => {
- if (animationFrameRef.current) {
- cancelAnimationFrame(animationFrameRef.current);
- animationFrameRef.current = null;
- }
- setIsWarning(false);
- }, []);
-
- const resetIdleTimer = useCallback(() => {
- stopAutoScroll();
-
- if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
- if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-
- // 27秒：潜意识预警 (时间线高频呼吸，暗示即将重置视界)
- warningTimerRef.current = setTimeout(() => {
- setIsWarning(true);
- }, 27000);
-
- // 30秒：触发流体弹簧引擎
- idleTimerRef.current = setTimeout(() => {
- setIsWarning(false); // 滚动时关闭预警
-
- const currentDate = new Date();
- const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
- const timeStr = `${currentDate.getHours().toString().padStart(2, '0')}:${currentDate.getMinutes().toString().padStart(2, '0')}`;
- const y = getYCoordinate(dateStr, timeStr);
-
- const scrollContainer = matrixRef && typeof matrixRef !== 'function' ? matrixRef.current : null;
-
- if (y !== -1 && scrollContainer) {
- const containerHeight = scrollContainer.clientHeight;
- // 视界黄金分割法则：时间线锚定在屏幕上方 1/3 处，下方留给未来数据
- const targetScroll = Math.max(0, y - containerHeight / 3);
- const startScroll = scrollContainer.scrollTop;
- const distance = targetScroll - startScroll;
- 
- if (Math.abs(distance) < 10) return; // 已经在黄金视界内，不打扰
-
- // 【极速效率模式】：1.5s 物理弹簧感 -> 0s 瞬间到位
- // 直接设置 scrollTop，移除 requestAnimationFrame 缓动逻辑
- scrollContainer.scrollTop = targetScroll;
- }
- }, 30000);
- }, [getYCoordinate, matrixRef, stopAutoScroll]);
-
- useEffect(() => {
- const handleInteraction = () => resetIdleTimer();
- 
- // 全局物理静默侦测：拦截任何微小的用户意图，实现“瞬间熔断防抢夺”
- window.addEventListener('pointerdown', handleInteraction, { passive: true });
- window.addEventListener('wheel', handleInteraction, { passive: true });
- window.addEventListener('touchmove', handleInteraction, { passive: true });
- window.addEventListener('keydown', handleInteraction, { passive: true });
- 
- resetIdleTimer();
-
- return () => {
- stopAutoScroll();
- if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
- if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
- window.removeEventListener('pointerdown', handleInteraction);
- window.removeEventListener('wheel', handleInteraction);
- window.removeEventListener('touchmove', handleInteraction);
- window.removeEventListener('keydown', handleInteraction);
- };
- }, [resetIdleTimer, stopAutoScroll]);
 
  const year = now.getFullYear();
  const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -159,10 +87,7 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCo
  >
  {/* 红色流光脉冲导管 (Pulse Energy Stream) */}
  <div className={cn(
- "w-full h-[1px] ",
- isWarning 
- ? "bg-gradient-to-r from-red-400 via-white to-transparent bg-[length:100%_auto] animate-[gradient_0.5s_linear_infinite] opacity-100" 
- : "bg-gradient-to-r from-red-500 to-transparent bg-[length:200%_auto] animate-[gradient_2s_linear_infinite] "
+ "w-full h-[1px] bg-gradient-to-r from-red-500 to-transparent bg-[length:200%_auto] animate-[gradient_2s_linear_infinite]"
  )} />
  </div>
  );

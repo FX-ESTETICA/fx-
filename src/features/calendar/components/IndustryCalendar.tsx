@@ -1700,6 +1700,23 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  <ChevronRight className="w-4 h-4 md:w-4 md:h-4" />
  </button>
+ <button
+ onClick={() => {
+ const today = new Date();
+ setCurrentDate(today);
+ setPhantomDate(today);
+ if (matrixScrollRef.current) {
+ matrixScrollRef.current.scrollTop = 0;
+ }
+ }}
+ className="px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-[11px] uppercase tracking-widest ml-1 md:ml-2 border"
+ style={{ 
+ color: CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex,
+ borderColor: `${CYBER_COLOR_DICTIONARY[visualSettings.headerTitleColorTheme].hex}40`
+ }}
+ >
+ TODAY
+ </button>
 
  {/* 设置按钮与回收站 */}
  {isAdmin && (
