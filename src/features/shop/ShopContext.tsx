@@ -342,7 +342,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
             try { BookingService.unsubscribe(channelBookings); } catch(e) {}
           }
           // 强行重建
-          channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
+          channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
             handleBookingUpdate();
           }, () => {
             handleBookingUpdate();

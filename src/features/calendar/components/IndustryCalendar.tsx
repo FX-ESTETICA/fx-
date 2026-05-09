@@ -1761,9 +1761,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  onClick={(e) => { e.stopPropagation(); setIsMiniCalendarOpen(!isMiniCalendarOpen); }}
  className={cn(
  "p-2 rounded-xl transition-all duration-300 pointer-events-auto",
- resolvedTimelineTheme === 'purewhite' 
- ? "hover:bg-white/10 text-white/50 hover:text-white" 
- : resolvedTimelineTheme === 'coreblack'
+ resolvedTimelineTheme === 'coreblack'
  ? "hover:bg-black/5 text-black/40 hover:text-black"
  : "hover:bg-white/10 text-white/50 hover:text-white"
  )}
@@ -1780,7 +1778,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  setPhantomDate(date);
  setIsMiniCalendarOpen(false);
  }}
- isLight={resolvedTimelineTheme === 'purewhite' || resolvedTimelineTheme === 'coreblack'}
+ isLight={resolvedTimelineTheme === 'coreblack'}
  />
  </div>
  </div>

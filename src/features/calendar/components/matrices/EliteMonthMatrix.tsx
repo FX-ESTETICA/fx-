@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { useTranslations } from "next-intl";
-import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 export interface EliteMonthMatrixProps {
  industry: IndustryType;
@@ -20,9 +19,6 @@ export interface EliteMonthMatrixProps {
 
 export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, bookings = [], onGridClick, onDateClick }: EliteMonthMatrixProps) => {
  const t = useTranslations('EliteWeekMatrix');
- const { settings: visualSettings } = useVisualSettings();
- const isLight = visualSettings.calendarBgIndex !== 0;
- const resolvedTimelineTheme = isLight ? 'coreblack' : 'whitegold';
  
  const DAYS_OF_WEEK = [t('txt_mon'), t('txt_tue'), t('txt_wed'), t('txt_thu'), t('txt_fri'), t('txt_sat'), t('txt_sun')];
 

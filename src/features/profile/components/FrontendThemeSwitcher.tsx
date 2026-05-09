@@ -37,8 +37,6 @@ export function FrontendThemeSwitcher({ className }: Props) {
  <div 
  key={`frontend-bg-${index}`}
  onClick={() => {
- const bgPath = FRONTEND_BACKGROUNDS[index];
- const filename = bgPath.split('/').pop() || '';
  const updates: any = { frontendBgIndex: index };
  
  updateSettings(updates);

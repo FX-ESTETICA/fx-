@@ -2,7 +2,7 @@
 
 import { IndustryCalendar } from "@/features/calendar/components/IndustryCalendar";
 import { IndustryType } from "@/features/calendar/types";
-import { use, Suspense, useState, useEffect } from "react";
+import { use, Suspense, useState } from "react";
 
 export default function ImmersiveCalendarPage({ 
  params 
@@ -17,7 +17,7 @@ export default function ImmersiveCalendarPage({
  ? (industry as IndustryType) 
  : "other";
 
-  const [mode, setMode] = useState<"admin" | "immersive">(() => {
+  const [mode] = useState<"admin" | "immersive">(() => {
     if (typeof window !== 'undefined') {
       try {
         const userStr = localStorage.getItem('gx_sandbox_session') || localStorage.getItem('gx_cached_user');

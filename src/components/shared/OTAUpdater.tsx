@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { App } from '@capacitor/app';
 
 export function OTAUpdater() {
   const [isUpdating, setIsUpdating] = useState(false);

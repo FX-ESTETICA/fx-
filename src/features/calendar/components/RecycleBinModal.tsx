@@ -65,26 +65,6 @@ export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, 
  }, 0);
  };
 
- const handlePurgeAll = async () => {
- if (voidedBookings.length === 0) return;
- if (!confirm("Are you sure you want to permanently delete ALL voided bookings? This cannot be undone.")) return;
-
- const idsToPurge = voidedBookings.map(b => b.id);
- 
- // 1. 【乐观更新】瞬间清空 UI 列表
- setVoidedBookings([]);
-
- // 2. 【静默处理】放入宏任务异步执行
- setTimeout(async () => {
- try {
- await BookingService.purgeBookings(idsToPurge);
- trackAction();
- } catch (e) {
- console.error("Failed to purge all bookings in background:", e);
- }
- }, 0);
- };
-
  if (!isOpen) return null;
 
  return (
