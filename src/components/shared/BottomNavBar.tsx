@@ -15,7 +15,7 @@ export const BottomNavBar = ({ className }: { className?: string }) => {
  const { setActiveTab } = useViewStack();
  const activeTab = useActiveTab();
  const { settings } = useVisualSettings();
- const isLight = settings.frontendBgIndex !== 0;
+ const isLight = activeTab === 'calendar' ? settings.calendarBgIndex !== 0 : settings.frontendBgIndex !== 0;
 
  // 缝合聊天大枢纽入口
  const tabRoutes: { id: TabId, label: string, icon: any }[] = [

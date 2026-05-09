@@ -71,8 +71,8 @@ export const NebulaConfigHub = ({
  initialTab = "hours"
 }: NebulaConfigHubProps) => {
  const t = useTranslations('NebulaConfigHub');
- const { settings } = useVisualSettings(); // 获取全局视觉设置
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+  const { settings } = useVisualSettings(); // 获取全局视觉设置
+  const isLight = settings.calendarBgIndex !== 0;
 
  type MainTab = "staff" | "services" | "hours" | "visual";
  const [activeTab, setActiveTab] = useState<MainTab>(initialTab);
@@ -497,7 +497,7 @@ const BufferedInput = ({
  const { settings, updateSettings, isLoaded } = useVisualSettings();
  const { updateShopConfig } = useShop();
  const { bgIndex, setSpecificBackground } = useBackground();
- const isLight = settings.calendarBgIndex !== 0;
+  const isLight = settings.calendarBgIndex !== 0;
 
  if (!isLoaded) return null;
 
@@ -594,8 +594,8 @@ const BufferedInput = ({
 
 const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | OperatingHour[], onChange: (h: ShopOperatingConfig | OperatingHour[]) => void }) => {
  const idSeed = useRef(0);
- const { settings } = useVisualSettings();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+  const { settings } = useVisualSettings();
+  const isLight = settings.calendarBgIndex !== 0;
  
  // 初始化/升级为完整的新版结构，防御数据残缺
  const fullConfig: ShopOperatingConfig = Array.isArray(hours) 

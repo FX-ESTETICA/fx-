@@ -1034,12 +1034,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
  onPointerDown={(e) => { e.stopPropagation(); }}
  >
- <div className={cn("absolute inset-0 pointer-events-none", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/5" : "bg-white/5")} />
- <div className={cn("p-8 rounded-2xl border text-center relative z-10", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10")}>
- <h2 className={cn("text-2xl tracking-widest mb-2", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>
+ <div className={cn("absolute inset-0 pointer-events-none", visualSettings.calendarBgIndex !== 0 ? "bg-black/5" : "bg-white/5")} />
+ <div className={cn("p-8 rounded-2xl border text-center relative z-10", visualSettings.calendarBgIndex !== 0 ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10")}>
+ <h2 className={cn("text-2xl tracking-widest mb-2", visualSettings.calendarBgIndex !== 0 ? "text-black" : "text-white")}>
  {dayNode.dateStr === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') ? "今日关门" : "休息 CLOSED"}
  </h2>
- <p className={cn(" text-sm", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60" : "text-white/60")}>
+ <p className={cn(" text-sm", visualSettings.calendarBgIndex !== 0 ? "text-black/60" : "text-white/60")}>
  暂停营业与一切排班预约操作
  </p>
  </div>

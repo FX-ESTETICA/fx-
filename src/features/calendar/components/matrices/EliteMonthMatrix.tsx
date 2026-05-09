@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { cn } from "@/utils/cn";
 import { IndustryType, IndustryDNA, MatrixResource } from "../../types";
 import { useTranslations } from "next-intl";
+import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 export interface EliteMonthMatrixProps {
  industry: IndustryType;
