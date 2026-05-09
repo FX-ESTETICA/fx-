@@ -604,10 +604,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
 
  <div 
-   className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 -mb-2 sm:mb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+   className="flex items-center justify-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 -mb-2 sm:mb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
  >
- <div className="flex items-center gap-0.5 sm:gap-1 pointer-events-auto w-max pr-6 sm:pr-0">
+ <div className="flex items-center justify-center mx-auto gap-0.5 sm:gap-1 pointer-events-auto w-max px-4 sm:px-0">
  {(['day', 'week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
  <button
  key={range}
