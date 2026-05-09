@@ -48,8 +48,16 @@ export const BookingScheduler = {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       };
 
+      // 辅助函数：计算两个时间段的重叠分钟数
+      const calculateOverlap = (startA: number, endA: number, startB: number, endB: number) => {
+        const overlapStart = Math.max(startA, startB);
+        const overlapEnd = Math.min(endA, endB);
+        return Math.max(0, overlapEnd - overlapStart);
+      };
+
       const absoluteBookings: any[] = [];
       const floatingBookings: any[] = [];
+      const softBookings: any[] = [];
 
       // 2. 剥离并分类
       todayBookings.forEach((b) => {
@@ -86,10 +94,37 @@ export const BookingScheduler = {
           // 刚创建的散客或被明确要求重新寻位的散客
           b.resourceId = undefined;
           floatingBookings.push(b);
+        } else if (b.originalUnassigned && !b._needsTimeReflow) {
+          // 【柔性实体（老散客）】：可能需要为新指定订单让位
+          softBookings.push(b);
         } else {
-          // 【核心重构：废除顺延，确立固定法则】
-          // 只要有 resourceId，不管是老订单还是刚被指派的新订单（即使带有 _needsTimeReflow），
-          // 全部视为“实体砖”，直接钉死在它的 startTime 上，绝对不再向后顺延！
+          // 【绝对实体】：明确指定的订单，或者是被锁死的订单
+          absoluteBookings.push(b);
+        }
+      });
+
+      // 2.5 【驱逐检测】：检查柔性实体是否与绝对实体冲突
+      // 如果冲突，则剥离 resourceId，打入浮动池，并记住它原本的主人
+      softBookings.forEach((b) => {
+        const startMin = timeToMinutes(b.startTime);
+        const endMin = startMin + (b.duration || 60);
+        
+        const isConflicting = absoluteBookings.some(hard => {
+          if (hard.resourceId !== b.resourceId) return false;
+          if (hard.shopId && b.shopId && hard.shopId !== b.shopId) return false;
+          
+          const hStart = timeToMinutes(hard.startTime);
+          const hEnd = hStart + (hard.duration || 60);
+          return calculateOverlap(startMin, endMin, hStart, hEnd) > 0;
+        });
+
+        if (isConflicting) {
+          // 发生冲突，被硬塞的指定订单挤掉了！
+          b._evictedFromResourceId = b.resourceId; // 记住被驱逐前的归属
+          b.resourceId = undefined;
+          floatingBookings.push(b);
+        } else {
+          // 没有冲突，原地钉死
           absoluteBookings.push(b);
         }
       });
@@ -111,14 +146,7 @@ export const BookingScheduler = {
       // 辅助函数：时间降维归一化 (截断秒数，统一为 HH:mm)
       const normalizeTime = (t: string | undefined | null) => t ? t.substring(0, 5) : "00:00";
 
-      // 辅助函数：计算两个时间段的重叠分钟数
-       const calculateOverlap = (startA: number, endA: number, startB: number, endB: number) => {
-         const overlapStart = Math.max(startA, startB);
-         const overlapEnd = Math.min(endA, endB);
-         return Math.max(0, overlapEnd - overlapStart);
-       };
- 
-       // 辅助函数：在一个员工列上寻找空位 (仅供散客初始寻位使用)
+      // 辅助函数：在一个员工列上寻找空位 (仅供散客初始寻位使用)
        // 【核心重构：废除顺延】即使是散客寻位，我们也只找“当前时间点是否空闲”。如果被占了，我们不再向后推延（不再计算 conflictEndMin），
        // 而是直接报告“这个点被占了”，让散客去别的员工那里找。如果所有员工都没空，散客才被迫接受重叠或者等待（这里保留基础寻位以确保它能降落）
        const findSlotOnStaff = (booking: any, staffId: string, startMin: number, toleranceMins: number) => {
@@ -188,26 +216,29 @@ export const BookingScheduler = {
 
         // 如果在 originalStartMin 的时间，所有员工列都满了！
          if (!foundStaffId) {
-           // 【核心重构：废除向后顺延找空位】
-           // 既然全满了，我们不再向后几小时去寻找所谓的“最早能接单”的时间。
-           // 我们直接把这个散客强制“挤”进第一个没有休息的员工头上（容忍重叠）。
-           // 或者把它分配给默认的 UNASSIGNED_POOL 让它悬空。
-           // 这里我们选择最贴近真实业务的做法：直接原地塞给第一个可用员工，并在界面上暴露出红色的重叠警告。
-           for (const staff of staffs) {
-             if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
-             if (staff.status === 'resigned' || staff.status === 'spectator') continue;
-             let isStaffOff = false;
-             if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
-               isStaffOff = staff.scheduleExceptions.some((exc: any) => {
-                 if (exc.type === 'day_off' || exc.type === 'leave') { return exc.startDate === dateStr; }
-                 else if (exc.type === 'vacation') { return dateStr >= exc.startDate && dateStr <= (exc.endDate || exc.startDate); }
-                 return false;
-               });
-             }
-             if (!isStaffOff) {
-               foundStaffId = staff.id;
-               bestStartMin = originalStartMin; // 原地强塞
-               break;
+           // 【兜底逻辑重构】：如果它是被驱逐出来的老散客，且全场都找不到空位了，
+           // 它必须回到被驱逐前的员工身上，接受重叠！
+           if (bkg._evictedFromResourceId) {
+             foundStaffId = bkg._evictedFromResourceId;
+             bestStartMin = originalStartMin; // 原地强塞
+           } else {
+             // 其他新散客，依然强塞给第一个没有休息的员工
+             for (const staff of staffs) {
+               if (staff.id === 'NEXUS' || staff.id === 'NO') continue;
+               if (staff.status === 'resigned' || staff.status === 'spectator') continue;
+               let isStaffOff = false;
+               if (staff.scheduleExceptions && staff.scheduleExceptions.length > 0) {
+                 isStaffOff = staff.scheduleExceptions.some((exc: any) => {
+                   if (exc.type === 'day_off' || exc.type === 'leave') { return exc.startDate === dateStr; }
+                   else if (exc.type === 'vacation') { return dateStr >= exc.startDate && dateStr <= (exc.endDate || exc.startDate); }
+                   return false;
+                 });
+               }
+               if (!isStaffOff) {
+                 foundStaffId = staff.id;
+                 bestStartMin = originalStartMin; // 原地强塞
+                 break;
+               }
              }
            }
          }
@@ -325,6 +356,7 @@ export const BookingScheduler = {
         finalUpdatedBookings.forEach(b => {
           delete b._needsTimeReflow;
           delete b._isForceInsert;
+          delete b._evictedFromResourceId;
         });
         
         await BookingService.upsertBookings(finalUpdatedBookings);
