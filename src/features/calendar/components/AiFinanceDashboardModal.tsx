@@ -682,7 +682,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
                客流
              </span>
              <div className="flex items-baseline gap-2 mt-1">
-               <span className={cn("text-4xl  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
+               <span className={cn("text-[24px] sm:text-4xl tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
              </div>
              
              {/* New/Returning Ratio Bar */}
@@ -705,7 +705,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
                客单价
              </span>
              <div className="flex items-baseline gap-2 mt-1">
-               <span className={cn("text-3xl  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{currentMetrics.tactical.atv}</span>
+               <span className={cn("text-[24px] sm:text-3xl tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{currentMetrics.tactical.atv}</span>
              </div>
            </div>
  
