@@ -1703,6 +1703,8 @@ export function DualPaneBookingModal({
  ? editingBooking.relatedBookings 
  : [editingBooking];
  
+ const now = new Date();
+
  const updatedBookings = bookingsToCheckout.map(b => {
  // 【价格覆盖法则】：将前端临时 checkoutPrices 的价格物理写入数据库
  const updatedServices = Array.isArray(b.services) 
@@ -1714,11 +1716,27 @@ export function DualPaneBookingModal({
  })
  : b.services;
 
+ // 【计价器兜底拦截法则】：如果订单已经开始（有 actual_start_time）但尚未结束，
+ // 结账动作必须强制触发“物理结束”，重新计算时长并定格，防止幽灵生长。
+ const bData = b.data as any || {};
+ let finalDuration = b.duration || 1;
+ let finalData = { ...bData };
+
+ if (bData.actual_start_time && !bData.actual_end_time && b.startTime) {
+   const [sh, sm] = b.startTime.split(':').map(Number);
+   const startMins = sh * 60 + sm;
+   const currentMins = now.getHours() * 60 + now.getMinutes();
+   finalDuration = Math.max(1, currentMins - startMins);
+   finalData.actual_end_time = now.toISOString(); // 注入结束时间印记
+ }
+
  return {
  ...b,
+ duration: finalDuration,
  services: updatedServices,
  status: 'COMPLETED', // 核心：状态必须大写 COMPLETED 以触发底层矩阵透明化
  paymentMethod: selectedPaymentMethod || '现金', // 物理打通：写入支付印记
+ data: finalData,
  // 注意：我们不能随意修改 b.date 和 b.startTime，因为那是其他子订单的时间。
  // 所以只更新 status。
  date: b.date || selectedDate.replace(/\//g, '-'), // 必须提供默认值以满足类型
