@@ -1119,6 +1119,11 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
      if (elapsedMins > dynamicDuration) {
        dynamicDuration = elapsedMins;
      }
+   } else if (dataAny?.actual_end_time && dataAny?.actual_start_time) {
+     // 【结账定格法则】：如果存在真实的结束时间印记，计算出极其精确的真实时长覆盖渲染
+     const startD = new Date(dataAny.actual_start_time).getTime();
+     const endD = new Date(dataAny.actual_end_time).getTime();
+     dynamicDuration = Math.max(1, Math.floor((endD - startD) / 60000));
    }
 
    return {
