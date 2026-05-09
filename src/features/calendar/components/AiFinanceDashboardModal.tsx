@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, TrendingUp, TrendingDown, Minus, Crown, Target, Users, UserPlus, Wallet, ShoppingBag, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Minus, Crown, Target, Users, UserPlus, Wallet, ShoppingBag, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
 import { StaffItem } from "@/features/calendar/components/NebulaConfigHub";
