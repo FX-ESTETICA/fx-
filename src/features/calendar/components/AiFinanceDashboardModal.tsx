@@ -658,13 +658,16 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
              <Crown className="w-3.5 h-3.5" />
              总营业额
            </span>
-           <span className={cn("text-[36px] sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
-             €{currentMetrics.total.toLocaleString()}
-           </span>
-           <div className="mt-4 flex items-center gap-2">
-             <div className={cn("inline-flex items-center gap-1 text-sm  px-3 py-1.5 rounded border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
-               {isPositive ? <TrendingUp className="w-4 h-4" /> : isNegative ? <TrendingDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
-               <span>{isPositive ? '+' : ''}{trend.toFixed(1)}%</span>
+           
+           <div className="flex flex-col items-start w-max">
+             <span className={cn("text-[36px] sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
+               €{currentMetrics.total.toLocaleString()}
+             </span>
+             <div className="mt-3 w-full flex justify-end">
+               <div className={cn("inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
+                 {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                 <span className="font-medium tracking-wide">{isPositive ? '+' : ''}{trend.toFixed(1)}%</span>
+               </div>
              </div>
            </div>
          </div>
