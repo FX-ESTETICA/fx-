@@ -12,41 +12,81 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 
 // --- 顶级可视化图表组件 (Bento Box Graphical Assets) ---
 
-const SmoothAreaChart = ({ data, color, className }: { data: number[], color: string, className?: string }) => {
-  // 如果全是 0，给个极小值维持线形
-  const safeData = data.every(d => d === 0) ? data.map(() => 1) : data;
-  const max = Math.max(...safeData);
-  const min = Math.min(...safeData);
-  const range = max - min || 1;
+const MicroBarChart = ({ data, isLight, timeRange, selectedDate }: { data: number[], isLight: boolean, timeRange: string, selectedDate: Date | null }) => {
+  const max = Math.max(...data, 0); // Find max
+  const rangeMax = max === 0 ? 1 : max;
+  const now = selectedDate || new Date();
   
-  const points = safeData.map((d, i) => ({
-    x: (i / (safeData.length - 1)) * 100,
-    y: 100 - ((d - min) / range) * 80 - 10 // 预留上下 10% 边距
-  }));
-
-  if (points.length === 0) return null;
-
-  let d = `M ${points[0].x},${points[0].y}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
-    const cx = (curr.x + next.x) / 2;
-    d += ` C ${cx},${curr.y} ${cx},${next.y} ${next.x},${next.y}`;
-  }
-  
-  const areaPath = `${d} L 100,100 L 0,100 Z`;
-
   return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={cn("w-full h-full", className)}>
-      <defs>
-        <linearGradient id={`gradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-          <stop offset="100%" stopColor={color} stopOpacity={0.0} />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill={`url(#gradient-${color.replace('#', '')})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
-    </svg>
+    <div className="w-full h-full flex flex-col justify-end">
+      {/* Bars Container */}
+      <div className="flex-1 flex items-end justify-between gap-[2px] sm:gap-1 pt-8">
+        {data.map((val, idx) => {
+          // Determine if this bar represents the "current" time unit
+           let isCurrent = false;
+           if (timeRange === 'day') {
+             const currentDate = now.getDate();
+             isCurrent = (idx + 1) === currentDate;
+           } else if (timeRange === 'week') {
+             const currentDay = now.getDay() === 0 ? 6 : now.getDay() - 1; // 0 is Monday
+             isCurrent = idx === currentDay;
+           } else if (timeRange === 'month') {
+             const currentDate = now.getDate();
+             isCurrent = (idx + 1) === currentDate;
+           } else if (timeRange === 'quarter') {
+             const currentQuarter = Math.floor(now.getMonth() / 3);
+             isCurrent = idx === currentQuarter;
+           } else if (timeRange === 'year') {
+             const currentMonth = now.getMonth();
+             isCurrent = idx === currentMonth;
+           }
+
+          const heightPercent = Math.max((val / rangeMax) * 100, 2); // 2% minimum height for empty days
+          return (
+            <div key={idx} className="relative flex-1 flex flex-col justify-end items-center group h-full">
+              <div 
+                className={cn(
+                  "w-full rounded-t-[2px]",
+                  isCurrent 
+                    ? "bg-[#06B6D4] shadow-[0_0_8px_rgba(6,182,212,0.5)]" // Cyan Highlighting for current
+                    : (isLight ? "bg-black/10 group-hover:bg-black/20" : "bg-white/10 group-hover:bg-white/20")
+                )}
+                style={{ height: `${heightPercent}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* X-Axis Labels */}
+      <div className="flex items-center justify-between mt-2">
+        {data.map((_, idx) => {
+          let label = "";
+          if (timeRange === 'day') {
+            if ((idx + 1) % 2 === 0) label = `${idx + 1}`;
+          } else if (timeRange === 'week') {
+            label = `${idx + 1}`;
+          } else if (timeRange === 'month') {
+            if ((idx + 1) % 2 === 0) label = `${idx + 1}`;
+          } else if (timeRange === 'quarter') {
+            label = ['Q1 (1-3)', 'Q2 (4-6)', 'Q3 (7-9)', 'Q4 (10-12)'][idx];
+          } else if (timeRange === 'year') {
+            label = `${idx + 1}`;
+          }
+
+          return (
+            <div key={idx} className="flex-1 flex justify-center">
+              <span className={cn(
+                "text-[9px] sm:text-[10px] font-medium tracking-tighter whitespace-nowrap",
+                isLight ? "text-black/30" : "text-white/30"
+              )}>
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
@@ -81,7 +121,8 @@ const DonutChart = ({ data, className }: { data: { value: number, color: string,
                 strokeWidth="12"
                 strokeDasharray={`${dash} ${gap}`}
                 strokeDashoffset={offset}
-                className="transition-all duration-1000 ease-out"
+                // Removed transition-all here to enable Instant Snap for the Donut Chart as well
+                className=""
               />
             );
           })
@@ -189,6 +230,9 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
     prevStart.setDate(now.getDate() - 1);
     prevEnd.setDate(now.getDate() - 1);
     prevEnd.setHours(23, 59, 59, 999);
+    
+    // 为了让'今日'的图表能显示整月数据，我们需要临时将图表查询范围扩大到整月
+    // 注意：这里的 currentBookings 仍会只计算今天，所以我们要单独提取出一个 timelineBookings 逻辑，或者直接扩大 currStart 并依靠 status/date 分别计算总额和 timeline
   } else if (timeRange === 'week') {
  const day = now.getDay();
  const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -223,6 +267,21 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
 
  const currentBookings: BookingEdit[] = [];
  const prevBookings: BookingEdit[] = [];
+ const timelineBookings: BookingEdit[] = [];
+
+ // 计算用于绘制时间轴的实际时间范围
+ let timelineStart = new Date(currStart);
+ let timelineEnd = new Date(currEnd);
+
+ if (timeRange === 'day') {
+    // 如果是今日，时间轴需要整月的数据
+    timelineStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    timelineEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  } else if (timeRange === 'quarter') {
+    // 如果是季度，时间轴需要整年的数据
+    timelineStart = new Date(now.getFullYear(), 0, 1);
+    timelineEnd = new Date(now.getFullYear(), 11, 31);
+  }
 
  filteredBookings.forEach(b => {
  if (!b.date) return;
@@ -236,6 +295,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  currentBookings.push(b);
  } else if (bDate >= prevStart && bDate <= prevEnd) {
  prevBookings.push(b);
+ }
+ 
+ if (bDate >= timelineStart && bDate <= timelineEnd) {
+   timelineBookings.push(b);
  }
  });
 
@@ -269,39 +332,51 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  // 2. 深入每个已结账订单，拆解其服务项目，分配业绩给对应的技师
  
  // --- 新增：真实时间轴趋势数据 (Timeline Data for Sparkline) ---
- const timelinePoints = timeRange === 'day' ? 12 : timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 12;
- const timelineData = Array(timelinePoints).fill(0);
+   const timelinePoints = timeRange === 'day' ? 30 : timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : timeRange === 'quarter' ? 4 : 12;
+   const timelineData = Array(timelinePoints).fill(0);
+   
+   timelineBookings.forEach(booking => {
+     let pointIndex = 0;
+     const bDate = new Date(booking.date!.replace(/-/g, '/'));
+     if (timeRange === 'day') {
+       // 今日：显示整个月的数据
+       pointIndex = Math.max(0, Math.min(29, bDate.getDate() - 1));
+     } else if (timeRange === 'week') {
+       pointIndex = bDate.getDay() === 0 ? 6 : bDate.getDay() - 1; // 0-6 (Mon-Sun)
+     } else if (timeRange === 'month') {
+       pointIndex = Math.max(0, Math.min(29, bDate.getDate() - 1));
+     } else if (timeRange === 'quarter') {
+       // 季度：显示 4 个季度的完整数据
+       pointIndex = Math.floor(bDate.getMonth() / 3);
+     } else {
+       pointIndex = Math.max(0, Math.min(11, bDate.getMonth()));
+     }
 
- currentBookings.forEach(booking => {
- // 解析支付方式，默认为现金
- const method = (booking.paymentMethod as string) || '现金';
- 
- // --- 时间轴分配逻辑 ---
- let pointIndex = 0;
- const bDate = new Date(booking.date!.replace(/-/g, '/'));
- if (timeRange === 'day') {
- const hour = booking.startTime ? parseInt(booking.startTime.split(':')[0]) : 12;
- pointIndex = Math.max(0, Math.min(11, hour - 9)); // 9:00 - 20:00 (12 slots)
- } else if (timeRange === 'week') {
- pointIndex = bDate.getDay() === 0 ? 6 : bDate.getDay() - 1; // 0-6 (Mon-Sun)
- } else if (timeRange === 'month') {
- pointIndex = Math.max(0, Math.min(29, bDate.getDate() - 1));
- } else {
- pointIndex = Math.max(0, Math.min(11, bDate.getMonth()));
- }
+    if (booking.services && Array.isArray(booking.services)) {
+      booking.services.forEach((service: any) => {
+        const servicePrice = (Array.isArray(service.prices) && service.prices.length > 0) ? Number(service.prices[0]) : 0;
+        timelineData[pointIndex] += servicePrice;
+      });
+    }
+  });
 
- if (booking.services && Array.isArray(booking.services)) {
- booking.services.forEach((service: any) => {
- const servicePrice = (Array.isArray(service.prices) && service.prices.length > 0) ? Number(service.prices[0]) : 0;
- totalRevenue += servicePrice;
- timelineData[pointIndex] += servicePrice; // 累加到时间轴
- 
- // 精准渠道分流 (与 DualPaneBookingModal 的 PAYMENT_METHODS 对齐)
- if (method === '微信') wechatRevenue += servicePrice;
- else if (method === '支付宝') alipayRevenue += servicePrice;
- else if (method === '现金') cashRevenue += servicePrice;
- else if (method === '银行卡') bankCardRevenue += servicePrice;
- else if (method === '会员卡扣款') memberCardRevenue += servicePrice;
+  currentBookings.forEach(booking => {
+  // 解析支付方式，默认为现金
+  // 注意：需要容错处理 paymentMethod 可能不存在或为空的情况
+  const method = (booking.paymentMethod as string) || '现金';
+  
+  if (booking.services && Array.isArray(booking.services)) {
+  booking.services.forEach((service: any) => {
+  const servicePrice = (Array.isArray(service.prices) && service.prices.length > 0) ? Number(service.prices[0]) : 0;
+  totalRevenue += servicePrice;
+  
+  // 精准渠道分流 (与 DualPaneBookingModal 的 PAYMENT_METHODS 对齐)
+  // 添加了对小写或拼写变体的容错
+ if (method.includes('微信') || method.toLowerCase().includes('wechat')) wechatRevenue += servicePrice;
+ else if (method.includes('支付宝') || method.toLowerCase().includes('alipay')) alipayRevenue += servicePrice;
+ else if (method.includes('现金') || method.toLowerCase().includes('cash')) cashRevenue += servicePrice;
+ else if (method.includes('银行卡') || method.toLowerCase().includes('card')) bankCardRevenue += servicePrice;
+ else if (method.includes('会员卡') || method.toLowerCase().includes('member')) memberCardRevenue += servicePrice;
  else cashRevenue += servicePrice; // 兜底算现金
  
  // 查找业绩归属技师：优先看服务项有没有指定，没有就看整个订单挂在谁身上
@@ -503,10 +578,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  <button 
    onClick={() => setIsCalendarOpen(!isCalendarOpen)}
    className={cn(
-     "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md transition-all duration-300 border",
+     "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto transition-all duration-300 border",
      isLight 
-       ? (isCalendarOpen ? "bg-purple-500/10 text-purple-700 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "bg-purple-500/5 border-purple-500/10 text-purple-600 hover:bg-purple-500/10")
-       : (isCalendarOpen ? "bg-purple-500/20 text-purple-300 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]" : "bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20")
+       ? (isCalendarOpen ? "bg-transparent text-[#06B6D4] border-[#06B6D4]/50 shadow-[0_0_10px_rgba(6,182,212,0.1)]" : "bg-transparent border-[#06B6D4]/20 text-[#06B6D4]/80 hover:border-[#06B6D4]/40")
+       : (isCalendarOpen ? "bg-transparent text-[#06B6D4] border-[#06B6D4]/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]" : "bg-transparent border-[#06B6D4]/20 text-[#06B6D4]/80 hover:border-[#06B6D4]/40")
    )}
  >
    <CalendarIcon className="w-4 h-4" />
@@ -576,7 +651,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
                {revenue > 0 && (
                  <span className={cn(
                    "text-[9px] font-bold mt-0.5 tracking-tighter leading-none opacity-80",
-                   isSelected ? (isLight ? "text-white/90" : "text-black/90") : (isLight ? "text-purple-600" : "text-purple-400")
+                   isSelected ? (isLight ? "text-white/90" : "text-black/90") : (isLight ? "text-[#06B6D4]" : "text-[#06B6D4]")
                  )}>
                    €{revenue >= 1000 ? (revenue/1000).toFixed(1) + 'k' : revenue}
                  </span>
@@ -618,7 +693,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  className={cn(
  "px-3.5 sm:px-4 py-1.5 rounded-full text-[13px] uppercase tracking-widest whitespace-nowrap transition-all duration-300",
  timeRange === range 
- ? (isLight ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)] backdrop-blur-md" : "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)] backdrop-blur-md")
+ ? (isLight ? "bg-transparent text-[#06B6D4] border border-[#06B6D4]/50 shadow-[0_0_10px_rgba(6,182,212,0.1)]" : "bg-transparent text-[#06B6D4] border border-[#06B6D4]/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]")
  : (isLight ? "text-black/60 hover:text-black hover:bg-black/5 border border-transparent" : "text-white/60 hover:text-white hover:bg-white/5 border border-transparent")
  )}
  >
@@ -650,10 +725,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        )}>
 
       {/* Super Block: Gross Revenue + Traffic */}
-       <div className="flex flex-row relative z-10 mb-10 items-stretch justify-between">
+       <div className="flex flex-row relative z-10 mb-10 items-start justify-between">
          
          {/* Left: Giant Money */}
-         <div className="flex-1 flex flex-col justify-center">
+         <div className="flex-1 flex flex-col justify-start pt-1">
            <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2 mb-2", isLight ? "text-black/50" : "text-white/50")}>
              <Crown className="w-3.5 h-3.5" />
              总营业额
@@ -663,8 +738,8 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
              <span className={cn("text-[36px] sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
                €{currentMetrics.total.toLocaleString()}
              </span>
-             <div className="mt-3 w-full flex justify-end">
-               <div className={cn("inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
+             <div className="mt-3 w-full flex justify-start">
+               <div className={cn("inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-black/50 bg-black/5 border-black/10 dark:text-white/50 dark:bg-white/5 dark:border-white/10" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
                  {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
                  <span className="font-medium tracking-wide">{isPositive ? '+' : ''}{trend.toFixed(1)}%</span>
                </div>
@@ -673,36 +748,24 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          </div>
  
          {/* Divider Vertical */}
-         <div className={cn("w-[1px] mx-4 sm:mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
+         <div className={cn("w-[1px] mx-4 sm:mx-8 h-32", isLight ? "bg-black/10" : "bg-white/10")} />
  
          {/* Right: People & ATV (Stacked vertically) */}
-         <div className="w-auto sm:w-56 flex flex-col justify-between shrink-0">
+         <div className="w-auto sm:w-56 flex flex-col justify-start shrink-0">
            
            {/* Top: Traffic */}
-           <div className="flex flex-col gap-1">
-             <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-gx-cyan/70" : "text-gx-cyan/70")}>
-               <Users className="w-3.5 h-3.5" />
-               客流
-             </span>
-             <div className="flex items-baseline gap-2 mt-1">
-               <span className={cn("text-[24px] sm:text-4xl tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
-             </div>
-             
-             {/* New/Returning Ratio Bar */}
-             <div className="flex flex-col gap-1 mt-2 w-[140px] sm:w-full">
-               <div className="flex justify-between text-[11px] sm:text-[13px] uppercase tracking-widest gap-2">
-                 <span className="text-blue-400 whitespace-nowrap">新客 {currentMetrics.tactical.newRatio}%</span>
-                 <span className="text-purple-400 whitespace-nowrap">老客 {currentMetrics.tactical.returningRatio}%</span>
-               </div>
-               <div className={cn("w-full h-1 rounded-full overflow-hidden flex", isLight ? "bg-black/5" : "bg-white/5")}>
-                 <div className="h-full bg-blue-400" style={{ width: `${currentMetrics.tactical.newRatio}%` }} />
-                 <div className="h-full bg-purple-400" style={{ width: `${currentMetrics.tactical.returningRatio}%` }} />
-               </div>
-             </div>
-           </div>
+            <div className="flex flex-col gap-1">
+              <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
+                <Users className="w-3.5 h-3.5" />
+                客流
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className={cn("text-[24px] sm:text-4xl tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
+              </div>
+            </div>
  
            {/* Bottom: ATV */}
-           <div className="flex flex-col gap-1 mt-5">
+           <div className="flex flex-col gap-1 mt-6">
              <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
                <Target className="w-3.5 h-3.5" />
                客单价
@@ -715,9 +778,9 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          </div>
        </div>
 
-      {/* Smooth Area Chart */}
-      <div className="absolute bottom-0 left-0 w-full h-[45%] z-0 mix-blend-screen pointer-events-none">
-        <SmoothAreaChart data={currentMetrics.timeline} color={isLight ? "#A855F7" : "#A855F7"} className="opacity-60" />
+      {/* Micro Bar Chart */}
+      <div className="absolute bottom-0 left-0 w-full h-[40%] z-0 pointer-events-none px-5 sm:px-8 pb-3">
+        <MicroBarChart data={currentMetrics.timeline} isLight={isLight} timeRange={timeRange} selectedDate={selectedDate} />
       </div>
     </div>
 
