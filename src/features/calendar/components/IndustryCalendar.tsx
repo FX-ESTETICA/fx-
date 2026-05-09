@@ -871,18 +871,15 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const horizontalScrollRafRef = useRef<number | null>(null);
  
  const handleMatrixHorizontalScroll = useCallback((scrollLeft: number) => {
-    // 【物理层同步法则】：表头的横向滚动必须绝对实时，跳出 RAF 节流，实现 0 帧延迟咬合
-    if (headerScrollRef.current) {
-      headerScrollRef.current.scrollLeft = scrollLeft;
-    }
-
-    if (horizontalScrollRafRef.current) return;
-    
-    horizontalScrollRafRef.current = requestAnimationFrame(() => {
-      // 可以在这里处理其他需要节流的状态更新
-      horizontalScrollRafRef.current = null;
-    });
-  }, []);
+ if (horizontalScrollRafRef.current) return;
+ 
+ horizontalScrollRafRef.current = requestAnimationFrame(() => {
+ if (headerScrollRef.current) {
+ headerScrollRef.current.scrollLeft = scrollLeft;
+ }
+ horizontalScrollRafRef.current = null;
+ });
+ }, []);
 
  // 如果预约弹窗或财务舱打开，我们需要隐藏日历主体，仅保留星空背景
  const isMainContentVisible = !isBookingModalOpen && !isFinanceDashboardOpen && !isConfigOpen;

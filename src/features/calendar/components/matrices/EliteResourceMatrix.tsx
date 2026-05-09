@@ -629,31 +629,31 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  const scrollRafRef = useRef<number | null>(null);
 
  const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    
-    // 【物理层同步法则】：时间轴的滚动必须绝对实时，跳出 RAF 节流，实现 0 帧延迟咬合
-    if (timeColumnRef.current) {
-      timeColumnRef.current.scrollTop = scrollTop;
-    }
-    
-    // 使用 requestAnimationFrame 进行状态节流，防止疯狂触发 DOM 更新导致卡顿
-    if (scrollRafRef.current) return;
+ const scrollTop = e.currentTarget.scrollTop;
+ 
+ // 使用 requestAnimationFrame 进行节流，防止疯狂触发 DOM 更新导致卡顿
+ if (scrollRafRef.current) return;
 
-    scrollRafRef.current = requestAnimationFrame(() => {
-      // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
-      if (onPhantomDateChange && waterfallData.nodes.length > 0) {
-        // 找到当前滚动视口顶部所属的日期节点
-        let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
-        if (!activeNode) activeNode = waterfallData.nodes[0];
-        
-        if (activeNode.dateStr !== currentPhantomDateRef.current) {
-          currentPhantomDateRef.current = activeNode.dateStr;
-          onPhantomDateChange(activeNode.dateStr);
-        }
-      }
-      scrollRafRef.current = null;
-    });
-  };
+ scrollRafRef.current = requestAnimationFrame(() => {
+ // 垂直同步时间轴
+ if (timeColumnRef.current) {
+ timeColumnRef.current.scrollTop = scrollTop;
+ }
+ 
+ // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
+ if (onPhantomDateChange && waterfallData.nodes.length > 0) {
+ // 找到当前滚动视口顶部所属的日期节点
+ let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
+ if (!activeNode) activeNode = waterfallData.nodes[0];
+ 
+ if (activeNode.dateStr !== currentPhantomDateRef.current) {
+ currentPhantomDateRef.current = activeNode.dateStr;
+ onPhantomDateChange(activeNode.dateStr);
+ }
+ }
+ scrollRafRef.current = null;
+ });
+ };
 
  // 矩阵区的手势接管：滑动切换日期
  const handleMatrixPanEnd = (_e: unknown, info: PanInfo) => {
@@ -846,13 +846,18 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
  return (
  <div className="flex h-full overflow-hidden bg-transparent relative">
- {/* 纵向时间轴固定列 (带流动发光) */}
- <div className="w-[60px] md:w-20 flex flex-col relative shrink-0">
- <div 
- ref={timeColumnRef}
- className="flex-1 overflow-hidden relative pointer-events-none"
+ {/* 横向专家音轨矩阵 */}
+ <motion.div 
+ ref={actualMatrixRef as React.RefObject<HTMLDivElement>}
+ onScroll={handleMatrixScroll}
+ onPanEnd={handleMatrixPanEnd}
+ className="flex-1 overflow-x-auto overflow-y-auto relative no-scrollbar touch-pan-y"
  >
- <div className="relative w-full" style={{ height: waterfallData.totalHeight }}>
+ <div className="min-w-fit flex h-full w-full">
+ 
+ {/* 纵向时间轴固定列 (带流动发光) - 物理级 Sticky 吸附 */}
+ <div ref={timeColumnRef} className="w-[60px] md:w-20 shrink-0 relative pointer-events-none sticky left-0 z-50">
+ <div className="relative w-full h-full">
  {waterfallData.nodes.map((node, idx) => {
  // 【跨天日期标签降维】：如果是第一格，不再显示文字，因为我们要把它挂在贯穿横线上
  // 如果是当天的第一个节点（idx === 0），因为取消了缓冲提前量，所以应该直接显示真实营业时间的文字，而不是强行隐藏它。
@@ -928,19 +933,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  )}
  </div>
  </div>
- </div>
 
- {/* 横向专家音轨矩阵 */}
- <motion.div 
- ref={actualMatrixRef as React.RefObject<HTMLDivElement>}
- onScroll={handleMatrixScroll}
- onPanEnd={handleMatrixPanEnd}
- className="flex-1 overflow-x-hidden overflow-y-auto relative no-scrollbar touch-pan-y"
- >
- <div className="min-w-fit flex flex-col h-full w-full">
  <div 
  ref={matrixContainerRef}
- className={cn("relative w-full cursor-crosshair select-none", crosshair.active ? "touch-none" : "")}
+ className={cn("flex-1 relative cursor-crosshair select-none", crosshair.active ? "touch-none" : "")}
  style={{ height: waterfallData.totalHeight, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
  onContextMenu={(e) => e.preventDefault()}
  onPointerDown={handlePointerDown}
