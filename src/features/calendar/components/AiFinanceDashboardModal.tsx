@@ -650,7 +650,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        )}>
 
       {/* Super Block: Gross Revenue + Traffic */}
-       <div className="flex flex-col sm:flex-row relative z-10 mb-10 items-stretch gap-6 sm:gap-0">
+       <div className="flex flex-row relative z-10 mb-10 items-stretch justify-between">
          
          {/* Left: Giant Money */}
          <div className="flex-1 flex flex-col justify-center">
@@ -672,11 +672,11 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            </div>
          </div>
  
-         {/* Divider Vertical (Hidden on Mobile) */}
-         <div className={cn("hidden sm:block w-[1px] mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
+         {/* Divider Vertical */}
+         <div className={cn("w-[1px] mx-4 sm:mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
  
          {/* Right: People & ATV (Stacked vertically) */}
-         <div className="w-full sm:w-56 flex flex-col justify-between gap-6 sm:gap-0">
+         <div className="w-auto sm:w-56 flex flex-col justify-between shrink-0">
            
            {/* Top: Traffic */}
            <div className="flex flex-col gap-1">
@@ -689,10 +689,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
              </div>
              
              {/* New/Returning Ratio Bar */}
-             <div className="flex flex-col gap-1 mt-2">
-               <div className="flex justify-between text-[13px]  uppercase tracking-widest">
-                 <span className="text-blue-400">新客 {currentMetrics.tactical.newRatio}%</span>
-                 <span className="text-purple-400">老客 {currentMetrics.tactical.returningRatio}%</span>
+             <div className="flex flex-col gap-1 mt-2 w-[140px] sm:w-full">
+               <div className="flex justify-between text-[11px] sm:text-[13px] uppercase tracking-widest gap-2">
+                 <span className="text-blue-400 whitespace-nowrap">新客 {currentMetrics.tactical.newRatio}%</span>
+                 <span className="text-purple-400 whitespace-nowrap">老客 {currentMetrics.tactical.returningRatio}%</span>
                </div>
                <div className={cn("w-full h-1 rounded-full overflow-hidden flex", isLight ? "bg-black/5" : "bg-white/5")}>
                  <div className="h-full bg-blue-400" style={{ width: `${currentMetrics.tactical.newRatio}%` }} />
