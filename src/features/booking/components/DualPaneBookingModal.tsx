@@ -974,6 +974,49 @@ export function DualPaneBookingModal({
  };
  
  
+ // === 物理业务动作：结束服务 ===
+ const handleEndService = async () => {
+   if (!editingBooking) return;
+   try {
+     const now = new Date();
+     const bookingsToEnd = editingBooking.isSuperBooking && editingBooking.relatedBookings 
+       ? editingBooking.relatedBookings 
+       : [editingBooking];
+
+     const updatedBookings = bookingsToEnd.map(b => {
+       // 重新计算实际服务时长：从 startTime 到 NOW
+       let newDuration = b.duration || 1;
+       if (b.startTime) {
+         const [sh, sm] = b.startTime.split(':').map(Number);
+         const startMins = sh * 60 + sm;
+         const currentMins = now.getHours() * 60 + now.getMinutes();
+         newDuration = Math.max(1, currentMins - startMins);
+       }
+
+       return {
+         ...b,
+         duration: newDuration,
+         status: 'CONFIRMED', // 尚未结账，保持 CONFIRMED
+         data: {
+           ...(b.data as any || {}),
+           actual_end_time: now.toISOString()
+         },
+         date: b.date || selectedDate.replace(/\//g, '-'),
+         startTime: b.startTime || "00:00",
+         resourceId: b.resourceId === null ? undefined : b.resourceId,
+       };
+     });
+
+     await BookingService.upsertBookings(updatedBookings);
+     refreshBookings();
+     trackAction();
+     handleClose(); // 极致降维：点击结束后瞬间关闭弹窗
+   } catch (error) {
+     console.error("Failed to end service:", error);
+     alert("结束服务失败，请重试");
+   }
+ };
+
  const handleDeleteBooking = async (deleteAllRelated: boolean = false) => {
  if (!editingBooking) return;
  try {
@@ -998,6 +1041,43 @@ export function DualPaneBookingModal({
  console.error("Failed to delete booking:", error);
  }
  };
+ // === 物理业务动作：开始服务 ===
+ const handleStartService = async () => {
+   if (!editingBooking) return;
+   try {
+     const now = new Date();
+     const hours = String(now.getHours()).padStart(2, '0');
+     const minutes = String(now.getMinutes()).padStart(2, '0');
+     const newStartTime = `${hours}:${minutes}`;
+
+     const bookingsToStart = editingBooking.isSuperBooking && editingBooking.relatedBookings 
+       ? editingBooking.relatedBookings 
+       : [editingBooking];
+
+     const updatedBookings = bookingsToStart.map(b => {
+       return {
+         ...b,
+         startTime: newStartTime, // 物理平移：修改 startTime 为当前系统时间
+         status: 'CONFIRMED',
+         data: {
+           ...(b.data as any || {}),
+           actual_start_time: now.toISOString()
+         },
+         date: b.date || selectedDate.replace(/\//g, '-'),
+         resourceId: b.resourceId === null ? undefined : b.resourceId,
+       };
+     });
+
+     await BookingService.upsertBookings(updatedBookings);
+     refreshBookings();
+     trackAction();
+     handleClose();
+   } catch (error) {
+     console.error("Failed to start service:", error);
+     alert("开始服务失败，请重试");
+   }
+ };
+
  const handleConfirmBooking = async () => {
  if (isReadOnly) {
  console.warn("System is in READ_ONLY mode. Cannot save bookings.");
@@ -1533,6 +1613,23 @@ export function DualPaneBookingModal({
  )}>
  ¥ {checkoutAllServices.reduce((sum, s) => sum + getCheckoutPrice(s.id, s.prices), 0)}.00
  </div>
+
+ {/* 结束服务按钮：未结账且未结束时显示 */}
+ {!isAlreadyCompleted && !(editingBooking?.data as any)?.actual_end_time && (
+   <div className="flex justify-center w-full mb-6">
+     <button 
+       onClick={handleEndService}
+       className={cn(
+         "px-6 py-2 text-[11px] tracking-widest uppercase rounded-full border transition-colors",
+         isLight 
+           ? "text-rose-600 border-rose-600/30 hover:bg-rose-600/10" 
+           : "text-rose-400 border-rose-400/30 hover:bg-rose-400/10"
+       )}
+     >
+       结束服务 (End Service)
+     </button>
+   </div>
+ )}
 
  {/* 赛博光轨滑动锁 (Cyber-Slider) */}
  <div className="w-full max-w-[400px] h-12 relative rounded-full overflow-hidden border bg-black/40"
@@ -2102,6 +2199,19 @@ export function DualPaneBookingModal({
  {isSaving ? t('txt_processing') : t('txt_confirm')}
  </button>
  </div>
+ 
+ {/* 开始服务按钮：只有在已存在且未开始时显示 */}
+ {editingBooking && !(editingBooking.data as any)?.actual_start_time && (
+   <button 
+     onClick={handleStartService}
+     className={cn(
+       "py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent transition-opacity hover:opacity-70",
+       isLight ? "text-blue-600" : "text-blue-400"
+     )}
+   >
+     开始服务
+   </button>
+ )}
  </div>
  </>
       )}

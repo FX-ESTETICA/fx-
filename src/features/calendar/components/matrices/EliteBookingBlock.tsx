@@ -15,6 +15,7 @@ export interface EliteBookingBlockProps {
  isTiny?: boolean; // 新增：由父组件基于 duration 计算传入的绝对静态标识
  isMicro?: boolean; // 新增：极限微缩态（25分钟及以下），砸碎内边距
  isPending?: boolean; // 新增：是否是待确认预约（触发跑马灯动画）
+ isInProgress?: boolean; // 新增：是否正在进行中（计价器运转中）
  isPast?: boolean; // 新增：是否已过时（跨过红线）
  isCheckedOut?: boolean; // 新增：是否已结账（生命周期终结）
  isNoShow?: boolean; // 新增：是否爽约（幽灵灰降维）
@@ -33,7 +34,7 @@ export interface EliteBookingBlockProps {
  * 采用物理引擎反馈，极光呼吸灯，降维打击级质感
  */
 export const EliteBookingBlock = ({ 
- title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false,
+ title, client, color, accent, height, isTiny = false, isMicro = false, isPending = false, isInProgress = false,
  isPast = false, isCheckedOut = false, isNoShow = false, delayMins = 0,
  nexusId, nexusColor,
  onClick, onDragStart, onDrag, onDragEnd, isReadOnly 
@@ -117,7 +118,8 @@ export const EliteBookingBlock = ({
  const getBoxShadow = () => {
  if (isPending) return '';
  if (isCheckedOut || isNoShow) return 'none'; // 已结账/爽约：完全去除发光阴影，变成静态死线框
- if (isPast) return isHexColor ? `0 0 10px ${color}80, inset 0 0 4px ${color}40` : 'none'; // 已结束未结账：强烈特征色发光警示
+ if (isInProgress) return isHexColor ? `0 0 12px ${color}A0, inset 0 0 6px ${color}60` : 'none'; // 进行中：极光呼吸边框
+ if (isPast) return isHexColor ? `0 0 8px ${color}60, inset 0 0 2px ${color}20` : 'none'; // 已结束未结账：微弱特征色发光警示
  return 'none'; // 未来状态：底层已有底色，去除外发光
  };
 

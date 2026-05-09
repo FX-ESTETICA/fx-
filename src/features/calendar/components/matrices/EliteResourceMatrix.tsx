@@ -1108,10 +1108,24 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
    const d = new Date((b.date || "").replace(/-/g, '/'));
    const [h, m] = (b.startTime || "00:00").split(':');
    const absStart = d.getTime() + (parseInt(h)*60 + parseInt(m))*60000;
+
+   // === 计价器心跳渲染：动态延伸 ===
+   let dynamicDuration = b.duration || 60;
+   const dataAny = (b as any).data || {};
+   const isCompleted = b.status?.toUpperCase() === 'COMPLETED' || b.status?.toUpperCase() === 'CHECKED_OUT';
+   if (dataAny?.actual_start_time && !dataAny?.actual_end_time && !isCompleted) {
+     const nowMs = new Date().getTime();
+     const elapsedMins = Math.floor((nowMs - absStart) / 60000);
+     if (elapsedMins > dynamicDuration) {
+       dynamicDuration = elapsedMins;
+     }
+   }
+
    return {
      ...b,
+     _dynamicDuration: dynamicDuration,
      _absStart: absStart,
-     _absEnd: absStart + (b.duration || 60)*60000,
+     _absEnd: absStart + dynamicDuration * 60000,
      _colIndex: 0,
      _maxCols: 1
    };
@@ -1186,7 +1200,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  };
 
  const topOffset = getYCoordinate(booking.date, booking.startTime);
- const heightPx = getBookingHeight(booking.date, booking.startTime, booking.duration);
+ const renderDuration = (booking as any)._dynamicDuration || booking.duration || 60;
+ const heightPx = getBookingHeight(booking.date, booking.startTime, renderDuration);
  
  // 如果订单在当前视界（这三天）内不可见，则不渲染
  if (topOffset === -1 || heightPx === 0) return null;
@@ -1220,6 +1235,11 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
  // 3. 判定是否为爽约 (降维打击：幽灵灰，彻底熄灭)
  const isNoShow = resource.id === 'NO' || booking.status?.toUpperCase() === 'NO_SHOW';
+
+ // 4. 判定是否为进行中 (In Progress)
+ const actualStart = ((booking as any).data || {})?.actual_start_time;
+ const actualEnd = ((booking as any).data || {})?.actual_end_time;
+ const isInProgress = !!actualStart && !actualEnd && !isCheckedOut && !isNoShow;
 
  // 恢复您的设计：未指定的散单保留青色，作为店长灵活调度的视觉锚点
  const blockColor = isUnassigned ? '#00f0ff' : (resource.id === 'NO' ? '#ef4444' : (resource.themeColor || dna.themeColor));
@@ -1372,6 +1392,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  isTiny={isTiny}
  isMicro={isMicro}
  isPending={isPending} // 传递待确认标识，触发跑马灯
+ isInProgress={isInProgress} // 传递进行中标识，触发呼吸灯
  isPast={isPast} // 跨过红线
  isCheckedOut={isCheckedOut} // 已结账
  isNoShow={isNoShow} // 爽约幽灵降维
