@@ -120,9 +120,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  onClick={(e) => { e.stopPropagation(); setIsMiniCalendarOpen(!isMiniCalendarOpen); }}
  className={cn(
  "p-2 rounded-xl transition-all duration-300 pointer-events-auto",
- resolvedTimelineTheme === 'purewhite' 
- ? "hover:bg-white/10 text-white/50 hover:text-white" 
- : resolvedTimelineTheme === 'coreblack'
+ resolvedTimelineTheme === 'coreblack'
  ? "hover:bg-black/5 text-black/40 hover:text-black"
  : "hover:bg-white/10 text-white/50 hover:text-white"
  )}
@@ -138,7 +136,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  onDateClick?.(date);
  setIsMiniCalendarOpen(false);
  }}
- isLight={resolvedTimelineTheme === 'purewhite' || resolvedTimelineTheme === 'coreblack'}
+ isLight={resolvedTimelineTheme === 'coreblack'}
  />
  </div>
  </div>
@@ -177,14 +175,14 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
  <div className={cn(
  " text-[15px] flex items-center justify-center font-normal tracking-normal tabular-nums",
- resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'blackgold' && "mix-blend-screen",
+ resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen",
  slot.hour === currentHour && "scale-110",
  slot.hour !== currentHour && ""
- )} style={slot.hour !== currentHour ? { textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : visualSettings.calendarBgIndex !== 0 ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` } : {}}>
+ )} style={slot.hour !== currentHour ? { textShadow: visualSettings.calendarBgIndex !== 0 ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` } : {}}>
  <span className={cn(slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  {slot.hour.toString().padStart(2, '0')}
  </span>
- <span className={cn("text-[11px] mx-[3px] ", slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"} ` : visualSettings.calendarBgIndex !== 0 ? "text-black" : ` ${CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && resolvedTimelineTheme !== 'blackgold' ? (CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex : undefined }}>:</span>
+ <span className={cn("text-[11px] mx-[3px] ", slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"} ` : visualSettings.calendarBgIndex !== 0 ? "text-black" : ` ${CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && resolvedTimelineTheme !== 'coreblack' ? (CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex : undefined }}>:</span>
  <span className={cn("", slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  00
  </span>

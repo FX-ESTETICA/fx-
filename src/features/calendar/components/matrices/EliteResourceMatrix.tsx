@@ -61,7 +61,7 @@ export type MatrixBooking = {
 
 // 【独立微组件】：量子时间线 (Quantum Timeline) & 静默视界引擎 (Idle Physics Engine)
 // 独立挂载，绝对不引起外层矩阵重绘。包含 0 冲突物理级居中算法。
-const CurrentTimeIndicator = React.memo(({ getYCoordinate, matrixRef }: { getYCoordinate: (dateStr: string, timeStr: string) => number, matrixRef?: React.RefObject<HTMLDivElement> }) => {
+const CurrentTimeIndicator = React.memo(({ getYCoordinate }: { getYCoordinate: (dateStr: string, timeStr: string) => number }) => {
  const [now, setNow] = React.useState(new Date());
 
  useEffect(() => {
@@ -863,10 +863,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  return (
  <div key={node.id} className="absolute w-full group" style={{ top: node.top, height: node.height }}>
  <div className={cn(
- "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-normal tracking-normal tabular-nums z-10",
- resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen",
- ""
- )} style={{ textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+                    "absolute top-0 left-2.5 -translate-y-1/2 text-[12px] leading-none flex items-center justify-center font-normal tracking-normal tabular-nums z-10",
+                    resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen",
+                    ""
+                  )} style={{ textShadow: resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
  <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
  {node.hour!.toString().padStart(2, '0')}
  </span>
@@ -888,9 +888,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  style={{ top: crosshair.y }}
  >
  <div className={cn(
- "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
- resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
- )} style={{ textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+                    "absolute top-0 left-2.5 -translate-y-1/2 text-[12px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
+                    resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
+                  )} style={{ textShadow: resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
  <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
  {crosshair.time.split(':')[0]}
  </span>
@@ -911,9 +911,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  style={{ top: dragTimeline.y }}
  >
  <div className={cn(
- "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
- resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
- )} style={{ textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+                    "absolute top-0 left-2.5 -translate-y-1/2 text-[12px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
+                    resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
+                  )} style={{ textShadow: resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
  <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
  {dragTimeline.time.split(':')[0]}
  </span>
@@ -962,7 +962,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  )}
 
  {/* 【独立微组件挂载】：量子当前时间线 & 静默视界引擎 */}
- <CurrentTimeIndicator getYCoordinate={getYCoordinate} matrixRef={actualMatrixRef as any} />
+ <CurrentTimeIndicator getYCoordinate={getYCoordinate} />
 
  {/* 渲染背景与分隔 (剥离横向网格线，仅保留跨天光刃与纵向列分隔) */}
  {waterfallData.nodes.map((node, idx) => {
