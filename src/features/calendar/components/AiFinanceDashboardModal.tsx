@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, TrendingUp, TrendingDown, Minus, Crown, Target, Users, UserPlus, Wallet, ShoppingBag, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Minus, Crown, Target, Users, UserPlus, Wallet, ShoppingBag, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Unlock, Delete } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
 import { StaffItem } from "@/features/calendar/components/NebulaConfigHub";
-import { useMemo } from "react";
-
 import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { useShop } from "@/features/shop/ShopContext"; // 导入全局门店上下文
 
 // --- 顶级可视化图表组件 (Bento Box Graphical Assets) ---
 
@@ -149,6 +148,181 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  const { settings } = useVisualSettings();
  const isLight = settings.calendarBgIndex !== 0;
 
+  const { shopConfig, updateShopConfig } = useShop() || {};
+  const financialPin = shopConfig?.financial_pin;
+  const isGlobalLockEnabled = shopConfig?.financial_lock_enabled !== false; // 默认为 true（开启状态）
+  
+  // 真正的商业级隔离防御 (Session Isolation)
+  // 锁的状态必须是端侧（当前会话）独立的内存状态。绝不能存数据库，否则一端解锁全网裸奔。
+  // 只要数据库里有密码，默认就是锁定状态 (isSessionUnlocked: false)
+  const [isSessionUnlocked, setIsSessionUnlocked] = useState(false);
+  const [forceLockMode, setForceLockMode] = useState(false); // 用于无密码时强行召唤密码盘
+
+  // 【致命修复】如果刚设置完密码，由于 financialPin 变成 true，而此时如果没有强制解锁，会卡死。
+  // 增加判定：如果处于修改密码/强制锁模式，即使 financialPin 存在，只要 forceLockMode 为 true，也依然判定为锁定（渲染密码盘）
+  // 【全局开关逻辑】：只有当 isGlobalLockEnabled 为 true 时，才要求验锁。如果为 false，大门敞开。
+  const isLocked = forceLockMode || (Boolean(financialPin) && isGlobalLockEnabled && !isSessionUnlocked);
+
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [isModifyingPin, setIsModifyingPin] = useState(false);
+  const [isTogglingLock, setIsTogglingLock] = useState(false); // 新增：是否正在切换全局开关
+  const [oldPinValidated, setOldPinValidated] = useState(false);
+
+  // 生命周期防御：只要面板关闭，瞬间抹杀当前会话的解锁凭证，实现“开门必验锁”
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSessionUnlocked(false);
+      setForceLockMode(false);
+      setPinInput("");
+      setIsModifyingPin(false);
+      setIsTogglingLock(false);
+      setOldPinValidated(false);
+    }
+  }, [isOpen]);
+
+  // 【终极防御】隔离 `visibilitychange` 和 `offline` 对敏感状态的干扰
+  // 绝对禁止在失焦或断网时触碰 `forceLockMode`, `isModifyingPin` 等状态
+  useEffect(() => {
+    // 如果大门已经敞开，就不需要自动上锁
+    if (!isOpen || isLocked || !financialPin || !isGlobalLockEnabled) return;
+
+    let timeoutId: NodeJS.Timeout;
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsSessionUnlocked(false); // 仅做降级锁定，不触碰其他状态
+      }, 3 * 60 * 1000); 
+    };
+
+    const handleOffline = () => {
+      setIsSessionUnlocked(false); // 仅做降级锁定
+    };
+
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+    window.addEventListener('touchstart', resetTimer);
+    window.addEventListener('offline', handleOffline);
+    // 离开当前标签页也直接上锁 (Visibility API)
+    // 宽限期防御：避免被系统原生截图工具(短暂夺走焦点)误触发
+    let visibilityTimeoutId: NodeJS.Timeout;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        visibilityTimeoutId = setTimeout(() => {
+          setIsSessionUnlocked(false);
+        }, 15000); // 15秒宽限期
+      } else {
+        clearTimeout(visibilityTimeoutId); // 焦点恢复，取消上锁
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(visibilityTimeoutId);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('touchstart', resetTimer);
+      window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isOpen, isLocked, financialPin, isGlobalLockEnabled]);
+
+  const handlePinSubmit = () => {
+    if (isModifyingPin && oldPinValidated) {
+      // Set new PIN to Cloud (密码是全网唯一的，必须存数据库)
+      if (updateShopConfig && pinInput.length >= 4) {
+        // 关键修复：防止因异步导致状态丢失，使用本地变量先行控制
+        setIsSessionUnlocked(true); 
+        setForceLockMode(false);
+        setIsModifyingPin(false);
+        setOldPinValidated(false);
+        setPinInput("");
+        updateShopConfig('financial_pin', pinInput);
+        // 如果是首次设置密码，默认开启全局锁
+        if (!financialPin) {
+          updateShopConfig('financial_lock_enabled', true);
+        }
+      } else {
+        setPinError(true);
+        setTimeout(() => setPinError(false), 500);
+      }
+    } else if (isTogglingLock) {
+       // 验证密码以切换全局开关
+       if (pinInput === financialPin) {
+          if (updateShopConfig) {
+             updateShopConfig('financial_lock_enabled', !isGlobalLockEnabled);
+          }
+          setIsTogglingLock(false);
+          setForceLockMode(false);
+          setPinInput("");
+       } else {
+          setPinError(true);
+          setTimeout(() => setPinError(false), 500);
+          setPinInput("");
+       }
+    } else {
+      // Validate PIN
+      if (pinInput === financialPin) {
+        if (isModifyingPin) {
+          setOldPinValidated(true);
+          setPinInput("");
+        } else {
+          setIsSessionUnlocked(true); // 密码正确，解锁当前设备的内存状态
+          setPinInput("");
+        }
+      } else {
+        setPinError(true);
+        setTimeout(() => setPinError(false), 500);
+        setPinInput("");
+      }
+    }
+  };
+
+  const handleNumClick = (num: string) => {
+    if (pinInput.length < 6) {
+      setPinInput(prev => prev + num);
+    }
+  };
+
+  const handleDelete = () => {
+    setPinInput(prev => prev.slice(0, -1));
+  };
+
+  const handleCancel = () => {
+    setPinInput("");
+    setIsModifyingPin(false);
+    setIsTogglingLock(false);
+    setOldPinValidated(false);
+    // 如果没有密码或者强制召唤，取消等于直接关闭弹窗
+    if (!financialPin) {
+      setForceLockMode(false);
+      onClose();
+    } else if (forceLockMode && isTogglingLock) {
+      // 取消切换全局锁
+      setForceLockMode(false);
+    } else if (isLocked) {
+      // 即使是有密码的正常锁定状态，点击取消也应该关闭面板退出
+      onClose();
+    }
+  };
+
+  const toggleLock = () => {
+    if (!financialPin) {
+      // 如果根本没有密码，强行锁定并让用户设置
+      setForceLockMode(true);
+      setIsModifyingPin(true);
+      setOldPinValidated(true); 
+    } else {
+      // 点击锁图标，弹出密码验证以切换全局锁状态
+      setForceLockMode(true);
+      setIsTogglingLock(true);
+      setPinInput("");
+    }
+  };
+
   // 新增日历相关状态
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -208,6 +382,33 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  // --- 核心真实数据核算逻辑 (Real-time Financial Engine) ---
  
  const financialData = useMemo(() => {
+ // 如果处于锁定状态，直接返回 0 数据，实现内存级物理销毁
+ if (isLocked) {
+   return {
+     totalRevenue: 0,
+     wechatRevenue: 0,
+     alipayRevenue: 0,
+     cashRevenue: 0,
+     bankCardRevenue: 0,
+     memberCardRevenue: 0,
+     timelineData: Array(30).fill(0),
+     trendPercentage: 0,
+     staffRanking: [],
+     serviceRanking: [],
+     tacticalMetrics: {
+       totalCustomers: 0,
+       newRatio: 0,
+       returningRatio: 0,
+       atv: 0,
+       topUps: 0,
+       conversionRate: 0,
+       retailRevenue: 0,
+       upsellRate: 0,
+       retailRatio: 0
+     }
+   };
+ }
+
  // 权限隔离过滤
  const filteredBookings = isFinanceSelfOnly 
  ? globalBookings.filter(b => b.resourceId === currentUserId || (b as any).assignedEmployeeId === currentUserId) 
@@ -530,7 +731,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  retailRatio
  }
  };
- }, [globalBookings, staffs, timeRange, isFinanceSelfOnly, currentUserId, selectedDate]);
+ }, [globalBookings, staffs, timeRange, isFinanceSelfOnly, currentUserId, selectedDate, isLocked]);
 
  const currentMetrics = {
  total: financialData.totalRevenue,
@@ -556,9 +757,135 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-8 animate-in fade-in pointer-events-none",
+ "fixed inset-0 z-[99999] flex items-center justify-center animate-in fade-in pointer-events-none",
+ isLocked ? "p-0" : "p-0 sm:p-8",
  isLight ? "text-black" : "text-white"
  )}>
+ {isLocked ? (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.95 }}
+    transition={{ duration: 0.3, ease: "easeOut" }}
+    className={cn(
+      "relative z-10 w-full h-full flex flex-col items-center justify-center pointer-events-auto",
+      // 物理级防窥隔离：纯净的磨砂/实色背景，彻底切断底层透视
+      isLight ? "bg-[#f5f5f5]/95 backdrop-blur-3xl" : "bg-[#0a0a0a]/95 backdrop-blur-3xl"
+    )}
+  >
+    <div className={cn(
+      "w-full max-w-[340px] max-h-[90dvh] overflow-y-auto scrollbar-hide rounded-[32px] p-6 sm:p-8 flex flex-col items-center border shadow-2xl transition-all duration-300",
+      isLight ? "bg-white/80 border-black/10" : "bg-white/5 border-white/10"
+    )}>
+      <div className={cn(
+        "w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-4 shadow-inner shrink-0",
+        isLight ? "bg-black/5" : "bg-white/5"
+      )}>
+        <Lock className={cn("w-5 h-5 sm:w-8 sm:h-8", isLight ? "text-black/60" : "text-white/60")} />
+      </div>
+      
+      {isModifyingPin && (
+        <p className={cn("mb-4 text-[11px] sm:text-[13px] font-medium tracking-widest uppercase shrink-0", isLight ? "text-black/60" : "text-white/60")}>
+          {oldPinValidated ? "请输入新安全密钥" : "请验证原安全密钥"}
+        </p>
+      )}
+      {isTogglingLock && (
+        <p className={cn("mb-4 text-[11px] sm:text-[13px] font-medium tracking-widest uppercase shrink-0", isLight ? "text-black/60" : "text-white/60")}>
+          {isGlobalLockEnabled ? "验证密钥以解除安防" : "验证密钥以开启安防"}
+        </p>
+      )}
+      {!isModifyingPin && !isTogglingLock && (
+        <p className={cn("mb-4 text-[11px] sm:text-[13px] font-medium tracking-widest uppercase shrink-0", isLight ? "text-black/60" : "text-white/60")}>
+          请输入安全密钥
+        </p>
+      )}
+      
+      <div className="w-full flex items-center justify-center gap-3 sm:gap-4 mb-6 shrink-0 h-4">
+        {Array(4).fill(0).map((_, i) => (
+          <div key={i} className={cn(
+            "w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full transition-all duration-300",
+            pinInput.length > i 
+              ? (isLight ? "bg-black scale-100 shadow-sm" : "bg-white scale-100 shadow-[0_0_8px_rgba(255,255,255,0.5)]") 
+              : (isLight ? "bg-black/10 scale-75" : "bg-white/10 scale-75"),
+            pinError && "bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+          )} />
+        ))}
+      </div>
+
+      {/* 核心键盘区：使用 flex-1 占据中间所有剩余空间，内部使用 Grid 按比例撑满高度 */}
+      <div className="w-full flex-1 min-h-[200px] grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+          <button
+            key={num}
+            onClick={() => handleNumClick(num.toString())}
+            className={cn(
+              "w-full h-full rounded-[20px] sm:rounded-2xl flex items-center justify-center text-[22px] sm:text-2xl font-medium transition-all active:scale-95",
+              isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/10 text-white"
+            )}
+          >
+            {num}
+          </button>
+        ))}
+        <button
+          onClick={handleCancel}
+          className={cn(
+            "w-full h-full rounded-[20px] sm:rounded-2xl flex items-center justify-center text-[14px] sm:text-[15px] font-medium transition-all active:scale-95 uppercase tracking-widest",
+            isLight ? "hover:bg-black/5 text-black/60" : "hover:bg-white/10 text-white/60"
+          )}
+        >
+          {/* 取消或关闭，如果处于强制召唤且没有云端密码或者是解锁状态，则是真正的关闭 */}
+          {forceLockMode || !financialPin ? "取消" : "取消"}
+        </button>
+        <button
+          onClick={() => handleNumClick('0')}
+          className={cn(
+            "w-full h-full rounded-[20px] sm:rounded-2xl flex items-center justify-center text-[22px] sm:text-2xl font-medium transition-all active:scale-95",
+            isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/10 text-white"
+          )}
+        >
+          0
+        </button>
+        <button
+          onClick={handleDelete}
+          className={cn(
+            "w-full h-full rounded-[20px] sm:rounded-2xl flex items-center justify-center transition-all active:scale-95",
+            isLight ? "hover:bg-black/5 text-black/60" : "hover:bg-white/10 text-white/60"
+          )}
+        >
+          <Delete className="w-6 h-6 sm:w-6 sm:h-6" />
+        </button>
+      </div>
+
+      <div className="w-full flex items-center gap-3 sm:gap-4 shrink-0">
+        {/* 如果没设密码，则是强制召唤模式，不显示修改按钮 */}
+        {financialPin && (
+          <button
+            onClick={() => {
+              setIsModifyingPin(true);
+              setOldPinValidated(false);
+              setPinInput("");
+            }}
+            className={cn(
+              "flex-1 py-3.5 sm:py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-[14px] font-medium transition-all tracking-widest uppercase",
+              isLight ? "bg-black/5 hover:bg-black/10 text-black/70" : "bg-white/5 hover:bg-white/10 text-white/70"
+            )}
+          >
+            修改密钥
+          </button>
+        )}
+        <button
+          onClick={handlePinSubmit}
+          className={cn(
+            "flex-1 py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-[14px] font-medium transition-all shadow-md tracking-widest uppercase",
+            isLight ? "bg-black text-white hover:bg-black/90" : "bg-white text-black hover:bg-white/90"
+          )}
+        >
+          授权验证
+        </button>
+      </div>
+    </div>
+  </motion.div>
+ ) : (
  <motion.div
  
  
@@ -669,13 +996,23 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
  </div>
 
- {/* Mobile Close Button */}
- <button onClick={onClose} className={cn(
- "sm:hidden w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md shrink-0",
- isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
- )}>
- <X className="w-5 h-5" />
- </button>
+  {/* Mobile Close Button */}
+ <div className="sm:hidden flex items-center gap-2 shrink-0 z-50">
+   {financialPin && (
+     <button onClick={toggleLock} className={cn(
+       "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md transition-all",
+       isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
+     )}>
+       {isGlobalLockEnabled ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+     </button>
+   )}
+   <button onClick={onClose} className={cn(
+     "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md",
+     isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
+   )}>
+     <X className="w-5 h-5" />
+   </button>
+ </div>
  </div>
 
  <div 
@@ -704,15 +1041,25 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
  
  {/* Desktop Close Button */}
- <button onClick={onClose} className={cn(
-   "hidden sm:flex w-8 h-8 items-center justify-center rounded-full pointer-events-auto backdrop-blur-md shrink-0",
-   isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
- )}>
-   <X className="w-5 h-5" />
- </button>
+ <div className="hidden sm:flex items-center gap-2 shrink-0 z-50">
+   {financialPin && (
+     <button onClick={toggleLock} className={cn(
+       "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md transition-all",
+       isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
+     )}>
+       {isGlobalLockEnabled ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+     </button>
+   )}
+   <button onClick={onClose} className={cn(
+     "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md",
+     isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
+   )}>
+     <X className="w-5 h-5" />
+   </button>
+ </div>
  </div>
 
- {/* Scrollable Content */}
+ {/* Scrollable Content / Lock Screen */}
  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
  
  {/* Bento Box Top Section */}
@@ -1026,6 +1373,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
  </div>
  </motion.div>
+ )}
  </div>
  </AnimatePresence>
  );
