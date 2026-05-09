@@ -1716,18 +1716,28 @@ export function DualPaneBookingModal({
  })
  : b.services;
 
- // 【计价器兜底拦截法则】：如果订单已经开始（有 actual_start_time）但尚未结束，
- // 结账动作必须强制触发“物理结束”，重新计算时长并定格，防止幽灵生长。
+ // 【无差别物理截断法则】：结账 = 服务彻底结束
+ // 不管有没有点过开始服务，结账时强行读取系统当前时间，减去原定开始时间，
+ // 算出最真实的物理占用时长，并强制覆盖 duration，让色块底边死死咬住红线。
  const bData = b.data as any || {};
  let finalDuration = b.duration || 1;
  let finalData = { ...bData };
 
- if (bData.actual_start_time && !bData.actual_end_time && b.startTime) {
+ if (b.startTime) {
    const [sh, sm] = b.startTime.split(':').map(Number);
    const startMins = sh * 60 + sm;
    const currentMins = now.getHours() * 60 + now.getMinutes();
+   // 计算当前时间距离原定开始时间过了多久（最少保留1分钟物理厚度防负数）
    finalDuration = Math.max(1, currentMins - startMins);
-   finalData.actual_end_time = now.toISOString(); // 注入结束时间印记
+   
+   // 如果之前没有开始印记，既然结账了，就顺手帮它补齐，保证数据闭环
+   if (!finalData.actual_start_time) {
+     const startDate = new Date(now);
+     startDate.setHours(sh, sm, 0, 0);
+     finalData.actual_start_time = startDate.toISOString();
+   }
+   // 强行打上结束印记
+   finalData.actual_end_time = now.toISOString();
  }
 
  return {
