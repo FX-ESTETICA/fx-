@@ -100,13 +100,14 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  const [isMiniCalendarOpen, setIsMiniCalendarOpen] = React.useState(false);
 
  const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
- if (timeColumnRef.current) {
- timeColumnRef.current.scrollTop = e.currentTarget.scrollTop;
- }
- if (headerScrollRef.current) {
- headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
- }
- };
+    // 【物理层同步法则】：时间轴和表头的滚动必须绝对实时，实现 0 帧延迟咬合
+    if (timeColumnRef.current) {
+      timeColumnRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
 
  return (
  <div className="flex flex-col h-full overflow-hidden bg-transparent">

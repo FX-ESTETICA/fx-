@@ -629,31 +629,31 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  const scrollRafRef = useRef<number | null>(null);
 
  const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
- const scrollTop = e.currentTarget.scrollTop;
- 
- // 使用 requestAnimationFrame 进行节流，防止疯狂触发 DOM 更新导致卡顿
- if (scrollRafRef.current) return;
+    const scrollTop = e.currentTarget.scrollTop;
+    
+    // 【物理层同步法则】：时间轴的滚动必须绝对实时，跳出 RAF 节流，实现 0 帧延迟咬合
+    if (timeColumnRef.current) {
+      timeColumnRef.current.scrollTop = scrollTop;
+    }
+    
+    // 使用 requestAnimationFrame 进行状态节流，防止疯狂触发 DOM 更新导致卡顿
+    if (scrollRafRef.current) return;
 
- scrollRafRef.current = requestAnimationFrame(() => {
- // 垂直同步时间轴
- if (timeColumnRef.current) {
- timeColumnRef.current.scrollTop = scrollTop;
- }
- 
- // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
- if (onPhantomDateChange && waterfallData.nodes.length > 0) {
- // 找到当前滚动视口顶部所属的日期节点
- let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
- if (!activeNode) activeNode = waterfallData.nodes[0];
- 
- if (activeNode.dateStr !== currentPhantomDateRef.current) {
- currentPhantomDateRef.current = activeNode.dateStr;
- onPhantomDateChange(activeNode.dateStr);
- }
- }
- scrollRafRef.current = null;
- });
- };
+    scrollRafRef.current = requestAnimationFrame(() => {
+      // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
+      if (onPhantomDateChange && waterfallData.nodes.length > 0) {
+        // 找到当前滚动视口顶部所属的日期节点
+        let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
+        if (!activeNode) activeNode = waterfallData.nodes[0];
+        
+        if (activeNode.dateStr !== currentPhantomDateRef.current) {
+          currentPhantomDateRef.current = activeNode.dateStr;
+          onPhantomDateChange(activeNode.dateStr);
+        }
+      }
+      scrollRafRef.current = null;
+    });
+  };
 
  // 矩阵区的手势接管：滑动切换日期
  const handleMatrixPanEnd = (_e: unknown, info: PanInfo) => {
