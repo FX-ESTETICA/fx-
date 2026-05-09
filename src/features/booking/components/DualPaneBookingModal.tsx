@@ -2212,6 +2212,108 @@ export function DualPaneBookingModal({
      开始服务
    </button>
  )}
+
+ {/* 散客极速开单按钮：仅新建模式时显示 (两步合一) */}
+ {!editingBooking && (
+   <button 
+     onClick={async () => {
+       // 复用 handleConfirmBooking 逻辑，并在其基础上注入 actual_start_time
+       if (isReadOnly || selectedServices.length === 0 || isSaving) return;
+       setIsSaving(true);
+
+       try {
+         const now = new Date();
+         const hours = String(now.getHours()).padStart(2, '0');
+         const minutes = String(now.getMinutes()).padStart(2, '0');
+         const newStartTime = `${hours}:${minutes}`;
+
+         // 1. 按员工归组
+         const groupedByEmployee = selectedServices.reduce<Record<string, ServiceItem[]>>((acc, service) => {
+           const empId = service.assignedEmployeeId || 'unassigned';
+           if (!acc[empId]) acc[empId] = [];
+           acc[empId].push(service);
+           return acc;
+         }, {});
+
+         // 2. 生成拆分后的预约卡片数据
+         const newBookings: BookingEdit[] = [];
+         const customerPhoneStr = phoneTracks.filter(t => t.trim() !== "").join(',');
+         const finalCustomerName = customerRealName.trim() || customerPhoneStr || "散客 Walk-in";
+         const finalCustomerId = matchedHistoryCustomer?.gx_id || allocatedId || `${newCustomerType || 'CO'} --`;
+         const masterOrderId = `ORD-${Date.now()}`;
+
+         Object.entries(groupedByEmployee).forEach(([empId, servicesInGroup], groupIndex) => {
+           const groupDuration = servicesInGroup.reduce((sum, s) => sum + (s.duration || 0), 0);
+           const groupServiceNames = servicesInGroup.map((s) => s.name).join(' + ');
+           const finalDuration = Object.keys(groupedByEmployee).length === 1 ? groupDuration + durationOffset : groupDuration;
+           const isAssignedToPerson = empId !== 'unassigned' && empId !== 'NEXUS';
+
+           newBookings.push({
+               id: `BKG-${Date.now()}-${groupIndex}`,
+               shopId: activeShopId || 'default',
+               date: selectedDate.replace(/\//g, '-'),
+             startTime: newStartTime, // 强制当前时间
+             duration: Math.max(1, finalDuration),
+             resourceId: empId === 'unassigned' ? null : empId,
+             status: 'CONFIRMED',
+             customerId: finalCustomerId,
+             customerName: finalCustomerName,
+             customerPhone: customerPhoneStr,
+             serviceId: servicesInGroup.map(s => s.id).join(','),
+             serviceName: groupServiceNames,
+             services: servicesInGroup,
+             masterOrderId: masterOrderId,
+             isSuperBooking: Object.keys(groupedByEmployee).length > 1,
+             _needsTimeReflow: true,
+             _isForceInsert: isForceInsert,
+             originalUnassigned: !isAssignedToPerson,
+             data: {
+               actual_start_time: now.toISOString() // 核心：瞬间注入计价器基因
+             }
+           });
+         });
+
+         // 3. 入库
+         const payload = newBookings.map(b => {
+           const { _needsTimeReflow, _isForceInsert, ...rest } = b;
+           return rest;
+         });
+         await BookingService.upsertBookings(payload);
+
+         // 4. 重排大脑
+         let currentShopId = activeShopId || 'default';
+         if (typeof window !== 'undefined') currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
+         const manualOverrides: Record<string, any> = {};
+         newBookings.forEach(b => {
+           manualOverrides[b.id as string] = {
+             resourceId: b.resourceId,
+             originalUnassigned: b.originalUnassigned,
+             _needsTimeReflow: b._needsTimeReflow,
+             _isForceInsert: b._isForceInsert
+           };
+         });
+         await BookingScheduler.reflowDayBookings(selectedDate.replace(/\//g, '-'), currentShopId, staffs, manualOverrides);
+
+         refreshBookings();
+         trackAction();
+         handleClose();
+       } catch (error) {
+         console.error("Failed to quick start booking:", error);
+       } finally {
+         setIsSaving(false);
+       }
+     }}
+     disabled={selectedServices.length === 0 || isSaving}
+     className={cn(
+       "py-3.5 text-[12px] tracking-[0.3em] uppercase outline-none bg-transparent transition-opacity hover:opacity-70",
+       selectedServices.length > 0 && !isSaving
+         ? (isLight ? "text-[#39FF14]" : "text-[#39FF14]")
+         : (isLight ? "text-[#39FF14]/30 cursor-not-allowed" : "text-[#39FF14]/30 cursor-not-allowed")
+     )}
+   >
+     {isSaving ? t('txt_processing') : '立即开始'}
+   </button>
+ )}
  </div>
  </>
       )}
