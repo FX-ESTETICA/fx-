@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, TrendingUp, TrendingDown, Minus, Crown, Target, Users, UserPlus, Wallet, ShoppingBag } from "lucide-react";
+import { X, Sparkles, TrendingUp, TrendingDown, Minus, Crown, Target, Users, UserPlus, Wallet, ShoppingBag, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { BookingEdit } from "@/features/booking/components/DualPaneBookingModal";
 import { StaffItem } from "@/features/calendar/components/NebulaConfigHub";
@@ -108,6 +108,62 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  const { settings } = useVisualSettings();
  const isLight = settings.calendarBgIndex !== 0;
 
+  // 新增日历相关状态
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // 计算日历数据
+  const calendarDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Convert to Monday=0
+    
+    const days = [];
+    
+    // Empty slots for previous month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    
+    // Days of current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(year, month, i);
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      
+      // Calculate revenue for this day
+      const dayBookings = globalBookings.filter(b => b.date === dateStr && ((b.status as string)?.toUpperCase() === 'COMPLETED' || (b.status as string)?.toUpperCase() === 'CHECKED_OUT'));
+      let dayRevenue = 0;
+      dayBookings.forEach(booking => {
+        if (booking.services && Array.isArray(booking.services)) {
+          booking.services.forEach((service: any) => {
+            const servicePrice = (Array.isArray(service.prices) && service.prices.length > 0) ? Number(service.prices[0]) : 0;
+            dayRevenue += servicePrice;
+          });
+        }
+      });
+
+      days.push({
+        date,
+        revenue: dayRevenue,
+        isSelected: selectedDate?.toDateString() === date.toDateString()
+      });
+    }
+    
+    return days;
+  }, [currentMonth, globalBookings, selectedDate]);
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    // 当选择具体日期时，自动将筛选器切换为'day'，以便财务面板的数据跟随变化
+    setTimeRange('day');
+    setIsCalendarOpen(false); // 可选：点击后是否自动关闭日历
+  };
+
  // --- 核心真实数据核算逻辑 (Real-time Financial Engine) ---
  
  const financialData = useMemo(() => {
@@ -120,21 +176,20 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  : staffs;
 
  // 动态时间窗引擎
- const now = new Date();
- now.setHours(0, 0, 0, 0);
+  const now = selectedDate || new Date();
+  now.setHours(0, 0, 0, 0);
+  
+  let currStart = new Date(now);
+  let currEnd = new Date(now);
+  let prevStart = new Date(now);
+  let prevEnd = new Date(now);
 
- let currStart = new Date(now);
- let currEnd = new Date(now);
- let prevStart = new Date(now);
- let prevEnd = new Date(now);
-
- if (timeRange === 'day') {
- currStart = new Date(now);
- currEnd = new Date(now);
- prevStart = new Date(now);
- prevStart.setDate(prevStart.getDate() - 1);
- prevEnd = new Date(prevStart);
- } else if (timeRange === 'week') {
+  if (timeRange === 'day') {
+    currEnd.setHours(23, 59, 59, 999);
+    prevStart.setDate(now.getDate() - 1);
+    prevEnd.setDate(now.getDate() - 1);
+    prevEnd.setHours(23, 59, 59, 999);
+  } else if (timeRange === 'week') {
  const day = now.getDay();
  const diffToMonday = now.getDate() - day + (day === 0 ? -6 : 1);
  currStart = new Date(now.setDate(diffToMonday));
@@ -400,7 +455,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  retailRatio
  }
  };
- }, [globalBookings, staffs, timeRange, isFinanceSelfOnly, currentUserId]);
+ }, [globalBookings, staffs, timeRange, isFinanceSelfOnly, currentUserId, selectedDate]);
 
  const currentMetrics = {
  total: financialData.totalRevenue,
@@ -426,22 +481,16 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in",
+ "fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in pointer-events-none",
  isLight ? "text-black" : "text-white"
  )}>
- {/* 背景暗场遮罩：取消黑色，使用和预约窗一致的透明层 */}
- <div 
- onClick={onClose}
- className="fixed inset-0 pointer-events-auto bg-transparent"
- />
-
  <motion.div
  
  
  
  
  className={cn(
- "relative z-10 w-full max-w-6xl h-[85vh] rounded-2xl flex flex-col overflow-hidden pointer-events-none",
+ "relative z-10 w-full max-w-6xl h-[85vh] rounded-2xl flex flex-col overflow-hidden pointer-events-auto",
  )}
  >
  {/* Header */}
@@ -458,8 +507,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  <Sparkles className={cn("w-4 h-4", isLight ? "text-purple-600" : "text-purple-400")} />
  </div>
  <div className="flex flex-col drop-shadow-sm">
- <h2 className={cn("text-sm tracking-widest", isLight ? "text-black font-semibold" : "text-white font-semibold")}>AI 财务核心舱</h2>
- <span className={cn("text-[13px] uppercase tracking-widest", isLight ? "text-purple-600 font-medium" : "text-purple-400 font-medium")}>Financial Intelligence Hub</span>
+ <h2 className={cn("text-sm tracking-widest", isLight ? "text-black font-semibold" : "text-white font-semibold")}>财务中心</h2>
  </div>
  </div>
 
@@ -470,7 +518,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  {(['day', 'week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
  <button
  key={range}
- onClick={() => setTimeRange(range)}
+ onClick={() => {
+   setTimeRange(range);
+   setSelectedDate(null);
+ }}
  className={cn(
  "px-4 py-1.5 rounded-md text-[13px] uppercase tracking-widest ",
  timeRange === range 
@@ -482,17 +533,110 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </button>
  ))}
  </div>
+ 
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button 
+                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                className={cn(
+                  "w-8 h-8 flex items-center justify-center rounded-md pointer-events-auto backdrop-blur-md transition-all duration-300",
+                  isLight 
+                    ? (isCalendarOpen ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "text-black hover:text-black hover:bg-black/5 border border-transparent")
+                    : (isCalendarOpen ? "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]" : "text-white hover:text-white hover:bg-white/5 border border-transparent")
+                )}
+              >
+                <CalendarIcon className="w-4 h-4" />
+              </button>
 
- <button onClick={onClose} className={cn(
- "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md",
- isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
- )}>
- <X className="w-5 h-5" />
- </button>
- </div>
+              <AnimatePresence>
+                {isCalendarOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className={cn(
+                      "absolute top-full right-0 mt-3 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border z-50 pointer-events-auto w-[280px]",
+                      isLight ? "bg-white border-black/10" : "bg-[#1C1C1E] border-white/10"
+                    )}
+                  >
+                    {/* Calendar Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button 
+                        onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                        className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/10")}
+                      >
+                        <ChevronLeft className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
+                      </button>
+                      <span className={cn("text-[13px] font-medium tracking-widest uppercase", isLight ? "text-black" : "text-white")}>
+                        {currentMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                      </span>
+                      <button 
+                        onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                        className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/10")}
+                      >
+                        <ChevronRight className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
+                      </button>
+                    </div>
+
+                    {/* Weekdays */}
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                        <div key={i} className={cn("text-center text-[10px] font-medium tracking-widest", isLight ? "text-black/40" : "text-white/40")}>
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Days Grid */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarDays.map((dayObj, i) => {
+                        if (!dayObj) return <div key={i} className="aspect-square" />;
+                        
+                        const { date, revenue, isSelected } = dayObj;
+                        const isToday = date.toDateString() === new Date().toDateString();
+                        
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => handleDateSelect(date)}
+                            className={cn(
+                              "aspect-square flex flex-col items-center justify-center rounded-md relative transition-all duration-200 group",
+                              isSelected
+                                ? (isLight ? "bg-black text-white shadow-md" : "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]")
+                                : (isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/10 text-white"),
+                              isToday && !isSelected && (isLight ? "border border-black/20" : "border border-white/20")
+                            )}
+                          >
+                            <span className="text-[12px] font-medium leading-none">{date.getDate()}</span>
+                            {revenue > 0 && (
+                              <span className={cn(
+                                "text-[9px] font-bold mt-0.5 tracking-tighter leading-none opacity-80",
+                                isSelected ? (isLight ? "text-white/90" : "text-black/90") : (isLight ? "text-purple-600" : "text-purple-400")
+                              )}>
+                                €{revenue >= 1000 ? (revenue/1000).toFixed(1) + 'k' : revenue}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+ 
+           <button onClick={onClose} className={cn(
+             "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md",
+             isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
+           )}>
+             <X className="w-5 h-5" />
+           </button>
+          </div>
+         </div>
 
  {/* Scrollable Content */}
- <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide pointer-events-auto">
+ <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
  
  {/* Bento Box Top Section */}
  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -510,7 +654,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          <div className="flex-1 flex flex-col justify-center">
            <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2 mb-2", isLight ? "text-black/50" : "text-white/50")}>
              <Crown className="w-3.5 h-3.5" />
-             总营业额 (Gross Revenue)
+             总营业额
            </span>
            <span className={cn("text-7xl  tracking-tighter drop-shadow-sm leading-none", isLight ? "text-black" : "text-white")}>
              €{currentMetrics.total.toLocaleString()}
@@ -518,7 +662,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            <div className="mt-4 flex items-center gap-2">
              <div className={cn("inline-flex items-center gap-1 text-sm  px-3 py-1.5 rounded border", isPositive ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : isNegative ? "text-rose-500 bg-rose-500/10 border-rose-500/20" : (isLight ? "text-black/60 bg-black/5 border-black/10" : "text-white/60 bg-white/5 border-white/10"))}>
                {isPositive ? <TrendingUp className="w-4 h-4" /> : isNegative ? <TrendingDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
-               <span>{isPositive ? '+' : ''}{trend.toFixed(1)}% vs Prev</span>
+               <span>{isPositive ? '+' : ''}{trend.toFixed(1)}%</span>
              </div>
            </div>
          </div>
@@ -533,18 +677,17 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            <div className="flex flex-col gap-1">
              <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-gx-cyan/70" : "text-gx-cyan/70")}>
                <Users className="w-3.5 h-3.5" />
-               客流 (Traffic)
+               客流
              </span>
              <div className="flex items-baseline gap-2 mt-1">
                <span className={cn("text-4xl  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>{currentMetrics.tactical.totalCustomers}</span>
-               <span className={cn("text-[13px] uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>PAX</span>
              </div>
              
              {/* New/Returning Ratio Bar */}
              <div className="flex flex-col gap-1 mt-2">
                <div className="flex justify-between text-[13px]  uppercase tracking-widest">
-                 <span className="text-blue-400">New {currentMetrics.tactical.newRatio}%</span>
-                 <span className="text-purple-400">Ret {currentMetrics.tactical.returningRatio}%</span>
+                 <span className="text-blue-400">新客 {currentMetrics.tactical.newRatio}%</span>
+                 <span className="text-purple-400">老客 {currentMetrics.tactical.returningRatio}%</span>
                </div>
                <div className={cn("w-full h-1 rounded-full overflow-hidden flex", isLight ? "bg-black/5" : "bg-white/5")}>
                  <div className="h-full bg-blue-400" style={{ width: `${currentMetrics.tactical.newRatio}%` }} />
@@ -557,11 +700,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            <div className="flex flex-col gap-1 mt-5">
              <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
                <Target className="w-3.5 h-3.5" />
-               客单价 (ATV)
+               客单价
              </span>
              <div className="flex items-baseline gap-2 mt-1">
                <span className={cn("text-3xl  tracking-tighter leading-none", isLight ? "text-black" : "text-white")}>€{currentMetrics.tactical.atv}</span>
-               <span className={cn("text-[13px] uppercase tracking-widest", isLight ? "text-black/50" : "text-white/50")}>/ PAX</span>
              </div>
            </div>
  
@@ -584,7 +726,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
           <div className="flex items-center justify-between mb-4">
             <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
               <Wallet className="w-3.5 h-3.5" />
-              支付构成 (Structure)
+              支付类型
             </span>
           </div>
   
@@ -604,11 +746,11 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
             {/* Aligned List */}
             <div className="flex-1 flex flex-col gap-2  text-[13px]">
               {[
-                { label: '微信 (WECHAT)', value: currentMetrics.wechat, color: '#07C160' },
-                { label: '支付宝 (ALIPAY)', value: currentMetrics.alipay, color: '#1677FF' },
-                { label: '银行卡 (CARD)', value: currentMetrics.bankCard, color: '#60A5FA' },
-                { label: '现金 (CASH)', value: currentMetrics.cash, color: '#F59E0B' },
-                { label: '会员卡 (MEMBER)', value: currentMetrics.memberCard, color: '#06B6D4' }
+                { label: '微信', value: currentMetrics.wechat, color: '#07C160' },
+                { label: '支付宝', value: currentMetrics.alipay, color: '#1677FF' },
+                { label: '银行卡', value: currentMetrics.bankCard, color: '#60A5FA' },
+                { label: '现金', value: currentMetrics.cash, color: '#F59E0B' },
+                { label: '会员卡', value: currentMetrics.memberCard, color: '#06B6D4' }
               ].sort((a, b) => b.value - a.value).map((item, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -638,7 +780,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          <div className="flex items-center justify-between mb-4 relative z-10">
            <span className="text-[13px] text-amber-500 uppercase tracking-widest flex items-center gap-2">
              <Wallet className="w-3.5 h-3.5" />
-             新增充值 (Prepaid)
+             新增充值
            </span>
          </div>
          
@@ -651,7 +793,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 relative z-10">
            <UserPlus className="w-4 h-4 text-amber-500 shrink-0" />
            <div className="flex flex-col">
-             <span className="text-[13px]  text-amber-500/70 uppercase tracking-widest">Conv. Rate</span>
+             <span className="text-[13px]  text-amber-500/70 uppercase tracking-widest">转化率</span>
              <span className="text-[13px]  text-amber-500">{currentMetrics.tactical.conversionRate}% <TrendingUp className="inline w-3 h-3 ml-1" /></span>
            </div>
          </div>
@@ -666,7 +808,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          <div className="flex items-center justify-between mb-4 relative z-10">
            <span className="text-[13px] text-emerald-500 uppercase tracking-widest flex items-center gap-2">
              <ShoppingBag className="w-3.5 h-3.5" />
-             产品零售 (Retail)
+             产品零售
            </span>
          </div>
          
@@ -678,7 +820,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
 
          <div className="flex flex-col gap-1.5 relative z-10">
            <div className="flex justify-between text-[13px]  uppercase tracking-widest text-emerald-500/70">
-             <span>Ratio</span>
+             <span>占比</span>
              <span>{currentMetrics.tactical.retailRatio}%</span>
            </div>
            <div className={cn("w-full h-1 bg-emerald-500/20 rounded-full overflow-hidden")}>
@@ -702,9 +844,8 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
    <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-4 mb-6" : "flex items-center justify-between border-b border-white/5 pb-4 mb-6")}>
      <h3 className={cn(isLight ? "text-sm tracking-widest text-black flex items-center gap-2 uppercase" : "text-sm tracking-widest text-white flex items-center gap-2 uppercase")}>
        <Users className="w-4 h-4 text-blue-500" />
-       技师血汗榜 (Staff Leaderboard)
+       技师业绩
      </h3>
-     <span className={cn(isLight ? "text-[13px]  text-black/50" : "text-[13px]  text-white/50")}>Auto-calculated</span>
    </div>
  
    <div className="flex flex-col gap-5 relative">
@@ -760,7 +901,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
    <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-4 mb-6" : "flex items-center justify-between border-b border-white/5 pb-4 mb-6")}>
      <h3 className={cn(isLight ? "text-sm tracking-widest text-black flex items-center gap-2 uppercase" : "text-sm tracking-widest text-white flex items-center gap-2 uppercase")}>
        <Target className="w-4 h-4 text-amber-500" />
-       爆款项目排行 (Service ROI)
+       爆款项目排行
      </h3>
      <span className={cn(isLight ? "text-[13px]  text-black/50" : "text-[13px]  text-white/50")}>Top 5</span>
    </div>

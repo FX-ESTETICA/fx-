@@ -83,7 +83,7 @@ export const GlobalWormholeCapsule = () => {
  return (
  <motion.div 
  ref={capsuleRef} 
- className="fixed right-4 bottom-24 z-[9999] flex flex-col items-end"
+ className="fixed right-4 bottom-24 z-[999999] flex flex-col items-end pointer-events-auto"
  drag
  dragConstraints={{ left: -window.innerWidth + 60, right: 0, top: -window.innerHeight + 100, bottom: 0 }}
  dragElastic={0.1}
