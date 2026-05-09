@@ -495,8 +495,9 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  >
  {/* Header */}
  <div className={cn(
- "h-16 flex items-center justify-between px-6 pointer-events-auto rounded-t-2xl",
+ "flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto rounded-t-2xl shrink-0",
  )}>
+ <div className="flex items-center justify-between w-full sm:w-auto shrink-0">
  <div className="flex items-center gap-3">
  <div className={cn(
  "w-8 h-8 rounded-full border flex items-center justify-center",
@@ -511,10 +512,17 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
  </div>
 
- <div className={cn(
- "flex items-center gap-2 p-1 rounded-lg border pointer-events-auto backdrop-blur-md",
- isLight ? "bg-black/5 border-black/10 shadow-sm" : "bg-white/5 border-white/10 shadow-sm"
+ {/* Mobile Close Button */}
+ <button onClick={onClose} className={cn(
+ "sm:hidden w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md shrink-0",
+ isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
  )}>
+ <X className="w-5 h-5" />
+ </button>
+ </div>
+
+ <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto scrollbar-hide pb-2 sm:pb-0 -mb-2 sm:mb-0">
+ <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto w-max pr-6 sm:pr-0">
  {(['day', 'week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
  <button
  key={range}
@@ -523,26 +531,24 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
    setSelectedDate(null);
  }}
  className={cn(
- "px-4 py-1.5 rounded-md text-[13px] uppercase tracking-widest ",
+ "px-3.5 sm:px-4 py-1.5 rounded-full text-[13px] uppercase tracking-widest whitespace-nowrap transition-all duration-300",
  timeRange === range 
- ? (isLight ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]")
- : (isLight ? "text-black hover:text-black hover:bg-black/5 border border-transparent" : "text-white hover:text-white hover:bg-white/5 border border-transparent")
+ ? (isLight ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)] backdrop-blur-md" : "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)] backdrop-blur-md")
+ : (isLight ? "text-black/60 hover:text-black hover:bg-black/5 border border-transparent" : "text-white/60 hover:text-white hover:bg-white/5 border border-transparent")
  )}
  >
  {range === 'day' ? '今日' : range === 'week' ? '本周' : range === 'month' ? '本月' : range === 'quarter' ? '季度' : '年度'}
  </button>
  ))}
- </div>
  
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <button 
+ <div className="relative shrink-0 ml-1">
+ <button 
                 onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                 className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-md pointer-events-auto backdrop-blur-md transition-all duration-300",
+                  "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md transition-all duration-300",
                   isLight 
-                    ? (isCalendarOpen ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "text-black hover:text-black hover:bg-black/5 border border-transparent")
-                    : (isCalendarOpen ? "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]" : "text-white hover:text-white hover:bg-white/5 border border-transparent")
+                    ? (isCalendarOpen ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "text-black/60 hover:text-black hover:bg-black/5 border border-transparent")
+                    : (isCalendarOpen ? "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]" : "text-white/60 hover:text-white hover:bg-white/5 border border-transparent")
                 )}
               >
                 <CalendarIcon className="w-4 h-4" />
@@ -556,7 +562,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     className={cn(
-                      "absolute top-full right-0 mt-3 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border z-50 pointer-events-auto w-[280px]",
+                      "absolute top-full right-0 sm:right-0 mt-3 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border z-50 pointer-events-auto w-[280px]",
                       isLight ? "bg-white border-black/10" : "bg-[#1C1C1E] border-white/10"
                     )}
                   >
@@ -625,9 +631,11 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
                 )}
               </AnimatePresence>
             </div>
+            </div>
  
+           {/* Desktop Close Button */}
            <button onClick={onClose} className={cn(
-             "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md",
+             "hidden sm:flex w-8 h-8 items-center justify-center rounded-full pointer-events-auto backdrop-blur-md shrink-0",
              isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
            )}>
              <X className="w-5 h-5" />
