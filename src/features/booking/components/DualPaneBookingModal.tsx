@@ -2276,9 +2276,12 @@ export function DualPaneBookingModal({
          // 3. 入库
          const payload = newBookings.map(b => {
            const { _needsTimeReflow, _isForceInsert, ...rest } = b;
-           return rest;
+           return {
+             ...rest,
+             date: rest.date || selectedDate.replace(/\//g, '-') // 强制赋予 date 解决 TS 类型报错
+           };
          });
-         await BookingService.upsertBookings(payload);
+         await BookingService.upsertBookings(payload as any);
 
          // 4. 重排大脑
          let currentShopId = activeShopId || 'default';
