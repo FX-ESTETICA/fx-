@@ -481,7 +481,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center py-2 px-[3px] sm:p-8 animate-in fade-in pointer-events-none",
+ "fixed inset-0 z-[99999] flex items-center justify-center py-2 px-0 sm:p-8 animate-in fade-in pointer-events-none",
  isLight ? "text-black" : "text-white"
  )}>
  <motion.div
@@ -490,12 +490,12 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  
  
  className={cn(
- "relative z-10 w-full max-w-6xl h-[85vh] rounded-2xl flex flex-col overflow-hidden pointer-events-auto",
+ "relative z-10 w-full max-w-6xl h-[85vh] sm:rounded-2xl flex flex-col overflow-hidden pointer-events-auto",
  )}
  >
  {/* Header */}
  <div className={cn(
- "flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto rounded-t-2xl shrink-0",
+ "flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto sm:rounded-t-2xl shrink-0",
  )}>
  <div className="flex items-center justify-between w-full sm:w-auto shrink-0 z-50">
  <div className="flex items-center gap-3">
