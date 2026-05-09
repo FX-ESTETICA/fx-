@@ -497,15 +497,97 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  <div className={cn(
  "flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto rounded-t-2xl shrink-0",
  )}>
- <div className="flex items-center justify-between w-full sm:w-auto shrink-0">
+ <div className="flex items-center justify-between w-full sm:w-auto shrink-0 z-50">
  <div className="flex items-center gap-3">
- <div className={cn(
- "w-8 h-8 rounded-full border flex items-center justify-center",
- isLight 
- ? "bg-purple-500/10 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)] backdrop-blur-md" 
- : "bg-purple-500/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.3)] backdrop-blur-md"
- )}>
- <Sparkles className={cn("w-4 h-4", isLight ? "text-purple-600" : "text-purple-400")} />
+ <div className="relative shrink-0">
+ <button 
+   onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+   className={cn(
+     "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md transition-all duration-300 border",
+     isLight 
+       ? (isCalendarOpen ? "bg-purple-500/10 text-purple-700 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "bg-purple-500/5 border-purple-500/10 text-purple-600 hover:bg-purple-500/10")
+       : (isCalendarOpen ? "bg-purple-500/20 text-purple-300 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]" : "bg-purple-500/10 border-purple-500/20 text-purple-400 hover:bg-purple-500/20")
+   )}
+ >
+   <CalendarIcon className="w-4 h-4" />
+ </button>
+
+ <AnimatePresence>
+   {isCalendarOpen && (
+     <motion.div
+       initial={{ opacity: 0, y: 10, scale: 0.95 }}
+       animate={{ opacity: 1, y: 0, scale: 1 }}
+       exit={{ opacity: 0, y: 10, scale: 0.95 }}
+       transition={{ duration: 0.2, ease: "easeOut" }}
+       className={cn(
+         "absolute top-full left-0 sm:left-0 mt-3 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border z-50 pointer-events-auto w-[280px]",
+         isLight ? "bg-white border-black/10" : "bg-[#1C1C1E] border-white/10"
+       )}
+     >
+       {/* Calendar Header */}
+       <div className="flex items-center justify-between mb-4">
+         <button 
+           onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+           className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/10")}
+         >
+           <ChevronLeft className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
+         </button>
+         <span className={cn("text-[13px] font-medium tracking-widest uppercase", isLight ? "text-black" : "text-white")}>
+           {currentMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}
+         </span>
+         <button 
+           onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+           className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/10")}
+         >
+           <ChevronRight className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
+         </button>
+       </div>
+
+       {/* Weekdays */}
+       <div className="grid grid-cols-7 gap-1 mb-2">
+         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+           <div key={i} className={cn("text-center text-[10px] font-medium tracking-widest", isLight ? "text-black/40" : "text-white/40")}>
+             {day}
+           </div>
+         ))}
+       </div>
+
+       {/* Days Grid */}
+       <div className="grid grid-cols-7 gap-1">
+         {calendarDays.map((dayObj, i) => {
+           if (!dayObj) return <div key={i} className="aspect-square" />;
+           
+           const { date, revenue, isSelected } = dayObj;
+           const isToday = date.toDateString() === new Date().toDateString();
+           
+           return (
+             <button
+               key={i}
+               onClick={() => handleDateSelect(date)}
+               className={cn(
+                 "aspect-square flex flex-col items-center justify-center rounded-md relative transition-all duration-200 group",
+                 isSelected
+                   ? (isLight ? "bg-black text-white shadow-md" : "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]")
+                   : (isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/10 text-white"),
+                 isToday && !isSelected && (isLight ? "border border-black/20" : "border border-white/20")
+               )}
+             >
+               <span className="text-[12px] font-medium leading-none">{date.getDate()}</span>
+               {revenue > 0 && (
+                 <span className={cn(
+                   "text-[9px] font-bold mt-0.5 tracking-tighter leading-none opacity-80",
+                   isSelected ? (isLight ? "text-white/90" : "text-black/90") : (isLight ? "text-purple-600" : "text-purple-400")
+                 )}>
+                   €{revenue >= 1000 ? (revenue/1000).toFixed(1) + 'k' : revenue}
+                 </span>
+               )}
+             </button>
+           );
+         })}
+       </div>
+     </motion.div>
+   )}
+ </AnimatePresence>
  </div>
  <div className="flex flex-col drop-shadow-sm">
  <h2 className={cn("text-sm tracking-widest", isLight ? "text-black font-semibold" : "text-white font-semibold")}>财务中心</h2>
@@ -521,7 +603,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </button>
  </div>
 
- <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto scrollbar-hide pb-2 sm:pb-0 -mb-2 sm:mb-0">
+ <div 
+   className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 -mb-2 sm:mb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+ >
  <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto w-max pr-6 sm:pr-0">
  {(['day', 'week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
  <button
@@ -540,108 +625,17 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  {range === 'day' ? '今日' : range === 'week' ? '本周' : range === 'month' ? '本月' : range === 'quarter' ? '季度' : '年度'}
  </button>
  ))}
+ </div>
+ </div>
  
- <div className="relative shrink-0 ml-1">
- <button 
-                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-full pointer-events-auto backdrop-blur-md transition-all duration-300",
-                  isLight 
-                    ? (isCalendarOpen ? "bg-purple-500/10 text-purple-700 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.1)]" : "text-black/60 hover:text-black hover:bg-black/5 border border-transparent")
-                    : (isCalendarOpen ? "bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]" : "text-white/60 hover:text-white hover:bg-white/5 border border-transparent")
-                )}
-              >
-                <CalendarIcon className="w-4 h-4" />
-              </button>
-
-              <AnimatePresence>
-                {isCalendarOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={cn(
-                      "absolute top-full right-0 sm:right-0 mt-3 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border z-50 pointer-events-auto w-[280px]",
-                      isLight ? "bg-white border-black/10" : "bg-[#1C1C1E] border-white/10"
-                    )}
-                  >
-                    {/* Calendar Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <button 
-                        onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-                        className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/10")}
-                      >
-                        <ChevronLeft className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
-                      </button>
-                      <span className={cn("text-[13px] font-medium tracking-widest uppercase", isLight ? "text-black" : "text-white")}>
-                        {currentMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}
-                      </span>
-                      <button 
-                        onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                        className={cn("p-1 rounded-md", isLight ? "hover:bg-black/5" : "hover:bg-white/10")}
-                      >
-                        <ChevronRight className={cn("w-4 h-4", isLight ? "text-black" : "text-white")} />
-                      </button>
-                    </div>
-
-                    {/* Weekdays */}
-                    <div className="grid grid-cols-7 gap-1 mb-2">
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                        <div key={i} className={cn("text-center text-[10px] font-medium tracking-widest", isLight ? "text-black/40" : "text-white/40")}>
-                          {day}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Days Grid */}
-                    <div className="grid grid-cols-7 gap-1">
-                      {calendarDays.map((dayObj, i) => {
-                        if (!dayObj) return <div key={i} className="aspect-square" />;
-                        
-                        const { date, revenue, isSelected } = dayObj;
-                        const isToday = date.toDateString() === new Date().toDateString();
-                        
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => handleDateSelect(date)}
-                            className={cn(
-                              "aspect-square flex flex-col items-center justify-center rounded-md relative transition-all duration-200 group",
-                              isSelected
-                                ? (isLight ? "bg-black text-white shadow-md" : "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]")
-                                : (isLight ? "hover:bg-black/5 text-black" : "hover:bg-white/10 text-white"),
-                              isToday && !isSelected && (isLight ? "border border-black/20" : "border border-white/20")
-                            )}
-                          >
-                            <span className="text-[12px] font-medium leading-none">{date.getDate()}</span>
-                            {revenue > 0 && (
-                              <span className={cn(
-                                "text-[9px] font-bold mt-0.5 tracking-tighter leading-none opacity-80",
-                                isSelected ? (isLight ? "text-white/90" : "text-black/90") : (isLight ? "text-purple-600" : "text-purple-400")
-                              )}>
-                                €{revenue >= 1000 ? (revenue/1000).toFixed(1) + 'k' : revenue}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            </div>
- 
-           {/* Desktop Close Button */}
-           <button onClick={onClose} className={cn(
-             "hidden sm:flex w-8 h-8 items-center justify-center rounded-full pointer-events-auto backdrop-blur-md shrink-0",
-             isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
-           )}>
-             <X className="w-5 h-5" />
-           </button>
-          </div>
-         </div>
+ {/* Desktop Close Button */}
+ <button onClick={onClose} className={cn(
+   "hidden sm:flex w-8 h-8 items-center justify-center rounded-full pointer-events-auto backdrop-blur-md shrink-0",
+   isLight ? "hover:bg-black/10 text-black hover:text-black bg-black/5" : "hover:bg-white/20 text-white hover:text-white bg-white/10"
+ )}>
+   <X className="w-5 h-5" />
+ </button>
+ </div>
 
  {/* Scrollable Content */}
  <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
