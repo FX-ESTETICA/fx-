@@ -1081,8 +1081,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         const numericBaseGxId = extractDigits(userBaseGxId);
         const numericMerchantGxId = extractDigits(userMerchantGxId);
         
-        // 找到当前登录员工在门店中的身份档案
-        const staffProfile = validStaffs.find(s => {
+        // 找到当前登录员工在门店中的身份档案（必须去原始的全局 staffs 里找，防止旁观者被提前过滤导致死锁）
+        const staffProfile = staffs.find(s => {
           const numericStaffId = extractDigits(s.frontendId);
           if (!numericStaffId) return false;
           
@@ -1096,8 +1096,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
           // 透明人：没档案就啥也看不见
           validStaffs = [];
         } else if (staffProfile.calendarView !== 'all') {
-          // 只要不是明确的 'all' (例如 'self' 或未设置)，就强制只看自己
-          validStaffs = [staffProfile];
+          // 只要不是明确的 'all' (例如 'self' 或未设置)，就强制只看自己。
+          // 注意：如果自己是旁观者/离职，被提前过滤掉了，这里再把 validStaffs 设置为 [staffProfile] 会导致显示异常。
+          // 但既然只能看自己，且自己不展示在日历上，那 validStaffs 置空也是合理的逻辑。
+          const isStaffValid = validStaffs.some(s => s.id === staffProfile.id);
+          validStaffs = isStaffValid ? [staffProfile] : [];
         }
       }
 
