@@ -650,7 +650,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
        )}>
 
       {/* Super Block: Gross Revenue + Traffic */}
-       <div className="flex relative z-10 mb-10 items-stretch">
+       <div className="flex flex-col sm:flex-row relative z-10 mb-10 items-stretch gap-6 sm:gap-0">
          
          {/* Left: Giant Money */}
          <div className="flex-1 flex flex-col justify-center">
@@ -658,7 +658,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
              <Crown className="w-3.5 h-3.5" />
              总营业额
            </span>
-           <span className={cn("text-7xl  tracking-tighter drop-shadow-sm leading-none", isLight ? "text-black" : "text-white")}>
+           <span className={cn("text-6xl sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
              €{currentMetrics.total.toLocaleString()}
            </span>
            <div className="mt-4 flex items-center gap-2">
@@ -669,11 +669,11 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            </div>
          </div>
  
-         {/* Divider Vertical */}
-         <div className={cn("w-[1px] mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
+         {/* Divider Vertical (Hidden on Mobile) */}
+         <div className={cn("hidden sm:block w-[1px] mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
  
          {/* Right: People & ATV (Stacked vertically) */}
-         <div className="w-56 flex flex-col justify-between">
+         <div className="w-full sm:w-56 flex flex-col justify-between gap-6 sm:gap-0">
            
            {/* Top: Traffic */}
            <div className="flex flex-col gap-1">
