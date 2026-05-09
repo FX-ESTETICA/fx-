@@ -658,7 +658,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
              <Crown className="w-3.5 h-3.5" />
              总营业额
            </span>
-           <span className={cn("text-[48px] sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
+           <span className={cn("text-[36px] sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
              €{currentMetrics.total.toLocaleString()}
            </span>
            <div className="mt-4 flex items-center gap-2">
