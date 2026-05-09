@@ -481,7 +481,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in pointer-events-none",
+ "fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-8 animate-in fade-in pointer-events-none",
  isLight ? "text-black" : "text-white"
  )}>
  <motion.div
@@ -495,7 +495,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  >
  {/* Header */}
  <div className={cn(
- "flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto rounded-t-2xl shrink-0",
+ "flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto rounded-t-2xl shrink-0",
  )}>
  <div className="flex items-center justify-between w-full sm:w-auto shrink-0 z-50">
  <div className="flex items-center gap-3">
@@ -638,14 +638,14 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  </div>
 
  {/* Scrollable Content */}
- <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+ <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
  
  {/* Bento Box Top Section */}
- <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+ <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
    
    {/* Col 1 & 2: Revenue Area Chart (Bento Large Block) */}
      <div className={cn(
-        "lg:col-span-2 lg:row-span-3 rounded-2xl p-8 flex flex-col relative overflow-hidden group border",
+        "lg:col-span-2 lg:row-span-3 rounded-2xl p-5 sm:p-8 flex flex-col relative overflow-hidden group border",
          isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
        )}>
 
@@ -722,7 +722,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
      <div className="flex flex-col gap-6">
        {/* 1. Payment Breakdown */}
        <div className={cn(
-          "rounded-2xl p-6 flex flex-col relative border",
+          "rounded-2xl p-4 sm:p-6 flex flex-col relative border",
           isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
         )}>
           <div className="flex items-center justify-between mb-4">
@@ -774,8 +774,8 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
         </div>
 
        {/* 2. Prepaid Engine */}
-       <div className={cn(
-        "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+         <div className={cn(
+            "rounded-2xl p-4 sm:p-6 flex flex-col relative overflow-hidden group border",
          isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
        )}>
          <div className="absolute top-0 left-0 w-32 h-32 bg-amber-500/10 rounded-br-full blur-2xl group-hover:bg-amber-500/20" />
@@ -801,9 +801,9 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
          </div>
        </div>
 
-       {/* 3. Retail Engine */}
-       <div className={cn(
-        "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+       {/* 3. Retail ROI */}
+        <div className={cn(
+         "rounded-2xl p-4 sm:p-6 flex flex-col relative overflow-hidden group border",
          isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
        )}>
          <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-br-full blur-2xl group-hover:bg-emerald-500/20" />
@@ -840,7 +840,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  
  {/* Left: Staff Performance (Horizontal Bar Chart) */}
  <div className={cn(
-    "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+    "rounded-2xl p-4 sm:p-6 flex flex-col relative overflow-hidden group border",
     isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
   )}>
    <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-4 mb-6" : "flex items-center justify-between border-b border-white/5 pb-4 mb-6")}>
@@ -897,7 +897,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
 
  {/* Right: Service ROI (Horizontal Bar Chart) */}
  <div className={cn(
-    "rounded-2xl p-6 flex flex-col relative overflow-hidden group border",
+    "rounded-2xl p-4 sm:p-6 flex flex-col relative overflow-hidden group border",
     isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
   )}>
    <div className={cn(isLight ? "flex items-center justify-between border-b border-black/5 pb-4 mb-6" : "flex items-center justify-between border-b border-white/5 pb-4 mb-6")}>
