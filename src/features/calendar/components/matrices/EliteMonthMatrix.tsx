@@ -19,6 +19,9 @@ export interface EliteMonthMatrixProps {
 
 export const EliteMonthMatrix = ({ resources, selectedStaffIds, currentDate, bookings = [], onGridClick, onDateClick }: EliteMonthMatrixProps) => {
  const t = useTranslations('EliteWeekMatrix');
+ const { settings: visualSettings } = useVisualSettings();
+ const isLight = visualSettings.calendarBgIndex !== 0;
+ const resolvedTimelineTheme = isLight ? 'coreblack' : 'whitegold';
  
  const DAYS_OF_WEEK = [t('txt_mon'), t('txt_tue'), t('txt_wed'), t('txt_thu'), t('txt_fri'), t('txt_sat'), t('txt_sun')];
 

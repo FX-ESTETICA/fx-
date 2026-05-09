@@ -130,15 +130,15 @@ export const EliteSpatialMatrix = ({ industry, dna }: EliteSpatialMatrixProps) =
  <div key={table.id} className="flex-1 min-w-[140px] max-w-[240px] relative group shrink-0">
  {/* 模拟状态占位 */}
  {timeIdx === 2 && table.id === 'T1' && (
- <div className={cn("absolute inset-1 rounded-lg flex flex-col items-center justify-center gap-1 ", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/5" : "bg-white/5")}>
- <span className={cn("text-[11px]", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_65f899')}</span>
- <span className={cn("text-[11px] ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60" : "text-white/60")}>{t('txt_c1b815')}</span>
+ <div className={cn("absolute inset-1 rounded-lg flex flex-col items-center justify-center gap-1 ", visualSettings.calendarBgIndex !== 0 ? "bg-black/5" : "bg-white/5")}>
+ <span className={cn("text-[11px]", visualSettings.calendarBgIndex !== 0 ? "text-black" : "text-white")}>{t('txt_65f899')}</span>
+ <span className={cn("text-[11px] ", visualSettings.calendarBgIndex !== 0 ? "text-black/60" : "text-white/60")}>{t('txt_c1b815')}</span>
  </div>
  )}
  {timeIdx === 5 && table.id === 'T3' && (
- <div className={cn("absolute inset-1 rounded-lg flex flex-col items-center justify-center gap-1 ", visualSettings.headerTitleColorTheme === 'coreblack' ? "bg-black/5" : "bg-white/5")}>
- <span className={cn("text-[11px]", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black" : "text-white")}>{t('txt_44209e')}</span>
- <span className={cn("text-[11px] ", visualSettings.headerTitleColorTheme === 'coreblack' ? "text-black/60" : "text-white/60")}>{t('txt_c71976')}</span>
+ <div className={cn("absolute inset-1 rounded-lg flex flex-col items-center justify-center gap-1 ", visualSettings.calendarBgIndex !== 0 ? "bg-black/5" : "bg-white/5")}>
+ <span className={cn("text-[11px]", visualSettings.calendarBgIndex !== 0 ? "text-black" : "text-white")}>{t('txt_44209e')}</span>
+ <span className={cn("text-[11px] ", visualSettings.calendarBgIndex !== 0 ? "text-black/60" : "text-white/60")}>{t('txt_c71976')}</span>
  </div>
  )}
  {/* 空位引导 */}

@@ -110,7 +110,7 @@ export const BookingSearch = ({
     setIsOpen(false);
   };
 
-  const isLight = visualSettings?.headerTitleColorTheme === 'coreblack';
+  const isLight = visualSettings?.calendarBgIndex !== 0;
 
   return (
     <div 

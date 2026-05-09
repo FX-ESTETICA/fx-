@@ -21,7 +21,7 @@ export const TodayOverrideController = ({
  fullConfig
 }: TodayOverrideControllerProps) => {
  const { settings } = useVisualSettings();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const isLight = settings.calendarBgIndex !== 0;
  const t = useTranslations('TodayOverrideController');
 
  const todayDateStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');

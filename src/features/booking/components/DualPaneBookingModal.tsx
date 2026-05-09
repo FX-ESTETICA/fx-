@@ -91,7 +91,8 @@ export function DualPaneBookingModal({
  const t = useTranslations('DualPaneBookingModal');
  const { activeShopId, availableShops, refreshBookings, trackAction } = useShop();
  const { settings } = useVisualSettings();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const isCalendarView = typeof window !== 'undefined' ? window.location.pathname.includes('calendar') : false;
+  const isLight = isCalendarView ? settings.calendarBgIndex !== 0 : settings.frontendBgIndex !== 0;
 
  // -------------------------------
  // Phone Masking Helper

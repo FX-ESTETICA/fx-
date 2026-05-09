@@ -30,7 +30,7 @@ export const OrbitalPossessionProfile = ({
 }: OrbitalPossessionProfileProps) => {
  const t = useTranslations('OrbitalPossessionProfile');
  const { settings: visualSettings } = useVisualSettings();
- const isBlack = visualSettings.headerTitleColorTheme === 'coreblack';
+ const isBlack = visualSettings.calendarBgIndex !== 0;
 
  // 当前处于大位 (主导地位) 的角色
  const [displayRole, setDisplayRole] = useState<'boss' | 'manager'>('boss');

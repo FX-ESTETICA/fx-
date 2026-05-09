@@ -26,8 +26,8 @@ export function QuickCommandPalette({
   onBookingCreated,
   visualSettings
 }: QuickCommandPaletteProps) {
-  const isLight = visualSettings?.headerTitleColorTheme === 'coreblack';
-  const textColor = isLight ? "text-black" : (visualSettings?.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]");
+  const isLight = visualSettings?.calendarBgIndex !== 0;
+  const textColor = isLight ? "text-black" : (visualSettings?.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]");
   const borderColor = isLight ? "border-black/30" : "border-white/30";
   const glowShadow = isLight ? "drop-shadow-[0_0_12px_rgba(0,0,0,0.15)]" : "drop-shadow-[0_0_12px_rgba(255,255,255,0.15)]";
 

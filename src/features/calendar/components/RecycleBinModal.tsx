@@ -9,7 +9,7 @@ import { useVisualSettings } from "@/hooks/useVisualSettings";
 export function RecycleBinModal({ isOpen, onClose, shopId }: { isOpen: boolean, onClose: () => void, shopId: string }) {
  const t = useTranslations('RecycleBinModal');
  const { settings } = useVisualSettings();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const isLight = settings.calendarBgIndex !== 0;
  const { refreshBookings, trackAction } = useShop();
  const [voidedBookings, setVoidedBookings] = useState<BookingRecord[]>([]);
  const [isLoading, setIsLoading] = useState(false);

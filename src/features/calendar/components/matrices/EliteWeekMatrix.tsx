@@ -27,6 +27,8 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  React.useEffect(() => setIsMounted(true), []);
  const currentHour = isMounted ? new Date().getHours() : -1;
  const { settings: visualSettings } = useVisualSettings();
+ const isLight = visualSettings.calendarBgIndex !== 0;
+ const resolvedTimelineTheme = isLight ? 'coreblack' : 'whitegold';
  const t = useTranslations('EliteWeekMatrix');
  
  const DAYS_OF_WEEK = [t('txt_mon'), t('txt_tue'), t('txt_wed'), t('txt_thu'), t('txt_fri'), t('txt_sat'), t('txt_sun')];
@@ -118,9 +120,9 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  onClick={(e) => { e.stopPropagation(); setIsMiniCalendarOpen(!isMiniCalendarOpen); }}
  className={cn(
  "p-2 rounded-xl transition-all duration-300 pointer-events-auto",
- visualSettings.timelineColorTheme === 'purewhite' 
+ resolvedTimelineTheme === 'purewhite' 
  ? "hover:bg-white/10 text-white/50 hover:text-white" 
- : visualSettings.timelineColorTheme === 'coreblack'
+ : resolvedTimelineTheme === 'coreblack'
  ? "hover:bg-black/5 text-black/40 hover:text-black"
  : "hover:bg-white/10 text-white/50 hover:text-white"
  )}
@@ -136,7 +138,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  onDateClick?.(date);
  setIsMiniCalendarOpen(false);
  }}
- isLight={visualSettings.timelineColorTheme === 'purewhite' || visualSettings.timelineColorTheme === 'coreblack'}
+ isLight={resolvedTimelineTheme === 'purewhite' || resolvedTimelineTheme === 'coreblack'}
  />
  </div>
  </div>
@@ -150,8 +152,8 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  className="flex flex-col items-center justify-center relative group cursor-pointer "
  onClick={() => onDateClick?.(date)}
  >
- {isToday && <div className={`absolute top-0 left-0 right-0 h-1 ${visualSettings.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />}
- <span className={cn("text-[11px] uppercase tracking-widest ", isToday ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : `text-white `)}>
+ {isToday && <div className={`absolute top-0 left-0 right-0 h-1 ${visualSettings.calendarBgIndex !== 0 ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />}
+ <span className={cn("text-[11px] uppercase tracking-widest ", isToday ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : `text-white `)}>
  {DAYS_OF_WEEK[idx]}
  </span>
  <span className={cn("text-[20px] mt-1 text-white ")}>
@@ -175,25 +177,25 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  <div key={slot.hour} className="h-16 flex items-start justify-center relative group pt-2">
  <div className={cn(
  " text-[15px] flex items-center justify-center font-normal tracking-normal tabular-nums",
- visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'blackgold' && "mix-blend-screen",
+ resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'blackgold' && "mix-blend-screen",
  slot.hour === currentHour && "scale-110",
  slot.hour !== currentHour && ""
- )} style={slot.hour !== currentHour ? { textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'blackgold' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` } : {}}>
- <span className={cn(slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ )} style={slot.hour !== currentHour ? { textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : visualSettings.calendarBgIndex !== 0 ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` } : {}}>
+ <span className={cn(slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  {slot.hour.toString().padStart(2, '0')}
  </span>
- <span className={cn("text-[11px] mx-[3px] ", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"} ` : visualSettings.timelineColorTheme === 'blackgold' ? "text-black" : ` ${CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && visualSettings.timelineColorTheme !== 'blackgold' ? (CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex : undefined }}>:</span>
- <span className={cn("", slot.hour === currentHour ? `${visualSettings.timelineColorTheme === 'blackgold' ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ <span className={cn("text-[11px] mx-[3px] ", slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"} ` : visualSettings.calendarBgIndex !== 0 ? "text-black" : ` ${CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className.replace('text-transparent bg-clip-text', '')}`)} style={{ color: slot.hour !== currentHour && resolvedTimelineTheme !== 'blackgold' ? (CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex : undefined }}>:</span>
+ <span className={cn("", slot.hour === currentHour ? `${visualSettings.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"}` : CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  00
  </span>
  </div>
  {idx < timeSlots.length - 1 && timeSlots[idx + 1].hour - slot.hour > 1 && (
- <div className={`absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent ${visualSettings.timelineColorTheme === 'blackgold' ? "via-[#8B7355]/40" : "via-[#FDF5E6]/40"} to-transparent flex items-center justify-center z-10`}>
- <div className={`w-1 h-1 rounded-full ${visualSettings.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />
+ <div className={`absolute bottom-[-1px] left-2 right-2 h-[2px] bg-gradient-to-r from-transparent ${visualSettings.calendarBgIndex !== 0 ? "via-[#8B7355]/40" : "via-[#FDF5E6]/40"} to-transparent flex items-center justify-center z-10`}>
+ <div className={`w-1 h-1 rounded-full ${visualSettings.calendarBgIndex !== 0 ? "bg-[#8B7355]" : "bg-[#FDF5E6]"}`} />
  </div>
  )}
  {slot.hour === currentHour && (
- <div className={`absolute left-0 right-0 top-3 h-px ${visualSettings.timelineColorTheme === 'blackgold' ? "bg-[#8B7355]/30" : "bg-[#FDF5E6]/30"} z-10`} />
+ <div className={`absolute left-0 right-0 top-3 h-px ${visualSettings.calendarBgIndex !== 0 ? "bg-[#8B7355]/30" : "bg-[#FDF5E6]/30"} z-10`} />
  )}
  </div>
  ))}

@@ -106,7 +106,7 @@ type TimeRange = 'day' | 'week' | 'month' | 'quarter' | 'year';
 export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBookings = [], isFinanceSelfOnly, currentUserId }: AiFinanceDashboardModalProps) => {
  const [timeRange, setTimeRange] = useState<TimeRange>('day');
  const { settings } = useVisualSettings();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const isLight = settings.calendarBgIndex !== 0;
 
  // --- 核心真实数据核算逻辑 (Real-time Financial Engine) ---
  

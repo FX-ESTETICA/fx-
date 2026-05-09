@@ -18,7 +18,8 @@ interface BookingFormProps {
 export const BookingForm = ({ initialDetails, onSubmit, onCancel }: BookingFormProps) => {
  const t = useTranslations('BookingForm');
  const { settings } = useVisualSettings();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const isCalendarView = typeof window !== 'undefined' ? window.location.pathname.includes('calendar') : false;
+  const isLight = isCalendarView ? settings.calendarBgIndex !== 0 : settings.frontendBgIndex !== 0;
  const { register, handleSubmit, formState: { errors } } = useForm<BookingDetails>({
  defaultValues: initialDetails
  });

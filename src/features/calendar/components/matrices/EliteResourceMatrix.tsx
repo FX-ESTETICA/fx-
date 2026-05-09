@@ -105,7 +105,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  ? visualSettings.calendarBgIndex !== 0 
  : visualSettings.frontendBgIndex !== 0;
  
- const resolvedTimelineTheme = isLight ? 'coreblack' : visualSettings.timelineColorTheme;
+ const resolvedTimelineTheme = isLight ? 'coreblack' : 'whitegold';
  const matrixContainerRef = useRef<HTMLDivElement>(null);
  const timeColumnRef = useRef<HTMLDivElement>(null);
  const internalMatrixRef = useRef<HTMLDivElement>(null);
@@ -864,16 +864,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  <div key={node.id} className="absolute w-full group" style={{ top: node.top, height: node.height }}>
  <div className={cn(
  "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-normal tracking-normal tabular-nums z-10",
- visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'coreblack' && "mix-blend-screen",
+ resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen",
  ""
- )} style={{ textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` }}>
- <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
+ )} style={{ textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+ <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
  {node.hour!.toString().padStart(2, '0')}
  </span>
  <span className={cn("text-[11px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
  :
  </span>
- <span className={cn("", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ <span className={cn("", CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  00
  </span>
  </div>
@@ -889,15 +889,15 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  >
  <div className={cn(
  "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
- visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'coreblack' && "mix-blend-screen"
- )} style={{ textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` }}>
- <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
+ resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
+ )} style={{ textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+ <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
  {crosshair.time.split(':')[0]}
  </span>
  <span className={cn("text-[11px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
  :
  </span>
- <span className={cn("", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ <span className={cn("", CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  {crosshair.time.split(':')[1]}
  </span>
  </div>
@@ -912,15 +912,15 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  >
  <div className={cn(
  "absolute top-0 left-2.5 -translate-y-1/2 text-[13px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
- visualSettings.timelineColorTheme !== 'purewhite' && visualSettings.timelineColorTheme !== 'coreblack' && "mix-blend-screen"
- )} style={{ textShadow: visualSettings.timelineColorTheme === 'purewhite' ? 'none' : visualSettings.timelineColorTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[visualSettings.timelineColorTheme]?.hex || '#fff'}80` }}>
- <span className={CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className}>
+ resolvedTimelineTheme !== 'purewhite' && resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
+ )} style={{ textShadow: resolvedTimelineTheme === 'purewhite' ? 'none' : resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+ <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
  {dragTimeline.time.split(':')[0]}
  </span>
  <span className={cn("text-[11px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
  :
  </span>
- <span className={cn("", CYBER_COLOR_DICTIONARY[visualSettings.timelineColorTheme].className)}>
+ <span className={cn("", CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
  {dragTimeline.time.split(':')[1]}
  </span>
  </div>
@@ -956,7 +956,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  {/* 极简激光线 (废弃 HUD 胶囊，时间已在左侧时间轴高亮) */}
  <div className={cn(
  "w-full h-[1px]",
- visualSettings.timelineColorTheme === 'coreblack' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"
+ resolvedTimelineTheme === 'coreblack' ? "bg-[#8B7355]" : "bg-[#FDF5E6]"
  )} />
  </div>
  )}

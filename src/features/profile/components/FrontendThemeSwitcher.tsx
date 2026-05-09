@@ -41,16 +41,6 @@ export function FrontendThemeSwitcher({ className }: Props) {
  const filename = bgPath.split('/').pop() || '';
  const updates: any = { frontendBgIndex: index };
  
- if (filename.startsWith('A') || filename.startsWith('a')) {
- updates.headerTitleColorTheme = 'purewhite';
- updates.staffNameColorTheme = 'purewhite';
- updates.timelineColorTheme = 'whitegold';
- } else if (filename.startsWith('B') || filename.startsWith('b')) {
- updates.headerTitleColorTheme = 'coreblack';
- updates.staffNameColorTheme = 'coreblack';
- updates.timelineColorTheme = 'blackgold';
- }
- 
  updateSettings(updates);
  
  if (updateShopConfig && isShopConfigLoaded) {

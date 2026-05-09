@@ -493,40 +493,18 @@ const BufferedInput = ({
  );
 };
 
-const VisualSettingsConfig = () => {
- const t = useTranslations('NebulaConfigHub');
-
+ const VisualSettingsConfig = () => {
  const { settings, updateSettings, isLoaded } = useVisualSettings();
  const { updateShopConfig } = useShop();
  const { bgIndex, setSpecificBackground } = useBackground();
- const isLight = settings.headerTitleColorTheme === 'coreblack';
+ const isLight = settings.calendarBgIndex !== 0;
 
  if (!isLoaded) return null;
 
  return (
  <div className="space-y-6">
- {/* 图层开关区 */}
- <div className="space-y-4">
- <h3 className={cn("text-xs uppercase tracking-widest", isLight ? "text-black" : "text-white")}>{t('txt_acbc2d')}</h3>
+ {/* 图层开关区 - 3D 动效已移除 */}
  
- {/* 星空开关 */}
- <div 
- className={cn("flex items-center justify-between p-4 rounded-xl cursor-pointer border", isLight ? "bg-black/5 border-black/5 " : "bg-white/[0.02] border-white/5 ")}
- onClick={() => {
- const newSettings = { showNebula: !settings.showNebula };
- updateSettings(newSettings);
- updateShopConfig('visualSettings', { ...settings, ...newSettings });
- }}
- >
- <div className="space-y-1">
- <span className={cn("text-xs block", isLight ? "text-black" : "text-white")}>{t('txt_ea97c1')}</span>
- <span className={cn("text-[11px] ", isLight ? "text-black" : "text-white")}>{t('txt_203d7a')}</span>
- </div>
- <div className={cn("w-10 h-6 rounded-full border flex items-center p-0.5 ", settings.showNebula ? " justify-end" : (isLight ? "bg-black/5 border-black/10 justify-start" : "bg-white/5 border-white/10 justify-start"))}>
- <div className={cn("w-4 h-4 rounded-full ", settings.showNebula ? "" : (isLight ? "bg-black/40" : "bg-white/40"))} />
- </div>
- </div>
-
  {/* STATIC ASSETS 横向资产缩略图矩阵 (双轨制) */}
  <div className={cn("space-y-6 p-4 rounded-xl border overflow-hidden", isLight ? "bg-black/[0.02] border-black/5" : "bg-white/[0.01] border-white/5")}>
  {/* 全局壁纸控制区 */}
@@ -542,18 +520,8 @@ const VisualSettingsConfig = () => {
  setSpecificBackground(index);
  updateShopConfig('globalBgIndex', index);
  
- const bgPath = GLOBAL_BACKGROUNDS[index];
- const filename = bgPath.split('/').pop() || '';
  const updates: any = {};
- if (filename.startsWith('A') || filename.startsWith('a')) {
- updates.headerTitleColorTheme = 'purewhite';
- updates.staffNameColorTheme = 'purewhite';
- updates.timelineColorTheme = 'whitegold';
- } else if (filename.startsWith('B') || filename.startsWith('b')) {
- updates.headerTitleColorTheme = 'coreblack';
- updates.staffNameColorTheme = 'coreblack';
- updates.timelineColorTheme = 'blackgold';
- }
+ 
  if (Object.keys(updates).length > 0) {
  updateSettings(updates);
  updateShopConfig('visualSettings', { ...settings, ...updates });
@@ -592,18 +560,8 @@ const VisualSettingsConfig = () => {
  <div 
  key={`calendar-bg-${index}`}
  onClick={() => {
- const bgPath = CALENDAR_BACKGROUNDS[index];
- const filename = bgPath.split('/').pop() || '';
  const updates: any = { calendarBgIndex: index };
- if (filename.startsWith('A') || filename.startsWith('a')) {
- updates.headerTitleColorTheme = 'purewhite';
- updates.staffNameColorTheme = 'purewhite';
- updates.timelineColorTheme = 'whitegold';
- } else if (filename.startsWith('B') || filename.startsWith('b')) {
- updates.headerTitleColorTheme = 'coreblack';
- updates.staffNameColorTheme = 'coreblack';
- updates.timelineColorTheme = 'blackgold';
- }
+ 
  updateSettings(updates);
  updateShopConfig('visualSettings', { ...settings, ...updates });
  }}
@@ -627,7 +585,6 @@ const VisualSettingsConfig = () => {
  </div>
  );
  })}
- </div>
  </div>
  </div>
  </div>
