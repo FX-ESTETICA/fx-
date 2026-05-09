@@ -481,7 +481,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center py-2 px-[-2px] sm:p-8 animate-in fade-in pointer-events-none",
+ "fixed inset-0 z-[99999] flex items-center justify-center p-0 sm:p-8 animate-in fade-in pointer-events-none",
  isLight ? "text-black" : "text-white"
  )}>
  <motion.div
@@ -490,7 +490,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  
  
  className={cn(
- "relative z-10 w-full max-w-6xl h-[85vh] sm:rounded-2xl flex flex-col overflow-hidden pointer-events-auto",
+ "relative z-10 w-full max-w-6xl h-[100vh] sm:h-[85vh] sm:rounded-2xl flex flex-col overflow-hidden pointer-events-auto bg-black/5 dark:bg-white/5 sm:bg-transparent backdrop-blur-3xl sm:backdrop-blur-none",
  )}
  >
  {/* Header */}
