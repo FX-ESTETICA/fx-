@@ -984,23 +984,44 @@ export function DualPaneBookingModal({
        : [editingBooking];
 
      const updatedBookings = bookingsToEnd.map(b => {
-       // 重新计算实际服务时长：从 startTime 到 NOW
-       let newDuration = b.duration || 1;
-       if (b.startTime) {
-         const [sh, sm] = b.startTime.split(':').map(Number);
-         const startMins = sh * 60 + sm;
-         const currentMins = now.getHours() * 60 + now.getMinutes();
-         newDuration = Math.max(1, currentMins - startMins);
+       const bData = b.data as any || {};
+       let finalDuration = b.duration || 1;
+       let finalData = { ...bData };
+
+       if (b.id === editingBooking.id) {
+         // 【精准打击】：当前操作的预约块，按当前真实时间拉长并结束
+         if (b.startTime) {
+           const [sh, sm] = b.startTime.split(':').map(Number);
+           const startMins = sh * 60 + sm;
+           const currentMins = now.getHours() * 60 + now.getMinutes();
+           finalDuration = Math.max(1, currentMins - startMins);
+         }
+         finalData.actual_end_time = now.toISOString();
+       } else {
+         // 【旁路回落】：其他关联预约块，如果没有点过结束，就按原定计划时长闭环，保持色块原本大小
+         if (!finalData.actual_end_time) {
+           if (b.startTime) {
+             const [sh, sm] = b.startTime.split(':').map(Number);
+             const defaultEndMins = sh * 60 + sm + (b.duration || 1);
+             const bDateStr = b.date || selectedDate.replace(/\//g, '-');
+             let defaultEndDate = new Date(now);
+             try {
+               const [year, month, day] = bDateStr.split(/[-/]/).map(Number);
+               defaultEndDate = new Date(year, month - 1, day);
+             } catch {}
+             defaultEndDate.setHours(Math.floor(defaultEndMins / 60), defaultEndMins % 60, 0, 0);
+             finalData.actual_end_time = defaultEndDate.toISOString();
+           } else {
+             finalData.actual_end_time = now.toISOString();
+           }
+         }
        }
 
        return {
          ...b,
-         duration: newDuration,
+         duration: finalDuration,
          status: 'CONFIRMED', // 尚未结账，保持 CONFIRMED
-         data: {
-           ...(b.data as any || {}),
-           actual_end_time: now.toISOString()
-         },
+         data: finalData,
          date: b.date || selectedDate.replace(/\//g, '-'),
          startTime: b.startTime || "00:00",
          resourceId: b.resourceId === null ? undefined : b.resourceId,
@@ -1716,28 +1737,53 @@ export function DualPaneBookingModal({
  })
  : b.services;
 
- // 【无差别物理截断法则】：结账 = 服务彻底结束
- // 不管有没有点过开始服务，结账时强行读取系统当前时间，减去原定开始时间，
- // 算出最真实的物理占用时长，并强制覆盖 duration，让色块底边死死咬住红线。
+ // 【无差别物理截断法则（升级版：精准拉长）】：结账 = 服务彻底结束
+ // 只有当前点击操作的色块，强行拉长/缩短到当前系统时间。
+ // 其他兄弟色块，如果还没结束，直接按原定计划时长闭环，保持色块原本大小。
  const bData = b.data as any || {};
  let finalDuration = b.duration || 1;
  let finalData = { ...bData };
 
- if (b.startTime) {
-   const [sh, sm] = b.startTime.split(':').map(Number);
-   const startMins = sh * 60 + sm;
-   const currentMins = now.getHours() * 60 + now.getMinutes();
-   // 计算当前时间距离原定开始时间过了多久（最少保留1分钟物理厚度防负数）
-   finalDuration = Math.max(1, currentMins - startMins);
-   
-   // 如果之前没有开始印记，既然结账了，就顺手帮它补齐，保证数据闭环
-   if (!finalData.actual_start_time) {
-     const startDate = new Date(now);
-     startDate.setHours(sh, sm, 0, 0);
-     finalData.actual_start_time = startDate.toISOString();
+ if (b.id === editingBooking.id) {
+   // 【精准打击】：当前操作的预约块
+   if (b.startTime) {
+     const [sh, sm] = b.startTime.split(':').map(Number);
+     const startMins = sh * 60 + sm;
+     const currentMins = now.getHours() * 60 + now.getMinutes();
+     finalDuration = Math.max(1, currentMins - startMins);
+     
+     if (!finalData.actual_start_time) {
+       const startDate = new Date(now);
+       startDate.setHours(sh, sm, 0, 0);
+       finalData.actual_start_time = startDate.toISOString();
+     }
+     finalData.actual_end_time = now.toISOString();
    }
-   // 强行打上结束印记
-   finalData.actual_end_time = now.toISOString();
+ } else {
+   // 【旁路回落】：其他关联预约块
+   if (!finalData.actual_end_time) {
+     if (b.startTime) {
+       const [sh, sm] = b.startTime.split(':').map(Number);
+       const defaultEndMins = sh * 60 + sm + (b.duration || 1);
+       const bDateStr = b.date || selectedDate.replace(/\//g, '-');
+       let defaultEndDate = new Date(now);
+       try {
+         const [year, month, day] = bDateStr.split(/[-/]/).map(Number);
+         defaultEndDate = new Date(year, month - 1, day);
+       } catch {}
+       defaultEndDate.setHours(Math.floor(defaultEndMins / 60), defaultEndMins % 60, 0, 0);
+       
+       if (!finalData.actual_start_time) {
+         const startDate = new Date(defaultEndDate);
+         startDate.setHours(sh, sm, 0, 0);
+         finalData.actual_start_time = startDate.toISOString();
+       }
+       finalData.actual_end_time = defaultEndDate.toISOString();
+     } else {
+       finalData.actual_end_time = now.toISOString();
+     }
+   }
+   // finalDuration 保持原来的 b.duration 不变
  }
 
  return {
