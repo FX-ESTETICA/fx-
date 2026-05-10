@@ -83,23 +83,17 @@
 @layer utilities {
   /* 极致毛玻璃效果 (Ultra Glassmorphism) */
   .glass-effect {
-    @apply backdrop-blur-xl bg-white/5 border border-white/10;
+    backdrop-filter: blur(24px);
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
   
-  /* 赛博发光边框 (Cyber Glow Border) */
-  .glow-border-cyan {
-    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
-    border: 1px solid rgba(0, 242, 255, 0.5);
-  }
-  
-  .glow-border-purple {
-    box-shadow: 0 0 15px rgba(188, 0, 255, 0.3);
-    border: 1px solid rgba(188, 0, 255, 0.5);
-  }
-
   /* 科技感文字渐变 */
   .text-gradient-cyan {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-gx-cyan to-gx-blue;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(to right, var(--gx-cyan), var(--gx-blue));
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
