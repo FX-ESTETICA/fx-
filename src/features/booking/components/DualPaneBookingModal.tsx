@@ -1457,26 +1457,33 @@ export function DualPaneBookingModal({
                 {/* 只有在未结账时才显示修改价格的胶囊 */}
                   <>
                     {/* 锚点 2: 动态胶囊区槽位 (固定最大宽度，确保胶囊数量不同时不影响后续排版) */}
-                    <div className="w-20 md:w-28 flex items-center justify-start gap-1 md:gap-1.5 ml-1 md:ml-2 shrink-0 overflow-hidden">
-                      {/* 渲染所有数据库里的预设价格胶囊 */}
-                      {Array.isArray(service.prices) && service.prices.map((p, pIdx) => {
-                        const currentActive = getCheckoutPrice(service.id, service.prices) === p;
-                        return (
-                          <button
-                            key={pIdx}
-                            onClick={() => handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', p)}
-                            className={cn(
-                              "text-[11px] px-2 py-0.5 rounded-full shrink-0",
-                              currentActive 
-                                ? "bg-[#39FF14]/20 text-[#39FF14]" 
-                                : (isLight ? "bg-black/5 text-black " : "bg-white/5 text-white ")
-                            )}
-                          >
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {!isAlreadyCompleted && (
+                      <div className="w-20 md:w-28 flex items-center justify-start gap-1 md:gap-1.5 ml-1 md:ml-2 shrink-0 overflow-hidden">
+                        {/* 渲染所有数据库里的预设价格胶囊 */}
+                        {Array.isArray(service.prices) && service.prices.map((p, pIdx) => {
+                          const currentActive = getCheckoutPrice(service.id, service.prices) === p;
+                          return (
+                            <button
+                              key={pIdx}
+                              onClick={() => handleCheckoutPriceChange(service.id, service._bookingId || editingBooking?.id || '', p)}
+                              className={cn(
+                                "text-[11px] px-2 py-0.5 rounded-full shrink-0",
+                                currentActive 
+                                  ? "bg-[#39FF14]/20 text-[#39FF14]" 
+                                  : (isLight ? "bg-black/5 text-black " : "bg-white/5 text-white ")
+                              )}
+                            >
+                              {p}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 已结账时，胶囊区隐藏，使用等宽占位符维持加号和删除按钮的绝对对齐 */}
+                    {isAlreadyCompleted && (
+                      <div className="w-20 md:w-28 ml-1 md:ml-2 shrink-0" />
+                    )}
 
                     {/* 锚点 3: 自定义价格/加号区 (固定宽度居中) */}
                     <div className="w-8 md:w-10 flex items-center justify-center shrink-0">
