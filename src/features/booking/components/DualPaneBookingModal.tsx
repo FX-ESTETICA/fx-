@@ -2092,8 +2092,8 @@ export function DualPaneBookingModal({
  >
  <div className="flex flex-col gap-0.5">
  <span className={cn(`text-[11px] `, isLight ? "text-black" : "text-white")}>
- {/* 高亮匹配的数字 */}
- {result.phone.split(new RegExp(`(${phoneTracks[0]})`, 'gi')).map((part: string, i: number) => 
+ {/* 高亮匹配的数字，加入物理转义拦截，消灭 + 号等正则陷阱 */}
+ {result.phone.split(new RegExp(`(${phoneTracks[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')).map((part: string, i: number) => 
  part.toLowerCase() === phoneTracks[0].toLowerCase() 
  ? <span key={i} className={`${isLight ? "text-[#8B7355]" : "text-[#FDF5E6]"} ${isLight ? "bg-[#8B7355]/20" : "bg-[#FDF5E6]/20"} px-0.5 rounded`}>{part}</span>
  : <span key={i}>{part}</span>
