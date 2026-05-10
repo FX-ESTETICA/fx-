@@ -136,6 +136,7 @@ interface AiFinanceDashboardModalProps {
  isOpen: boolean;
  onClose: () => void;
  staffs?: StaffItem[];
+ staffAvatars?: Record<string, string>;
  globalBookings?: BookingEdit[];
  isFinanceSelfOnly?: boolean;
  currentUserId?: string;
@@ -143,7 +144,7 @@ interface AiFinanceDashboardModalProps {
 
 type TimeRange = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
-export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBookings = [], isFinanceSelfOnly, currentUserId }: AiFinanceDashboardModalProps) => {
+export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAvatars = {}, globalBookings = [], isFinanceSelfOnly, currentUserId }: AiFinanceDashboardModalProps) => {
  const [timeRange, setTimeRange] = useState<TimeRange>('day');
  const { settings } = useVisualSettings();
  const isLight = settings.calendarBgIndex !== 0;
@@ -512,12 +513,13 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  let memberCardRevenue = 0;
 
  // 初始化所有员工的业绩桶 (即使业绩为 0 也要展示在榜单上)
- const staffPerformance: Record<string, { revenue: number, commissionRate: number, baseSalary: number, guarantee: number, daysOff: number, name: string, role: string, avatar: string }> = {};
+ const staffPerformance: Record<string, { revenue: number, commissionRate: number, baseSalary: number, guarantee: number, daysOff: number, name: string, role: string, avatar: string, realAvatarUrl?: string }> = {};
  
  // 只展示有效员工（排除了假员工比如 "散客池 NO"）
  const validStaffs = filteredStaffs.filter(s => s.id !== 'NO');
  validStaffs.forEach(staff => {
  const s = staff as any;
+ const realAvatarUrl = s.frontendId && staffAvatars[s.frontendId] ? staffAvatars[s.frontendId] : undefined;
  staffPerformance[staff.id] = {
  revenue: 0,
  commissionRate: s.commissionRate !== undefined && s.commissionRate !== null ? s.commissionRate : 20, // 严格读取真实配置，默认为 20
@@ -527,6 +529,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  name: s.name,
  role: s.role || '技师',
  avatar: s.avatar || '👩‍🎨', // 忽略 avatar 类型报错
+ realAvatarUrl,
  };
  });
 
@@ -646,6 +649,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
  name: sp.name,
  role: sp.role,
  avatar: sp.avatar,
+ realAvatarUrl: sp.realAvatarUrl,
  revenue: sp.revenue,
  target: target,
  isBoss: isBoss,
@@ -1273,10 +1277,14 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], globalBo
            {/* Left: Avatar & Name (Fixed width) */}
            <div className="flex items-center gap-2 w-[100px] shrink-0">
              <div className={cn(
-               "w-6 h-6 rounded-full flex items-center justify-center text-[13px] border",
+               "w-6 h-6 rounded-full flex items-center justify-center text-[13px] border overflow-hidden",
                isLight ? "bg-black/5 border-black/10" : "bg-white/5 border-white/10"
              )}>
-               {staff.avatar}
+               {staff.realAvatarUrl ? (
+                 <img src={staff.realAvatarUrl} alt={staff.name} className="w-full h-full object-cover" />
+               ) : (
+                 staff.avatar
+               )}
              </div>
              <span className={cn("text-[13px]  truncate", isLight ? "text-black" : "text-white")}>
                {staff.name}

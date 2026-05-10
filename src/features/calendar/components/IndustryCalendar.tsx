@@ -2048,6 +2048,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  isOpen={isFinanceDashboardOpen}
  onClose={() => setIsFinanceDashboardOpen(false)}
  staffs={staffs as any}
+ staffAvatars={staffAvatars}
  globalBookings={globalBookings}
  isFinanceSelfOnly={effectiveUserRole === 'user' && myStaffProfile?.financialVisibility === 'self'}
  currentUserId={myStaffProfile?.id || myStaffProfile?.frontendId}
