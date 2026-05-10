@@ -1384,14 +1384,12 @@ export function DualPaneBookingModal({
  )}
  >
  {/* 顶角关闭 / 返回按钮 */}
- {!isAlreadyCompleted && (
  <button 
  onClick={() => setCheckoutOverride(false)} 
  className={cn("absolute top-4 left-4 ", isLight ? "text-black " : "text-white ")}
  >
  <ArrowLeft className="w-5 h-5" />
  </button>
- )}
  <button 
  onClick={handleClose} 
  className={cn("absolute top-4 right-4 ", isLight ? "text-black " : "text-white ")}
@@ -1457,7 +1455,6 @@ export function DualPaneBookingModal({
                 </div>
                 
                 {/* 只有在未结账时才显示修改价格的胶囊 */}
-                {!isAlreadyCompleted ? (
                   <>
                     {/* 锚点 2: 动态胶囊区槽位 (固定最大宽度，确保胶囊数量不同时不影响后续排版) */}
                     <div className="w-20 md:w-28 flex items-center justify-start gap-1 md:gap-1.5 ml-1 md:ml-2 shrink-0 overflow-hidden">
@@ -1521,10 +1518,6 @@ export function DualPaneBookingModal({
                       )}
                     </div>
                   </>
-                ) : (
-                  // 已结账时，为了保持对齐，使用占位符撑开空间
-                  <div className="w-[116px] md:w-[160px] shrink-0" />
-                )}
                 
                 {/* 锚点 4: 删除按钮区 (X) (固定宽度居中) */}
                 <div className="w-6 md:w-8 flex items-center justify-center shrink-0">
