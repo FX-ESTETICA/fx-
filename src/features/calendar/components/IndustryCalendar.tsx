@@ -245,11 +245,43 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const [targetBookingId, setTargetBookingId] = useState<string | null>(null);
 
  // 注册物理返回键拦截（顶端架构：优先收起弹窗/侧边栏，而不后退页面）
- const registerBack = useHardwareBack(state => state.register);
- const unregisterBack = useHardwareBack(state => state.unregister);
- const setActiveTab = useViewStack(state => state.setActiveTab);
+  const registerBack = useHardwareBack(state => state.register);
+  const unregisterBack = useHardwareBack(state => state.unregister);
+  const setActiveTab = useViewStack(state => state.setActiveTab);
 
- useEffect(() => {
+  // 【世界顶端架构】：物理跨天雷达 (Physical Date Rollover Detection)
+  // 专门击杀“隔夜切回后台，数据刷新了但UI依然停留在昨天”的僵尸态 BUG
+  useEffect(() => {
+    const handleWakeUpCheck = () => {
+      const physicalNow = new Date();
+      setCurrentDate((prevDate) => {
+        // 提取纯数字的年月日进行绝对比对
+        if (
+          physicalNow.getFullYear() !== prevDate.getFullYear() ||
+          physicalNow.getMonth() !== prevDate.getMonth() ||
+          physicalNow.getDate() !== prevDate.getDate()
+        ) {
+          console.log("[IndustryCalendar] 物理跨天雷达触发，UI 引擎自动跃迁至今天");
+          setPhantomDate(physicalNow);
+          return physicalNow; // 瞬间重置日历视界
+        }
+        return prevDate;
+      });
+    };
+
+    // 1. 监听原生壳唤醒总线 (App 从后台切回前台瞬间触发)
+    window.addEventListener('gx-global-sync', handleWakeUpCheck);
+    
+    // 2. 兜底防线：如果用户 iPad 一直亮屏挂在墙上跨越了午夜零点，每分钟物理巡检一次
+    const rolloverInterval = setInterval(handleWakeUpCheck, 60 * 1000);
+    
+    return () => {
+      window.removeEventListener('gx-global-sync', handleWakeUpCheck);
+      clearInterval(rolloverInterval);
+    };
+  }, []);
+
+  useEffect(() => {
  if (isBookingModalOpen) {
  registerBack('calendar-booking-modal', () => { setIsBookingModalOpen(false); return true; }, 20);
  } else {
