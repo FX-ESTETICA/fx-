@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X } from "lucide-react";
+import { Check, X, ChevronLeft } from "lucide-react";
 import { BookingService } from "@/features/booking/api/booking";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
 
@@ -14,6 +14,8 @@ type QuickCommandPaletteProps = {
   currentDate: Date;
   onBookingCreated: () => void;
   visualSettings: any;
+  isExpanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 type Stage = 'service' | 'staff' | 'customer' | 'time' | 'confirm';
@@ -24,7 +26,9 @@ export function QuickCommandPalette({
   shopId,
   currentDate,
   onBookingCreated,
-  visualSettings
+  visualSettings,
+  isExpanded = false,
+  onExpandedChange
 }: QuickCommandPaletteProps) {
   const isLight = visualSettings?.calendarBgIndex !== 0;
   const textColor = isLight ? "text-black" : (visualSettings?.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]");
@@ -34,7 +38,8 @@ export function QuickCommandPalette({
   const [stage, setStage] = useState<Stage>('service');
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
   const [query, setQuery] = useState("");
-
+  // 移除内部的 isExpanded，完全由外部控制
+  
   const currentStage = editingStage || stage;
 
   // 将 selectedService 升级为数组，以支持连单
@@ -137,8 +142,40 @@ export function QuickCommandPalette({
     setSelectedCustomer(null);
     setSelectedTime(null);
     setEditingStage(null);
-    if (inputRef.current) inputRef.current.focus();
+    onExpandedChange?.(false);
   };
+
+  const paletteRef = useRef<HTMLDivElement>(null);
+
+  // 【点击外部收起】：恢复标准 React 事件流，结合底层网格的主动避让
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (paletteRef.current && !paletteRef.current.contains(e.target as Node)) {
+        if (query === '' && selectedServices.length === 0) {
+          onExpandedChange?.(false);
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isExpanded, query, selectedServices.length, onExpandedChange]);
+
+  useEffect(() => {
+    // 组件卸载时确保输入框失焦
+    return () => {
+      if (inputRef.current) {
+        inputRef.current.blur();
+      }
+    };
+  }, []);
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -301,136 +338,173 @@ export function QuickCommandPalette({
   };
 
   return (
-    <div className={cn("px-8 mt-4 pointer-events-auto relative z-50 flex flex-col items-center", isLight ? "" : "")}>
+    <div ref={paletteRef} className={cn("px-8 mt-4 pointer-events-auto relative z-50 flex flex-col items-center", isLight ? "" : "")}>
       
-      {/* Popup Menus */}
-      <AnimatePresence>
-        {stage !== 'confirm' && currentList.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className={cn(
-              "absolute bottom-full mb-2 w-[300px] max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-50",
-              isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
-            )}
+      {/* 折叠状态下的迷你按钮 */}
+      <AnimatePresence mode="wait">
+        {!isExpanded ? (
+          <motion.div
+            key="collapsed"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.15 } }}
+            className="flex items-center justify-center h-12"
           >
-            {currentList.map((item, idx) => {
-              const isSelected = idx === selectedIndex;
-              
-              let label = "";
-              if (currentStage === 'service') label = item.name;
-              else if (currentStage === 'staff') label = item.name;
-              else if (currentStage === 'customer') label = `${item.name || ''} ${item.phone || ''} ${item.gx_id || ''}`.trim();
-              else if (currentStage === 'time') label = item as string;
-
-              return (
-                <div 
-                  key={idx}
+            <button
+              onClick={() => {
+                onExpandedChange?.(true);
+                // 延迟聚焦，等待动画完成
+                setTimeout(() => inputRef.current?.focus(), 100);
+              }}
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 hover:scale-110 bg-transparent backdrop-blur-sm",
+                borderColor,
+                glowShadow,
+                isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5"
+              )}
+            >
+              <ChevronLeft className="w-5 h-5 opacity-70" />
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="expanded"
+            initial={{ opacity: 0, width: "40px" }}
+            animate={{ opacity: 1, width: "100%" }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+            className="w-full flex justify-center relative"
+          >
+            {/* Popup Menus */}
+            <AnimatePresence>
+              {stage !== 'confirm' && currentList.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
                   className={cn(
-                    "px-4 py-2 text-sm cursor-pointer transition-colors",
-                    isSelected ? (isLight ? "bg-black/10" : "bg-white/10") : "",
-                    isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5"
+                    "absolute bottom-full mb-2 w-[300px] max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-50",
+                    isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
                   )}
-                  onClick={() => {
-                    setSelectedIndex(idx);
-                    // trigger enter programmatically would be ideal, but direct logic is fine
-                    if (currentStage === 'service') { setSelectedServices([item]); if(editingStage) setEditingStage(null); else setStage('staff'); setQuery(''); }
-                    else if (currentStage === 'staff') { setSelectedStaff(item); if(editingStage) setEditingStage(null); else setStage('customer'); setQuery(''); }
-                    else if (currentStage === 'customer') { setSelectedCustomer({ name: item.name, phone: item.phone, gx_id: item.gx_id }); if(editingStage) setEditingStage(null); else setStage('time'); setQuery(''); }
-                    else if (currentStage === 'time') { setSelectedTime(item as string); if(editingStage) setEditingStage(null); else setStage('confirm'); setQuery(''); }
-                  }}
                 >
-                  {label}
+                  {currentList.map((item, idx) => {
+                    const isSelected = idx === selectedIndex;
+                    
+                    let label = "";
+                    if (currentStage === 'service') label = item.name;
+                    else if (currentStage === 'staff') label = item.name;
+                    else if (currentStage === 'customer') label = `${item.name || ''} ${item.phone || ''} ${item.gx_id || ''}`.trim();
+                    else if (currentStage === 'time') label = item as string;
+
+                    return (
+                      <div 
+                        key={idx}
+                        className={cn(
+                          "px-4 py-2 text-sm cursor-pointer transition-colors",
+                          isSelected ? (isLight ? "bg-black/10" : "bg-white/10") : "",
+                          isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5"
+                        )}
+                        onClick={() => {
+                          setSelectedIndex(idx);
+                          // trigger enter programmatically would be ideal, but direct logic is fine
+                          if (currentStage === 'service') { setSelectedServices([item]); if(editingStage) setEditingStage(null); else setStage('staff'); setQuery(''); }
+                          else if (currentStage === 'staff') { setSelectedStaff(item); if(editingStage) setEditingStage(null); else setStage('customer'); setQuery(''); }
+                          else if (currentStage === 'customer') { setSelectedCustomer({ name: item.name, phone: item.phone, gx_id: item.gx_id }); if(editingStage) setEditingStage(null); else setStage('time'); setQuery(''); }
+                          else if (currentStage === 'time') { setSelectedTime(item as string); if(editingStage) setEditingStage(null); else setStage('confirm'); setQuery(''); }
+                        }}
+                      >
+                        {label}
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div 
+              className={cn(
+                "w-[95%] max-w-[600px] min-h-[3rem] py-1.5 px-4 gap-2 flex flex-wrap items-center rounded-[1.5rem] border transition-all duration-300 relative",
+                borderColor,
+                glowShadow,
+                "bg-transparent backdrop-blur-sm"
+              )}
+              onClick={() => inputRef.current?.focus()}
+            >
+              {/* Capsules */}
+              {selectedServices.length > 0 && editingStage !== 'service' && (
+                <div 
+                  onClick={() => { setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }}
+                  className="flex flex-wrap items-center gap-1 cursor-pointer transition-opacity hover:opacity-70"
+                >
+                  {selectedServices.map((srv, idx) => (
+                    <div key={idx} className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}>
+                      {srv.name}
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              )}
+              {selectedStaff && editingStage !== 'staff' && (
+                <div 
+                  onClick={() => { setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }}
+                  className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+                >
+                  {selectedStaff.name}
+                </div>
+              )}
+              {selectedCustomer && editingStage !== 'customer' && (
+                <div 
+                  onClick={() => { setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }}
+                  className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+                >
+                  {selectedCustomer.name || selectedCustomer.phone}
+                </div>
+              )}
+              {selectedTime && editingStage !== 'time' && (
+                <div 
+                  onClick={() => { setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }}
+                  className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+                >
+                  {formattedDate} {selectedTime}
+                </div>
+              )}
+
+              {stage === 'confirm' && !editingStage ? (
+                <div className="flex-1 flex items-center justify-end min-w-[120px] gap-3 ml-auto py-0.5">
+                  <button 
+                    onClick={resetAll}
+                    className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110", isLight ? "border-black/30 text-black/50 hover:text-black hover:border-black" : "border-white/30 text-white/50 hover:text-white hover:border-white")}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={submitBooking}
+                    className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110 animate-pulse", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className={cn(
+                    "flex-1 min-w-[100px] h-8 bg-transparent outline-none text-sm tracking-widest placeholder:opacity-40 py-0.5",
+                    textColor
+                  )}
+                  placeholder={
+                    currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
+                    currentStage === 'staff' ? "选择指派员工..." :
+                    currentStage === 'customer' ? "输入客户电话/名字..." :
+                    "输入时间 (如 1430)..."
+                  }
+                />
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div 
-        className={cn(
-          "w-[95%] max-w-[600px] min-h-[3rem] py-1.5 px-4 gap-2 flex flex-wrap items-center rounded-[1.5rem] border transition-all duration-300 relative",
-          borderColor,
-          glowShadow,
-          "bg-transparent backdrop-blur-sm"
-        )}
-        onClick={() => inputRef.current?.focus()}
-      >
-        {/* Capsules */}
-        {selectedServices.length > 0 && editingStage !== 'service' && (
-          <div 
-            onClick={() => { setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }}
-            className="flex flex-wrap items-center gap-1 cursor-pointer transition-opacity hover:opacity-70"
-          >
-            {selectedServices.map((srv, idx) => (
-              <div key={idx} className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}>
-                {srv.name}
-              </div>
-            ))}
-          </div>
-        )}
-        {selectedStaff && editingStage !== 'staff' && (
-          <div 
-            onClick={() => { setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }}
-            className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-          >
-            {selectedStaff.name}
-          </div>
-        )}
-        {selectedCustomer && editingStage !== 'customer' && (
-          <div 
-            onClick={() => { setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }}
-            className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-          >
-            {selectedCustomer.name || selectedCustomer.phone}
-          </div>
-        )}
-        {selectedTime && editingStage !== 'time' && (
-          <div 
-            onClick={() => { setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }}
-            className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-          >
-            {formattedDate} {selectedTime}
-          </div>
-        )}
-
-        {stage === 'confirm' && !editingStage ? (
-          <div className="flex-1 flex items-center justify-end min-w-[120px] gap-3 ml-auto py-0.5">
-            <button 
-              onClick={resetAll}
-              className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110", isLight ? "border-black/30 text-black/50 hover:text-black hover:border-black" : "border-white/30 text-white/50 hover:text-white hover:border-white")}
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={submitBooking}
-              className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110 animate-pulse", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-            >
-              <Check className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={cn(
-              "flex-1 min-w-[100px] h-8 bg-transparent outline-none text-sm tracking-widest placeholder:opacity-40 py-0.5",
-              textColor
-            )}
-            placeholder={
-              currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
-              currentStage === 'staff' ? "选择指派员工..." :
-              currentStage === 'customer' ? "输入客户电话/名字..." :
-              "输入时间 (如 1430)..."
-            }
-          />
-        )}
-      </div>
     </div>
   );
 }

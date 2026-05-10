@@ -154,7 +154,7 @@ export const OrbitalPossessionProfile = ({
  {/* 右侧：信息容器 */}
  <div className="flex flex-col justify-center h-full min-w-[120px] relative">
  <div className={cn("text-xs uppercase tracking-wider ", isBlack ? "text-black" : "text-white")}>{bossData.name}</div>
- <div className={cn("text-[11px] tracking-widest ", isBlack ? "text-black" : "text-white")}>{bossData.id}</div>
+ <div className={cn("text-[11px] tracking-widest ", isBlack ? "text-black" : "text-white")}>{bossData.id.replace(/\D/g, '')}</div>
  </div>
  </div>
  {shopName && (
@@ -254,7 +254,7 @@ export const OrbitalPossessionProfile = ({
  : (isBossActive ? "text-white" : "text-white")
  )}
  >
- {activeProfile.id}
+ {activeProfile.id.replace(/\D/g, '')}
  </motion.div>
  </div>
  </div>

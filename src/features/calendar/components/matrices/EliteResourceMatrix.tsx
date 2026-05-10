@@ -30,6 +30,7 @@ export interface EliteResourceMatrixProps {
  matrixScrollRef?: React.Ref<HTMLDivElement>;
  onDateSwipe?: (direction: 'prev' | 'next') => void; // 传递日期切换事件
  onPhantomDateChange?: (dateStr: string) => void; // 新增：幻象投影雷达回调
+ isPaletteExpanded?: boolean; // 新增：接收快捷输入栏展开状态
 }
 
 type MatrixService = {
@@ -93,7 +94,7 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate }: { getYCoordinate: (
  );
 });
 
-export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, isReadOnly }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
+export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, isReadOnly, isPaletteExpanded }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
  const { refreshBookings, trackAction } = useShop();
 
  const { settings: visualSettings } = useVisualSettings();
@@ -448,8 +449,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  };
 
  const handlePointerDown = (e: React.PointerEvent) => {
-    // 【逻辑拦截法则 (根源打击)】：如果当前正在显示右键菜单（内爆状态），点击空白处只应关闭菜单，不应触发任何定位线或准星逻辑
-    if (implodedOrderId) {
+    // 【逻辑拦截法则 (根源打击)】：如果当前正在显示右键菜单（内爆状态）或极速输入栏展开，点击空白处只应关闭菜单，不应触发任何定位线或准星逻辑
+    if (implodedOrderId || isPaletteExpanded) {
       return;
     }
 
@@ -551,8 +552,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  }, [crosshair.active]);
 
  const handlePointerUp = (e: React.PointerEvent) => {
-    // 【逻辑拦截法则】：如果当前正在显示右键菜单（内爆状态），点击空白处只应关闭菜单，不应穿透触发新建预约
-    if (implodedOrderId) {
+    // 【逻辑拦截法则】：如果当前正在显示右键菜单（内爆状态）或极速输入栏展开，点击空白处只应关闭菜单，不应穿透触发新建预约
+    if (implodedOrderId || isPaletteExpanded) {
       startPointerRef.current = null;
       pointerDownAtRef.current = null;
       return;

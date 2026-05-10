@@ -233,6 +233,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const [isFinanceDashboardOpen, setIsFinanceDashboardOpen] = useState(false); 
  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
  const [bookingModalKey, setBookingModalKey] = useState(0);
+ const [isPaletteExpanded, setIsPaletteExpanded] = useState(false);
  const [isMiniCalendarOpen, setIsMiniCalendarOpen] = useState(false);
  const triggerRef = useRef<HTMLButtonElement>(null);
  const [isMounted] = useState(() => typeof window !== "undefined");
@@ -1547,46 +1548,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     handleCreateBookingClick={handleCreateBookingClick}
   />
 
- {/* 极速开单 (Walk-in Quick Booking) */}
- <div className="px-8 mt-4 pointer-events-auto relative z-50">
- <button
- onClick={() => {
- const now = new Date();
- 
- // 向下取整到最近的 5 分钟 (如 14:34 -> 14:30, 14:38 -> 14:35)
- const minutes = now.getMinutes();
- const snappedMinutes = Math.floor(minutes / 5) * 5;
- now.setMinutes(snappedMinutes);
- now.setSeconds(0);
- now.setMilliseconds(0);
-
- const hh = String(now.getHours()).padStart(2, '0');
- const mm = String(now.getMinutes()).padStart(2, '0');
- const timeString = `${hh}:${mm}`;
-
- // 设置日期为今天
- setCurrentDate(now);
- setPhantomDate(now);
-
- // 触发双窗预约界面并传递参数
- setCrosshairDate(now);
- setCrosshairTime(timeString);
- setCrosshairResourceId(undefined); // 不分配技师，默认为散客池 
- setEditingBooking(null); // 确保是新建而不是编辑
- handleCreateBookingClick();
- }}
- className={cn(
- "w-full flex items-center justify-center py-3.5 group relative bg-transparent",
- visualSettings.calendarBgIndex !== 0
- ? ""
- : ""
- )}
- >
- <span className={cn(" tracking-widest text-xs uppercase ", visualSettings.calendarBgIndex !== 0 ? "text-black" : `${visualSettings?.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]"}`)}>
- {t('txt_fast_checkin')}
- </span>
- </button>
- </div>
+ {/* 极速开单已被移除，功能收拢至底部 Quick Command Palette，保持侧边栏的纯粹性 */}
 
  {/* 财务核算 (AI Finance Dashboard) - 顶级 B 端全息入口 */} 
  <div className="px-8 mt-4 pointer-events-auto relative z-50"> 
@@ -1957,6 +1919,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  isReadOnly={isReadOnlyMode || isPermissionReadOnly}
  onReadOnlyIntercept={handleReadOnlyIntercept}
  onPhantomDateChange={handlePhantomDateChange}
+ isPaletteExpanded={isPaletteExpanded}
  />
  )}
  {dna.pivot === "resource" && viewMode === "week" && (
@@ -2008,19 +1971,24 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </AnimatePresence>
 
  {/* --- 纯键盘流：极速开单控制台 (Quick Command Palette) --- */}
- <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
-   <QuickCommandPalette 
-     services={services}
-     staffs={staffs}
-     shopId={shopId}
-     currentDate={phantomDate}
-     onBookingCreated={() => {
-       refreshBookings();
-       trackAction();
-     }}
-     visualSettings={visualSettings}
-   />
- </div>
+ {/* 结界法则：当订阅到期或即将到期（出现横幅）时，优先显示横幅并隐藏此极速开单栏 */}
+ {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
+   <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+     <QuickCommandPalette 
+       services={services}
+       staffs={staffs}
+       shopId={shopId}
+       currentDate={phantomDate}
+       onBookingCreated={() => {
+         refreshBookings();
+         trackAction();
+       }}
+       visualSettings={visualSettings}
+       isExpanded={isPaletteExpanded}
+       onExpandedChange={setIsPaletteExpanded}
+     />
+   </div>
+ )}
 
  </div>
  </div>
