@@ -338,7 +338,7 @@ export function QuickCommandPalette({
   };
 
   return (
-    <div ref={paletteRef} className={cn("px-8 mt-4 pointer-events-auto relative z-50 flex flex-col items-center", isLight ? "" : "")}>
+    <div ref={paletteRef} className={cn("mt-4 pointer-events-auto relative z-50 flex flex-col items-center", isExpanded ? "px-8 w-full" : "px-0 w-10", isLight ? "" : "")}>
       
       {/* 折叠状态下的迷你按钮 */}
       <AnimatePresence mode="wait">

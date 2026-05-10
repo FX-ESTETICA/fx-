@@ -1971,24 +1971,31 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </AnimatePresence>
 
  {/* --- 纯键盘流：极速开单控制台 (Quick Command Palette) --- */}
- {/* 结界法则：当订阅到期或即将到期（出现横幅）时，优先显示横幅并隐藏此极速开单栏 */}
- {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
-   <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
-     <QuickCommandPalette 
-       services={services}
-       staffs={staffs}
-       shopId={shopId}
-       currentDate={phantomDate}
-       onBookingCreated={() => {
-         refreshBookings();
-         trackAction();
-       }}
-       visualSettings={visualSettings}
-       isExpanded={isPaletteExpanded}
-       onExpandedChange={setIsPaletteExpanded}
-     />
-   </div>
- )}
+          {/* 结界法则：当订阅到期或即将到期（出现横幅）时，优先显示横幅并隐藏此极速开单栏 */}
+          {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
+            <div 
+              className={cn(
+                "absolute bottom-8 z-50 pointer-events-auto flex justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                isPaletteExpanded 
+                  ? "left-1/2 -translate-x-1/2 w-full max-w-[600px]" 
+                  : "left-[calc(100%-20px)] -translate-x-full w-10"
+              )}
+            >
+              <QuickCommandPalette 
+                services={services}
+                staffs={staffs}
+                shopId={shopId}
+                currentDate={phantomDate}
+                onBookingCreated={() => {
+                  refreshBookings();
+                  trackAction();
+                }}
+                visualSettings={visualSettings}
+                isExpanded={isPaletteExpanded}
+                onExpandedChange={setIsPaletteExpanded}
+              />
+            </div>
+          )}
 
  </div>
  </div>
