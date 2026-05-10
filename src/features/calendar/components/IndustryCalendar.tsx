@@ -2042,6 +2042,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  businessName={userName || 'BOSS'}
  businessAvatar={trueBusinessAvatar}
  initialTab={configInitialTab}
+ staffAvatars={staffAvatars}
  />
 
  <AiFinanceDashboardModal

@@ -49,6 +49,7 @@ export interface NebulaConfigHubProps {
  businessName?: string; // 新增：业务名称（用于全息雷达显示）
  businessAvatar?: string; // 新增：业务头像（用于全息雷达显示）
  initialTab?: "staff" | "services" | "hours" | "visual"; // 新增：允许外部指定初始打开的选项卡
+ staffAvatars?: Record<string, string>; // 新增：全局真实头像映射字典
 }
 
 /**
@@ -68,7 +69,8 @@ export const NebulaConfigHub = ({
  isCloudDataLoaded = true, // 默认为true兼容旧代码
  businessName,
  businessAvatar,
- initialTab = "hours"
+ initialTab = "hours",
+ staffAvatars = {}
 }: NebulaConfigHubProps) => {
  const t = useTranslations('NebulaConfigHub');
   const { settings } = useVisualSettings(); // 获取全局视觉设置
@@ -408,6 +410,7 @@ export const NebulaConfigHub = ({
  onEditingStateChange={handleEditingStateChange}
  services={localServices}
  isLight={isLight}
+ staffAvatars={staffAvatars}
  />
  )}
  {activeTab === "services" && (
@@ -899,7 +902,7 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
 
 import { useTranslations } from "next-intl";
 
-const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[], isLight: boolean }) => {
+const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight, staffAvatars = {} }: { staffs: StaffItem[], onChange: (s: StaffItem[]) => void, onEditingStateChange: (saveAction: (() => void) | null, cancelAction: (() => void) | null) => void, services: ServiceItem[], isLight: boolean, staffAvatars?: Record<string, string> }) => {
  const t = useTranslations('NebulaConfigHub');
  const [editingStaff, setEditingStaff] = useState<StaffItem | null>(null);
 
@@ -938,6 +941,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight
  registerActions={handleRegisterActions}
  availableServices={services}
  isLight={isLight}
+ staffAvatars={staffAvatars}
  />
  );
  }
@@ -964,7 +968,17 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight
  )}
  style={{ backgroundColor: `${staff.color || '#FFFFFF'}20`, border: `1px solid ${staff.color || '#FFFFFF'}40` }}
  >
- <User className="w-5 h-5" style={{ color: staff.color || '#FFFFFF' }} />
+ {staff.frontendId && staffAvatars[staff.frontendId] ? (
+  <Image
+    src={staffAvatars[staff.frontendId]}
+    alt="avatar"
+    fill
+    sizes="40px"
+    className="object-cover"
+  />
+ ) : (
+  <User className="w-5 h-5" style={{ color: staff.color || '#FFFFFF' }} />
+ )}
  </div>
  <div className="flex flex-col">
  <div className="flex items-center gap-2">
@@ -988,7 +1002,7 @@ const StaffConfig = ({ staffs, onChange, onEditingStateChange, services, isLight
  );
 };
 
-const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [], isLight }: { staff: StaffItem, onBack: () => void, onSave: (data: StaffItem) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: ServiceItem[], isLight: boolean }) => {
+const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices = [], isLight, staffAvatars = {} }: { staff: StaffItem, onBack: () => void, onSave: (data: StaffItem) => void, registerActions: (save: () => void, cancel: () => void) => void, availableServices?: ServiceItem[], isLight: boolean, staffAvatars?: Record<string, string> }) => {
  const t = useTranslations('NebulaConfigHub');
  type StaffTab = "basic" | "finance" | "access";
  const [activeTab, setActiveTab] = useState<StaffTab>("basic");
@@ -1151,25 +1165,14 @@ const StaffForm = ({ staff, onBack, onSave, registerActions, availableServices =
  }
  };
 
+ // useEffect 移除：不再每次查表，直接使用全局注入的 staffAvatars
  useEffect(() => {
- if (!formData.frontendId) {
- setRealAvatar(null);
- return;
- }
- const fetchAvatar = async () => {
- const { data } = await supabase
- .from('profiles')
- .select('avatar_url')
- .eq('gx_id', formData.frontendId)
- .maybeSingle();
- if (data?.avatar_url) {
- setRealAvatar(data.avatar_url);
+ if (formData.frontendId && staffAvatars[formData.frontendId]) {
+   setRealAvatar(staffAvatars[formData.frontendId]);
  } else {
- setRealAvatar(null);
+   setRealAvatar(null);
  }
- };
- fetchAvatar();
- }, [formData.frontendId]);
+ }, [formData.frontendId, staffAvatars]);
 
  useEffect(() => {
  if (isServicesModalOpen) {
