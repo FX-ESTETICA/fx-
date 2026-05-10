@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Lock, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useEffect, useState } from "react";
-import { initializePaddle, Paddle } from "@paddle/paddle-js";
+// import { initializePaddle, Paddle } from "@paddle/paddle-js";
 import { supabase } from "@/lib/supabase";
 
 import { SubscriptionModalMode, useShop } from "@/features/shop/ShopContext";
@@ -30,8 +30,11 @@ const PADDLE_PRICES = {
  ENTERPRISE: 'pri_01kp9f4b1exnpntneywz9z53kr',
 };
 
+// export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'NODE_LIMIT', onStartGracePeriod }: SubscriptionLimitModalProps) => {
+//  const [paddle, setPaddle] = useState<Paddle>();
+
 export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'NODE_LIMIT', onStartGracePeriod }: SubscriptionLimitModalProps) => {
- const [paddle, setPaddle] = useState<Paddle>();
+ const [paddle] = useState<any>();
  const { subscription } = useShop(); // 获取当前用户的 empireId
 
  const registerBack = useHardwareBack(state => state.register);
@@ -49,12 +52,13 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
  return () => unregisterBack('subscription-limit');
  }, [isOpen, onClose, registerBack, unregisterBack]);
 
+ /*
  useEffect(() => {
  if (isOpen && !paddle) {
  initializePaddle({ 
  environment: 'sandbox', 
  token: 'test_71aa785f189494f81f7e5014fb5',
- eventCallback: async function(data) {
+ eventCallback: async function(data: any) {
  if (data.name === "checkout.completed") {
  console.log("Checkout completed successfully!", data);
  
@@ -93,14 +97,15 @@ export const SubscriptionLimitModal = ({ isOpen, onClose, currentTier, mode = 'N
  }
  }
  }).then(
- (paddleInstance: Paddle | undefined) => {
+ (paddleInstance: any) => {
  if (paddleInstance) {
  setPaddle(paddleInstance);
  }
  }
- ).catch(err => console.error("Failed to initialize Paddle", err));
+ ).catch((err: any) => console.error("Failed to initialize Paddle", err));
  }
  }, [isOpen, paddle, onClose]);
+ */
 
  const handleCheckout = (priceId: string) => {
  if (paddle) {

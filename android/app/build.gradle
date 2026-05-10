@@ -15,11 +15,16 @@ android {
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+        ndk {
+            // 战术级撤退：移除强制 abiFilters，允许 Capacitor 插件自动包含兼容库，防止 UnsatisfiedLinkError 闪退
+        }
     }
     buildTypes {
         release {
+            // 战术级撤退：关闭代码混淆和资源压缩，防止 Capacitor 反射桥接类被误杀导致 ClassNotFoundException 闪退
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
