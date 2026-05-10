@@ -75,6 +75,7 @@ export type BookingEdit = {
 
 import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { parsePhoneNumber, CountryCode } from 'libphonenumber-js';
+import { buildFuzzyIndex, findBestMatch } from "../utils/fuzzyMatch";
 
 export function DualPaneBookingModal({
  isOpen,
@@ -346,6 +347,45 @@ export function DualPaneBookingModal({
       setCustomerNotes(matchedHistoryCustomer.notes);
     }
   }, [matchedHistoryCustomer]);
+
+  // ==========================================
+  // 顶端模糊匹配引擎 (Fuzzy Match Engine)
+  // ==========================================
+  const fuzzyServiceIndex = useMemo(() => {
+    return buildFuzzyIndex(services);
+  }, [services]);
+
+  const handleServiceInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const inputText = customServiceText.trim();
+      if (!inputText) return;
+
+      // 提取输入中的所有词（按空格分割）
+      const terms = inputText.split(/\s+/);
+      let foundMatches = false;
+
+      // 批量处理每个缩写
+      terms.forEach(term => {
+        const bestMatchId = findBestMatch(term, fuzzyServiceIndex);
+        if (bestMatchId) {
+          const serviceToAdd = services.find(s => s.id === bestMatchId);
+          if (serviceToAdd) {
+            // 只在未选中的情况下添加
+            setSelectedServices(prev => {
+              if (prev.some(s => s.id === serviceToAdd.id)) return prev;
+              return [...prev, { ...serviceToAdd, assignedEmployeeId: currentBrushEmployeeId }];
+            });
+            foundMatches = true;
+          }
+        }
+      });
+
+      if (foundMatches) {
+        setCustomServiceText(""); // 瞬间清空输入框
+      }
+    }
+  };
 
   useEffect(() => {
     if (matchedProfile?.name) {
@@ -1749,53 +1789,34 @@ export function DualPaneBookingModal({
  })
  : b.services;
 
- // 【无差别物理截断法则（升级版：精准拉长）】：结账 = 服务彻底结束
- // 只有当前点击操作的色块，强行拉长/缩短到当前系统时间。
- // 其他兄弟色块，如果还没结束，直接按原定计划时长闭环，保持色块原本大小。
+ // 【结账时长时间解耦法则】：结账 = 财务彻底闭环
+ // 绝对不再根据结账时的物理时间拉长或缩短服务时间。
+ // 无论是当前色块还是兄弟色块，如果还没点击过“结束服务”，直接按原定计划时长闭环，保持色块原本大小。
  const bData = b.data as any || {};
  let finalDuration = b.duration || 1;
  let finalData = { ...bData };
 
- if (b.id === editingBooking.id) {
-   // 【精准打击】：当前操作的预约块
+ if (!finalData.actual_end_time) {
    if (b.startTime) {
      const [sh, sm] = b.startTime.split(':').map(Number);
-     const startMins = sh * 60 + sm;
-     const currentMins = now.getHours() * 60 + now.getMinutes();
-     finalDuration = Math.max(1, currentMins - startMins);
+     const defaultEndMins = sh * 60 + sm + (b.duration || 1);
+     const bDateStr = b.date || selectedDate.replace(/\//g, '-');
+     let defaultEndDate = new Date(now);
+     try {
+       const [year, month, day] = bDateStr.split(/[-/]/).map(Number);
+       defaultEndDate = new Date(year, month - 1, day);
+     } catch {}
+     defaultEndDate.setHours(Math.floor(defaultEndMins / 60), defaultEndMins % 60, 0, 0);
      
      if (!finalData.actual_start_time) {
-       const startDate = new Date(now);
+       const startDate = new Date(defaultEndDate);
        startDate.setHours(sh, sm, 0, 0);
        finalData.actual_start_time = startDate.toISOString();
      }
+     finalData.actual_end_time = defaultEndDate.toISOString();
+   } else {
      finalData.actual_end_time = now.toISOString();
    }
- } else {
-   // 【旁路回落】：其他关联预约块
-   if (!finalData.actual_end_time) {
-     if (b.startTime) {
-       const [sh, sm] = b.startTime.split(':').map(Number);
-       const defaultEndMins = sh * 60 + sm + (b.duration || 1);
-       const bDateStr = b.date || selectedDate.replace(/\//g, '-');
-       let defaultEndDate = new Date(now);
-       try {
-         const [year, month, day] = bDateStr.split(/[-/]/).map(Number);
-         defaultEndDate = new Date(year, month - 1, day);
-       } catch {}
-       defaultEndDate.setHours(Math.floor(defaultEndMins / 60), defaultEndMins % 60, 0, 0);
-       
-       if (!finalData.actual_start_time) {
-         const startDate = new Date(defaultEndDate);
-         startDate.setHours(sh, sm, 0, 0);
-         finalData.actual_start_time = startDate.toISOString();
-       }
-       finalData.actual_end_time = defaultEndDate.toISOString();
-     } else {
-       finalData.actual_end_time = now.toISOString();
-     }
-   }
-   // finalDuration 保持原来的 b.duration 不变
  }
 
  return {
@@ -1991,6 +2012,7 @@ export function DualPaneBookingModal({
  autoComplete="off"
  value={customServiceText as string}
  onChange={(e) => setCustomServiceText(e.target.value)}
+ onKeyDown={handleServiceInputKeyDown}
  className={cn("bg-transparent border-none outline-none text-[12px] flex-1 min-w-[60px] p-0 m-0 leading-tight placeholder:text-transparent shrink-0 ml-1", isLight ? "text-black" : "text-white")}
  placeholder={selectedServices.length > 0 ? "" : " "}
  />
