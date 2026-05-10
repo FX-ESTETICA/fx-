@@ -144,6 +144,30 @@ export function NativeBridgeProvider() {
  });
  }
 
+ // E. 世界顶端物理幻象引擎：接管折叠屏分屏/状态栏强制悬浮的物理遮挡
+ if (typeof window !== 'undefined' && window.visualViewport) {
+ const updateViewport = () => {
+ // 120fps 丝滑插值：获取系统强制弹出的悬浮控件（如折叠屏分屏把手）的物理下压偏移量
+ // 注意：在部分安卓设备上，强制状态栏也可能体现为 safe-area-inset-top 的突变
+ const offsetTop = window.visualViewport?.offsetTop || 0;
+ // 将物理遮挡量写入全局 CSS 变量，供顶部导航等 UI 通过 transform: translateY 避让
+ document.documentElement.style.setProperty('--dynamic-sys-occlusion', `${offsetTop}px`);
+ };
+
+ // 绑定原生事件，完全脱离 React 渲染周期
+ window.visualViewport.addEventListener('resize', updateViewport);
+ window.visualViewport.addEventListener('scroll', updateViewport);
+ updateViewport();
+
+ return () => {
+ if (Capacitor.isNativePlatform()) {
+ CapacitorApp.removeAllListeners();
+ }
+ window.visualViewport?.removeEventListener('resize', updateViewport);
+ window.visualViewport?.removeEventListener('scroll', updateViewport);
+ };
+ }
+
  return () => {
  if (Capacitor.isNativePlatform()) {
  CapacitorApp.removeAllListeners();
@@ -151,9 +175,24 @@ export function NativeBridgeProvider() {
  };
  }, [router]);
 
- // 如果检测到需要强制更新，渲染全屏锁死遮罩层
- if (updateInfo?.needsUpdate) {
  return (
+ <>
+ {/* 物理级幻象引擎遮罩：专门吸收折叠屏分屏把手与强制状态栏的视觉突兀感 */}
+ {/* 当没有系统遮挡时，高度为 0，完全不可见；一旦被系统下压，这层实色磨砂会完美融合系统控件与 App 背景 */}
+ <div 
+ className="fixed top-0 left-0 right-0 z-[99999] pointer-events-none"
+ style={{ 
+ // 终极融合：无论是 VisualViewport 物理下压，还是 CSS 安全区突变，取最大值进行防御
+ height: 'max(var(--dynamic-sys-occlusion, 0px), env(safe-area-inset-top, 0px))',
+ // 使用实色磨砂，彻底隔绝底部的星空/业务UI，将系统控件变成我们高级面板的一部分
+ backdropFilter: 'blur(20px)',
+ WebkitBackdropFilter: 'blur(20px)',
+ backgroundColor: 'rgba(10, 10, 10, 0.6)', 
+ borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+ }}
+ />
+
+ {updateInfo?.needsUpdate && (
  <div className="fixed inset-0 z-[99999] bg-black/95 flex flex-col items-center justify-center p-6 text-white overflow-hidden">
  <div className=" border rounded-[2rem] p-8 max-w-sm w-full flex flex-col items-center text-center relative overflow-hidden">
  {/* 赛博朋克光晕背景 */}
@@ -242,9 +281,8 @@ export function NativeBridgeProvider() {
  </button>
  </div>
  </div>
+ )}
+ </>
  );
- }
-
- return null;
 }
 
