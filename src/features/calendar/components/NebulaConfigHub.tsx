@@ -780,6 +780,7 @@ const HoursConfig = ({ hours, onChange }: { hours: ShopOperatingConfig | Operati
  todayOverride={fullConfig.todayOverride?.date === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') ? fullConfig.todayOverride : null} 
  onChange={handleTodayOverrideChange}
  fullConfig={fullConfig}
+ isLight={isLight}
  />
 
  {/* 1. 常规星期几设置 */}

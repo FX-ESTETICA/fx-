@@ -6,7 +6,6 @@ import { UserProfile } from "../types";
 import { useState, useEffect, useRef } from "react";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useShop } from "@/features/shop/ShopContext";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { DataMatrixAssets } from "./DataMatrixAssets";
 import { supabase, isMockMode } from "@/lib/supabase";
@@ -19,15 +18,93 @@ interface ProfileHeaderProps {
  profile: UserProfile;
 }
 
-import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
-
 export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  const t = useTranslations('ProfileHeader');
  const { settings } = useVisualSettings();
  const isLight = settings.frontendBgIndex !== 0;
  const { user, activeRole, setActiveRole, refreshUserData } = useAuth();
- const { subscription } = useShop();
- const { remainingTime, remainingMilliseconds } = useSubscriptionTimer();
+ 
+ // 【极简降维法则】：彻底废除全局 ShopContext 对个人面板的污染
+ // 个人面板的倒计时只属于当前登录用户本人，必须物理隔离
+ const [personalSubscription, setPersonalSubscription] = useState<{
+  tier: string;
+  endsAt: string | null;
+  trialStartedAt: string | null;
+ }>({
+  tier: 'FREE',
+  endsAt: null,
+  trialStartedAt: null
+ });
+
+ const [personalRemainingStr, setPersonalRemainingStr] = useState<string | null>(null);
+ const [personalRemainingMs, setPersonalRemainingMs] = useState<number>(0);
+
+ // 1. 从 user 对象中直接提取个人的真实资产（因为 AuthProvider 已经将订阅状态同步到了 user 对象）
+ useEffect(() => {
+  if (user) {
+    const sUser = user as any;
+    setPersonalSubscription({
+      tier: sUser.subscription_tier || 'FREE',
+      endsAt: sUser.current_period_end || null,
+      trialStartedAt: sUser.trial_started_at || null
+    });
+  }
+ }, [user]);
+
+ // 2. 独立的高精度物理计时器，只计算个人资产
+ useEffect(() => {
+  const initSystemTime = Date.now();
+  const initPerformanceTime = performance.now();
+
+  const calculatePersonalTime = () => {
+    const elapsed = performance.now() - initPerformanceTime;
+    const trueNow = new Date(initSystemTime + elapsed);
+
+    const { endsAt, tier, trialStartedAt } = personalSubscription;
+
+    if (endsAt) {
+      const end = new Date(endsAt);
+      const diff = end.getTime() - trueNow.getTime();
+
+      if (diff > 0) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        const timeStr = days > 0 ? `${days} 天` : `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        setPersonalRemainingStr(timeStr);
+        setPersonalRemainingMs(diff);
+      } else {
+        setPersonalRemainingStr("MEMBERSHIP_EXPIRED");
+        setPersonalRemainingMs(0);
+      }
+    } else if (tier === 'FREE' && trialStartedAt) {
+      const start = new Date(trialStartedAt);
+      const end = new Date(start.getTime() + 5 * 60 * 1000); // 5分钟满血试用
+      const diff = end.getTime() - trueNow.getTime();
+      
+      if (diff > 0) {
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setPersonalRemainingStr(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        setPersonalRemainingMs(diff);
+      } else {
+        setPersonalRemainingStr("MEMBERSHIP_EXPIRED");
+        setPersonalRemainingMs(0);
+      }
+    } else {
+      setPersonalRemainingStr(null);
+      setPersonalRemainingMs(0);
+    }
+  };
+
+  calculatePersonalTime();
+  const interval = setInterval(calculatePersonalTime, 1000);
+  return () => clearInterval(interval);
+ }, [personalSubscription]);
+
  const [isUploading, setIsUploading] = useState(false);
  const [imageLoaded, setImageLoaded] = useState(false);
  const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -416,19 +493,19 @@ export const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
  </div>
  </div>
 
- {/* 订阅倒计时引擎 (极简降维法则：BOSS隐藏，移除"剩余"字样) */}
- {activeRole !== 'boss' && subscription.subscriptionTier !== 'FREE' && remainingTime && remainingTime !== "MEMBERSHIP_EXPIRED" && (
+ {/* 订阅倒计时引擎 (极简降维法则：基于 personalSubscription 渲染真实个人资产) */}
+ {personalSubscription.tier !== 'FREE' && personalRemainingStr && personalRemainingStr !== "MEMBERSHIP_EXPIRED" && (
  <div 
  className={cn(
  "relative flex items-center text-[11px] tracking-widest leading-none mt-1.5",
- (remainingMilliseconds ?? 0) < 5 * 60 * 1000 
+ personalRemainingMs < 5 * 60 * 1000 
  ? " " + (isLight ? "text-black " : "text-white ") 
- : (remainingMilliseconds ?? 0) < 24 * 60 * 60 * 1000
+ : personalRemainingMs < 24 * 60 * 60 * 1000
  ? (isLight ? "text-black" : "text-white")
  : (isLight ? "text-black" : "text-white")
  )}
  >
- {subscription.subscriptionTier} {remainingTime.replace('天', ' 天')}
+ {personalSubscription.tier} {personalRemainingStr.replace('天', ' 天')}
  </div>
  )}
  </div>

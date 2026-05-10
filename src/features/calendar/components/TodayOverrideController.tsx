@@ -10,6 +10,7 @@ interface TodayOverrideControllerProps {
  onChange: (newOverride: DailyOverride | null) => void;
  variant?: "glass" | "minimal";
  fullConfig?: ShopOperatingConfig | null; // 传入完整的引擎配置，用于推算“今天的默认真实时间”
+ isLight?: boolean; // 允许父组件强制覆盖主题颜色，解决跨界面（如智控页）的颜色冲突
 }
 
 const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i);
@@ -18,10 +19,11 @@ export const TodayOverrideController = ({
  todayOverride, 
  onChange,
  variant = "glass",
- fullConfig
+ fullConfig,
+ isLight: propIsLight
 }: TodayOverrideControllerProps) => {
  const { settings } = useVisualSettings();
- const isLight = settings.calendarBgIndex !== 0;
+ const isLight = propIsLight !== undefined ? propIsLight : settings.calendarBgIndex !== 0;
  const t = useTranslations('TodayOverrideController');
 
  const todayDateStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');

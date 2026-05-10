@@ -33,6 +33,10 @@ export interface SandboxUser extends Omit<User, 'created_at'> {
   boss_name?: string | null;
   boss_avatar_url?: string | null;
   boss_phone?: string | null;
+  // 核心升级：个人订阅资产字段
+  subscription_tier?: string | null;
+  current_period_end?: string | null;
+  trial_started_at?: string | null;
 }
 
 type ShopBindingRow = {
@@ -241,7 +245,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           gender: profile.gender || nextSession.user.user_metadata?.gender || "unknown",
           birthday: profile.birthday || nextSession.user.user_metadata?.birthday || null,
           bindings: shopBindings,
-          applicationStatus: appStatus
+          applicationStatus: appStatus,
+          subscription_tier: profile.subscription_tier || null,
+          current_period_end: profile.current_period_end || null,
+          trial_started_at: profile.trial_started_at || null
         } as SandboxUser; 
         
         setUser(extendedUser);
@@ -585,7 +592,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           gender: profile.gender || activeSession.user.user_metadata?.gender || "unknown",
           birthday: profile.birthday || activeSession.user.user_metadata?.birthday || null,
           bindings: shopBindings,
-          applicationStatus: appStatus
+          applicationStatus: appStatus,
+          subscription_tier: profile.subscription_tier || null,
+          current_period_end: profile.current_period_end || null,
+          trial_started_at: profile.trial_started_at || null
         } as SandboxUser;
         
         setUser(extendedUser);

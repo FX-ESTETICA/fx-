@@ -429,9 +429,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  // X 计算不变
  const x = clientX - rect.left;
- const colWidth = rect.width / resources.length;
- const colIdx = Math.min(Math.max(0, Math.floor(x / colWidth)), resources.length - 1);
- const resourceId = resources[colIdx].id;
+ const colWidth = rect.width / (resources.length || 1); // 防御 resources 为空导致除以 0
+ const colIdx = Math.min(Math.max(0, Math.floor(x / colWidth)), Math.max(0, resources.length - 1));
+ const resourceId = resources.length > 0 ? resources[colIdx]?.id || null : null;
  
  return { exactY, timeStr, resourceId, dateStr: targetNode.dateStr };
  };

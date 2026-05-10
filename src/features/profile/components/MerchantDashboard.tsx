@@ -421,6 +421,7 @@ export const MerchantDashboard = ({ shopId, industry, profile }: MerchantDashboa
  onChange={handleTodayOverrideChange}
  variant="minimal"
  fullConfig={fullConfig}
+ isLight={isLight}
  />
  </div>
  </div>
