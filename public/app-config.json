@@ -1,8 +1,8 @@
 {
   "android": {
-    "min_version": "1.0.6",
-    "latest_version": "1.0.6",
+    "min_version": "1.0.8",
+    "latest_version": "1.0.8",
     "download_url": "https://fx-rapallo.vercel.app/gx-core.apk",
-    "release_notes": "系统核心体验升级（v1.0.6）：\n1. 优化系统底层性能与稳定性\n2. 修复已知问题，提升交互流畅度\n\n请立即下载覆盖安装，体验最新版本。"
+    "release_notes": "核心架构升级（v1.0.8）：\n1. 世界顶端折叠屏分屏绝对沉浸式架构\n2. 修复多窗口状态栏遮挡跳动问题\n\n请立即下载覆盖安装，体验最新版本。"
   }
 }
