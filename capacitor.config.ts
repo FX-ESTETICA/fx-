@@ -4,6 +4,8 @@ const config: CapacitorConfig = {
   appId: 'com.gx.core',
   appName: 'GX',
   webDir: 'public',
+  // 物理防火墙：绝对禁止将任何 apk 文件同步进原生壳子，彻底阻断俄罗斯套娃死循环
+  ignoreAssetsPattern: '.*\\.apk$',
   server: {
     url: 'https://fx-rapallo.vercel.app',
     cleartext: true
