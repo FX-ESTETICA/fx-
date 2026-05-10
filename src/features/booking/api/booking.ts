@@ -135,7 +135,8 @@ export const BookingService = {
             phone: actualPhone,
             name: actualName,
             gx_id: b.data?.customerId,
-            avatar_url: ""
+            avatar_url: "",
+            notes: b.data?.customerNotes || "" // 携带最新备注
           };
         }).filter(p => p.phone && p.phone.includes(phoneSearch)); // 确保真的包含了搜索词
         

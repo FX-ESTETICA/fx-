@@ -314,9 +314,15 @@ export function DualPaneBookingModal({
  const [matchedProfile, setMatchedProfile] = useState<MatchedProfile | null>(null);
 
  // --- 历史老客匹配状态 (Historical B-End Match) ---
- const [matchedHistoryCustomer, setMatchedHistoryCustomer] = useState<{name?: string, phone: string, gx_id: string} | null>(null);
+  const [matchedHistoryCustomer, setMatchedHistoryCustomer] = useState<{name?: string, phone: string, gx_id: string, notes?: string} | null>(null);
 
- // --- 会员真实姓名 (Customer Real Name) ---
+ // --- 客户偏好备注 ---
+  const [customerNotes, setCustomerNotes] = useState<string>(() => {
+    if (editingBooking) {
+      return (editingBooking as any).customerNotes || (editingBooking as any).data?.customerNotes || '';
+    }
+    return '';
+  });
  const [customerRealName, setCustomerRealName] = useState<string>(() => {
  if (editingBooking) {
  const name = editingBooking.customerName || "";
@@ -335,6 +341,9 @@ export function DualPaneBookingModal({
     // 并且我们不再单纯依赖这个 effect，点击时的 onClick 也做了深度状态控制
     if (matchedHistoryCustomer?.name) {
       setCustomerRealName(matchedHistoryCustomer.name);
+    }
+    if (matchedHistoryCustomer?.notes) {
+      setCustomerNotes(matchedHistoryCustomer.notes);
     }
   }, [matchedHistoryCustomer]);
 
@@ -480,7 +489,8 @@ export function DualPaneBookingModal({
  setMatchedHistoryCustomer({
  name: exactHistoryMatch.name,
  phone: exactHistoryMatch.phone,
- gx_id: exactHistoryMatch.gx_id
+ gx_id: exactHistoryMatch.gx_id,
+ notes: exactHistoryMatch.notes
  });
  } else {
  setMatchedHistoryCustomer(null);
@@ -1171,6 +1181,7 @@ export function DualPaneBookingModal({
  customerId: finalCustomerId,
  customerName: finalCustomerName,
  customerPhone: customerPhoneStr,
+ customerNotes: customerNotes, // 核心：注入客户偏好备注
  // 需要打上被修改标记，让智能大脑一并写库
  _needsTimeReflow: true 
  });
@@ -1209,6 +1220,7 @@ export function DualPaneBookingModal({
  customerId: finalCustomerId, // 【核心修复】：注入使用 matchedProfile.gx_id 纠正后的智能编号
  customerName: finalCustomerName,
  customerPhone: customerPhoneStr,
+ customerNotes: customerNotes, // 核心：注入客户偏好备注
  serviceName: customServiceText ? `${groupServiceNames} (${customServiceText})` : groupServiceNames,
  customServiceText: customServiceText, // 存入自定义文本以便下次编辑回显
  date: baseDate, // 【核心修复】：注入丢失的 date 字段，打破渲染隐形诅咒
@@ -2333,6 +2345,7 @@ export function DualPaneBookingModal({
              customerId: finalCustomerId,
              customerName: finalCustomerName,
              customerPhone: customerPhoneStr,
+             customerNotes: customerNotes, // 核心：注入客户偏好备注
              serviceId: servicesInGroup.map(s => s.id).join(','),
              serviceName: groupServiceNames,
              services: servicesInGroup,
@@ -3001,6 +3014,8 @@ export function DualPaneBookingModal({
  className={cn("w-full bg-transparent border-none outline-none text-xs resize-none h-8 leading-8 px-1 no-scrollbar overflow-x-hidden whitespace-nowrap", isLight ? "text-black placeholder:text-black" : "text-white placeholder:text-white")}
  rows={1}
  style={{ whiteSpace: 'nowrap' }} // 强制单行横向滚动
+ value={customerNotes}
+ onChange={(e) => setCustomerNotes(e.target.value)}
  />
  <div className={cn(`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r ${isLight ? "from-black/50" : "from-white/50"} to-transparent`, isLight ? "via-black/10" : "via-white/10")} />
  </div>
