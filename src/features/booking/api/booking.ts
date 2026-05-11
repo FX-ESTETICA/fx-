@@ -454,19 +454,25 @@ export const BookingService = {
     }
   },
 
-  async getBookings(shopId: string): Promise<{ data: BookingRecord[] }> {
+  async getBookings(shopId: string, signal?: AbortSignal): Promise<{ data: BookingRecord[] }> {
     if (isMockMode) return { data: [] };
-    
+
     if (!shopId || shopId === 'default') {
        return { data: [] };
     }
-    
-    const { data, error } = await supabase
+
+    let query = supabase
       .from('v_bookings')
       .select('*')
       .eq('shop_id', shopId)
       .neq('status', 'VOID'); // 过滤被丢入黑洞的卡片
-      
+
+    if (signal) {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
       console.error("[BookingService] getBookings Error:", error);
       return { data: [] };

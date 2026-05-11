@@ -64,6 +64,23 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       });
     }
 
+    // 【终极防御：探针 4】 物理时间跳跃检测 (Time-Jump Detection)
+    // 专门对抗 iOS BFCache 解冻盲区、PWA 墓碑机制、Android Doze 深度休眠导致的系统事件丢失
+    let lastTime = Date.now();
+    const timeJumpInterval = setInterval(() => {
+      const currentTime = Date.now();
+      const delta = currentTime - lastTime;
+      
+      // 设定物理死亡线：如果发现两次执行的时间差超过 10 秒（正常应该是 2 秒左右）
+      // 绝对证明 JS 线程刚刚被系统强制冰冻并重新解冻了，此时无视一切系统通知，强制触发唤醒重连
+      if (delta > 10000) {
+        console.warn(`[GlobalSyncEngine] ⏱️ 物理时间跳跃警报！检测到 ${Math.floor(delta / 1000)} 秒的线程冰冻，触发终极唤醒！`);
+        triggerGlobalSync("time_jump_thaw");
+      }
+      
+      lastTime = currentTime;
+    }, 2000);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
@@ -75,6 +92,7 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       if (appStateListener && appStateListener.remove) {
         appStateListener.remove();
       }
+      clearInterval(timeJumpInterval);
     };
   }, []);
 

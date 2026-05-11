@@ -37,6 +37,8 @@ interface ShopContextType {
   globalBookings: any[];
   refreshBookings: () => Promise<void>;
   trackAction: () => Promise<void>;
+  // --- 僵尸网络态防伪探针 ---
+  isDataStale: boolean;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -50,6 +52,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("gx_active_shop_id");
   });
+
+  const [isDataStale, setIsDataStale] = useState(false);
 
   const [subscription, setSubscription] = useState<SubscriptionState>({
     subscriptionTier: 'FREE',
@@ -150,8 +154,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   // 将加载订单提炼成一个全局的刷新函数，任何弹窗保存后都可以直接调它，代替原来的事件
   const refreshBookings = useCallback(async () => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒物理死亡线
+
     try {
-      const { data } = await BookingService.getBookings(resolvedActiveShopId);
+      const { data } = await BookingService.getBookings(resolvedActiveShopId, controller.signal);
+      clearTimeout(timeoutId);
+      setIsDataStale(false); // 成功拉取，解除失联状态
+
       // 预处理，防止空字段
       const safeBookings = (data || []).map((booking: any) => ({
         ...booking,
@@ -169,32 +179,35 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         };
         localStorage.setItem(`gx_bookings_snapshot_${resolvedActiveShopId}`, JSON.stringify(snapshotPayload));
       }
-    } catch (e) {
-      console.error("[ShopContext] Failed to load cloud bookings:", e);
-      // 【防御性自毁】：如果连续网络失败导致抓取不到真数据，不能让旧快照永远骗人
-      // 这里如果抛错，我们物理摧毁本地缓存，逼迫下一次渲染必须等真数据
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
+      } catch (e) {
+        clearTimeout(timeoutId);
+        console.error("[ShopContext] Failed to load cloud bookings:", e);
+        // 【防御性自毁】：如果连续网络失败导致抓取不到真数据，不能让旧快照永远骗人
+        // 这里如果抛错，我们物理摧毁本地缓存，逼迫下一次渲染必须等真数据
+        // 同时触发 stale 状态（仅供后台监控，不再触发全屏面罩）
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
+        }
+        setIsDataStale(true);
       }
-    }
-  }, [resolvedActiveShopId]);
+    }, [resolvedActiveShopId]);
 
   // 统一静默同步总线接管：处理从后台唤醒、断网恢复、Capacitor 重连
-  useEffect(() => {
-    const handleGlobalSync = async (e: Event) => {
-      const customEvent = e as CustomEvent;
-      console.log(`[ShopContext] 收到全局唤醒信号 (${customEvent.detail?.reason})，执行静默全量同步...`);
-      
-      if (customEvent.detail?.reason === "network_online") {
-        console.log("[ShopContext] 🌐 网络已连接，触发离线队列重传");
-        await BookingService.syncOfflineMutations();
-      }
-      
-      refreshBookings();
-    };
-    window.addEventListener("gx-global-sync", handleGlobalSync);
-    return () => window.removeEventListener("gx-global-sync", handleGlobalSync);
-  }, [refreshBookings]);
+    useEffect(() => {
+      const handleGlobalSyncEvents = async (e: Event) => {
+        const customEvent = e as CustomEvent;
+        console.log(`[ShopContext] 收到全局唤醒信号 (${customEvent.detail?.reason})，执行静默全量同步...`);
+        
+        if (customEvent.detail?.reason === "network_online") {
+          console.log("[ShopContext] 🌍 网络已连接，触发离线队列上传");
+          await BookingService.syncOfflineMutations();
+        }
+        
+        refreshBookings();
+      };
+      window.addEventListener("gx-global-sync", handleGlobalSyncEvents);
+      return () => window.removeEventListener("gx-global-sync", handleGlobalSyncEvents);
+    }, [refreshBookings]);
 
   useEffect(() => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') {
@@ -248,12 +261,18 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     // 1. Initial Fetch
     const fetchShopConfig = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       try {
         const { data, error } = await supabase
           .from('shops')
           .select('config')
           .eq('id', resolvedActiveShopId)
+          .abortSignal(controller.signal)
           .maybeSingle();
+
+        clearTimeout(timeoutId);
 
         if (error) throw error;
         if (isMounted) {
@@ -270,6 +289,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error("[ShopContext] Failed to load shop config:", err);
         // 【防御性自毁】：连续网络错误导致配置无法拉取，清理过期配置快照
         if (typeof window !== "undefined") {
@@ -352,21 +372,39 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     }, 30000);
 
     // 【全局唤醒探针接管】：当 APP 从后台切回、或网络恢复时，强制刷新全局核心数据
-    const handleGlobalSync = () => {
-      console.log(`[ShopContext] Global sync triggered, force refreshing bookings and config for shop ${resolvedActiveShopId}...`);
+    const handleGlobalSyncSync = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const reason = customEvent.detail?.reason || "unknown";
+
+      console.log(`[ShopContext] Global sync triggered (${reason}), force refreshing bookings and config for shop ${resolvedActiveShopId}...`);
       if (isMounted) {
+        // 【静默重连】：坚决拒绝修改 isDataStale 为 true 触发阻断式面罩
+        // setIsDataStale(true); // 已废弃：保留视觉无感
+
+        // 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
+        console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
+        if (channelBookings) {
+          try { BookingService.unsubscribe(channelBookings); } catch(e) {}
+        }
+
+        channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
+          handleBookingUpdate();
+        }, () => {
+          handleBookingUpdate();
+        });
+
         fetchShopConfig();
         refreshBookings();
       }
     };
-    window.addEventListener("gx-global-sync", handleGlobalSync);
+    window.addEventListener("gx-global-sync", handleGlobalSyncSync);
 
     return () => {
       isMounted = false;
       if (configDebounceTimer) clearTimeout(configDebounceTimer);
       if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       clearInterval(heartbeatTimer);
-      window.removeEventListener("gx-global-sync", handleGlobalSync);
+      window.removeEventListener("gx-global-sync", handleGlobalSyncSync);
       supabase.removeChannel(channelConfig);
       if (channelBookings) {
         BookingService.unsubscribe(channelBookings);
@@ -685,27 +723,29 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     closeSubscriptionModal,
     subscriptionModalMode,
     shopConfig,
-    isShopConfigLoaded,
-    updateShopConfig,
-    updateFullShopConfig,
-    globalBookings,
-    refreshBookings,
-    trackAction
-  }), [
-    resolvedActiveShopId, 
-    availableShops, 
-    subscription,
-    openSubscriptionModal,
-    closeSubscriptionModal,
-    subscriptionModalMode,
-    shopConfig,
-    isShopConfigLoaded,
-    updateShopConfig,
-    updateFullShopConfig,
-    globalBookings,
-    refreshBookings,
-    trackAction
-  ]);
+      isShopConfigLoaded,
+      updateShopConfig,
+      updateFullShopConfig,
+      globalBookings,
+      refreshBookings,
+      trackAction,
+      isDataStale
+    }), [
+      resolvedActiveShopId,
+      availableShops,
+      subscription,
+      openSubscriptionModal,
+      closeSubscriptionModal,
+      subscriptionModalMode,
+      shopConfig,
+      isShopConfigLoaded,
+      updateShopConfig,
+      updateFullShopConfig,
+      globalBookings,
+      refreshBookings,
+      trackAction,
+      isDataStale
+    ]);
 
   return (
     <ShopContext.Provider value={contextValue}>

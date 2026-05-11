@@ -251,24 +251,25 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
   const setActiveTab = useViewStack(state => state.setActiveTab);
 
   // 【世界顶端架构】：物理跨天雷达 (Physical Date Rollover Detection)
-  // 专门击杀“隔夜切回后台，数据刷新了但UI依然停留在昨天”的僵尸态 BUG
-  useEffect(() => {
-    const handleWakeUpCheck = () => {
-      const physicalNow = new Date();
-      setCurrentDate((prevDate) => {
-        // 提取纯数字的年月日进行绝对比对
-        if (
-          physicalNow.getFullYear() !== prevDate.getFullYear() ||
-          physicalNow.getMonth() !== prevDate.getMonth() ||
-          physicalNow.getDate() !== prevDate.getDate()
-        ) {
-          console.log("[IndustryCalendar] 物理跨天雷达触发，UI 引擎自动跃迁至今天");
-          setPhantomDate(physicalNow);
-          return physicalNow; // 瞬间重置日历视界
-        }
-        return prevDate;
-      });
-    };
+    // 专门击杀“隔夜切回后台，数据刷新了但UI依然停留在昨天”的僵尸态 BUG
+    useEffect(() => {
+      const handleWakeUpCheck = () => {
+        const physicalNow = new Date();
+        setCurrentDate((prevDate) => {
+          // 提取纯数字的年月日进行绝对比对
+          if (
+            physicalNow.getFullYear() !== prevDate.getFullYear() ||
+            physicalNow.getMonth() !== prevDate.getMonth() ||
+            physicalNow.getDate() !== prevDate.getDate()
+          ) {
+            console.warn("[IndustryCalendar] ⚠️ 物理跨天雷达触发，检测到隔夜休眠唤醒，UI 引擎强制跃迁至今天...");
+            setPhantomDate(physicalNow);
+            // 【致命修复】：必须返回一个全新的 Date 引用，彻底击穿 React 的浅比较拦截
+            return new Date(physicalNow.getTime());
+          }
+          return prevDate;
+        });
+      };
 
     // 1. 监听原生壳唤醒总线 (App 从后台切回前台瞬间触发)
     window.addEventListener('gx-global-sync', handleWakeUpCheck);
@@ -1899,11 +1900,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  {/* 交互式矩阵渲染层 */}
  <div className="h-full relative overflow-hidden z-10">
- 
- {/* 全局物理锁定已被移除，改由底层矩阵幽灵卡片接管 (Phantom Holiday Cards) */}
 
- {dna.pivot === "resource" && viewMode === "day" && (
- <EliteResourceMatrix 
+   {/* 全局物理锁定已被移除，改由底层矩阵幽灵卡片接管 (Phantom Holiday Cards) */}
+
+            {dna.pivot === "resource" && viewMode === "day" && (
+            <EliteResourceMatrix 
  industry={industry} 
  dna={dna} 
  resources={resources} 
