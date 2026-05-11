@@ -943,9 +943,9 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  </div>
  
  {/* 第二行：消息预览 */}
- <div className="flex items-center space-x-1.5 mt-0">
- {/* 已读状态标记 (双蓝勾/灰勾) */}
- {!isUnread && (
+ <div className="flex items-center space-x-1.5 mt-0 min-h-[16px]">
+ {/* 已读状态标记 (双蓝勾/灰勾) - 只有在有消息内容时才显示 */}
+ {!isUnread && chat.lastMessage && (
  <CheckCheck className={cn("w-[10px] h-[10px] shrink-0", isLight ? "text-black" : "text-white")} />
  )}
  
@@ -957,7 +957,8 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  : (isLight ? "text-black" : "text-white")
  )}
  >
- {chat.lastMessage}
+ {/* 物理防塌陷：如果消息为空，注入零宽空格撑起高度 */}
+ {chat.lastMessage || '\u00A0'}
  </p>
  </div>
  </div>
