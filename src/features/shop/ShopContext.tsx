@@ -182,32 +182,11 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {
         clearTimeout(timeoutId);
         console.error("[ShopContext] Failed to load cloud bookings:", e);
-        // 【防御性自毁】：如果连续网络失败导致抓取不到真数据，不能让旧快照永远骗人
-        // 这里如果抛错，我们物理摧毁本地缓存，逼迫下一次渲染必须等真数据
-        // 同时触发 stale 状态（仅供后台监控，不再触发全屏面罩）
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
-        }
+        // 【绝对铁壁法则】：网络超时或报错时，绝对信任并保留本地快照，仅触发 stale 状态供后台监控
+        // 废除自毁代码，彻底杜绝切回前台瞬间网速不佳导致的“永久白板” Bug
         setIsDataStale(true);
       }
     }, [resolvedActiveShopId]);
-
-  // 统一静默同步总线接管：处理从后台唤醒、断网恢复、Capacitor 重连
-    useEffect(() => {
-      const handleGlobalSyncEvents = async (e: Event) => {
-        const customEvent = e as CustomEvent;
-        console.log(`[ShopContext] 收到全局唤醒信号 (${customEvent.detail?.reason})，执行静默全量同步...`);
-        
-        if (customEvent.detail?.reason === "network_online") {
-          console.log("[ShopContext] 🌍 网络已连接，触发离线队列上传");
-          await BookingService.syncOfflineMutations();
-        }
-        
-        refreshBookings();
-      };
-      window.addEventListener("gx-global-sync", handleGlobalSyncEvents);
-      return () => window.removeEventListener("gx-global-sync", handleGlobalSyncEvents);
-    }, [refreshBookings]);
 
   useEffect(() => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') {
@@ -371,17 +350,20 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 30000);
 
-    // 【全局唤醒探针接管】：当 APP 从后台切回、或网络恢复时，强制刷新全局核心数据
-    const handleGlobalSyncSync = (e: Event) => {
+    // 【全局唤醒探针接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔 (Single Source of Truth)
+    const handleGlobalSyncSync = async (e: Event) => {
       const customEvent = e as CustomEvent;
       const reason = customEvent.detail?.reason || "unknown";
 
-      console.log(`[ShopContext] Global sync triggered (${reason}), force refreshing bookings and config for shop ${resolvedActiveShopId}...`);
+      console.log(`[ShopContext] Global sync triggered (${reason}), executing unified recovery pipeline for shop ${resolvedActiveShopId}...`);
       if (isMounted) {
-        // 【静默重连】：坚决拒绝修改 isDataStale 为 true 触发阻断式面罩
-        // setIsDataStale(true); // 已废弃：保留视觉无感
+        // 1. 离线队列同步 (若因网络恢复触发)
+        if (reason === "network_online") {
+          console.log("[ShopContext] 🌍 网络已连接，触发离线队列上传");
+          await BookingService.syncOfflineMutations();
+        }
 
-        // 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
+        // 2. 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
         console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
         if (channelBookings) {
           try { BookingService.unsubscribe(channelBookings); } catch(e) {}
@@ -393,6 +375,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           handleBookingUpdate();
         });
 
+        // 3. 重新拉取配置与订单
         fetchShopConfig();
         refreshBookings();
       }
