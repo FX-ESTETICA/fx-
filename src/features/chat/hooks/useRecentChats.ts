@@ -61,17 +61,19 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
         if (msg.room_id === 'city_current') isCityChannel = true;
       } else {
         if (msg.sender_id === currentUserId && msg.sender_role === currentRole) {
-          targetId = msg.receiver_id;
-          targetRole = msg.receiver_role;
-        } else {
-          targetId = msg.sender_id;
-          targetRole = msg.sender_role;
-        }
-        isGroup = false;
-        name = `信号源 ${targetId?.substring(0, 4) || '未知'}`; // 临时假名字，后面会被覆盖
-        avatar = ''; // 移除 Dicebear，使用空字符串触发首字母渲染
-        userIdsToFetch.add(targetId); // 记录下真实的 targetId，准备去 profiles 表里反查
-      }
+           targetId = msg.receiver_id;
+           targetRole = msg.receiver_role;
+         } else {
+           targetId = msg.sender_id;
+           targetRole = msg.sender_role;
+         }
+         isGroup = false;
+         
+         // 不再使用“未知”或截断字符，保持一个高级的中间态名称
+         name = `连接中...`; 
+         avatar = ''; 
+         userIdsToFetch.add(targetId); 
+       }
 
       // 如果 Map 里还没有这个复合键 (targetId_targetRole)，说明这是最新的一条
       const mapKey = isGroup ? targetId : `${targetId}_${targetRole}`;
@@ -410,34 +412,46 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
       const avatar = '';
       
       if (activeChatId.startsWith('wa_')) {
-        name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
-      } else if (activeChatId.startsWith('phone_')) {
-        const rawPhone = activeChatId.replace('phone_', '');
-        name = `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`;
-      } else if (activeChatId.startsWith('guest_')) {
-        name = `游客 ${activeChatId.replace('guest_', '')}`;
-      }
+         name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
+       } else if (activeChatId.startsWith('phone_')) {
+         const rawPhone = activeChatId.replace('phone_', '');
+         name = `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`;
+       } else if (activeChatId.startsWith('guest_')) {
+         name = `游客 ${activeChatId.replace('guest_', '')}`;
+       }
 
-      result.push({
-        id: activeChatId,
-        name,
-        lastMessage: '[系统] 正在建立全息加密通道...',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        avatar,
-        unread: 0,
-        isGroup,
-        isCityChannel: activeChatId === 'city_current',
-        isPhantom: true
-      });
-    }
+       result.push({
+         id: activeChatId,
+         name,
+         lastMessage: '[系统] 正在建立全息加密通道...',
+         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+         avatar,
+         unread: 0,
+         isGroup,
+         isCityChannel: activeChatId === 'city_current',
+         isPhantom: true
+       });
+     }
 
-    // ==========================================
-    // 动态注入法则：只处理幻影注入，不再粗暴地因为 activeChatId 就把历史卡片置顶
-    // 微信/WhatsApp 只有在发消息或收消息(时间戳改变)时才重排。点击仅仅是改变UI已读状态。
-    // ==========================================
+     // ==========================================
+     // 动态注入法则：只处理幻影注入，不再粗暴地因为 activeChatId 就把历史卡片置顶
+     // 微信/WhatsApp 只有在发消息或收消息(时间戳改变)时才重排。点击仅仅是改变UI已读状态。
+     // ==========================================
+ 
+     // ==========================================
+     // 幻影降维防御：过滤因未解出真实名字而呈现劣质UI的记录
+     // ==========================================
+     const filteredResult = result.filter(chat => {
+       // 如果不是幻影，并且名字里包含“正在连接...”这种中间态，或者名字只有一个字（极大概率是残破数据），我们直接拦截它，不让它破坏列表的清透感
+       // 让它保持在右侧聊天室内，直到有真正像样的数据
+       if (!chat.isPhantom && (chat.name === '正在连接...' || chat.name === '连')) {
+           return false;
+       }
+       return true;
+     });
 
-    return result;
-  }, [recentChats, activeChatId]);
+     return filteredResult;
+   }, [recentChats, activeChatId]);
 
   return { recentChats: finalProcessedChats, isLoading };
 }
