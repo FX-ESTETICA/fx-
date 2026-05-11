@@ -659,10 +659,6 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
  {/* 附近视图 */}
  </div>
- ) : navTab === 'strangers' ? (
- <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
- {/* 陌生人视图 */}
- </div>
  ) : (
  <>
  {/* 3. 沉浸式信号瀑布流 (绝对清透) */}

@@ -134,17 +134,18 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  };
 
  const handleClearHistory = () => {
- const targetId = roomId || receiverId;
- if (!targetId) return;
- 
- // 设置本地清空锚点
- const key = `gx_cleared_${currentUserId}_${targetId}`;
- localStorage.setItem(key, Date.now().toString());
- 
- // 发出全局清空事件 (通知 useChatEngine 和 useRecentChats 刷新)
- window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId } }));
- setShowMoreMenu(false);
- };
+    const targetId = roomId || receiverId;
+    if (!targetId) return;
+    
+    // 设置本地清空锚点
+    const key = `gx_cleared_${currentUserId}_${targetId}`;
+    localStorage.setItem(key, Date.now().toString());
+    
+    // 发出全局清空事件 (通知 useChatEngine 和 useRecentChats 刷新)
+    // 修复：补齐 targetRole 身份标识，触发 0 毫秒物理级屏幕清空
+    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId, targetRole: receiverRole || 'user' } }));
+    setShowMoreMenu(false);
+  };
 
  // ---------------- 真实身份反查逻辑 ----------------
  const [trueRoomName, setTrueRoomName] = useState(roomName);
@@ -367,10 +368,12 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  const handleSend = async () => {
  if (!inputText.trim() && !selectedFile) return;
  
- await sendMessage(inputText, selectedFile || undefined);
+ const success = await sendMessage(inputText, selectedFile || undefined);
  
- setTextInput('');
- setSelectedFile(null);
+ if (success) {
+   setTextInput('');
+   setSelectedFile(null);
+ }
  };
 
  return (

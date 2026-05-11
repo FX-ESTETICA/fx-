@@ -313,16 +313,18 @@ export function useChatEngine(currentUserId: string, currentRole: string, roomId
         });
 
       if (insertError) throw insertError;
+      return true;
+    } catch (error: any) {
+      // 绝对洁癖法则：拦截一切控制台红字，转换为用户友好的业务提示
+      const errorStr = typeof error === 'string' ? error : JSON.stringify(error);
+      const errorMsg = error?.message || errorStr;
 
-    } catch (error) {
-      console.error('发送消息彻底失败:', error);
-      // 将错误详细信息抛出，方便定位问题 (比如表结构缺少字段)
-      if (error instanceof Error) {
-        console.error('Error Details:', error.message);
+      if (errorMsg.includes('ANTI_SPAM_GATEWAY_BLOCKED')) {
+        alert('防骚扰拦截：请等待对方回复后再发送更多消息。');
       } else {
-        console.error('Error Object:', JSON.stringify(error, null, 2));
+        alert('发送失败，请稍后重试。');
       }
-      // 这里应该抛给 UI 层提示错误
+      return false;
     } finally {
       setIsSending(false);
     }
