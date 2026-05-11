@@ -60,9 +60,8 @@ const fetchChatHistory = async (currentUserId: string, currentRole: string, room
     // 读取清空时间戳 (直接读 localStorage 避免闭包旧状态)
     let localClearedAt = 0;
     const targetId = roomId || receiverId;
-    const targetRole = receiverRole || 'user';
     if (targetId) {
-      const clearKey = roomId ? `gx_cleared_${currentUserId}_${targetId}` : `gx_cleared_${currentUserId}_${targetId}_${targetRole}`;
+      const clearKey = `gx_cleared_${currentUserId}_${targetId}`;
       const storedClear = localStorage.getItem(clearKey);
       if (storedClear) localClearedAt = parseInt(storedClear, 10);
     }

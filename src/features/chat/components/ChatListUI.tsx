@@ -39,7 +39,7 @@ interface SearchResult {
 export default function ChatListUI({ currentUserId, currentRole, onChatSelect }: ChatListUIProps) {
  const { user, setActiveRole } = useAuth();
  const { activeChat, showPrivacyGateway, setShowPrivacyGateway } = useChatStore();
- const { recentChats } = useRecentChats(currentUserId, currentRole, activeChat?.id);
+ const { recentChats } = useRecentChats(currentUserId, currentRole, activeChat || undefined);
  
  const t = useTranslations('ChatListUI');
 
@@ -134,31 +134,6 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
 
  // 右键菜单状态
  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, targetId: string, targetRole: string, isGroup: boolean } | null>(null);
-
- // 内存级清空黑名单 (拦截底层缓存导致的延迟和脱节)
- const [clearedChats, setClearedChats] = useState<Set<string>>(new Set());
-
- useEffect(() => {
-   const handleClear = (e: Event) => {
-     const customEvent = e as CustomEvent;
-     if (customEvent.detail?.targetId) {
-       setClearedChats(prev => new Set(prev).add(customEvent.detail.targetId));
-     }
-   };
-   
-   // 监听收到新消息，从黑名单中移除（恢复正常显示）
-   const handleNewMessage = () => {
-     setClearedChats(new Set()); // 简化处理：有任何列表刷新动作时，清空内存黑名单，交给底层 SWR 重新接管
-   };
-
-   window.addEventListener('gx_chat_cleared', handleClear);
-   window.addEventListener('gx_chat_read_updated', handleNewMessage);
-   
-   return () => {
-     window.removeEventListener('gx_chat_cleared', handleClear);
-     window.removeEventListener('gx_chat_read_updated', handleNewMessage);
-   };
- }, []);
 
  const handleContextMenu = (e: React.MouseEvent, targetId: string, targetRole: string = 'user', isGroup: boolean = false) => {
  e.preventDefault();
@@ -862,11 +837,6 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  // 如果数据中没有明确指定 isOnline，默认值为 false（离线），由底层的 useAtomicPresence 动态接管真实状态
  const isOnline = chat.isOnline === true; 
  
- // 内存级清空状态判定
- const isClearedInMemory = clearedChats.has(chat.id);
- const displayLastMessage = isClearedInMemory ? '' : chat.lastMessage;
- const displayUnread = isClearedInMemory ? false : isUnread;
- 
  return (
  <div
  key={`${chat.id}_${chat.targetRole || 'user'}`}
@@ -948,22 +918,14 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  isLight ? "text-black" : "text-white"
  )}
  >
- {chat.name || '连接中...'}
- {chat.isPhantom && (
- <span className={cn(
- "text-[11px] px-1.5 py-0.5 rounded border tracking-widest whitespace-nowrap",
- isLight ? "border-black/10 text-black" : "border-white/10 text-white"
- )}>
- CONNECTING
- </span>
- )}
+ {chat.name}
  </span>
  
  {/* 时间 (右侧) */}
  <span
  className={cn(
  "shrink-0 text-[11px] ml-2 font-medium tracking-wider",
- displayUnread 
+ isUnread 
  ? (isLight ? "text-black" : "text-white") 
  : (isLight ? "text-black" : "text-white")
  )}
@@ -973,22 +935,21 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  </div>
  
  {/* 第二行：消息预览 */}
- <div className="flex items-center space-x-1.5 mt-0">
- {/* 已读状态标记 (双蓝勾/灰勾) - 只有在有消息内容时才显示 */}
- {!displayUnread && displayLastMessage && (
+ <div className="flex items-center space-x-1.5 mt-0 min-h-[15px]">
+ {/* 已读状态标记 (双蓝勾/灰勾) */}
+ {!isUnread && chat.lastMessage && (
  <CheckCheck className={cn("w-[10px] h-[10px] shrink-0", isLight ? "text-black" : "text-white")} />
  )}
  
  <p
  className={cn(
  "truncate text-[12px] leading-tight",
- displayUnread 
+ isUnread 
  ? (isLight ? "text-black font-medium" : "text-white font-medium") 
  : (isLight ? "text-black" : "text-white")
  )}
  >
- {/* 物理防塌陷：如果消息为空，注入零宽空格撑起高度 */}
- {displayLastMessage || '\u00A0'}
+ {chat.lastMessage || '\u00A0'}
  </p>
  </div>
  </div>

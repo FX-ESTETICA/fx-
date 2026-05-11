@@ -61,19 +61,17 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
         if (msg.room_id === 'city_current') isCityChannel = true;
       } else {
         if (msg.sender_id === currentUserId && msg.sender_role === currentRole) {
-           targetId = msg.receiver_id;
-           targetRole = msg.receiver_role;
-         } else {
-           targetId = msg.sender_id;
-           targetRole = msg.sender_role;
-         }
-         isGroup = false;
-         
-         // 不再使用“未知”或截断字符，保持一个高级的中间态名称
-         name = `连接中...`; 
-         avatar = ''; 
-         userIdsToFetch.add(targetId); 
-       }
+          targetId = msg.receiver_id;
+          targetRole = msg.receiver_role;
+        } else {
+          targetId = msg.sender_id;
+          targetRole = msg.sender_role;
+        }
+        isGroup = false;
+        name = `信号源 ${targetId?.substring(0, 4) || '未知'}`; // 临时假名字，后面会被覆盖
+        avatar = ''; // 移除 Dicebear，使用空字符串触发首字母渲染
+        userIdsToFetch.add(targetId); // 记录下真实的 targetId，准备去 profiles 表里反查
+      }
 
       // 如果 Map 里还没有这个复合键 (targetId_targetRole)，说明这是最新的一条
       const mapKey = isGroup ? targetId : `${targetId}_${targetRole}`;
@@ -125,17 +123,37 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
         // 如果有新消息（消息时间 > 清除时间），则解除删除状态，让聊天框重新浮出水面
         if (isChatDeleted) {
           if (clearedAt > 0 && msgDate.getTime() <= clearedAt) {
-            return; // 历史消息，继续拦截
+            return; // 历史消息，继续拦截 (常驻被打破，卡片消失)
           } else if (msgDate.getTime() > clearedAt) {
             // 对方发来了新消息，破除"已删除"状态
             if (typeof window !== 'undefined') {
-              localStorage.removeItem(`gx_deleted_chat_${currentUserId}_${targetId}`);
+              localStorage.removeItem(isGroup ? `gx_deleted_chat_${currentUserId}_${targetId}` : `gx_deleted_chat_${currentUserId}_${targetId}_${targetRole}`);
             }
             isChatDeleted = false; // 允许新消息展示
           }
         }
+        
         // 跳过单向删除的消息
         if (deletedIds.includes(msg.id)) {
+          // 这个 return 导致如果最后一条消息被单向删除，整个卡片可能无法正确生成
+          // 我们不应该直接 return，而是应该标记这条消息被跳过，并在外层循环中继续找下一条
+          // 为了不破坏外层的 forEach 逻辑，这里我们可以直接跳过，但需要小心如果没有有效消息了，卡片会丢失。
+          // 优化：既然这是寻找 lastMessage，如果当前消息被删除，我们就跳过它。
+          // 但由于我们希望即使没有有效消息卡片也常驻，我们需要在这里注入一个空卡片，如果后面没找到的话。
+          // 最简单的做法是，即使是 deleted，我们也先把卡片骨架建起来（如果没有的话），只是不更新 lastMessage。
+          if (!chatMap.has(mapKey)) {
+             chatMap.set(mapKey, {
+              id: targetId,
+              name,
+              lastMessage: '', // 留空
+              time: '',
+              avatar,
+              unread: 0,
+              isGroup,
+              isCityChannel,
+              targetRole,
+            });
+          }
           return; // 继续找下一条未删除的消息作为 lastMessage
         }
 
@@ -163,6 +181,7 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
           });
         } else {
           // 被清空的会话：依然留在列表中，但显示空状态，不再往回找更老的消息
+          // 修复：必须保留 avatar 和 name，否则在组装最终数据时如果没查到真实的 profile，就会变成空
           chatMap.set(mapKey, {
             id: targetId,
             name,
@@ -326,7 +345,9 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
 };
 
 // 升级版：接入现代 useSWR 架构，防死锁，防竞态，并挂载 Local-First 引擎
-export function useRecentChats(currentUserId: string, currentRole: string, activeChatId?: string) {
+// 修复：传入完整的 activeChat 对象，以获取真实的 name 和 avatar
+export function useRecentChats(currentUserId: string, currentRole: string, activeChat?: { id: string, name: string, targetRole?: string, avatar?: string }) {
+  const activeChatId = activeChat?.id;
   // 【Local-First 引擎】：从本地硬盘光速读取聊天列表缓存
   const getCachedRecentChats = (userId: string, role: string) => {
     if (typeof window === 'undefined' || !userId) return undefined;
@@ -405,53 +426,67 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
   const finalProcessedChats = useMemo(() => {
     const result = [...recentChats];
 
-    // 如果当前选中的聊天不在历史列表中（如从 URL 进来的 wa_ 客户），就在内存中伪造一个
+    // 如果当前选中的聊天不在历史列表中（如从 URL 进来的 wa_ 客户），就在内存中伪造一个空的对话
     if (activeChatId && !result.some(c => c.id === activeChatId)) {
       const isGroup = activeChatId === 'city_current' || activeChatId.startsWith('group_');
-      let name = '正在连接...';
-      const avatar = '';
+      let name = '';
+      let avatar = '';
+      let targetRole = 'user';
       
+      // 尝试从全局 localStorage 中读取真正的名字和头像
+      // (这是由于 activeChat 的完整信息存储在 zustand 中，这里我们只能拿到 id，
+      // 但其实通过搜索、扫码进入时，组件会触发 setActiveChat({name, avatar...})，我们可以从 zustand 的 activeChat 里取)
+      // 在这个 hook 层面，最简单的方式是通过 DOM 查询或者利用已经注入到 Zustand 的 activeChat.name
+      // 但由于 hook 入参只有 activeChatId，我们需要改造 ChatListUI 调用处，把 activeChat 传进来
+      // 临时处理：如果能从当前渲染列表里或者某些缓存里找到，就用真实的。
+
       if (activeChatId.startsWith('wa_')) {
-         name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
-       } else if (activeChatId.startsWith('phone_')) {
-         const rawPhone = activeChatId.replace('phone_', '');
-         name = `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`;
-       } else if (activeChatId.startsWith('guest_')) {
-         name = `游客 ${activeChatId.replace('guest_', '')}`;
-       }
+        name = `WA客户 ${activeChatId.replace('wa_', '').substring(0, 4)}`;
+      } else if (activeChatId.startsWith('phone_')) {
+        const rawPhone = activeChatId.replace('phone_', '');
+        name = `+86 ${rawPhone.substring(0,3)} ${rawPhone.substring(3,7)} ${rawPhone.substring(7)}`;
+      } else if (activeChatId.startsWith('guest_')) {
+        name = `游客 ${activeChatId.replace('guest_', '')}`;
+      } else {
+        name = `信号源 ${activeChatId.substring(0, 4)}`;
+      }
 
-       result.push({
-         id: activeChatId,
-         name,
-         lastMessage: '[系统] 正在建立全息加密通道...',
-         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-         avatar,
-         unread: 0,
-         isGroup,
-         isCityChannel: activeChatId === 'city_current',
-         isPhantom: true
-       });
-     }
+      // 如果有真实名字和头像，替换掉假数据 (利用已有的 profiles 缓存机制)
+      // 在 useRecentChats 外层无法直接 await，但我们可以利用之前存下的 activeChat 的名字和头像
+      // 在组件树中 activeChat 已经带有了 name, avatar 等信息，所以我们只需要保证渲染一个真正的空卡片即可
+      if (activeChat) {
+        if (activeChat.name && activeChat.name !== '连接中...') {
+          name = activeChat.name;
+        }
+        if (activeChat.avatar) {
+          avatar = activeChat.avatar;
+        }
+        if (activeChat.targetRole) {
+          targetRole = activeChat.targetRole;
+        }
+      }
 
-     // ==========================================
-     // 动态注入法则：只处理幻影注入，不再粗暴地因为 activeChatId 就把历史卡片置顶
-     // 微信/WhatsApp 只有在发消息或收消息(时间戳改变)时才重排。点击仅仅是改变UI已读状态。
-     // ==========================================
- 
-     // ==========================================
-     // 幻影降维防御：过滤因未解出真实名字而呈现劣质UI的记录
-     // ==========================================
-     const filteredResult = result.filter(chat => {
-       // 如果不是幻影，并且名字里包含“正在连接...”这种中间态，或者名字只有一个字（极大概率是残破数据），我们直接拦截它，不让它破坏列表的清透感
-       // 让它保持在右侧聊天室内，直到有真正像样的数据
-       if (!chat.isPhantom && (chat.name === '正在连接...' || chat.name === '连')) {
-           return false;
-       }
-       return true;
-     });
+      result.push({
+        id: activeChatId,
+        name,
+        lastMessage: '', // 彻底废弃占位符，渲染真实的空状态
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        avatar,
+        unread: 0,
+        isGroup,
+        isCityChannel: activeChatId === 'city_current',
+        targetRole,
+        isPhantom: false // 废除幽灵卡片逻辑
+      });
+    }
 
-     return filteredResult;
-   }, [recentChats, activeChatId]);
+    // ==========================================
+    // 动态注入法则：只处理幻影注入，不再粗暴地因为 activeChatId 就把历史卡片置顶
+    // 微信/WhatsApp 只有在发消息或收消息(时间戳改变)时才重排。点击仅仅是改变UI已读状态。
+    // ==========================================
+
+    return result;
+  }, [recentChats, activeChatId, activeChat?.name, activeChat?.avatar, activeChat?.targetRole]);
 
   return { recentChats: finalProcessedChats, isLoading };
 }
