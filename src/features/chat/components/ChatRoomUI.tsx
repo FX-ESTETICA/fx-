@@ -134,18 +134,19 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  };
 
  const handleClearHistory = () => {
-    const targetId = roomId || receiverId;
-    if (!targetId) return;
-    
-    // 设置本地清空锚点
-    const key = `gx_cleared_${currentUserId}_${targetId}`;
-    localStorage.setItem(key, Date.now().toString());
-    
-    // 发出全局清空事件 (通知 useChatEngine 和 useRecentChats 刷新)
-    // 修复：补齐 targetRole 身份标识，触发 0 毫秒物理级屏幕清空
-    window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId, targetRole: receiverRole || 'user' } }));
-    setShowMoreMenu(false);
-  };
+     const targetId = roomId || receiverId;
+     if (!targetId) return;
+     
+     // 设置本地清空锚点 (严格区分群聊与私聊的身份隔离)
+     const targetRole = receiverRole || 'user';
+     const key = roomId ? `gx_cleared_${currentUserId}_${targetId}` : `gx_cleared_${currentUserId}_${targetId}_${targetRole}`;
+     localStorage.setItem(key, Date.now().toString());
+     
+     // 发出全局清空事件 (通知 useChatEngine 和 useRecentChats 刷新)
+     // 修复：补齐 targetRole 身份标识，触发 0 毫秒物理级屏幕清空
+     window.dispatchEvent(new CustomEvent('gx_chat_cleared', { detail: { targetId, targetRole } }));
+     setShowMoreMenu(false);
+   };
 
  // ---------------- 真实身份反查逻辑 ----------------
  const [trueRoomName, setTrueRoomName] = useState(roomName);
