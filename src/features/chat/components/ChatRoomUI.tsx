@@ -12,7 +12,6 @@ import { useTranslations } from "next-intl";
 import { supabase } from '@/lib/supabase';
 import { LoginForm } from "@/features/auth/components/LoginForm"; // 复用系统现有的安全体系
 import { useVisualSettings } from '@/hooks/useVisualSettings';
-import { usePathname } from 'next/navigation';
 import { useActiveTab } from '@/hooks/useActiveTab';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -30,10 +29,9 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  const t = useTranslations('ChatRoomUI');
  const { user } = useAuth();
  const { settings } = useVisualSettings();
- const pathname = usePathname();
  const activeTab = useActiveTab();
  
- const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+ const isCalendar = activeTab === "calendar";
  const isLight = isCalendar 
  ? settings.calendarBgIndex !== 0 
  : settings.frontendBgIndex !== 0;

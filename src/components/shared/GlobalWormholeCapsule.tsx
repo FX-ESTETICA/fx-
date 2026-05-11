@@ -8,7 +8,6 @@ import { cn } from "@/utils/cn";
 import { useViewStack } from "@/hooks/useViewStack";
 import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
-import { usePathname } from "next/navigation";
 import { useActiveTab } from "@/hooks/useActiveTab";
 
 export const GlobalWormholeCapsule = () => {
@@ -18,11 +17,10 @@ export const GlobalWormholeCapsule = () => {
  const [isOpen, setIsOpen] = useState(false);
  const capsuleRef = useRef<HTMLDivElement>(null);
  const { settings } = useVisualSettings();
- const pathname = usePathname();
  const activeTab = useActiveTab();
 
  // 动态嗅探当前环境：前端 vs 日历
- const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+ const isCalendar = activeTab === "calendar";
  const isLight = isCalendar 
  ? settings.calendarBgIndex !== 0 
  : settings.frontendBgIndex !== 0;

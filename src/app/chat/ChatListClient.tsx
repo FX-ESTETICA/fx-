@@ -11,7 +11,6 @@ import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSearchParams } from 'next/navigation';
 
 import { useVisualSettings } from '@/hooks/useVisualSettings';
-import { usePathname } from 'next/navigation';
 import { useActiveTab } from '@/hooks/useActiveTab';
 
 export default function ChatListPage() {
@@ -23,10 +22,9 @@ export default function ChatListPage() {
  
  // 引入主题嗅探系统
  const { settings } = useVisualSettings();
- const pathname = usePathname();
  const activeTab = useActiveTab();
  
- const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+ const isCalendar = activeTab === "calendar";
  const isLight = isCalendar 
  ? settings.calendarBgIndex !== 0 
  : settings.frontendBgIndex !== 0;

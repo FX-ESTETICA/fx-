@@ -13,7 +13,6 @@ import { OperatingHour, ShopOperatingConfig, resolveOperatingHours } from "../In
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
 import { useShop } from "@/features/shop/ShopContext";
 
-import { usePathname } from 'next/navigation';
 import { useActiveTab } from "@/hooks/useActiveTab";
 
 export interface EliteResourceMatrixProps {
@@ -98,10 +97,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  const { refreshBookings, trackAction } = useShop();
 
  const { settings: visualSettings } = useVisualSettings();
- const pathname = usePathname();
  const activeTab = useActiveTab();
  
- const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+ const isCalendar = activeTab === "calendar";
  const isLight = isCalendar 
  ? visualSettings.calendarBgIndex !== 0 
  : visualSettings.frontendBgIndex !== 0;

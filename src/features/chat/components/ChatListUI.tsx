@@ -5,7 +5,6 @@ import useSWR from 'swr';
 import { useChatStore } from '@/store/useChatStore';
 import { supabase } from '@/lib/supabase';
 import { useVisualSettings } from "@/hooks/useVisualSettings";
-import { usePathname } from "next/navigation";
 import { useActiveTab } from "@/hooks/useActiveTab";
 import { cn } from "@/utils/cn";
 import { useAtomicPresence } from '../hooks/useAtomicPresence';
@@ -114,10 +113,9 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
 
  // 主题嗅探系统
  const { settings } = useVisualSettings();
- const pathname = usePathname();
  const activeTab = useActiveTab();
  
- const isCalendar = activeTab === "calendar" || pathname?.startsWith("/calendar");
+ const isCalendar = activeTab === "calendar";
  const isLight = isCalendar 
  ? settings.calendarBgIndex !== 0 
  : settings.frontendBgIndex !== 0;
