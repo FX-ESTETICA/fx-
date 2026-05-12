@@ -185,9 +185,6 @@ export function DualPaneBookingModal({
  type RightPaneMode = 'service' | 'member' | 'date' | 'time' | 'duration';
  const [activePaneMode, setActivePaneMode] = useState<RightPaneMode>(() => editingBooking ? 'member' : 'service');
 
- // --- 强塞特权状态 ---
- const [isForceInsert, setIsForceInsert] = useState(false);
-
  // --- 悬浮审批舱状态 (AI PENDING) ---
  const [isAIPending, setIsAIPending] = useState(() => editingBooking?.status === 'PENDING');
 
@@ -1271,8 +1268,8 @@ export function DualPaneBookingModal({
  shopId: currentShopId, // 强绑定租户
  // 【财务防篡改快照】
  staff_snapshot_name: staffs.find(s => s.id === empId)?.name || empId, // 封印当时的员工名字
- // 【店长特权强塞标记】
- _isForceInsert: isForceInsert
+ // 【店长特权强塞标记】(已废弃，兼容旧结构)
+ _isForceInsert: false
  });
  });
 
@@ -2273,18 +2270,6 @@ export function DualPaneBookingModal({
  </>
  )}
  <div className="flex flex-col items-center relative">
- {/* 店长特权强塞开关 - 绝对定位在确认按钮正上方 */}
- <button
- onClick={() => setIsForceInsert(!isForceInsert)}
- className={cn(
- "absolute -top-6 text-[10px] tracking-[0.3em] uppercase transition-colors px-2 py-1 whitespace-nowrap",
- isForceInsert
- ? "text-red-500 font-bold"
- : (isLight ? "text-black/40 hover:text-black/80" : "text-white/40 hover:text-white/80")
- )}
- >
- {t('txt_force_insert')}
- </button>
  <button 
  onClick={handleConfirmBooking}
  disabled={selectedServices.length === 0 || isSaving}
@@ -2369,7 +2354,7 @@ export function DualPaneBookingModal({
              masterOrderId: masterOrderId,
              isSuperBooking: Object.keys(groupedByEmployee).length > 1,
              _needsTimeReflow: true,
-             _isForceInsert: isForceInsert,
+             _isForceInsert: false,
              originalUnassigned: !isAssignedToPerson,
              data: {
                actual_start_time: now.toISOString() // 核心：瞬间注入计价器基因
