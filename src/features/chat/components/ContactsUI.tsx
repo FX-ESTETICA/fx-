@@ -374,8 +374,7 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
  </button>
  </div>
  </div>
- ))
- )}
+ ))}
  </>
  )}
  </div>
