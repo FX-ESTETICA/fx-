@@ -23,7 +23,7 @@ export interface EliteBookingBlockProps {
  nexusId?: number; // 新增：连单基因序号
  nexusColor?: string; // 新增：连单基因专属色
  onClick?: (e: React.MouseEvent) => void;
- onDragStart?: () => void;
+ onDragStart?: (e?: React.PointerEvent) => void;
  onDrag?: (e: any, info: any) => void;
  onDragEnd?: (e: any, info: any) => void;
  isReadOnly?: boolean;
@@ -52,14 +52,14 @@ export const EliteBookingBlock = ({
  dragTimeoutRef.current = setTimeout(() => {
  // 触发长按逻辑
  isDraggingRef.current = true;
- onDragStart?.();
+ onDragStart?.(e);
  }, 300);
  };
 
  const handlePointerMove = (e: React.PointerEvent) => {
  if (isDraggingRef.current && onDrag) {
- // 模拟 info.offset，支持 2D (x, y) 拖拽
- onDrag(e, { offset: { x: e.clientX, y: e.clientY - dragStartYRef.current } });
+ // 模拟 info.offset，支持 2D (x, y) 拖拽。加入原生 clientY 透传供物理引擎消费
+ onDrag(e, { offset: { x: e.clientX, y: e.clientY - dragStartYRef.current }, point: { x: e.clientX, y: e.clientY } });
  }
  };
 

@@ -202,6 +202,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  // --- 拖拽物理辅助线状态 ---
  const [dragTimeline, setDragTimeline] = React.useState<{ active: boolean, x: number, y: number, time: string, targetResourceId?: string | null, targetColor?: string | null, targetAccent?: string | null }>({ active: false, x: 0, y: 0, time: '' });
  const dragLockRef = useRef<boolean>(false);
+ const dragPhysicalYRef = useRef<number>(0);
+ const dragTimeTextRef = useRef<string>('');
+ const dragTimelineRef = useRef<HTMLDivElement>(null);
+ const dragTimeSpanRef = useRef<HTMLSpanElement>(null);
+ const dragCloneRef = useRef<HTMLDivElement>(null);
+ const dragLatestTransformRef = useRef<string>('');
+ const dragBookingBlockRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
  // --- 终极失焦熔断机制 (The Circuit Breaker) ---
  // 监听系统级打断（如截图、切屏、弹窗），强制释放拖拽锁死状态
@@ -210,9 +217,16 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
      if (dragLockRef.current) {
        console.log('[Circuit Breaker] System interrupt detected. Force releasing drag lock. Event:', e?.type);
        dragLockRef.current = false; // 瞬间物理拔除锁
+       dragLatestTransformRef.current = ''; // 清理分身物理状态
        setDraggedBooking(null);
        setDraggedBookingTime(null);
        setDragTimeline({ active: false, x: 0, y: 0, time: '' });
+       
+       // 清理物理引擎遗留的 Transform
+       if (dragTimelineRef.current) {
+         dragTimelineRef.current.style.transform = `translateY(0px)`;
+       }
+       // 幽灵本体不再需要清理 translateY，因为它根本没有移动
      }
    };
 
@@ -684,14 +698,36 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  return () => window.removeEventListener('click', handleGlobalClick);
  }, [implodedOrderId]);
 
- const handleBookingDragStart = (booking: MatrixBooking) => {
+ const handleBookingDragStart = (booking: MatrixBooking, e?: React.PointerEvent) => {
  if (isReadOnly) {
  if (onReadOnlyIntercept) onReadOnlyIntercept();
  return;
  }
  dragLockRef.current = true; // 开启物理锁
+ dragPhysicalYRef.current = 0; // 重置相对位移
  setDraggedBooking(booking);
  setDraggedBookingTime(booking.startTime);
+ 
+ let initialX = 0;
+ if (matrixContainerRef.current && e) {
+   const containerRect = matrixContainerRef.current.getBoundingClientRect();
+   initialX = e.clientX - containerRect.left;
+ } else {
+   // 兜底逻辑，如果拿不到坐标，尽量放在中间
+   initialX = 60;
+ }
+
+ // 初始化状态以便渲染初始的拖拽辅助线（虽然立刻被物理引擎接管，但需要有 DOM）
+ const topOffset = getYCoordinate(booking.date!, booking.startTime);
+ setDragTimeline({ 
+   active: true, 
+   x: initialX, 
+   y: topOffset, 
+   time: booking.startTime,
+   targetResourceId: booking.resourceId,
+   targetColor: null,
+   targetAccent: null
+ });
  };
 
  const handleBookingDrag = (e: any, info: PanInfo, booking: MatrixBooking) => {
@@ -704,7 +740,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  if (topOffset === -1) return;
 
  // 2. 核心改变：辅助线不再进行 5 分钟网格吸附，而是 100% 绝对物理跟随鼠标的拖拽偏移量 (info.offset.y)
- const currentPhysicalY = topOffset + info.offset.y;
+ // 废弃 currentPhysicalY，物理引擎直接用 info.offset.y 计算
 
  // 2. Y轴（时间）计算
  const startParts = booking.startTime.split(':');
@@ -727,7 +763,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  if (matrixContainerRef.current) {
    const containerRect = matrixContainerRef.current.getBoundingClientRect();
-   const mouseX = (e as any).clientX || ((e as any).touches && (e as any).touches[0]?.clientX) || 0;
+   const mouseX = (e as any).clientX || ((e as any).touches && (e as any).touches[0]?.clientX) || info.point?.x || 0;
    
    if (mouseX > containerRect.left && mouseX < containerRect.right) {
      // 减去左侧时间轴的宽度（实际是 w-24 即 96px 或 w-[60px] 响应式，统一以实际容器内列的偏移为准）
@@ -762,16 +798,38 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
    localX = (info.offset.x as number) - containerRect.left;
  }
  
- setDragTimeline({ 
-   active: true, 
-   x: localX, // 保存相对于容器的局部 X 坐标
-   y: currentPhysicalY, 
-   time: newStartTime,
+ // 【物理引擎注入法则 (120FPS 零延迟)】
+ // 绝对绕过 React 的 setDragTimeline 和 setDraggedBookingTime
+ // 直接操作 DOM 元素的 transform 和 textContent
+ dragPhysicalYRef.current = info.offset.y;
+ dragTimeTextRef.current = newStartTime;
+
+ // 1. 直接移动辅助线
+ if (dragTimelineRef.current) {
+   // 注意：dragTimeline 的初始 y 已经是 topOffset，所以我们只需 translateX 和 translateY
+   dragTimelineRef.current.style.transform = `translateY(${info.offset.y}px)`;
+ }
+ // 2. 直接修改辅助线的时间文本
+ if (dragTimeSpanRef.current) {
+   const [h, m] = newStartTime.split(':');
+   // 使用极简的替换逻辑
+   dragTimeSpanRef.current.innerHTML = `<span class="${CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}">${h}</span><span class="text-[11px] mx-[3px] ${resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white"}">:</span><span class="${CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}">${m}</span>`;
+ }
+ // 3. 直接移动分身 (Clone)
+ if (dragCloneRef.current) {
+   const transformStr = `translate3d(${localX - 60}px, ${info.offset.y}px, 0) scale(1.02)`;
+   dragLatestTransformRef.current = transformStr;
+   dragCloneRef.current.style.transform = transformStr;
+ }
+
+ // 我们仅保留一次极低频率的 setState 来更新左右跨列的反馈（因为它不影响物理平滑度，只影响颜色，可以接受 1 帧延迟）
+ setDragTimeline(prev => ({ 
+   ...prev,
+   x: localX, // 依然保留给 React 兜底
    targetResourceId: targetResourceId, // 注入实时目标员工 ID
    targetColor: targetResourceColor,   // 注入实时共鸣色彩
    targetAccent: targetResourceAccent
- });
- setDraggedBookingTime(newStartTime);
+ }));
  };
 
  const handleBookingDragEnd = async (_e: any, info: PanInfo, booking: MatrixBooking) => {
@@ -786,7 +844,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
    setDraggedBooking(null);
  }, 200);
  setDraggedBookingTime(null);
+ dragLatestTransformRef.current = '';
  setDragTimeline({ active: false, x: 0, y: 0, time: '', targetResourceId: null, targetColor: null, targetAccent: null });
+
+ // 物理级重置色块位置 (交回给 React 虚拟 DOM 接管)
+ if (dragTimelineRef.current) dragTimelineRef.current.style.transform = `translateY(0px)`;
+ if (dragCloneRef.current) dragCloneRef.current.style.transform = `translateY(0px)`;
+ // 幽灵本体没有移动，无需清理
 
  // --- 处理垂直/水平拖拽 (2D Adjust Drag) ---
  
@@ -928,23 +992,26 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  )}
 
  {/* 拖拽实时时间反馈 (左侧时间轴原生融合) */}
- {dragTimeline.active && !dragTimeline.time.endsWith(':00') && (
+ {dragTimeline.active && (
  <div 
- className="absolute w-full group z-50 pointer-events-none"
+ ref={dragTimelineRef}
+ className="absolute w-full group z-50 pointer-events-none transition-none"
  style={{ top: dragTimeline.y }}
  >
- <div className={cn(
-                    "absolute top-0 left-2.5 -translate-y-1/2 text-[12px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
-                    resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
-                  )} style={{ textShadow: resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
+ <div 
+   ref={dragTimeSpanRef}
+   className={cn(
+     "absolute top-0 left-2.5 -translate-y-1/2 text-[12px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
+     resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
+   )} style={{ textShadow: resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
  <span className={CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className}>
- {dragTimeline.time.split(':')[0]}
+ {dragTimeline.time.split(':')[0] || dragTimeTextRef.current.split(':')[0]}
  </span>
  <span className={cn("text-[11px] mx-[3px]", resolvedTimelineTheme === 'coreblack' ? "text-black" : "text-white")}>
  :
  </span>
  <span className={cn("", CYBER_COLOR_DICTIONARY[resolvedTimelineTheme].className)}>
- {dragTimeline.time.split(':')[1]}
+ {dragTimeline.time.split(':')[1] || dragTimeTextRef.current.split(':')[1]}
  </span>
  </div>
  </div>
@@ -1330,6 +1397,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  <React.Fragment key={booking.id}>
  <div 
  id={`booking-block-${booking.id}`} // 【世界级靶向雷达】：植入 DOM ID 信标，供外层一键穿梭寻迹
+ ref={el => dragBookingBlockRefs.current[booking.id] = el}
  className={cn(
  "absolute pointer-events-auto implosion-container transition-all duration-300 ease-out",
  isProcessing ? "" : "",
@@ -1344,7 +1412,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
              zIndex: isBeingDragged ? 10 : (isImploded ? 50 : (isPending ? 30 : 20)), // 被拖拽时底层本体变幽灵
              // 顶级受控法则：本体留在原地作为半透明幽灵锚点 (0.3)，绝对不随鼠标移动
              opacity: isProcessing ? 0.3 : (isBeingDragged ? 0.3 : 1),
-             pointerEvents: isProcessing ? 'none' : 'auto'
+             pointerEvents: isProcessing ? 'none' : 'auto',
+             transition: isBeingDragged ? 'none' : undefined // 拖拽时物理级关闭过渡动画
              }}
  onContextMenu={handleContextMenu}
  >
@@ -1414,7 +1483,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  }
  if (onBookingClick) onBookingClick(booking);
  }}
- onDragStart={() => handleBookingDragStart(booking)}
+ onDragStart={(e) => handleBookingDragStart(booking, e)}
  onDrag={(e, info) => handleBookingDrag(e, info, booking)}
  onDragEnd={(e, info) => handleBookingDragEnd(e, info, booking)}
  title={serviceTitle}
@@ -1718,37 +1787,46 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   })}
   
   {/* 【Google Calendar 级克隆体】：绝对数据驱动，物理层悬浮，移动到根容器（打破列的 relative 束缚） */}
-  {dragTimeline.active && draggedBooking && (() => {
-    const formatMinId = (idStr: string) => {
-      if (!idStr) return 'Unknown';
-      if (idStr.startsWith("CO") || idStr.startsWith("NO")) {
-        const prefix = idStr.substring(0, 2);
-        const numStr = idStr.substring(2).trim();
-        const num = parseInt(numStr, 10);
-        if (isNaN(num)) return idStr;
-        if (num < 1000) return `${prefix} ${num.toString().padStart(3, '0')}`;
-        return `${prefix} ${num.toString()}`;
-      }
-      const vipMatch = idStr.match(/^(GV|AD|AN|UM)\s*(\d+)$/);
-      if (vipMatch) return vipMatch[2];
-      return idStr;
-    };
-    return (
-      <div 
-        className={cn(
-          "absolute pointer-events-none transition-all duration-75 ease-out"
-        )}
-        style={{
-          top: dragTimeline.y, 
-          left: 0, 
-          width: '120px', 
-          height: Math.max(14, ((draggedBooking.duration || 60) / 60) * 80 - 4), 
-          zIndex: 998,
-          opacity: 0.9,
-          transform: `translate3d(${dragTimeline.x - 60}px, 0, 0) scale(1.02)` 
-        }}
-      >
-        <EliteBookingBlock 
+   {dragTimeline.active && draggedBooking && (() => {
+     const formatMinId = (idStr: string) => {
+       if (!idStr) return 'Unknown';
+       if (idStr.startsWith("CO") || idStr.startsWith("NO")) {
+         const prefix = idStr.substring(0, 2);
+         const numStr = idStr.substring(2).trim();
+         const num = parseInt(numStr, 10);
+         if (isNaN(num)) return idStr;
+         if (num < 1000) return `${prefix} ${num.toString().padStart(3, '0')}`;
+         return `${prefix} ${num.toString()}`;
+       }
+       const vipMatch = idStr.match(/^(GV|AD|AN|UM)\s*(\d+)$/);
+       if (vipMatch) return vipMatch[2];
+       return idStr;
+     };
+     return (
+       <div 
+         ref={(el) => {
+           dragCloneRef.current = el;
+           if (el) {
+             if (dragLatestTransformRef.current) {
+               el.style.transform = dragLatestTransformRef.current;
+             } else {
+               el.style.transform = `translate3d(${dragTimeline.x - 60}px, 0, 0) scale(1.02)`;
+             }
+           }
+         }}
+         className={cn(
+           "absolute pointer-events-none"
+         )}
+         style={{
+           top: dragTimeline.y, 
+           left: 0, 
+           width: '120px', 
+           height: Math.max(14, ((draggedBooking.duration || 60) / 60) * 80 - 4), 
+           zIndex: 998,
+           opacity: 0.9,
+         }}
+       >
+         <EliteBookingBlock 
           isReadOnly={true}
           title={draggedBooking.services?.[0]?.name || draggedBooking.serviceName || "Service"}
           time={`${draggedBookingTime} (${draggedBooking.duration || 60}m)`} 
