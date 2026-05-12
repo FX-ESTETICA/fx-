@@ -1013,8 +1013,10 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  style={{ top: dragTimeline.y }}
  >
  <div 
-   ref={dragTimeSpanRef}
-   className={cn(
+     ref={(el) => {
+       dragTimeSpanRef.current = el as HTMLSpanElement | null;
+     }}
+     className={cn(
      "absolute top-0 left-2.5 -translate-y-1/2 text-[12px] leading-none flex items-center justify-center font-medium tracking-normal tabular-nums z-10",
      resolvedTimelineTheme !== 'coreblack' && "mix-blend-screen"
    )} style={{ textShadow: resolvedTimelineTheme === 'coreblack' ? '0px 1px 0px rgba(255,255,255,0.8)' : `0 0 15px ${(CYBER_COLOR_DICTIONARY as any)[resolvedTimelineTheme]?.hex || '#fff'}80` }}>
@@ -1411,7 +1413,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  <React.Fragment key={booking.id}>
  <div 
  id={`booking-block-${booking.id}`} // 【世界级靶向雷达】：植入 DOM ID 信标，供外层一键穿梭寻迹
- ref={el => dragBookingBlockRefs.current[booking.id] = el}
+ ref={(el) => {
+   dragBookingBlockRefs.current[booking.id] = el;
+ }}
  className={cn(
  "absolute pointer-events-auto implosion-container transition-all duration-300 ease-out",
  isProcessing ? "" : "",
