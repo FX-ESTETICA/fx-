@@ -387,7 +387,15 @@ export function QuickCommandPalette({
           }}
         />
       )}
-      <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center z-[60]">
+      <div 
+        ref={paletteRef} 
+        className={cn(
+          "h-8 md:h-[38px] flex items-center z-[60]",
+          mode === 'idle' 
+            ? "relative w-full" 
+            : "fixed top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[368px]"
+        )}
+      >
         <div 
           className={cn(
             "absolute left-0 right-0 h-full flex items-center rounded-full border overflow-hidden backdrop-blur-md",
