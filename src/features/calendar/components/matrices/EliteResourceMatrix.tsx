@@ -208,6 +208,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  const dragTimeSpanRef = useRef<HTMLSpanElement>(null);
  const dragCloneRef = useRef<HTMLDivElement>(null);
  const dragLatestTransformRef = useRef<string>('');
+ const dragRedLineRef = useRef<HTMLDivElement>(null);
+ const dragLatestRedLineTransformRef = useRef<string>('');
  const dragBookingBlockRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
  // --- 终极失焦熔断机制 (The Circuit Breaker) ---
@@ -218,6 +220,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
        console.log('[Circuit Breaker] System interrupt detected. Force releasing drag lock. Event:', e?.type);
        dragLockRef.current = false; // 瞬间物理拔除锁
        dragLatestTransformRef.current = ''; // 清理分身物理状态
+       dragLatestRedLineTransformRef.current = ''; // 清理红线物理状态
        setDraggedBooking(null);
        setDraggedBookingTime(null);
        setDragTimeline({ active: false, x: 0, y: 0, time: '' });
@@ -225,6 +228,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
        // 清理物理引擎遗留的 Transform
        if (dragTimelineRef.current) {
          dragTimelineRef.current.style.transform = `translateY(0px)`;
+       }
+       if (dragRedLineRef.current) {
+         dragRedLineRef.current.style.transform = `translateY(-50%)`;
        }
        // 幽灵本体不再需要清理 translateY，因为它根本没有移动
      }
@@ -821,6 +827,12 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
    dragLatestTransformRef.current = transformStr;
    dragCloneRef.current.style.transform = transformStr;
  }
+ // 4. 直接移动红线
+ if (dragRedLineRef.current) {
+   const transformLineStr = `translateY(calc(-50% + ${info.offset.y}px))`;
+   dragLatestRedLineTransformRef.current = transformLineStr;
+   dragRedLineRef.current.style.transform = transformLineStr;
+ }
 
  // 我们仅保留一次极低频率的 setState 来更新左右跨列的反馈（因为它不影响物理平滑度，只影响颜色，可以接受 1 帧延迟）
  setDragTimeline(prev => ({ 
@@ -845,11 +857,13 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  }, 200);
  setDraggedBookingTime(null);
  dragLatestTransformRef.current = '';
+ dragLatestRedLineTransformRef.current = '';
  setDragTimeline({ active: false, x: 0, y: 0, time: '', targetResourceId: null, targetColor: null, targetAccent: null });
 
  // 物理级重置色块位置 (交回给 React 虚拟 DOM 接管)
  if (dragTimelineRef.current) dragTimelineRef.current.style.transform = `translateY(0px)`;
  if (dragCloneRef.current) dragCloneRef.current.style.transform = `translateY(0px)`;
+ if (dragRedLineRef.current) dragRedLineRef.current.style.transform = `translateY(-50%)`;
  // 幽灵本体没有移动，无需清理
 
  // --- 处理垂直/水平拖拽 (2D Adjust Drag) ---
@@ -1850,8 +1864,18 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
   {/* 物理级拖拽辅助线 (纯黑白极简法则，置顶层级) */}
   {dragTimeline.active && (
  <div 
+ ref={(el) => {
+   dragRedLineRef.current = el;
+   if (el) {
+     if (dragLatestRedLineTransformRef.current) {
+       el.style.transform = dragLatestRedLineTransformRef.current;
+     } else {
+       el.style.transform = `translateY(-50%)`;
+     }
+   }
+ }}
  className="absolute left-0 right-0 z-[999] pointer-events-none flex items-center"
- style={{ top: dragTimeline.y, transform: 'translateY(-50%)' }}
+ style={{ top: dragTimeline.y }}
  >
  {/* 极简 1px 细线 (时间已在左侧时间轴高亮，彻底废弃 ml-[80px] 与 HUD) */}
  <div className={cn(
