@@ -643,19 +643,44 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  // 控制左侧边栏显示状态
  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+ const userOverrideRef = useRef<boolean | null>(null);
+
+ // 包装一层修改状态的函数，写入 localStorage
+ const toggleSidebar = useCallback((forceState?: boolean) => {
+ setIsSidebarOpen(prev => {
+ const nextState = forceState !== undefined ? forceState : !prev;
+ userOverrideRef.current = nextState;
+ localStorage.setItem('gx_sidebar_override', String(nextState));
+ return nextState;
+ });
+ }, []);
 
  // 注册侧边栏的物理返回拦截
  useEffect(() => {
  if (isSidebarOpen && window.innerWidth < 1024) { // 仅在移动端/小屏幕下拦截侧边栏
- registerBack('calendar-sidebar', () => { setIsSidebarOpen(false); return true; }, 5);
+ registerBack('calendar-sidebar', () => { toggleSidebar(false); return true; }, 5);
  } else {
  unregisterBack('calendar-sidebar');
  }
  return () => unregisterBack('calendar-sidebar');
- }, [isSidebarOpen, registerBack, unregisterBack]);
+ }, [isSidebarOpen, registerBack, unregisterBack, toggleSidebar]);
 
  // 【智能折叠协议】: 监听屏幕宽度，实现 PC 端常驻、移动端自动折叠
   useEffect(() => {
+    // 初始读取持久化用户意愿 (0 毫秒恢复)
+    const saved = localStorage.getItem('gx_sidebar_override');
+    if (saved !== null) {
+      const isOverrideOpen = saved === 'true';
+      userOverrideRef.current = isOverrideOpen;
+      setIsSidebarOpen(isOverrideOpen);
+    } else {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    }
+
     let prevWidth = window.innerWidth;
     
     const handleResize = () => {
@@ -664,24 +689,18 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       // 【世界顶端物理结界】：如果屏幕宽度完全没变，说明是手机软键盘弹起改变了高度
       // 此时必须绝对拦截，坚决不能执行后续的折叠/展开逻辑，防止输入框丢失！
       if (currentWidth === prevWidth) return;
+      prevWidth = currentWidth;
+      
+      // 【用户意志绝对优先】：一旦手动干预，屏蔽系统的响应式自动折叠
+      if (userOverrideRef.current !== null) return;
       
       if (currentWidth < 1024) {
         setIsSidebarOpen(false); // 手机/小尺寸平板竖屏：让出宝贵空间
       } else {
         setIsSidebarOpen(true); // PC/大尺寸平板横屏：指挥舱全开
       }
-      
-      prevWidth = currentWidth;
     };
 
-    // 初始挂载时执行一次扫描（不调用 handleResize，直接判断）
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(false);
-    } else {
-      setIsSidebarOpen(true);
-    }
-
-    // 挂载监听器
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -1287,7 +1306,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  )}
  // 撤销最外层遮罩的手势监听，点击遮罩关闭的逻辑通过 onClick 实现
  onClick={() => {
- if (isSidebarOpen) setIsSidebarOpen(false);
+ if (isSidebarOpen && window.innerWidth < 1024) toggleSidebar(false);
  }}
  >
  {/* [SIDEBAR] 左侧控制中心 (Side Control Hub) - App Shell 固定宽度 */}
@@ -1304,7 +1323,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  >
  {/* 隐形触发器：极简关闭按钮 */}
  <button
- onClick={() => setIsSidebarOpen(false)}
+ onClick={() => toggleSidebar(false)}
  className={cn(
  "absolute top-0 left-0 z-50 p-2 opacity-100",
  visualSettings.calendarBgIndex !== 0 ? "text-black" : "text-white"
@@ -1591,7 +1610,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  <div className="flex items-center justify-between w-full">
  <div 
  className="flex items-end gap-1.5 md:gap-4 cursor-pointer group shrink"
- onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+ onClick={() => toggleSidebar()}
  title={t('txt_84e0cd')}
  >
  <h3 
