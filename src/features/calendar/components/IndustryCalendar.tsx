@@ -1735,7 +1735,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}40`
  }}
  >
- TODAY
+ {t('txt_view_today') || '今天'}
  </button>
 
  {/* 右箭头：仅在拥有精细指针(鼠标)的设备上显示 */}
