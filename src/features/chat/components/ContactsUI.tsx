@@ -105,20 +105,32 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
  e.stopPropagation();
  try {
  const [userId, userRole, friendId, friendRole] = friendshipId.split('_');
- // 物理级双向删除：通过触发器或连续两条SQL保证双向关系的完全解除
- await supabase
- .from('friendships')
- .delete()
- .match({ user_id: userId, user_role: userRole, friend_id: friendId, friend_role: friendRole });
  
- await supabase
- .from('friendships')
- .delete()
- .match({ user_id: friendId, user_role: friendRole, friend_id: userId, friend_role: userRole });
- 
+ // 1. 乐观 UI 阻断闪烁：立即从视图中剔除
  setFriends(prev => prev.filter(f => f.id !== friendshipId));
+
+ // 2. 全局 UI 级联崩塌事件派发
+ // 通知 ChatListUI 彻底抹除左侧聊天雷达中的卡片，并强杀右侧僵尸聊天室
+ window.dispatchEvent(new CustomEvent('gx_chat_cleared', { 
+ detail: { targetId: friendId, targetRole: friendRole, isFriendDelete: true } 
+ }));
+
+ // 3. 物理级双向斩断关系与消息记录 (调用 RPC 核按钮)
+ const { error } = await supabase.rpc('nuclear_delete_friend', {
+ p_user_id: userId,
+ p_user_role: userRole,
+ p_friend_id: friendId,
+ p_friend_role: friendRole
+ });
+
+ if (error) {
+ console.error("Failed to delete friend via RPC:", error);
+ // 回退乐观更新
+ fetchContacts();
+ }
  } catch (error) {
  console.error(error);
+ fetchContacts();
  }
  };
 

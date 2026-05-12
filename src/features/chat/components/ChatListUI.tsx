@@ -153,6 +153,29 @@ export default function ChatListUI({ currentUserId, currentRole, onChatSelect }:
  setContextMenu(null);
  };
 
+ // 全局 UI 级联崩塌监听：接收好友被删事件，强杀僵尸态聊天窗
+ useEffect(() => {
+ const handleChatCleared = (e: CustomEvent) => {
+ const { targetId, targetRole, isFriendDelete } = e.detail;
+ 
+ // 如果当前正在与被删/被清空的人聊天，物理级强杀聊天室
+ if (activeChat && activeChat.id === targetId && activeChat.targetRole === targetRole) {
+ useChatStore.getState().setActiveChat(null);
+ }
+
+ // 如果是好友删除触发的，必须在本地也打上封印戳，确保 useRecentChats 立刻将其从雷达中剔除
+ if (isFriendDelete) {
+ const delChatKey = `gx_deleted_chat_${currentUserId}_${targetId}_${targetRole || 'user'}`;
+ localStorage.setItem(delChatKey, Date.now().toString());
+ // 触发 SWR mutate 强制更新 friendsList 以响应乐观 UI
+ mutateFriends();
+ }
+ };
+
+ window.addEventListener('gx_chat_cleared', handleChatCleared as EventListener);
+ return () => window.removeEventListener('gx_chat_cleared', handleChatCleared as EventListener);
+ }, [activeChat, currentUserId, mutateFriends]);
+
  // =========================================================================
  // 【世界级多轨探测雷达 (Multi-Track Radar)】
  // =========================================================================
