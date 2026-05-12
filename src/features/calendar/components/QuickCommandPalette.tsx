@@ -208,25 +208,6 @@ export function QuickCommandPalette({
     setMode('idle');
   };
 
-  // Click outside to collapse
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (paletteRef.current && !paletteRef.current.contains(e.target as Node)) {
-        if (mode === 'create' && query === '' && selectedServices.length === 0) {
-          setMode('idle');
-        } else if (mode === 'search' && searchQuery === '') {
-          setMode('idle');
-        }
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [mode, query, selectedServices.length, searchQuery]);
-
   // Focus input when mode changes
   useEffect(() => {
     if (mode === 'create') {
@@ -385,10 +366,34 @@ export function QuickCommandPalette({
   };
 
   return (
-    <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center">
-      <div 
-        className={cn(
-          "absolute left-0 right-0 h-full flex items-center rounded-full border overflow-hidden backdrop-blur-md",
+    <>
+      {/* 物理结界：点击空白处重置 */}
+      {mode !== 'idle' && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (mode === 'create' && query === '' && selectedServices.length === 0) {
+              setMode('idle');
+            } else if (mode === 'search' && searchQuery === '') {
+              setMode('idle');
+            }
+          }} 
+          onMouseDown={(e) => {
+             // 防止 mousedown 穿透
+            e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+             // 防止 touch 穿透
+            e.stopPropagation();
+          }}
+        />
+      )}
+      <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center z-50">
+        <div 
+          className={cn(
+            "absolute left-0 right-0 h-full flex items-center rounded-full border overflow-hidden backdrop-blur-md",
           borderColor,
           glowShadow,
           "bg-transparent", // 极致透明法则：废弃一切底色 (bg-black/5 等)
@@ -597,6 +602,7 @@ export function QuickCommandPalette({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </>
   );
 }
