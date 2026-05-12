@@ -1729,13 +1729,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  matrixScrollRef.current.scrollTop = 0;
  }
  }}
- className="px-3 md:px-4 py-1 md:py-1.5 rounded-lg text-[10px] md:text-[11px] uppercase tracking-widest border transition-all duration-300 hover:scale-105"
+ className="px-3 md:px-4 py-1 md:py-1.5 rounded-lg text-[10px] md:text-[11px] tracking-widest border transition-all duration-300 hover:scale-105"
  style={{ 
  color: CYBER_COLOR_DICTIONARY[resolvedTheme].hex,
  borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}40`
  }}
  >
- {t('txt_view_today') || '今天'}
+ 今天
  </button>
 
  {/* 右箭头：仅在拥有精细指针(鼠标)的设备上显示 */}
