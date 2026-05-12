@@ -393,7 +393,7 @@ export function QuickCommandPalette({
           "h-8 md:h-[38px] flex items-center z-[60]",
           mode === 'idle' 
             ? "relative w-full" 
-            : "fixed top-[150px] md:top-[150px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[368px]"
+            : "fixed top-[180px] md:top-[180px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[368px]"
         )}
       >
         <div 
