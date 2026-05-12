@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, ChevronLeft } from "lucide-react";
+import { Check, X, Search, Plus } from "lucide-react";
 import { BookingService } from "@/features/booking/api/booking";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
+import { useShop } from '@/features/shop/ShopContext';
 
 type QuickCommandPaletteProps = {
   services: any[];
@@ -14,8 +15,11 @@ type QuickCommandPaletteProps = {
   currentDate: Date;
   onBookingCreated: () => void;
   visualSettings: any;
-  isExpanded?: boolean;
-  onExpandedChange?: (expanded: boolean) => void;
+  setCrosshairDate?: (date: Date) => void;
+  setCrosshairTime?: (time: string) => void;
+  setCrosshairResourceId?: (id: string | undefined) => void;
+  setEditingBooking?: (booking: any) => void;
+  handleCreateBookingClick?: () => void;
 };
 
 type Stage = 'service' | 'staff' | 'customer' | 'time' | 'confirm';
@@ -27,30 +31,41 @@ export function QuickCommandPalette({
   currentDate,
   onBookingCreated,
   visualSettings,
-  isExpanded = false,
-  onExpandedChange
+  setCrosshairDate,
+  setCrosshairTime,
+  setCrosshairResourceId,
+  setEditingBooking,
+  handleCreateBookingClick
 }: QuickCommandPaletteProps) {
+  const { globalBookings } = useShop();
+
   const isLight = visualSettings?.calendarBgIndex !== 0;
   const textColor = isLight ? "text-black" : (visualSettings?.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]");
   const borderColor = isLight ? "border-black/30" : "border-white/30";
-  const glowShadow = isLight ? "drop-shadow-[0_0_12px_rgba(0,0,0,0.15)]" : "drop-shadow-[0_0_12px_rgba(255,255,255,0.15)]";
+  const glowShadow = isLight ? "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)]" : "drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]";
 
+  const [mode, setMode] = useState<'idle' | 'create' | 'search'>('idle');
+
+  // --- Create Mode States ---
   const [stage, setStage] = useState<Stage>('service');
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
   const [query, setQuery] = useState("");
-  // 移除内部的 isExpanded，完全由外部控制
   
   const currentStage = editingStage || stage;
 
-  // 将 selectedService 升级为数组，以支持连单
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
-  const [selectedStaff, setSelectedStaff] = useState<any | null>(null); // 'unassigned' or staff object
+  const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<{ name: string; phone: string; gx_id?: string } | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-
   const [fuzzyCustomers, setFuzzyCustomers] = useState<any[]>([]);
 
+  // --- Search Mode States ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Time generator
@@ -64,15 +79,15 @@ export function QuickCommandPalette({
     return slots;
   }, []);
 
-  // Filtering logic
+  // Create Mode Filtering
   const filteredServices = useMemo(() => {
     if (currentStage !== 'service') return [];
-    if (!query) return []; // 当没有输入时，直接返回空数组，不显示列表
+    if (!query) return [];
     const q = query.toLowerCase();
     return services.filter(s => 
       (s.name && s.name.toLowerCase().includes(q)) || 
       (s.pinyin && s.pinyin.toLowerCase().includes(q)) ||
-      (s.name && s.name.toLowerCase().includes(q)) // simple fallback
+      (s.name && s.name.toLowerCase().includes(q))
     );
   }, [currentStage, query, services]);
 
@@ -83,7 +98,7 @@ export function QuickCommandPalette({
 
   const filteredStaffs = useMemo(() => {
     if (currentStage !== 'staff') return [];
-    if (!query) return []; // 选员工时如果没有输入，也不显示默认列表
+    if (!query) return [];
     const q = query.toLowerCase();
     return staffOptions.filter(s => 
       s.name.toLowerCase().includes(q)
@@ -92,11 +107,10 @@ export function QuickCommandPalette({
 
   const filteredTimes = useMemo(() => {
     if (currentStage !== 'time') return [];
-    if (!query) return []; // 选时间时如果没有输入，也不显示默认列表
+    if (!query) return [];
     return timeSlots.filter(t => t.includes(query) || t.replace(':', '').includes(query));
   }, [currentStage, query, timeSlots]);
 
-  // Current list for keyboard navigation
   const currentList = useMemo(() => {
     switch (currentStage) {
       case 'service': return filteredServices;
@@ -109,7 +123,7 @@ export function QuickCommandPalette({
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query, currentStage]);
+  }, [query, currentStage, searchQuery]);
 
   useEffect(() => {
     if (currentStage === 'customer' && query.length >= 3) {
@@ -127,14 +141,57 @@ export function QuickCommandPalette({
     }
   }, [query, stage, shopId]);
 
-  // 格式化当前日期为 MM/DD
+  // Search Mode Debouncing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const searchResults = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) return [];
+    const term = debouncedSearchQuery.toLowerCase().trim();
+    
+    return globalBookings
+      .filter(b => {
+        const name = (b.customerName || b.data?.customerName || '').toLowerCase();
+        const nameClean = name.replace(/\D/g, ''); 
+        const phoneRaw = (b.customerPhone || b.phone || b.data?.customerPhone || b.data?.phone || '').toLowerCase();
+        const phoneClean = phoneRaw.replace(/\D/g, ''); 
+        const servicesArray = b.services || b.data?.services;
+        const srvs = Array.isArray(servicesArray) 
+          ? servicesArray.map((s: any) => s.name?.toLowerCase() || '').join(' ')
+          : (b.serviceName || b.data?.serviceName || '').toLowerCase();
+        const customerIdRaw = (b.customerId || b.data?.customerId || '').toLowerCase();
+        const customerIdClean = customerIdRaw.replace(/\D/g, '');
+        const termClean = term.replace(/\D/g, '');
+          
+        return name.includes(term) || 
+               (termClean && nameClean.includes(termClean)) || 
+               phoneRaw.includes(term) || 
+               (termClean && phoneClean.includes(termClean)) || 
+               customerIdRaw.includes(term) ||
+               (termClean && customerIdClean.includes(termClean)) ||
+               srvs.includes(term);
+      })
+      .sort((a, b) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        if (dateA !== dateB) return dateA > dateB ? -1 : 1;
+        const timeA = a.startTime || '';
+        const timeB = b.startTime || '';
+        return timeA > timeB ? -1 : 1;
+      });
+  }, [debouncedSearchQuery, globalBookings]);
+
   const formattedDate = useMemo(() => {
     const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
     const day = currentDate.getDate().toString().padStart(2, '0');
     return `${month}/${day}`;
   }, [currentDate]);
 
-  const resetAll = () => {
+  const resetCreate = () => {
     setStage('service');
     setQuery('');
     setSelectedServices([]);
@@ -142,47 +199,46 @@ export function QuickCommandPalette({
     setSelectedCustomer(null);
     setSelectedTime(null);
     setEditingStage(null);
-    onExpandedChange?.(false);
   };
 
-  const paletteRef = useRef<HTMLDivElement>(null);
+  const resetAll = () => {
+    resetCreate();
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+    setMode('idle');
+  };
 
-  // 【点击外部收起】：恢复标准 React 事件流，结合底层网格的主动避让
+  // Click outside to collapse
   useEffect(() => {
-    if (!isExpanded) return;
-
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (paletteRef.current && !paletteRef.current.contains(e.target as Node)) {
-        if (query === '' && selectedServices.length === 0) {
-          onExpandedChange?.(false);
+        if (mode === 'create' && query === '' && selectedServices.length === 0) {
+          setMode('idle');
+        } else if (mode === 'search' && searchQuery === '') {
+          setMode('idle');
         }
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("touchstart", handleClickOutside);
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [isExpanded, query, selectedServices.length, onExpandedChange]);
+  }, [mode, query, selectedServices.length, searchQuery]);
 
+  // Focus input when mode changes
   useEffect(() => {
-    // 组件卸载时确保输入框失焦
-    return () => {
-      if (inputRef.current) {
-        inputRef.current.blur();
-      }
-    };
-  }, []);
+    if (mode === 'create') {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    } else if (mode === 'search') {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [mode]);
 
-  const handleKeyDown = async (e: React.KeyboardEvent) => {
+  const handleCreateKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      if (editingStage) {
-        setEditingStage(null);
-        setQuery('');
-      }
+      if (editingStage) { setEditingStage(null); setQuery(''); }
       else if (stage === 'confirm') { setStage('time'); setQuery(''); setSelectedTime(null); }
       else if (stage === 'time') { setStage('customer'); setQuery(''); setSelectedCustomer(null); }
       else if (stage === 'customer') { setStage('staff'); setQuery(''); setSelectedStaff(null); }
@@ -191,94 +247,69 @@ export function QuickCommandPalette({
       e.preventDefault();
       return;
     }
-
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => (prev < currentList.length - 1 ? prev + 1 : prev));
       return;
     }
-
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
       return;
     }
-
     if (e.key === 'Enter') {
       e.preventDefault();
-      
-      // 【终极盲打法则】：当按下回车时，如果下拉列表中有选项，默认直接抓取第一个（或者当前选中的那一个）
-      // 彻底消灭了手机端需要用手去点列表导致的键盘收起闪烁问题。
       const targetItem = currentList[selectedIndex] || currentList[0];
 
       if (currentStage === 'service') {
-        // 【一键连单切片法则】
-        // 允许输入类似 "MN PN SOP"，用空格分割
         const tokens = query.trim().split(/\s+/).filter(Boolean);
         if (tokens.length > 1) {
-          // 多选模式：遍历每个 token，去 services 里找第一匹配项
           const matchedServices = tokens.map(token => {
             const q = token.toLowerCase();
-            const match = services.find(s => 
+            return services.find(s => 
               (s.name && s.name.toLowerCase().includes(q)) || 
               (s.pinyin && s.pinyin.toLowerCase().includes(q))
             );
-            return match;
           }).filter(Boolean);
-
           if (matchedServices.length > 0) {
             setSelectedServices(matchedServices);
-            if (editingStage) setEditingStage(null);
-            else setStage('staff');
+            if (editingStage) setEditingStage(null); else setStage('staff');
             setQuery('');
           }
         } else {
-          // 单选模式：直接用下拉列表里的选中项
           if (targetItem) {
             setSelectedServices([targetItem]);
-            if (editingStage) setEditingStage(null);
-            else setStage('staff');
+            if (editingStage) setEditingStage(null); else setStage('staff');
             setQuery('');
           }
         }
       } else if (currentStage === 'staff') {
         if (targetItem) {
           setSelectedStaff(targetItem);
-          if (editingStage) setEditingStage(null);
-          else setStage('customer');
+          if (editingStage) setEditingStage(null); else setStage('customer');
           setQuery('');
         } else if (query.trim() === '') {
-          // 特殊处理：如果没有输入任何内容直接回车，默认指派给“无指定” (unassigned)
           setSelectedStaff({ id: 'unassigned', name: '无指定' });
-          if (editingStage) setEditingStage(null);
-          else setStage('customer');
+          if (editingStage) setEditingStage(null); else setStage('customer');
           setQuery('');
         }
       } else if (currentStage === 'customer') {
         if (targetItem) {
           setSelectedCustomer({ name: targetItem.name, phone: targetItem.phone, gx_id: targetItem.gx_id });
         } else {
-          // 如果列表里什么都没匹配到，把当前的输入直接作为散客录入
           const isPhone = /^[0-9]+$/.test(query);
-          setSelectedCustomer({ 
-            name: isPhone ? "" : query, 
-            phone: isPhone ? query : "" 
-          });
+          setSelectedCustomer({ name: isPhone ? "" : query, phone: isPhone ? query : "" });
         }
-        if (editingStage) setEditingStage(null);
-        else setStage('time');
+        if (editingStage) setEditingStage(null); else setStage('time');
         setQuery('');
       } else if (currentStage === 'time') {
-        // 如果输入了如 143，但没有匹配到精确时间，可以尝试自动补全，或者直接取第一个匹配到的
         const finalTime = targetItem || query;
         if (finalTime) {
           setSelectedTime(finalTime as string);
-          if (editingStage) setEditingStage(null);
-          else setStage('confirm');
+          if (editingStage) setEditingStage(null); else setStage('confirm');
           setQuery('');
         }
       } else if (currentStage === 'confirm') {
-        // Submit
         await submitBooking();
       }
     }
@@ -286,15 +317,12 @@ export function QuickCommandPalette({
 
   const submitBooking = async () => {
     if (selectedServices.length === 0 || !selectedStaff || !selectedCustomer || !selectedTime) return;
-
     const baseDate = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
     const masterOrderId = `ORD-${Date.now()}`;
     const finalCustomerId = selectedCustomer.gx_id || await BookingService.getAvailableCustomerId(shopId, 'CO');
 
-    // 【连单裂变生成法则】
     const bookingPayloads = selectedServices.map((service, index) => {
       const duration = service.duration || 60;
-      
       return {
         id: `BKG-${Date.now()}-${index}`,
         masterOrderId,
@@ -337,171 +365,250 @@ export function QuickCommandPalette({
     }
   };
 
+  const handleOpenBooking = (booking: any) => {
+    if (booking.date && setCrosshairDate) {
+      setCrosshairDate(new Date(booking.date.replace(/-/g, '/')));
+    }
+    if (booking.startTime && setCrosshairTime) {
+      setCrosshairTime(booking.startTime);
+    }
+    if (setCrosshairResourceId) {
+      setCrosshairResourceId(booking.resourceId);
+    }
+    if (setEditingBooking) {
+      setEditingBooking(booking);
+    }
+    if (handleCreateBookingClick) {
+      handleCreateBookingClick();
+    }
+    resetAll();
+  };
+
   return (
-    <div ref={paletteRef} className={cn("mt-4 pointer-events-auto relative z-50 flex flex-col items-center", isExpanded ? "px-8 w-full" : "px-0 w-10", isLight ? "" : "")}>
-      
-      {/* 折叠状态下的迷你按钮 */}
-      <AnimatePresence mode="wait">
-        {!isExpanded ? (
-          <motion.div
-            key="collapsed"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.15 } }}
-            className="flex items-center justify-center h-12"
-          >
-            <button
+    <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center">
+      <motion.div 
+        layout
+        className={cn(
+          "absolute left-0 right-0 h-full flex items-center rounded-full border transition-colors overflow-hidden backdrop-blur-md",
+          borderColor,
+          glowShadow,
+          mode === 'idle' ? (isLight ? "bg-black/5 hover:bg-black/10" : "bg-white/5 hover:bg-white/10") : "bg-transparent",
+          textColor
+        )}
+      >
+        <AnimatePresence initial={false}>
+          {mode !== 'search' && (
+            <motion.div
+              key="create-section"
+              layout
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, display: 'none' }}
+              className={cn("h-full flex items-center", mode === 'create' ? "w-full px-4" : "flex-1 justify-center cursor-pointer hover:bg-white/5")}
               onClick={() => {
-                onExpandedChange?.(true);
-                // 延迟聚焦，等待动画完成
-                setTimeout(() => inputRef.current?.focus(), 100);
+                if (mode === 'idle') setMode('create');
+                else inputRef.current?.focus();
               }}
-              className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 hover:scale-110 bg-transparent backdrop-blur-sm",
-                borderColor,
-                glowShadow,
-                isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5"
-              )}
             >
-              <ChevronLeft className="w-5 h-5 opacity-70" />
-            </button>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="expanded"
-            initial={{ opacity: 0, width: "40px" }}
-            animate={{ opacity: 1, width: "100%" }}
-            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
-            className="w-full flex justify-center relative"
-          >
-            {/* Popup Menus */}
-            <AnimatePresence>
-              {stage !== 'confirm' && currentList.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className={cn(
-                    "absolute bottom-full mb-2 w-[300px] max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-50",
-                    isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
-                  )}
-                >
-                  {currentList.map((item, idx) => {
-                    const isSelected = idx === selectedIndex;
-                    
-                    let label = "";
-                    if (currentStage === 'service') label = item.name;
-                    else if (currentStage === 'staff') label = item.name;
-                    else if (currentStage === 'customer') label = `${item.name || ''} ${item.phone || ''} ${item.gx_id || ''}`.trim();
-                    else if (currentStage === 'time') label = item as string;
-
-                    return (
-                      <div 
-                        key={idx}
-                        className={cn(
-                          "px-4 py-2 text-sm cursor-pointer transition-colors",
-                          isSelected ? (isLight ? "bg-black/10" : "bg-white/10") : "",
-                          isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5"
-                        )}
-                        onClick={() => {
-                          setSelectedIndex(idx);
-                          // trigger enter programmatically would be ideal, but direct logic is fine
-                          if (currentStage === 'service') { setSelectedServices([item]); if(editingStage) setEditingStage(null); else setStage('staff'); setQuery(''); }
-                          else if (currentStage === 'staff') { setSelectedStaff(item); if(editingStage) setEditingStage(null); else setStage('customer'); setQuery(''); }
-                          else if (currentStage === 'customer') { setSelectedCustomer({ name: item.name, phone: item.phone, gx_id: item.gx_id }); if(editingStage) setEditingStage(null); else setStage('time'); setQuery(''); }
-                          else if (currentStage === 'time') { setSelectedTime(item as string); if(editingStage) setEditingStage(null); else setStage('confirm'); setQuery(''); }
-                        }}
-                      >
-                        {label}
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div 
-              className={cn(
-                "w-[95%] max-w-[600px] min-h-[3rem] py-1.5 px-4 gap-2 flex flex-wrap items-center rounded-[1.5rem] border transition-all duration-300 relative",
-                borderColor,
-                glowShadow,
-                "bg-transparent backdrop-blur-sm"
-              )}
-              onClick={() => inputRef.current?.focus()}
-            >
-              {/* Capsules */}
-              {selectedServices.length > 0 && editingStage !== 'service' && (
-                <div 
-                  onClick={() => { setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }}
-                  className="flex flex-wrap items-center gap-1 cursor-pointer transition-opacity hover:opacity-70"
-                >
-                  {selectedServices.map((srv, idx) => (
-                    <div key={idx} className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}>
-                      {srv.name}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedStaff && editingStage !== 'staff' && (
-                <div 
-                  onClick={() => { setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }}
-                  className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-                >
-                  {selectedStaff.name}
-                </div>
-              )}
-              {selectedCustomer && editingStage !== 'customer' && (
-                <div 
-                  onClick={() => { setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }}
-                  className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-                >
-                  {selectedCustomer.name || selectedCustomer.phone}
-                </div>
-              )}
-              {selectedTime && editingStage !== 'time' && (
-                <div 
-                  onClick={() => { setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }}
-                  className={cn("px-3 py-1 rounded-full text-xs tracking-widest border whitespace-nowrap cursor-pointer transition-opacity hover:opacity-70", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-                >
-                  {formattedDate} {selectedTime}
-                </div>
-              )}
-
-              {stage === 'confirm' && !editingStage ? (
-                <div className="flex-1 flex items-center justify-end min-w-[120px] gap-3 ml-auto py-0.5">
-                  <button 
-                    onClick={resetAll}
-                    className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110", isLight ? "border-black/30 text-black/50 hover:text-black hover:border-black" : "border-white/30 text-white/50 hover:text-white hover:border-white")}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={submitBooking}
-                    className={cn("w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-110 animate-pulse", isLight ? "border-black text-black" : "border-white text-white", glowShadow)}
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
+              {mode === 'idle' ? (
+                <div className="flex items-center gap-1.5 opacity-60">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="text-[11px] tracking-widest uppercase">快速创建</span>
                 </div>
               ) : (
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className={cn(
-                    "flex-1 min-w-[100px] h-8 bg-transparent outline-none text-sm tracking-widest placeholder:opacity-40 py-0.5",
-                    textColor
+                <div className="flex-1 flex flex-wrap items-center gap-2 relative">
+                  {selectedServices.length > 0 && editingStage !== 'service' && (
+                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }} className="flex gap-1 cursor-pointer hover:opacity-70">
+                      {selectedServices.map((srv, idx) => (
+                        <div key={idx} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border", isLight ? "border-black" : "border-white")}>{srv.name}</div>
+                      ))}
+                    </div>
                   )}
-                  placeholder={
-                    currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
-                    currentStage === 'staff' ? "选择指派员工..." :
-                    currentStage === 'customer' ? "输入客户电话/名字..." :
-                    "输入时间 (如 1430)..."
-                  }
-                />
+                  {selectedStaff && editingStage !== 'staff' && (
+                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{selectedStaff.name}</div>
+                  )}
+                  {selectedCustomer && editingStage !== 'customer' && (
+                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{selectedCustomer.name || selectedCustomer.phone}</div>
+                  )}
+                  {selectedTime && editingStage !== 'time' && (
+                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{formattedDate} {selectedTime}</div>
+                  )}
+
+                  {stage === 'confirm' && !editingStage ? (
+                    <div className="flex-1 flex items-center justify-end gap-2 ml-auto">
+                      <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110", isLight ? "border-black/30" : "border-white/30")}><X className="w-3 h-3" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); submitBooking(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110 animate-pulse", isLight ? "border-black" : "border-white")}><Check className="w-3 h-3" /></button>
+                    </div>
+                  ) : (
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={handleCreateKeyDown}
+                      className="flex-1 min-w-[100px] h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
+                      placeholder={
+                        currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
+                        currentStage === 'staff' ? "选择指派员工..." :
+                        currentStage === 'customer' ? "输入客户电话/名字..." :
+                        "输入时间 (如 1430)..."
+                      }
+                    />
+                  )}
+                </div>
               )}
-            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Divider */}
+        {mode === 'idle' && <div className={cn("w-[1px] h-4", isLight ? "bg-black/20" : "bg-white/20")} />}
+
+        <AnimatePresence initial={false}>
+          {mode !== 'create' && (
+            <motion.div
+              key="search-section"
+              layout
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, display: 'none' }}
+              className={cn("h-full flex items-center", mode === 'search' ? "w-full px-4" : "flex-1 justify-center cursor-pointer hover:bg-white/5")}
+              onClick={() => {
+                if (mode === 'idle') setMode('search');
+                else searchInputRef.current?.focus();
+              }}
+            >
+              {mode === 'idle' ? (
+                <div className="flex items-center gap-1.5 opacity-60">
+                  <Search className="w-3.5 h-3.5" />
+                  <span className="text-[11px] tracking-widest uppercase">搜索预约</span>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center gap-2">
+                  <Search className="w-3.5 h-3.5 opacity-50" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') resetAll();
+                    }}
+                    className="flex-1 h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
+                    placeholder="输入客户电话/名字..."
+                  />
+                  {searchQuery && (
+                    <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className="p-1 opacity-50 hover:opacity-100">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Dropdown for Create Mode */}
+      <AnimatePresence>
+        {mode === 'create' && stage !== 'confirm' && currentList.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className={cn(
+              "absolute top-full left-0 right-0 mt-2 max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-50",
+              isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
+            )}
+          >
+            {currentList.map((item, idx) => {
+              const isSelected = idx === selectedIndex;
+              let label = "";
+              if (currentStage === 'service') label = item.name;
+              else if (currentStage === 'staff') label = item.name;
+              else if (currentStage === 'customer') label = `${item.name || ''} ${item.phone || ''} ${item.gx_id || ''}`.trim();
+              else if (currentStage === 'time') label = item as string;
+
+              return (
+                <div 
+                  key={idx}
+                  className={cn(
+                    "px-4 py-2 text-[11px] cursor-pointer transition-colors tracking-widest",
+                    isSelected ? (isLight ? "bg-black/10" : "bg-white/10") : "",
+                    isLight ? "text-black hover:bg-black/5" : "text-white hover:bg-white/5"
+                  )}
+                  onClick={() => {
+                    setSelectedIndex(idx);
+                    if (currentStage === 'service') { setSelectedServices([item]); if(editingStage) setEditingStage(null); else setStage('staff'); setQuery(''); }
+                    else if (currentStage === 'staff') { setSelectedStaff(item); if(editingStage) setEditingStage(null); else setStage('customer'); setQuery(''); }
+                    else if (currentStage === 'customer') { setSelectedCustomer({ name: item.name, phone: item.phone, gx_id: item.gx_id }); if(editingStage) setEditingStage(null); else setStage('time'); setQuery(''); }
+                    else if (currentStage === 'time') { setSelectedTime(item as string); if(editingStage) setEditingStage(null); else setStage('confirm'); setQuery(''); }
+                  }}
+                >
+                  {label}
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dropdown for Search Mode */}
+      <AnimatePresence>
+        {mode === 'search' && debouncedSearchQuery.trim() && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className={cn(
+              "absolute top-full left-0 right-0 mt-2 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto border backdrop-blur-md z-50",
+              isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
+            )}
+          >
+            {searchResults.length === 0 ? (
+              <div className={cn("p-4 text-center text-[11px] tracking-widest", isLight ? "text-black/50" : "text-white/50")}>
+                未找到相关预约
+              </div>
+            ) : (
+              <div className="flex flex-col">
+                {searchResults.map((booking) => {
+                  const srvsArray = booking.services || booking.data?.services;
+                  const srvs = Array.isArray(srvsArray) ? srvsArray.map((s: any) => s.name).join(', ') : booking.serviceName || booking.data?.serviceName || '未指定项目';
+                  const status = booking.status;
+                  let statusColor = isLight ? "text-black/50" : "text-white/50";
+                  if (status === 'CANCELLED' || status === 'no_show') statusColor = "text-red-500/80";
+                  if (status === 'COMPLETED' || status === 'CHECKED_OUT') statusColor = "text-[#39FF14]/80";
+
+                  return (
+                    <button
+                      key={booking.id}
+                      onClick={() => handleOpenBooking(booking)}
+                      className={cn(
+                        "flex flex-col text-left p-3 border-b transition-colors hover:bg-white/5 last:border-b-0",
+                        isLight ? "border-black/5" : "border-white/5"
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className={cn("text-[11px] font-medium tracking-widest", isLight ? "text-black" : "text-white")}>
+                          {booking.customerId || booking.data?.customerId || 'CO'}
+                        </span>
+                        <span className={cn("text-[10px] tracking-widest", statusColor)}>
+                          {booking.date} {booking.startTime}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={cn("text-[10px] truncate max-w-[150px] tracking-widest", isLight ? "text-black/60" : "text-white/60")}>
+                          {srvs}
+                        </span>
+                        <span className={cn("text-[10px] tracking-widest", isLight ? "text-black/40" : "text-white/40")}>
+                          {booking.customerPhone || booking.phone || booking.data?.customerPhone || booking.data?.phone || booking.customerName || booking.data?.customerName || ''}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -44,7 +44,6 @@ import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
 import { Trash2 } from "lucide-react";
 import { RecycleBinModal } from "./RecycleBinModal";
 import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
-import { BookingSearch } from "./BookingSearch";
 import { useTranslations, useLocale } from "next-intl";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
@@ -233,7 +232,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const [isFinanceDashboardOpen, setIsFinanceDashboardOpen] = useState(false); 
  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
  const [bookingModalKey, setBookingModalKey] = useState(0);
- const [isPaletteExpanded, setIsPaletteExpanded] = useState(false);
  const [isMiniCalendarOpen, setIsMiniCalendarOpen] = useState(false);
  const triggerRef = useRef<HTMLButtonElement>(null);
  const [isMounted] = useState(() => typeof window !== "undefined");
@@ -1539,17 +1537,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </div>
  </div>
 
- {/* 预约搜索 (Booking Search Hub) */}
-  <BookingSearch 
-    visualSettings={visualSettings} 
-    setCrosshairDate={setCrosshairDate}
-    setCrosshairTime={setCrosshairTime}
-    setCrosshairResourceId={setCrosshairResourceId}
-    setEditingBooking={setEditingBooking}
-    handleCreateBookingClick={handleCreateBookingClick}
-  />
+ {/* 预约搜索已整合到顶部 Omnibar，此处留空保持侧边栏纯粹性 */}
 
- {/* 极速开单已被移除，功能收拢至底部 Quick Command Palette，保持侧边栏的纯粹性 */}
+ {/* 极速开单已被移除，功能收拢至顶部 Omnibar，保持侧边栏的纯粹性 */}
 
  {/* 财务核算 (AI Finance Dashboard) - 顶级 B 端全息入口 */} 
  <div className="px-8 mt-4 pointer-events-auto relative z-50"> 
@@ -1599,8 +1589,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  className="flex flex-col gap-0"
  >
  {/* [CONTAINER 2] 日期与视图控制栏 (Date & Navigation Bar) */}
- <div className="px-3 md:px-6 py-2 md:py-3 flex items-center justify-between bg-transparent">
- <div className="flex items-center gap-2 md:gap-6 shrink">
+ <div className="px-3 md:px-6 py-2 md:py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-transparent">
+ {/* 第一行：时空锚点 (Date) */}
+ <div className="flex items-center gap-2 md:gap-6 shrink-0 w-full md:w-auto">
  <div 
  className="flex items-end gap-1.5 md:gap-4 cursor-pointer group shrink"
  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1665,6 +1656,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </div>
  </div>
  </div>
+
+ {/* 第二行/剩余空间：操作枢纽 (Omnibar + Controls) */}
+ <div className="flex items-center justify-between md:justify-end gap-2 md:gap-4 w-full md:w-auto flex-1">
+ {/* 核心中枢：互斥伸缩搜索/创建舱 (Omnibar) */}
+ {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
+ <div className="flex-1 md:max-w-xl flex justify-center z-50">
+ <QuickCommandPalette 
+ services={services}
+ staffs={staffs}
+ shopId={shopId}
+ currentDate={phantomDate}
+ onBookingCreated={() => {
+ refreshBookings();
+ trackAction();
+ }}
+ visualSettings={visualSettings}
+ setCrosshairDate={setCrosshairDate}
+ setCrosshairTime={setCrosshairTime}
+ setCrosshairResourceId={setCrosshairResourceId}
+ setEditingBooking={setEditingBooking}
+ handleCreateBookingClick={handleCreateBookingClick}
+ />
+ </div>
+ )}
 
  {/* 响应式控制中枢 (Unified Cyber Controls) */}
  <div className="flex items-center gap-1 md:gap-4 shrink-0">
@@ -1744,6 +1759,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  )}
  </div>
  )}
+ </div>
  </div>
  </div>
  </div>
@@ -1920,7 +1936,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  isReadOnly={isReadOnlyMode || isPermissionReadOnly}
  onReadOnlyIntercept={handleReadOnlyIntercept}
  onPhantomDateChange={handlePhantomDateChange}
- isPaletteExpanded={isPaletteExpanded}
  />
  )}
  {dna.pivot === "resource" && viewMode === "week" && (
@@ -1971,32 +1986,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </motion.div>
  </AnimatePresence>
 
- {/* --- 纯键盘流：极速开单控制台 (Quick Command Palette) --- */}
-          {/* 结界法则：当订阅到期或即将到期（出现横幅）时，优先显示横幅并隐藏此极速开单栏 */}
-          {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
-            <div 
-              className={cn(
-                "absolute bottom-8 z-50 pointer-events-auto flex justify-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                isPaletteExpanded 
-                  ? "left-1/2 -translate-x-1/2 w-full max-w-[600px]" 
-                  : "left-[calc(100%-20px)] -translate-x-full w-10"
-              )}
-            >
-              <QuickCommandPalette 
-                services={services}
-                staffs={staffs}
-                shopId={shopId}
-                currentDate={phantomDate}
-                onBookingCreated={() => {
-                  refreshBookings();
-                  trackAction();
-                }}
-                visualSettings={visualSettings}
-                isExpanded={isPaletteExpanded}
-                onExpandedChange={setIsPaletteExpanded}
-              />
-            </div>
-          )}
+ {/* --- 纯键盘流：极速开单控制台已移至顶部 Omnibar --- */}
 
  </div>
  </div>
