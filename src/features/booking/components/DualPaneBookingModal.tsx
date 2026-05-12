@@ -628,7 +628,7 @@ export function DualPaneBookingModal({
  if (customerId && !customerId.startsWith('CO')) {
  query = query.eq('data->>customerId', customerId);
  } else if (phoneTracks[0]) {
- query = query.ilike('data->>customerName', `%${phoneTracks[0]}%`);
+ query = query.eq('data->>customerName', phoneTracks[0].trim());
  } else {
  if (isMounted) setRealHistoryStream([]);
  return;
