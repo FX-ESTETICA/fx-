@@ -138,6 +138,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getDeviceId, hasConfirmedSession]);
 
+  const buildExtendedUser = async (activeSession: Session, profile: any, appStatus: any, oldBindings: any, ownedShops: any, isBoss: boolean) => {
+    let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
+
+    // 如果存在 profile.gx_id 或 profile.merchant_gx_id，才去拉取最新的 bindings
+    const principalIds = [profile?.gx_id, profile?.merchant_gx_id].filter(Boolean);
+    if (principalIds.length > 0) {
+      const { data: newBindings, error: newBindingsError } = await supabase
+        .from('bindings')
+        .select('shop_id, role, shops(id, name, industry)')
+        .in('principal_id', principalIds);
+      
+      if (!newBindingsError && newBindings && newBindings.length > 0) {
+        // 【核心修复：多租户身份叠加法则 + 强去重】
+        const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
+        
+        const uniqueBindingsMap = new Map<string, NonNullable<SandboxUser["bindings"]>[0]>();
+        
+        // 先放入旧表的数据 (通常是 OWNER)
+        (shopBindings || []).forEach(b => uniqueBindingsMap.set(b.shopId, b));
+        
+        // 再放入新表的数据，但要判断权限高低
+        (mappedNewBindings || []).forEach(newB => {
+          const existing = uniqueBindingsMap.get(newB.shopId);
+          if (!existing) {
+            uniqueBindingsMap.set(newB.shopId, newB);
+          } else if (existing.role !== 'OWNER' && newB.role === 'OWNER') {
+            uniqueBindingsMap.set(newB.shopId, newB);
+          }
+        });
+
+        shopBindings = Array.from(uniqueBindingsMap.values());
+      }
+    }
+
+    // 如果是 Boss，强制接管并覆盖所有名下门店
+    if (isBoss && ownedShops) {
+      shopBindings = ownedShops.map((shop: any) => ({
+        shopId: shop.id,
+        role: 'OWNER',
+        shopName: shop.name,
+        industry: shop.industry || 'other'
+      }));
+    }
+
+    const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
+    const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
+    const actualName = profile.name || activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name;
+    const actualAvatar = profile.avatar_url || activeSession.user.user_metadata?.avatar_url;
+    // 核心修复：根据当前实际角色提取对应的物理锚点 ID
+    const actualId = isBoss ? "GX88888888" : 
+                     (localViewRole === "merchant" || (actualRole === "merchant" && !localViewRole)) 
+                       ? (profile.merchant_gx_id || profile.gx_id) 
+                       : profile.gx_id;
+    const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
+    const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
+
+    return {
+      extendedUser: {
+        ...activeSession.user,
+        gxId: actualId,
+        base_gx_id: profile.gx_id, // 永远记录原始生活ID
+        merchant_gx_id: profile.merchant_gx_id, // 永远记录原始智控ID
+        role: actualRole,
+        avatar: actualAvatar,
+        merchant_name: profile.merchant_name,
+        merchant_avatar_url: profile.merchant_avatar_url,
+        merchant_phone: profile.merchant_phone,
+        boss_name: profile.boss_name,
+        boss_avatar_url: profile.boss_avatar_url,
+        boss_phone: profile.boss_phone,
+        phone: profile.phone,
+        name: actualName,
+        gender: profile.gender || activeSession.user.user_metadata?.gender || "unknown",
+        birthday: profile.birthday || activeSession.user.user_metadata?.birthday || null,
+        bindings: shopBindings,
+        applicationStatus: appStatus,
+        subscription_tier: profile.subscription_tier || null,
+        current_period_end: profile.current_period_end || null,
+        trial_started_at: profile.trial_started_at || null
+      } as SandboxUser,
+      effectiveRole
+    };
+  };
+
   const hydrateSession = useCallback(async (nextSession: Session | null) => {
     if (isMockMode) {
       setSession(nextSession);
@@ -168,96 +252,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const oldBindings = oldBindingsResult.status === 'fulfilled' && !oldBindingsResult.value.error ? oldBindingsResult.value.data : null;
         const ownedShops = bossShopsResult.status === 'fulfilled' && !bossShopsResult.value.error ? bossShopsResult.value.data : null;
 
-        let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
-
-        // 如果存在 profile.gx_id 或 profile.merchant_gx_id，才去拉取最新的 bindings
-        const principalIds = [profile?.gx_id, profile?.merchant_gx_id].filter(Boolean);
-        if (principalIds.length > 0) {
-          const { data: newBindings, error: newBindingsError } = await supabase
-            .from('bindings')
-            .select('shop_id, role, shops(id, name, industry)')
-            .in('principal_id', principalIds);
-          
-          if (!newBindingsError && newBindings && newBindings.length > 0) {
-          // 【核心修复：多租户身份叠加法则 + 强去重】
-          // 使用 Map 进行 shopId 物理级去重，防止店主在绑定自己员工时出现两条相同 shopId 的脏数据，
-          // 并且如果同一个店既有 OWNER 又有 user，必须保留最高权限 (OWNER)
-          const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
-          
-          const uniqueBindingsMap = new Map<string, NonNullable<SandboxUser["bindings"]>[0]>();
-          
-          // 先放入旧表的数据 (通常是 OWNER)
-          (shopBindings || []).forEach(b => uniqueBindingsMap.set(b.shopId, b));
-          
-          // 再放入新表的数据，但要判断权限高低
-          (mappedNewBindings || []).forEach(newB => {
-            const existing = uniqueBindingsMap.get(newB.shopId);
-            if (!existing) {
-              uniqueBindingsMap.set(newB.shopId, newB);
-            } else if (existing.role !== 'OWNER' && newB.role === 'OWNER') {
-              // 只有当新表是 OWNER 而旧表不是时，才覆盖（极少出现，但确保逻辑严密）
-              uniqueBindingsMap.set(newB.shopId, newB);
-            }
-          });
-
-          shopBindings = Array.from(uniqueBindingsMap.values());
-        }
-        }
-
-        // 如果是 Boss，强制接管并覆盖所有名下门店
-        if (isBoss && ownedShops) {
-          shopBindings = ownedShops.map((shop: any) => ({
-            shopId: shop.id,
-            role: 'OWNER',
-            shopName: shop.name,
-            industry: shop.industry || 'other'
-          }));
-        }
-
         if (profile) {
-          const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
-          const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
-          const actualName = profile.name || nextSession.user.user_metadata?.name || nextSession.user.user_metadata?.full_name;
-          const actualAvatar = profile.avatar_url || nextSession.user.user_metadata?.avatar_url;
-          // 核心修复：根据当前实际角色提取对应的物理锚点 ID
-          const actualId = isBoss ? "GX88888888" : 
-                           (localViewRole === "merchant" || (actualRole === "merchant" && !localViewRole)) 
-                             ? (profile.merchant_gx_id || profile.gx_id) 
-                             : profile.gx_id;
-          const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
-          const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
-
-          const extendedUser = {
-          ...nextSession.user,
-          gxId: actualId,
-          base_gx_id: profile.gx_id, // 永远记录原始生活ID
-          merchant_gx_id: profile.merchant_gx_id, // 永远记录原始智控ID
-          role: actualRole,
-          avatar: actualAvatar,
-          merchant_name: profile.merchant_name,
-          merchant_avatar_url: profile.merchant_avatar_url,
-          merchant_phone: profile.merchant_phone,
-          boss_name: profile.boss_name,
-          boss_avatar_url: profile.boss_avatar_url,
-          boss_phone: profile.boss_phone,
-          phone: profile.phone,
-          name: actualName,
-          gender: profile.gender || nextSession.user.user_metadata?.gender || "unknown",
-          birthday: profile.birthday || nextSession.user.user_metadata?.birthday || null,
-          bindings: shopBindings,
-          applicationStatus: appStatus,
-          subscription_tier: profile.subscription_tier || null,
-          current_period_end: profile.current_period_end || null,
-          trial_started_at: profile.trial_started_at || null
-        } as SandboxUser; 
+          const { extendedUser, effectiveRole } = await buildExtendedUser(nextSession, profile, appStatus, oldBindings, ownedShops, isBoss);
         
-        setUser(extendedUser);
-        // 【Local-First 缓存锚点】：物理固化身份到本地，供下次秒开使用
-        localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
-        
-        setActiveRoleState(effectiveRole as UserRole);
-        setIsRoleLoaded(true); // 物理锁解开：身份已经 100% 确认
-        await syncDeviceSession(nextSession);
+          setUser(extendedUser);
+          // 【Local-First 缓存锚点】：物理固化身份到本地，供下次秒开使用
+          localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
+          
+          setActiveRoleState(effectiveRole as UserRole);
+          setIsRoleLoaded(true); // 物理锁解开：身份已经 100% 确认
+          await syncDeviceSession(nextSession);
         } else if (isProfileFetchFailed) {
           // 【断网防御屏障】：如果是因为网络断开（fetch 失败但并不是真的没有这个人）
           // 绝对不能强行刷 PENDING，必须直接中断并保留原有的缓存数据！
@@ -517,86 +521,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const oldBindings = oldBindingsResult.status === 'fulfilled' && !oldBindingsResult.value.error ? oldBindingsResult.value.data : null;
       const ownedShops = bossShopsResult.status === 'fulfilled' && !bossShopsResult.value.error ? bossShopsResult.value.data : null;
 
-      let shopBindings = mapShopBindings(oldBindings as ShopBindingRow[] | null);
-
-      // 如果存在 profile.gx_id 或 profile.merchant_gx_id，才去拉取最新的 bindings
-      const principalIds = [profile?.gx_id, profile?.merchant_gx_id].filter(Boolean);
-      if (principalIds.length > 0) {
-        const { data: newBindings, error: newBindingsError } = await supabase
-          .from('bindings')
-          .select('shop_id, role, shops(id, name, industry)')
-          .in('principal_id', principalIds);
-        
-        if (!newBindingsError && newBindings && newBindings.length > 0) {
-          // 【核心修复：多租户身份叠加法则 + 强去重】
-          // 与 hydrateSession 保持一致，使用 Map 进行 shopId 物理级去重
-          const mappedNewBindings = mapShopBindings(newBindings as ShopBindingRow[]);
-          
-          const uniqueBindingsMap = new Map<string, NonNullable<SandboxUser["bindings"]>[0]>();
-          
-          // 先放入旧表的数据 (通常是 OWNER)
-          (shopBindings || []).forEach(b => uniqueBindingsMap.set(b.shopId, b));
-          
-          // 再放入新表的数据，但要判断权限高低
-          (mappedNewBindings || []).forEach(newB => {
-            const existing = uniqueBindingsMap.get(newB.shopId);
-            if (!existing) {
-              uniqueBindingsMap.set(newB.shopId, newB);
-            } else if (existing.role !== 'OWNER' && newB.role === 'OWNER') {
-              uniqueBindingsMap.set(newB.shopId, newB);
-            }
-          });
-
-          shopBindings = Array.from(uniqueBindingsMap.values());
-        }
-      }
-
-      // 如果是 Boss，强制接管并覆盖所有名下门店
-      if (isBoss && ownedShops) {
-        shopBindings = ownedShops.map((shop: any) => ({
-          shopId: shop.id,
-          role: 'OWNER',
-          shopName: shop.name,
-          industry: shop.industry || 'other'
-        }));
-      }
-
       if (profile) {
-          const isMerchant = shopBindings && shopBindings.some(b => b.role === 'OWNER');
-          const actualRole = isBoss ? "boss" : (isMerchant ? "merchant" : profile.role);
-          const actualName = profile.name || activeSession.user.user_metadata?.name || activeSession.user.user_metadata?.full_name;
-          const actualAvatar = profile.avatar_url || activeSession.user.user_metadata?.avatar_url;
-          // 核心修复：根据当前实际角色提取对应的物理锚点 ID
-          const actualId = isBoss ? "GX88888888" : 
-                           (localViewRole === "merchant" || (actualRole === "merchant" && !localViewRole)) 
-                             ? (profile.merchant_gx_id || profile.gx_id) 
-                             : profile.gx_id;
-          const allowedRoles = actualRole === "boss" ? ["user", "merchant", "boss"] : actualRole === "merchant" ? ["user", "merchant"] : ["user"];
-          const effectiveRole = localViewRole && allowedRoles.includes(localViewRole) ? localViewRole : actualRole;
-
-        const extendedUser = {
-          ...activeSession.user,
-          gxId: actualId,
-          base_gx_id: profile.gx_id, // 永远记录原始生活ID
-          merchant_gx_id: profile.merchant_gx_id, // 永远记录原始智控ID
-          role: actualRole,
-          avatar: actualAvatar,
-          merchant_name: profile.merchant_name,
-          merchant_avatar_url: profile.merchant_avatar_url,
-          merchant_phone: profile.merchant_phone,
-          boss_name: profile.boss_name,
-          boss_avatar_url: profile.boss_avatar_url,
-          boss_phone: profile.boss_phone,
-          phone: profile.phone,
-          name: actualName,
-          gender: profile.gender || activeSession.user.user_metadata?.gender || "unknown",
-          birthday: profile.birthday || activeSession.user.user_metadata?.birthday || null,
-          bindings: shopBindings,
-          applicationStatus: appStatus,
-          subscription_tier: profile.subscription_tier || null,
-          current_period_end: profile.current_period_end || null,
-          trial_started_at: profile.trial_started_at || null
-        } as SandboxUser;
+        const { extendedUser, effectiveRole } = await buildExtendedUser(activeSession, profile, appStatus, oldBindings, ownedShops, isBoss);
         
         setUser(extendedUser);
         localStorage.setItem("gx_cached_user", JSON.stringify(extendedUser));
@@ -631,7 +557,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [session, localViewRole]);
 
-  // 3. 独立监听当前用户的 profiles 表和 shop_bindings 表实时变更 (多端同步)
+  // ==========================================
+  // 【世界顶端：全局实时订阅中心】
+  // 使用单例防抖，彻底消除并发频道苏醒导致的风暴请求
+  // ==========================================
   useEffect(() => {
     if (isMockMode) return;
     if (!user || !user.id) return;
@@ -639,14 +568,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 我们需要用户的 gxId 来订阅 bindings 表的变动
     const profileGxId = 'gxId' in user ? user.gxId : null;
 
-    // 【防爆锁】：多个频道如果同时 SUBSCRIBED，不要疯狂并发请求 refreshUserData
     let subscribedDebounceTimer: NodeJS.Timeout | null = null;
-    const handleSubscribedRefresh = (channelName: string) => {
-      console.log(`[AuthProvider] ${channelName} SUBSCRIBED, queuing refreshUserData...`);
+
+    // 核心函数：防抖刷新数据
+    const triggerDebouncedRefresh = (channelName: string) => {
+      console.log(`[AuthProvider] ${channelName} channel event, queuing refreshUserData...`);
       if (subscribedDebounceTimer) clearTimeout(subscribedDebounceTimer);
       subscribedDebounceTimer = setTimeout(() => {
+        console.log(`[AuthProvider] Debounce cleared, executing refreshUserData...`);
         refreshUserData();
-      }, 500); // 500ms 防抖，将所有通道的同时苏醒合并为 1 次 Fetch
+      }, 500);
     };
 
     const profileSubscription = supabase
@@ -654,13 +585,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        async (payload) => {
+        (payload) => {
           console.log("[AuthProvider] Profile realtime update received:", payload);
-          await refreshUserData();
+          triggerDebouncedRefresh('Profile');
         }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') handleSubscribedRefresh('Profile channel');
+        if (status === 'SUBSCRIBED') triggerDebouncedRefresh('Profile');
       });
 
     const bindingsSubscription = supabase
@@ -668,13 +599,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bindings', filter: `principal_id=eq.${profileGxId}` },
-        async (payload) => {
+        (payload) => {
           console.log("[AuthProvider] Bindings realtime update received:", payload);
-          await refreshUserData();
+          triggerDebouncedRefresh('Bindings');
         }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') handleSubscribedRefresh('Bindings channel');
+        if (status === 'SUBSCRIBED') triggerDebouncedRefresh('Bindings');
       });
       
     // 监听商户申请状态变更 (实现秒级入驻闭环)
@@ -683,13 +614,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'merchant_applications', filter: `user_id=eq.${user.id}` },
-        async (payload) => {
+        (payload) => {
           console.log("[AuthProvider] Application realtime update received:", payload);
-          await refreshUserData();
+          triggerDebouncedRefresh('Applications');
         }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') handleSubscribedRefresh('Applications channel');
+        if (status === 'SUBSCRIBED') triggerDebouncedRefresh('Applications');
       });
 
     // 修复：取消全局无 filter 的 shops 监听，因为配置更新会导致死循环
@@ -700,10 +631,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shops' },
-        async (payload) => {
+        (payload) => {
           console.log("[AuthProvider] Shops global realtime update received:", payload);
-          // 当任何 shop 发生变化时（特别是被删除或重命名时），重新拉取数据
-          await refreshUserData();
+          triggerDebouncedRefresh('Shops');
         }
       )
       .subscribe();
@@ -718,45 +648,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user?.id, 'gxId' in (user || {}) ? (user as any).gxId : null, refreshUserData]); // 仅当核心 ID 变化时重新订阅，打破死循环
 
+  // ==========================================
   // 【世界顶端：幽灵心跳保活引擎 (Phantom Heartbeat)】
   // 专门对抗 PWA/移动端长时间挂起导致的 Token 自然饿死
+  // ==========================================
   useEffect(() => {
     if (isMockMode) return;
     if (typeof document === "undefined") return;
-    
+
     let heartbeatTimer: NodeJS.Timeout;
-    
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        heartbeatTimer = setTimeout(async () => {
-          console.log("[Phantom Heartbeat] App resumed, silently refreshing session...");
-          const { error } = await supabase.auth.getSession();
-          if (error) {
-            const isNetworkError = error.message?.toLowerCase().includes('fetch') || 
-                                   error.message?.toLowerCase().includes('network') || 
-                                   (error as any).status === 0 || 
-                                   (error as any).status >= 500 || 
-                                   error.name === 'AuthRetryableFetchError';
-                                   
-            if (!isNetworkError) {
-              console.warn("[Phantom Heartbeat] Invalid session confirmed, triggering physical reload to resurrect SDK...");
-              // 世界顶端法则：绝不踢人，绝不清除 UI 缓存。
-              // 直接物理重载，让 SDK 从 LocalStorage 重新读取持久化的 Refresh Token 满血复活，彻底粉碎内存僵尸态。
-              window.location.reload();
-            } else {
-              console.warn("[Phantom Heartbeat] Silent refresh failed (likely network jitter), preserving cache.");
-            }
+
+    const handlePhantomHeartbeat = () => {
+      heartbeatTimer = setTimeout(async () => {
+        console.log("[Phantom Heartbeat] Global sync triggered, silently refreshing session...");
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          const isNetworkError = error.message?.toLowerCase().includes('fetch') || 
+                                  error.message?.toLowerCase().includes('network') || 
+                                  (error as any).status === 0 || 
+                                  (error as any).status >= 500 || 
+                                  error.name === 'AuthRetryableFetchError';
+                                  
+          if (!isNetworkError) {
+            console.warn("[Phantom Heartbeat] Invalid session confirmed, triggering physical reload to resurrect SDK...");
+            // 世界顶端法则：绝不踢人，绝不清除 UI 缓存。
+            // 直接物理重载，让 SDK 从 LocalStorage 重新读取持久化的 Refresh Token 满血复活，彻底粉碎内存僵尸态。
+            window.location.reload();
+          } else {
+            console.warn("[Phantom Heartbeat] Silent refresh failed (likely network jitter), preserving cache.");
           }
-        }, 3000);
-      } else {
-        if (heartbeatTimer) clearTimeout(heartbeatTimer);
-      }
+        }
+      }, 3000);
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    // 废除独立监听原生 visibilitychange，完全臣服于全局融合总线
+    window.addEventListener("gx-global-sync", handlePhantomHeartbeat);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("gx-global-sync", handlePhantomHeartbeat);
       if (heartbeatTimer) clearTimeout(heartbeatTimer);
     };
   }, []);

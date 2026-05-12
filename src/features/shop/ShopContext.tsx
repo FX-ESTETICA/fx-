@@ -36,6 +36,7 @@ interface ShopContextType {
   // --- 全局订单中枢 ---
   globalBookings: any[];
   refreshBookings: () => Promise<void>;
+  applyOptimisticPatch: (patchFn: (prev: any[]) => any[]) => () => void;
   trackAction: () => Promise<void>;
   // --- 僵尸网络态防伪探针 ---
   isDataStale: boolean;
@@ -188,6 +189,23 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       }
     }, [resolvedActiveShopId]);
 
+  // ==========================================
+  // 【世界顶端：乐观更新引擎 (Optimistic UI Engine)】
+  // ==========================================
+  const applyOptimisticPatch = useCallback((patchFn: (prev: any[]) => any[]) => {
+    let previousState: any[] = [];
+    setGlobalBookings(prev => {
+      previousState = [...prev];
+      return patchFn(prev);
+    });
+    
+    // 返回回滚函数 (Rollback)
+    return () => {
+      console.warn("[ShopContext] ⚠️ 乐观更新失败，触发物理回滚...");
+      setGlobalBookings(previousState);
+    };
+  }, []);
+
   useEffect(() => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') {
       setShopConfig(null);
@@ -310,6 +328,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     // 3. Realtime Subscription (Bookings)
     // 接管原有的订单监听，直接在此处触发全局订单拉取
     let realtimeDebounceTimer: NodeJS.Timeout | null = null;
+    let bookingChannelBirthTime = Date.now(); // 【新生保护期盾牌】
+
     const handleBookingUpdate = () => {
       if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       realtimeDebounceTimer = setTimeout(() => {
@@ -332,6 +352,9 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     // 【终极保底探针】：每 30 秒检查一次核心 WebSocket 通道，防止被系统静默掐断
     const heartbeatTimer = setInterval(() => {
       if (isMounted && resolvedActiveShopId) {
+        // 【防误杀判断】：如果连接才刚刚诞生不到 5 秒，绝对不可能是僵尸，跳过猎杀！
+        if (Date.now() - bookingChannelBirthTime < 5000) return;
+
         const activeChannels = supabase.getChannels();
         const hasBookingChannel = activeChannels.some(c => c.topic === `realtime:public:bookings:${resolvedActiveShopId}`);
         if (!hasBookingChannel) {
@@ -341,6 +364,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
             try { BookingService.unsubscribe(channelBookings); } catch(e) {}
           }
           // 强行重建
+          bookingChannelBirthTime = Date.now(); // 刷新诞生时间
           channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
             handleBookingUpdate();
           }, () => {
@@ -364,16 +388,23 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // 2. 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
-        console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
-        if (channelBookings) {
-          try { BookingService.unsubscribe(channelBookings); } catch(e) {}
-        }
+        // 【新生保护期盾牌拦截】：如果距离上一次建立 WebSocket 还不到 5 秒（比如刚刷新页面时的首屏并发事件）
+        // 坚决拦截核弹！防止浏览器底层 WebSocket 报错: "WebSocket is closed before the connection is established"
+        if (Date.now() - bookingChannelBirthTime < 5000) {
+          console.log(`[ShopContext] 🛡️ 免疫核弹：Booking 通道处于 5 秒新生保护期，物理拦截重建指令...`);
+        } else {
+          console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
+          if (channelBookings) {
+            try { BookingService.unsubscribe(channelBookings); } catch(e) {}
+          }
 
-        channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
-          handleBookingUpdate();
-        }, () => {
-          handleBookingUpdate();
-        });
+          bookingChannelBirthTime = Date.now(); // 刷新诞生时间
+          channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
+            handleBookingUpdate();
+          }, () => {
+            handleBookingUpdate();
+          });
+        }
 
         // 3. 重新拉取配置与订单
         fetchShopConfig();
@@ -711,6 +742,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       updateFullShopConfig,
       globalBookings,
       refreshBookings,
+      applyOptimisticPatch,
       trackAction,
       isDataStale
     }), [
@@ -726,6 +758,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       updateFullShopConfig,
       globalBookings,
       refreshBookings,
+      applyOptimisticPatch,
       trackAction,
       isDataStale
     ]);

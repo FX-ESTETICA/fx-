@@ -272,12 +272,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
     // 1. 监听原生壳唤醒总线 (App 从后台切回前台瞬间触发)
     window.addEventListener('gx-global-sync', handleWakeUpCheck);
     
-    // 2. 兜底防线：如果用户 iPad 一直亮屏挂在墙上跨越了午夜零点，每分钟物理巡检一次
-    const rolloverInterval = setInterval(handleWakeUpCheck, 60 * 1000);
-    
     return () => {
       window.removeEventListener('gx-global-sync', handleWakeUpCheck);
-      clearInterval(rolloverInterval);
     };
   }, []);
 

@@ -90,7 +90,7 @@ export function DualPaneBookingModal({
  isPhoneMasked
 }: DualPaneBookingModalProps) {
  const t = useTranslations('DualPaneBookingModal');
- const { activeShopId, availableShops, refreshBookings, trackAction } = useShop();
+ const { activeShopId, availableShops, refreshBookings, trackAction, applyOptimisticPatch } = useShop();
  const { settings } = useVisualSettings();
  const isCalendarView = typeof window !== 'undefined' ? window.location.pathname.includes('calendar') : false;
   const isLight = isCalendarView ? settings.calendarBgIndex !== 0 : settings.frontendBgIndex !== 0;
@@ -916,12 +916,33 @@ export function DualPaneBookingModal({
  resourceId: 'NO', // 可以将其移动到“爽约”列，如果存在的话
  }];
  
- await BookingService.upsertBookings(updatedBookings);
- refreshBookings();
- trackAction();
+ // 1. 瞬间关闭弹窗
  handleClose();
+
+ // 2. 瞬间乐观更新
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   updatedBookings.forEach(ub => {
+     const idx = nextState.findIndex(x => x.id === ub.id);
+     if (idx >= 0) nextState[idx] = { ...nextState[idx], ...ub };
+   });
+   return nextState;
+ });
+
+ // 3. 异步发送请求
+ setTimeout(async () => {
+   try {
+     await BookingService.upsertBookings(updatedBookings);
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to mark as No Show:", error);
+     rollback();
+   }
+ }, 0);
+
  } catch (error) {
- console.error("Failed to mark as No Show:", error);
+ console.error("Failed to prepare No Show:", error);
  }
  };
 
@@ -945,22 +966,32 @@ export function DualPaneBookingModal({
       return s;
     });
 
+    const payload = [{
+      ...targetBooking,
+      services: updatedServices,
+      date: targetBooking.date || selectedDate.replace(/\//g, '-'),
+      startTime: targetBooking.startTime || "00:00",
+      resourceId: targetBooking.resourceId === null ? undefined : targetBooking.resourceId
+    }];
+
+    // 4. 瞬间乐观更新 (修改价格)
+    const rollback = applyOptimisticPatch((prev) => {
+      let nextState = [...prev];
+      payload.forEach(ub => {
+        const idx = nextState.findIndex(x => x.id === ub.id);
+        if (idx >= 0) nextState[idx] = { ...nextState[idx], ...ub };
+      });
+      return nextState;
+    });
+
     try {
-      // 4. 静默写入数据库
-      const payload = [{
-        ...targetBooking,
-        services: updatedServices,
-        date: targetBooking.date || selectedDate.replace(/\//g, '-'),
-        startTime: targetBooking.startTime || "00:00",
-        resourceId: targetBooking.resourceId === null ? undefined : targetBooking.resourceId
-      }];
+      // 5. 静默写入数据库
       await BookingService.upsertBookings(payload);
-      
-      // 5. 触发全局刷新，保证各端数据一致
       refreshBookings();
       trackAction();
     } catch (error) {
       console.error("Failed to auto-save checkout price:", error);
+      rollback();
     }
   };
 
@@ -980,27 +1011,46 @@ export function DualPaneBookingModal({
  const currentServices = targetBooking.services || [];
  const updatedServices = currentServices.filter((s: any) => s.id !== serviceId);
  
- // 【后台静默更新法则】
- if (updatedServices.length === 0) {
- // 如果删除了最后一个服务，直接物理删除整个订单
- await BookingService.deleteBookings([targetBooking.id as string]);
- } else {
- // 否则只更新 services 数组，并重新计算时长等
+ const isFullDelete = updatedServices.length === 0;
  const updatedDuration = updatedServices.reduce((sum: number, s: any) => sum + (s.duration || 0), 0);
  const payload = [{
-          ...targetBooking,
-          services: updatedServices,
-          duration: Math.max(1, updatedDuration),
-          // 补齐必填字段
-          date: targetBooking.date || selectedDate.replace(/\//g, '-'),
-          startTime: targetBooking.startTime || "00:00",
-          resourceId: targetBooking.resourceId === null ? undefined : targetBooking.resourceId
-        }];
-        await BookingService.upsertBookings(payload);
- }
- 
- refreshBookings();
- trackAction();
+    ...targetBooking,
+    services: updatedServices,
+    duration: Math.max(1, updatedDuration),
+    date: targetBooking.date || selectedDate.replace(/\//g, '-'),
+    startTime: targetBooking.startTime || "00:00",
+    resourceId: targetBooking.resourceId === null ? undefined : targetBooking.resourceId
+ }];
+
+ // 瞬间乐观更新
+ const rollback = applyOptimisticPatch((prev) => {
+   if (isFullDelete) {
+     return prev.filter(b => b.id !== targetBooking.id);
+   } else {
+     let nextState = [...prev];
+     const idx = nextState.findIndex(x => x.id === targetBooking.id);
+     if (idx >= 0) nextState[idx] = { ...nextState[idx], ...payload[0] };
+     return nextState;
+   }
+ });
+
+ // 【后台静默更新法则】
+ setTimeout(async () => {
+   try {
+     if (isFullDelete) {
+       await BookingService.deleteBookings([targetBooking.id as string]);
+     } else {
+       await BookingService.upsertBookings(payload);
+     }
+     refreshBookings();
+     trackAction();
+   } catch(e) {
+     console.error("Failed to delete checkout item:", e);
+     rollback();
+     setDeletedCheckoutItemIds(prev => prev.filter(id => id !== serviceId));
+     alert("删除失败，请重试");
+   }
+ }, 0);
  
  // 检查目前计算后的 checkoutAllServices（由于依赖项更新，下一次渲染会少一个）
  // 为了在本次渲染周期判断，我们手动算一下剩下的数量
@@ -1073,13 +1123,32 @@ export function DualPaneBookingModal({
        };
      });
 
-     await BookingService.upsertBookings(updatedBookings);
-     refreshBookings();
-     trackAction();
-     handleClose(); // 极致降维：点击结束后瞬间关闭弹窗
+     // 1. 瞬间关闭弹窗
+     handleClose();
+
+     // 2. 瞬间乐观更新
+     const rollback = applyOptimisticPatch((prev) => {
+       let nextState = [...prev];
+       updatedBookings.forEach(ub => {
+         const idx = nextState.findIndex(x => x.id === ub.id);
+         if (idx >= 0) nextState[idx] = { ...nextState[idx], ...ub };
+       });
+       return nextState;
+     });
+
+     // 3. 异步发送请求
+     setTimeout(async () => {
+       try {
+         await BookingService.upsertBookings(updatedBookings);
+         refreshBookings();
+         trackAction();
+       } catch (error) {
+         console.error("Failed to end service:", error);
+         rollback();
+       }
+     }, 0);
    } catch (error) {
-     console.error("Failed to end service:", error);
-     alert("结束服务失败，请重试");
+     console.error("Failed to prepare end service:", error);
    }
  };
 
@@ -1095,16 +1164,30 @@ export function DualPaneBookingModal({
  // 单删：只删除当前点击的这个
  idsToDelete = [editingBooking.id as string];
  }
- 
- if (idsToDelete.length > 0) {
- await BookingService.deleteBookings(idsToDelete);
- }
- 
- refreshBookings();
- trackAction();
+
+ // 1. 瞬间关闭弹窗
  handleClose();
+ 
+ // 2. 瞬间执行乐观更新 (蒸发色块)
+ const rollback = applyOptimisticPatch((prev) => {
+   return prev.filter(b => !idsToDelete.includes(b.id));
+ });
+
+ // 3. 异步后台网络请求
+ setTimeout(async () => {
+   try {
+     if (idsToDelete.length > 0) {
+       await BookingService.deleteBookings(idsToDelete);
+     }
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to delete booking:", error);
+     rollback(); // 如果报错，把删掉的色块弹回来
+   }
+ }, 0);
  } catch (error) {
- console.error("Failed to delete booking:", error);
+ console.error("Failed to prepare delete:", error);
  }
  };
  // === 物理业务动作：开始服务 ===
@@ -1134,12 +1217,33 @@ export function DualPaneBookingModal({
        };
      });
 
-     await BookingService.upsertBookings(updatedBookings);
-     refreshBookings();
-     trackAction();
+     // 1. 瞬间关闭弹窗
      handleClose();
+
+     // 2. 瞬间乐观更新 (修改起始时间和状态)
+     const rollback = applyOptimisticPatch((prev) => {
+       let nextState = [...prev];
+       updatedBookings.forEach(ub => {
+         const idx = nextState.findIndex(x => x.id === ub.id);
+         if (idx >= 0) nextState[idx] = { ...nextState[idx], ...ub };
+       });
+       return nextState;
+     });
+
+     // 3. 异步发送请求
+     setTimeout(async () => {
+       try {
+         await BookingService.upsertBookings(updatedBookings);
+         refreshBookings();
+         trackAction();
+       } catch (error) {
+         console.error("Failed to start service:", error);
+         rollback();
+         alert("开始服务失败，请重试");
+       }
+     }, 0);
    } catch (error) {
-     console.error("Failed to start service:", error);
+     console.error("Failed to prepare start service:", error);
      alert("开始服务失败，请重试");
    }
  };
@@ -1321,7 +1425,47 @@ export function DualPaneBookingModal({
  // 1. 瞬间关闭弹窗，消除阻塞感
  handleClose();
  
- // 2. 派发一个临时的视觉更新事件，让日历组件把 newBookings 画出来（可选，如果不派发，稍后刷新也会出来）
+ // 2. 瞬间执行前端乐观更新 (Optimistic UI)
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   // 先处理要删除的
+   if (idsToDelete.length > 0) {
+     nextState = nextState.filter(b => !idsToDelete.includes(b.id));
+   }
+   // 再处理要新增/更新的
+   newBookings.forEach(b => {
+     // 【乐观排盘大脑】：如果这是一个无指定订单，我们在前端内存里瞬间为它寻找一个空闲列，避免隐形
+     if (!b.resourceId && b.originalUnassigned) {
+       const startMin = parseInt((b.startTime || "00:00").split(':')[0]) * 60 + parseInt((b.startTime || "00:00").split(':')[1]);
+       const endMin = startMin + (b.duration || 60);
+       let bestStaffId = null;
+       for (const staff of staffs) {
+         if (staff.id === 'NEXUS' || staff.id === 'NO' || staff.status === 'resigned' || staff.status === 'spectator') continue;
+         const hasConflict = nextState.some(existing => {
+           if (existing.resourceId !== staff.id || existing.date !== b.date) return false;
+           const eStart = parseInt((existing.startTime || "00:00").split(':')[0]) * 60 + parseInt((existing.startTime || "00:00").split(':')[1]);
+           const eEnd = eStart + (existing.duration || 60);
+           return Math.max(0, Math.min(endMin, eEnd) - Math.max(startMin, eStart)) > 0;
+         });
+         if (!hasConflict) {
+           bestStaffId = staff.id;
+           break;
+         }
+       }
+       // 兜底：如果所有人都满了，强制塞给第一个员工，反正一会后台重排会把它顺延
+       b.resourceId = bestStaffId || staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO' && s.status !== 'resigned' && s.status !== 'spectator')?.id;
+     }
+
+     const idx = nextState.findIndex(x => x.id === b.id);
+     if (idx >= 0) {
+       nextState[idx] = { ...nextState[idx], ...b };
+     } else {
+       nextState.push(b);
+     }
+   });
+   return nextState;
+ });
+
  // 3. 将耗时的网络请求转入异步宏任务
    setTimeout(async () => {
      try {
@@ -1346,6 +1490,7 @@ export function DualPaneBookingModal({
      trackAction();
    } catch (error) {
      console.error("Failed to save bookings to Supabase in background:", error);
+     rollback(); // 【降级防线】：一旦报错，撤销前端所有的乐观假象
    } finally {
      setIsSaving(false);
    }
@@ -1829,16 +1974,36 @@ export function DualPaneBookingModal({
  };
  });
  
- await BookingService.upsertBookings(updatedBookings);
- 
  // 触发全局重刷，因为有时候实时订阅会有毫秒级延迟
- refreshBookings();
- trackAction();
  // 极速模式：结账完成后瞬间关闭窗口，追求极致效率
  handleClose(); 
+ 
+ // 【视觉瞬发法则】瞬间乐观更新结账状态
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   updatedBookings.forEach(ub => {
+     const idx = nextState.findIndex(x => x.id === ub.id);
+     if (idx >= 0) nextState[idx] = { ...nextState[idx], ...ub };
+   });
+   return nextState;
+ });
+
+ setTimeout(async () => {
+   try {
+     await BookingService.upsertBookings(updatedBookings);
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to checkout:", error);
+     rollback();
+     alert("结算更新失败，请重试");
+     setCheckoutSlideProgress(0); // 失败时回弹
+   }
+ }, 0);
+
  } catch (error) {
- console.error("Failed to checkout:", error);
- alert("结算更新失败，请重试");
+ console.error("Failed to prepare checkout:", error);
+ alert("结算准备失败，请重试");
  setCheckoutSlideProgress(0); // 失败时回弹
  }
  };
@@ -2362,36 +2527,74 @@ export function DualPaneBookingModal({
            });
          });
 
-         // 3. 入库
-         const payload = newBookings.map(b => {
-           const { _needsTimeReflow, _isForceInsert, ...rest } = b;
-           return {
-             ...rest,
-             date: rest.date || selectedDate.replace(/\//g, '-') // 强制赋予 date 解决 TS 类型报错
-           };
-         });
-         await BookingService.upsertBookings(payload as any);
+         // 3. 乐观更新
+          const rollback = applyOptimisticPatch((prev) => {
+            const nextState = [...prev];
+            newBookings.forEach(b => {
+              // 【乐观排盘大脑】：如果这是一个无指定订单，我们在前端内存里瞬间为它寻找一个空闲列，避免隐形
+              if (!b.resourceId && b.originalUnassigned) {
+                const startMin = parseInt((b.startTime || "00:00").split(':')[0]) * 60 + parseInt((b.startTime || "00:00").split(':')[1]);
+                const endMin = startMin + (b.duration || 60);
+                let bestStaffId = null;
+                for (const staff of staffs) {
+                  if (staff.id === 'NEXUS' || staff.id === 'NO' || staff.status === 'resigned' || staff.status === 'spectator') continue;
+                  const hasConflict = nextState.some(existing => {
+                    if (existing.resourceId !== staff.id || existing.date !== b.date) return false;
+                    const eStart = parseInt((existing.startTime || "00:00").split(':')[0]) * 60 + parseInt((existing.startTime || "00:00").split(':')[1]);
+                    const eEnd = eStart + (existing.duration || 60);
+                    return Math.max(0, Math.min(endMin, eEnd) - Math.max(startMin, eStart)) > 0;
+                  });
+                  if (!hasConflict) {
+                    bestStaffId = staff.id;
+                    break;
+                  }
+                }
+                // 兜底：如果所有人都满了，强制塞给第一个员工，反正一会后台重排会把它顺延
+                b.resourceId = bestStaffId || staffs.find(s => s.id !== 'NEXUS' && s.id !== 'NO' && s.status !== 'resigned' && s.status !== 'spectator')?.id;
+              }
+              nextState.push(b);
+            });
+            return nextState;
+          });
 
-         // 4. 重排大脑
-         let currentShopId = activeShopId || 'default';
-         if (typeof window !== 'undefined') currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
-         const manualOverrides: Record<string, any> = {};
-         newBookings.forEach(b => {
-           manualOverrides[b.id as string] = {
-             resourceId: b.resourceId,
-             originalUnassigned: b.originalUnassigned,
-             _needsTimeReflow: b._needsTimeReflow,
-             _isForceInsert: b._isForceInsert
-           };
-         });
-         await BookingScheduler.reflowDayBookings(selectedDate.replace(/\//g, '-'), currentShopId, staffs, manualOverrides);
-
-         refreshBookings();
-         trackAction();
          handleClose();
+
+         setTimeout(async () => {
+           try {
+             const payload = newBookings.map(b => {
+               const { _needsTimeReflow, _isForceInsert, ...rest } = b;
+               return {
+                 ...rest,
+                 date: rest.date || selectedDate.replace(/\//g, '-')
+               };
+             });
+             await BookingService.upsertBookings(payload as any);
+
+             // 4. 重排大脑
+             let currentShopId = activeShopId || 'default';
+             if (typeof window !== 'undefined') currentShopId = new URLSearchParams(window.location.search).get('shopId') || currentShopId;
+             const manualOverrides: Record<string, any> = {};
+             newBookings.forEach(b => {
+               manualOverrides[b.id as string] = {
+                 resourceId: b.resourceId,
+                 originalUnassigned: b.originalUnassigned,
+                 _needsTimeReflow: b._needsTimeReflow,
+                 _isForceInsert: b._isForceInsert
+               };
+             });
+             await BookingScheduler.reflowDayBookings(selectedDate.replace(/\//g, '-'), currentShopId, staffs, manualOverrides);
+
+             refreshBookings();
+             trackAction();
+           } catch (error) {
+             console.error("Failed to quick start booking:", error);
+             rollback();
+           } finally {
+             setIsSaving(false);
+           }
+         }, 0);
        } catch (error) {
-         console.error("Failed to quick start booking:", error);
-       } finally {
+         console.error("Failed to prepare quick start:", error);
          setIsSaving(false);
        }
      }}

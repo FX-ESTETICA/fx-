@@ -7,8 +7,20 @@ import { SWRConfig } from "swr";
 
 export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
+    // 【世界顶端架构】：总线级信号融合锁
+    // 专门对抗浏览器/移动端在唤醒瞬间同时触发 visibility、focus、pageshow 导致的信号风暴
+    let lastSyncTime = 0;
+
     // 统一探针收口：向全系统广播静默同步事件
     const triggerGlobalSync = (reason: string) => {
+      const now = Date.now();
+      // 【融合锁】：如果是 500 毫秒内并发的唤醒事件，直接吞没，物理合并！
+      // 这不影响后续（比如几秒后的）真正网络断开重连。
+      if (now - lastSyncTime < 500) {
+        console.log(`[GlobalSyncEngine] 🛡️ 信号融合锁启动，吞噬并发冗余信号: ${reason}`);
+        return;
+      }
+      lastSyncTime = now;
       console.log(`[GlobalSyncEngine] 触发全局静默同步总线. 唤醒源: ${reason}`);
       window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason } }));
     };
@@ -102,43 +114,17 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
         // 强制开启焦点和重连验证，保证 SWR 层面的绝对最新
         revalidateOnFocus: true,
         revalidateOnReconnect: true,
-        // 自定义 SWR 唤醒探针：将 Capacitor 唤醒也接入 SWR 的刷新周期
+        // 【世界顶端：唯一真理发射塔收口】
+        // 废除 SWR 内部原生的冗余监听，直接接管经过 500ms 融合锁提纯的 gx-global-sync
         initFocus(callback) {
-          let appStateListener: any = null;
-
-          const onVisibilityChange = () => {
-            if (document.visibilityState === "visible") callback();
+          const handleGlobalSync = () => {
+            console.log("[GlobalSyncEngine] SWR 接管统一融合唤醒指令，执行无重叠数据刷新...");
+            callback();
           };
-          const onFocus = () => callback();
-          const onPageShow = (e: PageTransitionEvent) => {
-            if (e.persisted) callback();
-          };
-
-          document.addEventListener("visibilitychange", onVisibilityChange);
-          window.addEventListener("focus", onFocus);
-          window.addEventListener("pageshow", onPageShow);
-
-          if (typeof window !== "undefined") {
-            const originalForceWakeUp = (window as any).gxForceWakeUp;
-            (window as any).gxForceWakeUp = () => {
-              if (originalForceWakeUp) originalForceWakeUp();
-              callback();
-            };
-          }
-
-          if (Capacitor.isNativePlatform() && App && App.addListener) {
-            App.addListener('appStateChange', ({ isActive }) => {
-              if (isActive) callback();
-            }).then(listener => {
-              appStateListener = listener;
-            }).catch(() => {});
-          }
+          window.addEventListener("gx-global-sync", handleGlobalSync);
 
           return () => {
-            document.removeEventListener("visibilitychange", onVisibilityChange);
-            window.removeEventListener("focus", onFocus);
-            window.removeEventListener("pageshow", onPageShow);
-            if (appStateListener && appStateListener.remove) appStateListener.remove();
+            window.removeEventListener("gx-global-sync", handleGlobalSync);
           };
         }
       }}

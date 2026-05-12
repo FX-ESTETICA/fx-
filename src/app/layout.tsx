@@ -8,7 +8,6 @@ import { NebulaBackground } from "@/components/shared/NebulaBackground";
 import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
 import { WeChatBrowserGuard } from "@/components/shared/WeChatBrowserGuard";
 import { OTAUpdater } from "@/components/shared/OTAUpdater";
-// import { WebDownloadPrompt } from "@/components/shared/WebDownloadPrompt";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { GlobalSyncProvider } from "@/providers/GlobalSyncProvider";
@@ -236,7 +235,6 @@ export default async function RootLayout({
               </ShopProvider>
             </AuthProvider>
           </GlobalSyncProvider>
-          {/* <WebDownloadPrompt /> */}
         </NextIntlClientProvider>
       </body>
     </html>

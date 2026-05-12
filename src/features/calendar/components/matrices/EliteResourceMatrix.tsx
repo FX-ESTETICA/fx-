@@ -94,7 +94,7 @@ const CurrentTimeIndicator = React.memo(({ getYCoordinate }: { getYCoordinate: (
 });
 
 export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours, currentDate, bookings = [], onGridClick, onBookingClick, onReadOnlyIntercept, matrixScrollRef, onDateSwipe, onPhantomDateChange, isReadOnly, isPaletteExpanded }: EliteResourceMatrixProps & { storeStatus?: string; isReadOnly?: boolean }) => {
- const { refreshBookings, trackAction } = useShop();
+ const { refreshBookings, trackAction, applyOptimisticPatch } = useShop();
 
  const { settings: visualSettings } = useVisualSettings();
  const activeTab = useActiveTab();
@@ -822,12 +822,28 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
 
  setProcessingOrderId(booking.id); // 锁死，防止连续触发
 
- try {
  // 【2D 落子法则】：触发智能排盘，同时改变时间和资源列
  // 无论是指定员工间的互相换位，还是散客扔给指定员工，都完美接管
  const isAssignedToPerson = finalTargetResourceId !== null && finalTargetResourceId !== 'UNASSIGNED_POOL' && finalTargetResourceId !== 'NEXUS';
- 
- await BookingScheduler.reflowDayBookings(booking.date, currentShopId, resources, {
+
+ // 瞬间乐观更新 (修改被拖拽者的起始时间和人员)
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   const idx = nextState.findIndex(x => x.id === booking.id);
+   if (idx >= 0) {
+     nextState[idx] = { 
+       ...nextState[idx], 
+       startTime: newStartTime,
+       resourceId: finalTargetResourceId === 'UNASSIGNED_POOL' ? null : finalTargetResourceId
+     };
+   }
+   return nextState;
+ });
+
+ try {
+ // 【2D 落子法则】：触发智能排盘，同时改变时间和资源列
+ // 无论是指定员工间的互相换位，还是散客扔给指定员工，都完美接管
+ await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
  [booking.id]: {
  resourceId: finalTargetResourceId, // 【核心】：注入 2D 拖拽找到的新列
  startTime: newStartTime,
@@ -838,6 +854,9 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  
  refreshBookings();
  trackAction();
+ } catch (e) {
+ console.error("Drag update failed:", e);
+ rollback(); // 失败则瞬间回弹
  } finally {
  setProcessingOrderId(null); // 释放锁
  }
@@ -1340,41 +1359,56 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  const assignedServicesCount = Object.keys(splitServiceAssignments).length;
  if (isSplitMode && assignedServicesCount > 0) {
  // 批量深层剥离拆单 (基于最新的多方映射状态)
- setProcessingOrderId(booking.id); // 锁死
- BookingService.splitBookingServices(booking.id, splitServiceAssignments)
- .then(async () => {
- // 核心修复：移除 null 限制，无论指派给谁都强制全局唤醒智能排盘大脑
- await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
  setImplodedOrderId(null);
  setSplitServiceAssignments({});
- refreshBookings();
- trackAction();
- })
- .catch(err => console.error("Batch split failed:", err))
- .finally(() => setProcessingOrderId(null)); // 释放锁
+ // 拆单逻辑过于复杂（涉及分裂生成新 ID），这里不强求完美乐观更新 UI，但至少先瞬间关闭菜单消除迟滞感
+ setTimeout(async () => {
+   try {
+     await BookingService.splitBookingServices(booking.id, splitServiceAssignments);
+     await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources);
+     refreshBookings();
+     trackAction();
+   } catch (err) {
+     console.error("Batch split failed:", err);
+   }
+ }, 0);
  } else if (!isSplitMode && splitActiveEmployeeId) {
  // 单个项目的卡片直接整个换人
  const targetId = splitActiveEmployeeId === 'UNASSIGNED_POOL' ? null : splitActiveEmployeeId;
- setProcessingOrderId(booking.id); // 锁死
- BookingService.updateBookingResource(booking.id, targetId)
- .then(async () => {
- // 核心修复：移除 null 限制，无论指派给谁都强制全局唤醒智能排盘大脑
- // 注入 manualOverrides 并带有 _needsTimeReflow 标记，强迫它参与浮动重新计算
  const isAssignedToPerson = targetId !== null && targetId !== 'UNASSIGNED_POOL';
- await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
- [booking.id]: {
- resourceId: targetId,
- originalUnassigned: !isAssignedToPerson,
- _needsTimeReflow: true // 【关键标记】：强制时间顺延重算
- }
- });
+ 
+ // 1. 瞬间关闭菜单
  setImplodedOrderId(null);
  setSplitServiceAssignments({});
- refreshBookings();
- trackAction();
- })
- .catch(err => console.error("Update resource failed:", err))
- .finally(() => setProcessingOrderId(null)); // 释放锁
+
+ // 2. 瞬间乐观更新
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   const idx = nextState.findIndex(x => x.id === booking.id);
+   if (idx >= 0) {
+     nextState[idx] = { ...nextState[idx], resourceId: targetId };
+   }
+   return nextState;
+ });
+
+ // 3. 异步后台网络请求
+ setTimeout(async () => {
+   try {
+     await BookingService.updateBookingResource(booking.id, targetId);
+     await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+       [booking.id]: {
+         resourceId: targetId,
+         originalUnassigned: !isAssignedToPerson,
+         _needsTimeReflow: true // 【关键标记】：强制时间顺延重算
+       }
+     });
+     refreshBookings();
+     trackAction();
+   } catch (err) {
+     console.error("Update resource failed:", err);
+     rollback();
+   }
+ }, 0);
  }
  return;
  }
@@ -1423,22 +1457,43 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  onClick={(e) => {
  e.stopPropagation();
  if (!isSplitMode) {
- // 单项换人：退回未指定池 (null)
- BookingService.updateBookingResource(booking.id, null)
- .then(async () => {
- // 触发智能重排算法
- // 注入 manualOverrides 避免由于视图同步延迟读到旧数据
- await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
- [booking.id]: {
- resourceId: null,
- originalUnassigned: true,
- _needsTimeReflow: true // 退回未指定时也要重新寻找空位
- }
- });
+ // 1. 瞬间关闭菜单
  setImplodedOrderId(null);
- refreshBookings();
- trackAction();
+ 
+ // 2. 瞬间乐观更新 (Optimistic UI)
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   const idx = nextState.findIndex(x => x.id === booking.id);
+   if (idx >= 0) {
+     nextState[idx] = { 
+       ...nextState[idx], 
+       resourceId: null, 
+       originalUnassigned: true 
+     };
+   }
+   return nextState;
  });
+
+ // 3. 异步后台网络请求
+ setTimeout(async () => {
+   try {
+     await BookingService.updateBookingResource(booking.id, null);
+     // 触发智能重排算法
+     // 注入 manualOverrides 避免由于视图同步延迟读到旧数据
+     await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+       [booking.id]: {
+         resourceId: null,
+         originalUnassigned: true,
+         _needsTimeReflow: true // 退回未指定时也要重新寻找空位
+       }
+     });
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to reassign to unassigned:", error);
+     rollback();
+   }
+ }, 0);
  } else {
  // 多项拆单：激活“未指定”状态
  setSplitActiveEmployeeId('UNASSIGNED_POOL' === splitActiveEmployeeId ? null : 'UNASSIGNED_POOL');
@@ -1467,21 +1522,42 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  onClick={(e) => {
  e.stopPropagation();
  if (!isSplitMode) {
- // 单项换人：直接分配并关闭
- BookingService.updateBookingResource(booking.id, res.id)
- .then(async () => {
- // 强制全局唤醒智能排盘大脑，处理重叠
- await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
- [booking.id]: {
- resourceId: res.id,
- originalUnassigned: false,
- _needsTimeReflow: true // 强制顺延重排
- }
- });
+ // 1. 瞬间关闭菜单
  setImplodedOrderId(null);
- refreshBookings();
- trackAction();
+
+ // 2. 瞬间乐观更新 (Optimistic UI)
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   const idx = nextState.findIndex(x => x.id === booking.id);
+   if (idx >= 0) {
+     nextState[idx] = { 
+       ...nextState[idx], 
+       resourceId: res.id, 
+       originalUnassigned: false 
+     };
+   }
+   return nextState;
  });
+
+ // 3. 异步后台网络请求
+ setTimeout(async () => {
+   try {
+     await BookingService.updateBookingResource(booking.id, res.id);
+     // 强制全局唤醒智能排盘大脑，处理重叠
+     await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+       [booking.id]: {
+         resourceId: res.id,
+         originalUnassigned: false,
+         _needsTimeReflow: true // 强制顺延重排
+       }
+     });
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to reassign to employee:", error);
+     rollback();
+   }
+ }, 0);
  } else {
  // 多项拆单：激活该员工，等待点击项目
  setSplitActiveEmployeeId(res.id === splitActiveEmployeeId ? null : res.id);
@@ -1490,21 +1566,43 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  onDoubleClick={(e) => {
  e.stopPropagation();
  if (isSplitMode) {
- // 双击多项：整个订单直接换人（所有包裹的项目一起分配）
- BookingService.updateBookingResource(booking.id, res.id)
- .then(async () => {
- // 强制全局唤醒智能排盘大脑，处理重叠
- await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
- [booking.id]: {
- resourceId: res.id,
- originalUnassigned: false,
- _needsTimeReflow: true // 强制顺延重排
- }
- });
+ // 1. 瞬间关闭菜单
  setImplodedOrderId(null);
- refreshBookings();
- trackAction();
+
+ // 2. 瞬间乐观更新 (Optimistic UI)
+ const rollback = applyOptimisticPatch((prev) => {
+   let nextState = [...prev];
+   const idx = nextState.findIndex(x => x.id === booking.id);
+   if (idx >= 0) {
+     nextState[idx] = { 
+       ...nextState[idx], 
+       resourceId: res.id, 
+       originalUnassigned: false 
+     };
+   }
+   return nextState;
  });
+
+ // 3. 异步后台网络请求
+ setTimeout(async () => {
+   try {
+     // 双击多项：整个订单直接换人（所有包裹的项目一起分配）
+     await BookingService.updateBookingResource(booking.id, res.id);
+     // 强制全局唤醒智能排盘大脑，处理重叠
+     await BookingScheduler.reflowDayBookings(booking.date, booking.shopId || 'default', resources, {
+       [booking.id]: {
+         resourceId: res.id,
+         originalUnassigned: false,
+         _needsTimeReflow: true // 强制顺延重排
+       }
+     });
+     refreshBookings();
+     trackAction();
+   } catch (error) {
+     console.error("Failed to reassign whole order:", error);
+     rollback();
+   }
+ }, 0);
  }
  }}
  className={cn(
