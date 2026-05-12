@@ -400,22 +400,39 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  fetchStaffAvatars();
  }, [JSON.stringify(staffs.map(s => s.frontendId))]);
 
- // 【世界顶端】：移动端虚拟键盘视口雷达 (VisualViewport Tracker)
+ // 【世界顶端】：移动端虚拟键盘视口雷达 (VisualViewport Tracker) - 终极修复版
  const [keyboardOffset, setKeyboardOffset] = useState(0);
+ const initialViewportHeight = useRef(0);
 
  useEffect(() => {
   if (typeof window === "undefined" || !window.visualViewport) return;
+
+  // 记录初始视口高度
+  initialViewportHeight.current = window.visualViewport.height;
 
   const handleViewportChange = () => {
     const viewport = window.visualViewport;
     if (!viewport) return;
     
-    const windowHeight = window.innerHeight;
-    // 当键盘弹起时，物理高度减去被压缩的视口高度，得到键盘的真实高度
-    const offset = windowHeight - viewport.height;
+    // 动态更新最大视口高度（防止屏幕旋转或首次加载高度不准）
+    if (viewport.height > initialViewportHeight.current) {
+      initialViewportHeight.current = viewport.height;
+    }
     
-    // 只有当偏移量大于某个阈值（比如 50px，防止系统自带的细微抖动），才认为是键盘弹起
-    setKeyboardOffset(offset > 50 ? offset : 0);
+    // 核心破局：使用历史最大高度减去当前高度，彻底解决 Android innerHeight 塌陷导致的 offset 为 0 的致命 BUG
+    const offset = initialViewportHeight.current - viewport.height;
+    
+    if (offset > 50) {
+      setKeyboardOffset(offset);
+    } else {
+      setKeyboardOffset(0);
+      // 物理级防御：键盘收起时，强行重置浏览器非法滚动，抹杀黑色占位废墟
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      if (document.documentElement) {
+        document.documentElement.scrollTop = 0;
+      }
+    }
   };
 
   // 监听视口大小改变或因聚焦引起的滚动
@@ -2011,8 +2028,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  {/* --- 全能搜索舱 (Omnibar) - 彻底剥离并悬浮在底部，并加载键盘防弹装甲 --- */}
       {viewMode === "day" && isMainContentVisible && (
         <div 
-          className="absolute inset-x-0 mx-auto z-[60] flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none transition-all duration-300 ease-out"
-          style={{ bottom: `calc(1.5rem + ${keyboardOffset}px)` }} // 1.5rem 对应原本的 bottom-6
+          className="absolute inset-x-0 mx-auto z-[60] flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none"
+          style={{ bottom: `calc(2.5rem + ${keyboardOffset}px)` }} // 2.5rem 增加与键盘的安全间距，防遮挡
         >
           <div className="pointer-events-auto w-full relative z-[60]">
             <QuickCommandPalette 
