@@ -386,128 +386,113 @@ export function QuickCommandPalette({
 
   return (
     <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center">
-      <motion.div 
-        layout
+      <div 
         className={cn(
-          "absolute left-0 right-0 h-full flex items-center rounded-full border transition-colors overflow-hidden backdrop-blur-md",
+          "absolute left-0 right-0 h-full flex items-center rounded-full border overflow-hidden backdrop-blur-md",
           borderColor,
           glowShadow,
-          mode === 'idle' ? (isLight ? "bg-black/5 hover:bg-black/10" : "bg-white/5 hover:bg-white/10") : "bg-transparent",
+          "bg-transparent", // 极致透明法则：废弃一切底色 (bg-black/5 等)
           textColor
         )}
       >
-        <AnimatePresence initial={false}>
-          {mode !== 'search' && (
-            <motion.div
-              key="create-section"
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, display: 'none' }}
-              className={cn("h-full flex items-center", mode === 'create' ? "w-full px-4" : "flex-1 justify-center cursor-pointer hover:bg-white/5")}
-              onClick={() => {
-                if (mode === 'idle') setMode('create');
-                else inputRef.current?.focus();
-              }}
-            >
-              {mode === 'idle' ? (
-                <div className="flex items-center gap-1.5 opacity-60">
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="text-[11px] tracking-widest uppercase">快速创建</span>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-wrap items-center gap-2 relative">
-                  {selectedServices.length > 0 && editingStage !== 'service' && (
-                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }} className="flex gap-1 cursor-pointer hover:opacity-70">
-                      {selectedServices.map((srv, idx) => (
-                        <div key={idx} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border", isLight ? "border-black" : "border-white")}>{srv.name}</div>
-                      ))}
-                    </div>
-                  )}
-                  {selectedStaff && editingStage !== 'staff' && (
-                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{selectedStaff.name}</div>
-                  )}
-                  {selectedCustomer && editingStage !== 'customer' && (
-                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{selectedCustomer.name || selectedCustomer.phone}</div>
-                  )}
-                  {selectedTime && editingStage !== 'time' && (
-                    <div onClick={(e) => { e.stopPropagation(); setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{formattedDate} {selectedTime}</div>
-                  )}
+        {mode !== 'search' && (
+          <div
+            className={cn("h-full flex items-center", mode === 'create' ? "w-full px-4" : "flex-1 justify-center cursor-pointer hover:bg-white/5")}
+            onClick={() => {
+              if (mode === 'idle') setMode('create');
+              else inputRef.current?.focus();
+            }}
+          >
+            {mode === 'idle' ? (
+              <div className="flex items-center gap-1.5 opacity-60">
+                <Plus className="w-3.5 h-3.5" />
+                <span className="text-[11px] tracking-widest uppercase">快速创建</span>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-wrap items-center gap-2 relative">
+                {selectedServices.length > 0 && editingStage !== 'service' && (
+                  <div onClick={(e) => { e.stopPropagation(); setEditingStage('service'); setQuery(''); inputRef.current?.focus(); }} className="flex gap-1 cursor-pointer hover:opacity-70">
+                    {selectedServices.map((srv, idx) => (
+                      <div key={idx} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border", isLight ? "border-black" : "border-white")}>{srv.name}</div>
+                    ))}
+                  </div>
+                )}
+                {selectedStaff && editingStage !== 'staff' && (
+                  <div onClick={(e) => { e.stopPropagation(); setEditingStage('staff'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{selectedStaff.name}</div>
+                )}
+                {selectedCustomer && editingStage !== 'customer' && (
+                  <div onClick={(e) => { e.stopPropagation(); setEditingStage('customer'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{selectedCustomer.name || selectedCustomer.phone}</div>
+                )}
+                {selectedTime && editingStage !== 'time' && (
+                  <div onClick={(e) => { e.stopPropagation(); setEditingStage('time'); setQuery(''); inputRef.current?.focus(); }} className={cn("px-2.5 py-0.5 rounded-full text-[10px] tracking-widest border cursor-pointer hover:opacity-70", isLight ? "border-black" : "border-white")}>{formattedDate} {selectedTime}</div>
+                )}
 
-                  {stage === 'confirm' && !editingStage ? (
-                    <div className="flex-1 flex items-center justify-end gap-2 ml-auto">
-                      <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110", isLight ? "border-black/30" : "border-white/30")}><X className="w-3 h-3" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); submitBooking(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110 animate-pulse", isLight ? "border-black" : "border-white")}><Check className="w-3 h-3" /></button>
-                    </div>
-                  ) : (
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={handleCreateKeyDown}
-                      className="flex-1 min-w-[100px] h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
-                      placeholder={
-                        currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
-                        currentStage === 'staff' ? "选择指派员工..." :
-                        currentStage === 'customer' ? "输入客户电话/名字..." :
-                        "输入时间 (如 1430)..."
-                      }
-                    />
-                  )}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                {stage === 'confirm' && !editingStage ? (
+                  <div className="flex-1 flex items-center justify-end gap-2 ml-auto">
+                    <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110", isLight ? "border-black/30" : "border-white/30")}><X className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); submitBooking(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110 animate-pulse", isLight ? "border-black" : "border-white")}><Check className="w-3 h-3" /></button>
+                  </div>
+                ) : (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={handleCreateKeyDown}
+                    className="flex-1 min-w-[100px] h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
+                    placeholder={
+                      currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
+                      currentStage === 'staff' ? "选择指派员工..." :
+                      currentStage === 'customer' ? "输入客户电话/名字..." :
+                      "输入时间 (如 1430)..."
+                    }
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Divider */}
         {mode === 'idle' && <div className={cn("w-[1px] h-4", isLight ? "bg-black/20" : "bg-white/20")} />}
 
-        <AnimatePresence initial={false}>
-          {mode !== 'create' && (
-            <motion.div
-              key="search-section"
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, display: 'none' }}
-              className={cn("h-full flex items-center", mode === 'search' ? "w-full px-4" : "flex-1 justify-center cursor-pointer hover:bg-white/5")}
-              onClick={() => {
-                if (mode === 'idle') setMode('search');
-                else searchInputRef.current?.focus();
-              }}
-            >
-              {mode === 'idle' ? (
-                <div className="flex items-center gap-1.5 opacity-60">
-                  <Search className="w-3.5 h-3.5" />
-                  <span className="text-[11px] tracking-widest uppercase">搜索预约</span>
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5 opacity-50" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') resetAll();
-                    }}
-                    className="flex-1 h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
-                    placeholder="输入客户电话/名字..."
-                  />
-                  {searchQuery && (
-                    <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className="p-1 opacity-50 hover:opacity-100">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {mode !== 'create' && (
+          <div
+            className={cn("h-full flex items-center", mode === 'search' ? "w-full px-4" : "flex-1 justify-center cursor-pointer hover:bg-white/5")}
+            onClick={() => {
+              if (mode === 'idle') setMode('search');
+              else searchInputRef.current?.focus();
+            }}
+          >
+            {mode === 'idle' ? (
+              <div className="flex items-center gap-1.5 opacity-60">
+                <Search className="w-3.5 h-3.5" />
+                <span className="text-[11px] tracking-widest uppercase">搜索预约</span>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 opacity-50" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') resetAll();
+                  }}
+                  className="flex-1 h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
+                  placeholder="输入客户电话/名字..."
+                />
+                {searchQuery && (
+                  <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className="p-1 opacity-50 hover:opacity-100">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Dropdown for Create Mode */}
       <AnimatePresence>
