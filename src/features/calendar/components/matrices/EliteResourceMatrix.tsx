@@ -772,24 +772,17 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
    const mouseX = (e as any).clientX || ((e as any).touches && (e as any).touches[0]?.clientX) || info.point?.x || 0;
    
    if (mouseX > containerRect.left && mouseX < containerRect.right) {
-     // 减去左侧时间轴的宽度（实际是 w-24 即 96px 或 w-[60px] 响应式，统一以实际容器内列的偏移为准）
-     // 最精准的方法：容器内有时间轴列（如 flex-none w-24）。所以实际数据区是从时间轴右边开始。
-     // 获取时间列的宽度，如果是响应式的，我们可以直接找 timeColumnRef 的宽度
-     const timeColumnWidth = timeColumnRef.current?.offsetWidth || 96;
+     // 【坐标系修复】：matrixContainerRef 已经是时间轴右侧的数据矩阵，左边界即为第一列起点
+     // 直接使用鼠标相对于容器的 X 坐标，废弃错误的时间轴双重减扣
+     const relativeX = mouseX - containerRect.left;
+     const colWidth = containerRect.width / resources.length;
+     const colIndex = Math.floor(relativeX / colWidth);
      
-     // 如果鼠标还在时间轴区域，就不变
-     if (mouseX > containerRect.left + timeColumnWidth) {
-       const relativeX = mouseX - (containerRect.left + timeColumnWidth);
-       const dataAreaWidth = containerRect.width - timeColumnWidth;
-       const colWidth = dataAreaWidth / resources.length;
-       const colIndex = Math.floor(relativeX / colWidth);
-       
-       if (colIndex >= 0 && colIndex < resources.length) {
-         const hoveredResource = resources[colIndex];
-         targetResourceId = hoveredResource.id;
-         targetResourceColor = hoveredResource.id === 'NO' ? '#ef4444' : (hoveredResource.themeColor || '#ffffff');
-         targetResourceAccent = hoveredResource.id === 'NO' ? 'red' : 'cyan'; // 简化 accent 获取
-       }
+     if (colIndex >= 0 && colIndex < resources.length) {
+       const hoveredResource = resources[colIndex];
+       targetResourceId = hoveredResource.id;
+       targetResourceColor = hoveredResource.id === 'NO' ? '#ef4444' : (hoveredResource.themeColor || '#ffffff');
+       targetResourceAccent = hoveredResource.id === 'NO' ? 'red' : 'cyan'; // 简化 accent 获取
      }
    }
  }
