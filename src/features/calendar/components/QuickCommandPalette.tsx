@@ -393,7 +393,7 @@ export function QuickCommandPalette({
           "h-8 md:h-[38px] flex items-center z-[60]",
           mode === 'idle' 
             ? "relative w-full" 
-            : "fixed top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[368px]"
+            : "fixed top-[70px] md:top-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[368px]"
         )}
       >
         <div 
@@ -513,11 +513,11 @@ export function QuickCommandPalette({
       <AnimatePresence>
         {mode === 'create' && stage !== 'confirm' && currentList.length > 0 && (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            exit={{ opacity: 0, y: -10 }}
             className={cn(
-              "absolute bottom-full mb-2 left-0 right-0 max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-[70] shadow-2xl",
+              "absolute top-full mt-2 left-0 right-0 max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-[70] shadow-2xl",
               isLight ? "bg-white/90 border-black/10" : "bg-black/80 border-white/10"
             )}
           >
@@ -557,11 +557,11 @@ export function QuickCommandPalette({
       <AnimatePresence>
         {mode === 'search' && debouncedSearchQuery.trim() && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            exit={{ opacity: 0, y: -10 }}
             className={cn(
-              "absolute bottom-full mb-2 left-0 right-0 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto border backdrop-blur-md z-[70] shadow-2xl",
+              "absolute top-full mt-2 left-0 right-0 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto border backdrop-blur-md z-[70] shadow-2xl",
               isLight ? "bg-white/90 border-black/10" : "bg-black/80 border-white/10"
             )}
           >
