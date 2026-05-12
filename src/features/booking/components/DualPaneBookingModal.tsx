@@ -399,7 +399,6 @@ export function DualPaneBookingModal({
 
  // --- 模糊搜索下拉状态 ---
  const [fuzzyResults, setFuzzyResults] = useState<any[]>([]);
- const [isFuzzySearching, setIsFuzzySearching] = useState(false);
 
  // --- 动态日历状态 ---
  const [calendarViewDate, setCalendarViewDate] = useState(() => {
@@ -2067,7 +2066,7 @@ export function DualPaneBookingModal({
  
  {/* 极简下拉推荐菜单 (Fuzzy Search Dropdown) */}
  <AnimatePresence>
- {isMemberInputFocused && phoneTracks[0] && phoneTracks[0].length >= 3 && (fuzzyResults.length > 0 || isFuzzySearching) && (
+ {isMemberInputFocused && phoneTracks[0] && phoneTracks[0].length >= 3 && fuzzyResults.length > 0 && (
  <motion.div 
  
  
@@ -2078,13 +2077,6 @@ export function DualPaneBookingModal({
  {/* 顶部光线 */}
  <div className={`h-[1px] w-full bg-gradient-to-r from-transparent ${isLight ? "via-[#8B7355]" : "via-[#FDF5E6]"} to-transparent `} />
  
- {isFuzzySearching ? (
- <div className="p-4 flex items-center justify-center gap-2 ">
- <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping`} />
- <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping `} />
- <span className={`w-1 h-1 ${isLight ? "bg-[#8B7355]" : "bg-[#FDF5E6]"} rounded-full animate-ping `} />
- </div>
- ) : (
  <div className="max-h-[200px] overflow-y-auto no-scrollbar flex flex-col py-1">
  {fuzzyResults.map((result, idx) => (
  <div 
@@ -2146,7 +2138,6 @@ export function DualPaneBookingModal({
  </div>
  ))}
  </div>
- )}
  </motion.div>
  )}
  </AnimatePresence>
