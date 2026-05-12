@@ -438,20 +438,25 @@ export function QuickCommandPalette({
                     <button onClick={(e) => { e.stopPropagation(); submitBooking(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110 animate-pulse", isLight ? "border-black" : "border-white")}><Check className="w-3 h-3" /></button>
                   </div>
                 ) : (
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleCreateKeyDown}
-                    className="flex-1 min-w-[100px] h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
-                    placeholder={
-                      currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
-                      currentStage === 'staff' ? "选择指派员工..." :
-                      currentStage === 'customer' ? "输入客户电话/名字..." :
-                      "输入时间 (如 1430)..."
-                    }
-                  />
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={handleCreateKeyDown}
+                      className="flex-1 min-w-[100px] h-6 bg-transparent outline-none text-[11px] tracking-widest placeholder:opacity-40"
+                      placeholder={
+                        currentStage === 'service' ? "输入项目首字母 (如 MN)..." :
+                        currentStage === 'staff' ? "选择指派员工..." :
+                        currentStage === 'customer' ? "输入客户电话/名字..." :
+                        "输入时间 (如 1430)..."
+                      }
+                    />
+                    <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className="p-1 opacity-50 hover:opacity-100 shrink-0">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
               </div>
             )}
