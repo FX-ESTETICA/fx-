@@ -504,12 +504,11 @@ export function DualPaneBookingModal({
  setMatchedProfile(null);
  setMatchedHistoryCustomer(null);
  setFuzzyResults([]);
- setIsFuzzySearching(false);
  return;
  }
  
- // 开启搜索动画
- setIsFuzzySearching(true);
+ // 【世界顶端搜索热替换法则】：废弃 Loading 动画，保持当前下拉框状态不动
+ // 只有当新数据回来时，进行瞬间的热替换 (Hot Swap)
  
  phoneMatchTimerRef.current = setTimeout(async () => {
  try {
@@ -539,10 +538,10 @@ export function DualPaneBookingModal({
  setMatchedProfile(null);
  setMatchedHistoryCustomer(null);
  }
- } finally {
- setIsFuzzySearching(false);
+ } catch (err) {
+ console.error("Failed to perform fuzzy search:", err);
  }
- }, 500);
+ }, 300); // 将防抖从 500ms 缩短到 300ms，让热替换感觉更敏捷
  };
 
  const updatePhoneTracks = (nextTracks: string[], skipAutoMatch = false) => {
@@ -2684,10 +2683,11 @@ export function DualPaneBookingModal({
  <span className={cn("text-xs", isLight ? "text-black/40" : "text-white/40")}>·</span>
 
  {/* 电话多轨流 */}
- <div className="flex items-center gap-2">
+ <div className="flex items-center gap-2 relative">
  {phoneTracks.map((phone, index) => (
  <div key={index} className="flex items-center gap-1 group/phone relative">
  {editingPhoneIndex === index ? (
+ <div className="relative">
  <input 
  type="text" 
  autoComplete="off"
@@ -2702,6 +2702,62 @@ export function DualPaneBookingModal({
  onBlur={() => setEditingPhoneIndex(null)}
  autoFocus
  />
+ 
+ {/* 世界顶端模糊搜索面板 (物理刚体锁定 + 热替换) */}
+ <AnimatePresence>
+ {fuzzyResults.length > 0 && phone.length >= 3 && (
+ <>
+ <div className="fixed inset-0 z-[80]" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setFuzzyResults([]); }} />
+ <motion.div
+ initial={{ opacity: 0, y: 5 }}
+ animate={{ opacity: 1, y: 0 }}
+ exit={{ opacity: 0, y: 5 }}
+ transition={{ duration: 0.2 }}
+ className={cn(
+ "absolute top-full left-0 mt-3 rounded-xl overflow-hidden min-h-[120px] max-h-[250px] overflow-y-auto z-[90] w-64",
+ "bg-transparent border",
+ isLight ? "border-black/20" : "border-white/20",
+ "backdrop-blur-xl shadow-2xl"
+ )}
+ >
+ <div className="flex flex-col p-1.5">
+ {fuzzyResults.map((result, i) => (
+ <button
+ key={i}
+ onMouseDown={(e) => {
+ // 阻止失去焦点导致面板关闭
+ e.preventDefault();
+ const newTracks = [...phoneTracks];
+ newTracks[index] = result.phone;
+ updatePhoneTracks(newTracks, true); // 阻止再次触发匹配
+ setMatchedHistoryCustomer(result);
+ setFuzzyResults([]);
+ setEditingPhoneIndex(null);
+ }}
+ className={cn(
+ "flex flex-col text-left p-2.5 rounded-lg transition-colors mb-1 last:mb-0",
+ isLight ? "hover:bg-black/5" : "hover:bg-white/5"
+ )}
+ >
+ <span className={cn("text-xs font-medium tracking-wider mb-1", isLight ? "text-black" : "text-white")}>
+ {result.phone}
+ </span>
+ <div className="flex justify-between items-center w-full">
+ <span className={cn("text-[10px] truncate max-w-[120px]", isLight ? "text-black/60" : "text-white/60")}>
+ {result.name || 'Unnamed'}
+ </span>
+ <span className={cn("text-[10px]", isLight ? "text-black/40" : "text-white/40")}>
+ {result.gx_id}
+ </span>
+ </div>
+ </button>
+ ))}
+ </div>
+ </motion.div>
+ </>
+ )}
+ </AnimatePresence>
+ </div>
  ) : (
  <div className="relative flex items-center">
  <span
