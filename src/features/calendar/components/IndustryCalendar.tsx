@@ -1589,9 +1589,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  className="flex flex-col gap-0"
  >
  {/* [CONTAINER 2] 日期与视图控制栏 (Date & Navigation Bar) */}
- <div className="px-3 md:px-6 py-2 md:py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-transparent">
- {/* 第一行：时空锚点 (Date) */}
- <div className="flex items-center gap-2 md:gap-6 shrink-0 w-full md:w-auto">
+ <div className="px-3 md:px-6 py-2 md:py-3 flex flex-col gap-3 md:gap-4 bg-transparent">
+ 
+ {/* 第一行：时空锚点 (Date) & 响应式控制中枢 (Unified Cyber Controls) */}
+ <div className="flex items-center justify-between w-full">
  <div 
  className="flex items-end gap-1.5 md:gap-4 cursor-pointer group shrink"
  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1655,35 +1656,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </span>
  </div>
  </div>
- </div>
 
- {/* 第二行/剩余空间：操作枢纽 (Omnibar + Controls) */}
- <div className="flex items-center justify-between md:justify-end gap-2 md:gap-4 w-full md:w-auto flex-1">
- {/* 核心中枢：互斥伸缩搜索/创建舱 (Omnibar) */}
- {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
- <div className="flex-1 md:max-w-xl flex justify-center z-50">
- <QuickCommandPalette 
- services={services}
- staffs={staffs}
- shopId={shopId}
- currentDate={phantomDate}
- onBookingCreated={() => {
- refreshBookings();
- trackAction();
- }}
- visualSettings={visualSettings}
- setCrosshairDate={setCrosshairDate}
- setCrosshairTime={setCrosshairTime}
- setCrosshairResourceId={setCrosshairResourceId}
- setEditingBooking={setEditingBooking}
- handleCreateBookingClick={handleCreateBookingClick}
- />
- </div>
- )}
-
- {/* 响应式控制中枢 (Unified Cyber Controls) */}
+ {/* 【响应式修改】：所有操作按钮（视图切换、今天、设置）统一提到第一行，并靠右对齐 */}
+ {/* 电脑端：原本在右侧；手机端：因为外层是 justify-between，所以也会被顶到最右侧 */}
  <div className="flex items-center gap-1 md:gap-4 shrink-0">
-
  <div className="flex items-center gap-2 md:gap-3">
  {/* 1. 视图切换胶囊 (View Mode Capsule) */}
  <button
@@ -1773,6 +1749,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </div>
  </div>
  </div>
+
+ {/* 第二行 (手机端独占) / 居中区域 (PC 端绝对居中)：操作枢纽 (Omnibar) */}
+ {/* 电脑端：利用 md:absolute 把它强行拽到第一行的正中央，不占文档流空间，维持第一行左右对齐 */}
+ {/* 手机端：它自然流淌到第二行，且宽度设置为 w-full */}
+ {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
+ <div className="w-full md:absolute md:left-1/2 md:-translate-x-1/2 md:top-1/2 md:-translate-y-1/2 md:max-w-md lg:max-w-xl flex justify-center z-50">
+ <QuickCommandPalette 
+ services={services}
+ staffs={staffs}
+ shopId={shopId}
+ currentDate={phantomDate}
+ onBookingCreated={() => {
+ refreshBookings();
+ trackAction();
+ }}
+ visualSettings={visualSettings}
+ setCrosshairDate={setCrosshairDate}
+ setCrosshairTime={setCrosshairTime}
+ setCrosshairResourceId={setCrosshairResourceId}
+ setEditingBooking={setEditingBooking}
+ handleCreateBookingClick={handleCreateBookingClick}
+ />
+ </div>
+ )}
  </div>
 
  {/* [CONTAINER 3] 服务人员列 (Resource Column Header) / 员工筛选器 */}
