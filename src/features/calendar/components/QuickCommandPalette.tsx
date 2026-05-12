@@ -374,11 +374,8 @@ export function QuickCommandPalette({
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            if (mode === 'create' && query === '' && selectedServices.length === 0) {
-              setMode('idle');
-            } else if (mode === 'search' && searchQuery === '') {
-              setMode('idle');
-            }
+            // 绝对法则：点击外侧无条件清空并收起
+            resetAll();
           }} 
           onMouseDown={(e) => {
              // 防止 mousedown 穿透
