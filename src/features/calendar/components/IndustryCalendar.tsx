@@ -400,54 +400,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  fetchStaffAvatars();
  }, [JSON.stringify(staffs.map(s => s.frontendId))]);
 
- // 【世界顶端】：移动端虚拟键盘视口雷达 (VisualViewport Tracker) - 终极修复版
- const [keyboardOffset, setKeyboardOffset] = useState(0);
- const initialViewportHeight = useRef(0);
-
- useEffect(() => {
-  if (typeof window === "undefined" || !window.visualViewport) return;
-
-  // 记录初始视口高度
-  initialViewportHeight.current = window.visualViewport.height;
-
-  const handleViewportChange = () => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    
-    // 动态更新最大视口高度（防止屏幕旋转或首次加载高度不准）
-    if (viewport.height > initialViewportHeight.current) {
-      initialViewportHeight.current = viewport.height;
-    }
-    
-    // 核心破局：使用历史最大高度减去当前高度，彻底解决 Android innerHeight 塌陷导致的 offset 为 0 的致命 BUG
-    const offset = initialViewportHeight.current - viewport.height;
-    
-    if (offset > 50) {
-      setKeyboardOffset(offset);
-    } else {
-      setKeyboardOffset(0);
-      // 物理级防御：键盘收起时，强行重置浏览器非法滚动，抹杀黑色占位废墟
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
-      if (document.documentElement) {
-        document.documentElement.scrollTop = 0;
-      }
-    }
-  };
-
-  // 监听视口大小改变或因聚焦引起的滚动
-  window.visualViewport.addEventListener("resize", handleViewportChange);
-  window.visualViewport.addEventListener("scroll", handleViewportChange);
-  
-  // 初始化执行一次
-  handleViewportChange();
-
-  return () => {
-    window.visualViewport?.removeEventListener("resize", handleViewportChange);
-    window.visualViewport?.removeEventListener("scroll", handleViewportChange);
-  };
- }, []);
-
  const userMetadata = user && typeof user === "object"
  ? (user as { user_metadata?: Record<string, unknown> }).user_metadata
  : undefined;
@@ -2029,7 +1981,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
       {viewMode === "day" && isMainContentVisible && (
         <div 
           className="absolute inset-x-0 mx-auto z-[60] flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none"
-          style={{ bottom: `calc(2.5rem + ${keyboardOffset}px)` }} // 2.5rem 增加与键盘的安全间距，防遮挡
+          style={{ bottom: `2.5rem` }} // 恢复纯净 CSS，依赖原生 adjustResize
         >
           <div className="pointer-events-auto w-full relative z-[60]">
             <QuickCommandPalette 
