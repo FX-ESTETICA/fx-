@@ -40,7 +40,7 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
 
  const fetchContacts = async () => {
  if (!currentUserId) return;
- setIsLoading(true);
+ // setIsLoading(true); // 移除这行，避免触发重复渲染
 
  try {
  // 0. 获取收到的好友申请
@@ -86,7 +86,11 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
  identity
  };
  });
+ if (JSON.stringify(requests) !== JSON.stringify(parsedRequests)) {
  setRequests(parsedRequests);
+ }
+ } else {
+ if (requests.length > 0) setRequests([]);
  }
 
  // 1. 获取好友列表 (适配复合主键，废弃 id，利用双向插入特性仅查 user_id)
@@ -133,7 +137,11 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
  status: 'offline' // 可以扩展为真实状态
  };
  });
+ if (JSON.stringify(friends) !== JSON.stringify(parsedFriends)) {
  setFriends(parsedFriends);
+ }
+ } else {
+ if (friends.length > 0) setFriends([]);
  }
  } catch (e) {
  console.error('Failed to fetch contacts', e);
@@ -143,6 +151,7 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
  };
 
  useEffect(() => {
+ setIsLoading(true);
  fetchContacts();
 
  // 订阅请求表变化
