@@ -400,6 +400,37 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  fetchStaffAvatars();
  }, [JSON.stringify(staffs.map(s => s.frontendId))]);
 
+ // 【世界顶端】：移动端虚拟键盘视口雷达 (VisualViewport Tracker)
+ const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+ useEffect(() => {
+  if (typeof window === "undefined" || !window.visualViewport) return;
+
+  const handleViewportChange = () => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    
+    const windowHeight = window.innerHeight;
+    // 当键盘弹起时，物理高度减去被压缩的视口高度，得到键盘的真实高度
+    const offset = windowHeight - viewport.height;
+    
+    // 只有当偏移量大于某个阈值（比如 50px，防止系统自带的细微抖动），才认为是键盘弹起
+    setKeyboardOffset(offset > 50 ? offset : 0);
+  };
+
+  // 监听视口大小改变或因聚焦引起的滚动
+  window.visualViewport.addEventListener("resize", handleViewportChange);
+  window.visualViewport.addEventListener("scroll", handleViewportChange);
+  
+  // 初始化执行一次
+  handleViewportChange();
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", handleViewportChange);
+    window.visualViewport?.removeEventListener("scroll", handleViewportChange);
+  };
+ }, []);
+
  const userMetadata = user && typeof user === "object"
  ? (user as { user_metadata?: Record<string, unknown> }).user_metadata
  : undefined;
@@ -1977,12 +2008,15 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  {/* --- 纯键盘流：极速开单控制台已移至顶部 Omnibar --- */}
 
- {/* --- 全能搜索舱 (Omnibar) - 彻底剥离并悬浮在底部 --- */}
-   {viewMode === "day" && isMainContentVisible && (
-   <div className="absolute bottom-6 inset-x-0 mx-auto z-50 flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none">
-   <div className="pointer-events-auto w-full relative z-[60]">
-   <QuickCommandPalette 
-   services={services}
+ {/* --- 全能搜索舱 (Omnibar) - 彻底剥离并悬浮在底部，并加载键盘防弹装甲 --- */}
+      {viewMode === "day" && isMainContentVisible && (
+        <div 
+          className="absolute inset-x-0 mx-auto z-[60] flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none transition-all duration-300 ease-out"
+          style={{ bottom: `calc(1.5rem + ${keyboardOffset}px)` }} // 1.5rem 对应原本的 bottom-6
+        >
+          <div className="pointer-events-auto w-full relative z-[60]">
+            <QuickCommandPalette 
+              services={services}
  staffs={staffs}
  shopId={shopId}
  currentDate={phantomDate}
