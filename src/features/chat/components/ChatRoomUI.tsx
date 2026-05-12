@@ -443,15 +443,23 @@ export default function ChatRoomUI({ currentUserId, currentRole, receiverId, rec
  <button 
  onClick={async () => {
  try {
- await supabase.from('friend_requests').insert({
+ console.log("Attempting to insert friend request:", { sender_id: currentUserId, receiver_id: receiverId });
+ const { data, error } = await supabase.from('friend_requests').insert({
  sender_id: currentUserId,
  receiver_id: receiverId,
  message: '请求添加你为好友'
- });
+ }).select();
+ 
+ if (error) {
+ console.error("Friend request insert error:", error);
+ alert(`发送失败: ${error.message}`);
+ } else {
+ console.log("Friend request inserted successfully:", data);
  alert('好友申请已发送');
- } catch (e) {
- console.error(e);
- alert('发送失败');
+ }
+ } catch (e: any) {
+ console.error("Friend request catch error:", e);
+ alert(`发送失败: ${e.message}`);
  }
  setShowMoreMenu(false);
  }}
