@@ -1673,7 +1673,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  CYBER_COLOR_DICTIONARY[resolvedTheme].className
  )}
  style={{ 
- borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}40`,
+ borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}1A`,
  boxShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}15`
  }}
  >
@@ -1708,7 +1708,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  className="px-3 md:px-4 py-1 md:py-1.5 rounded-lg text-[10px] md:text-[11px] tracking-widest border transition-all duration-300 hover:scale-105"
  style={{ 
  color: CYBER_COLOR_DICTIONARY[resolvedTheme].hex,
- borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}40`
+ borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}1A`
  }}
  >
  今天
@@ -1750,32 +1750,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </div>
  </div>
 
- {/* 第二行 (手机端独占) / 居中区域 (PC 端绝对居中)：操作枢纽 (Omnibar) */}
- {/* 电脑端：利用 md:absolute 把它强行拽到第一行的正中央，不占文档流空间，维持第一行左右对齐 */}
- {/* 手机端：它自然流淌到第二行，且宽度设置为 w-full */}
- {(!remainingTime || (typeof remainingMilliseconds === 'number' && remainingMilliseconds > 24 * 60 * 60 * 1000)) && (
- <div className="w-full md:absolute md:left-1/2 md:-translate-x-1/2 md:top-1/2 md:-translate-y-1/2 md:max-w-md lg:max-w-xl flex justify-center z-50">
- <QuickCommandPalette 
- services={services}
- staffs={staffs}
- shopId={shopId}
- currentDate={phantomDate}
- onBookingCreated={() => {
- refreshBookings();
- trackAction();
- }}
- visualSettings={visualSettings}
- setCrosshairDate={setCrosshairDate}
- setCrosshairTime={setCrosshairTime}
- setCrosshairResourceId={setCrosshairResourceId}
- setEditingBooking={setEditingBooking}
- handleCreateBookingClick={handleCreateBookingClick}
- />
- </div>
- )}
- </div>
+ {/* 顶层 Header 内部的搜索舱代码已被移除，转移至底部 */}
+      </div>
 
- {/* [CONTAINER 3] 服务人员列 (Resource Column Header) / 员工筛选器 */}
+      {/* [CONTAINER 3] 服务人员列 (Resource Column Header) / 员工筛选器 */}
  {viewMode === 'day' && dna.pivot === 'resource' && (
  <div className="flex bg-transparent h-14 overflow-hidden z-40 relative">
  {/* 左侧固定：空位占位符，与下方时间轴对齐 */}
@@ -1998,6 +1976,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </AnimatePresence>
 
  {/* --- 纯键盘流：极速开单控制台已移至顶部 Omnibar --- */}
+
+ {/* --- 全能搜索舱 (Omnibar) - 彻底剥离并悬浮在底部 --- */}
+ {viewMode === "day" && isMainContentVisible && (
+ <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none">
+ <div className="pointer-events-auto w-full">
+ <QuickCommandPalette 
+ services={services}
+ staffs={staffs}
+ shopId={shopId}
+ currentDate={phantomDate}
+ onBookingCreated={() => {
+ refreshBookings();
+ trackAction();
+ }}
+ visualSettings={visualSettings}
+ setCrosshairDate={setCrosshairDate}
+ setCrosshairTime={setCrosshairTime}
+ setCrosshairResourceId={setCrosshairResourceId}
+ setEditingBooking={setEditingBooking}
+ handleCreateBookingClick={handleCreateBookingClick}
+ />
+ </div>
+ </div>
+ )}
 
  </div>
  </div>

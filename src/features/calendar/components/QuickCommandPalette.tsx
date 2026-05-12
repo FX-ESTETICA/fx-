@@ -41,7 +41,7 @@ export function QuickCommandPalette({
 
   const isLight = visualSettings?.calendarBgIndex !== 0;
   const textColor = isLight ? "text-black" : (visualSettings?.calendarBgIndex !== 0 ? "text-[#8B7355]" : "text-[#FDF5E6]");
-  const borderColor = isLight ? "border-black/30" : "border-white/30";
+  const borderColor = isLight ? "border-black/10" : "border-white/10";
   const glowShadow = isLight ? "drop-shadow-[0_0_8px_rgba(0,0,0,0.1)]" : "drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]";
 
   const [mode, setMode] = useState<'idle' | 'create' | 'search'>('idle');
@@ -429,7 +429,7 @@ export function QuickCommandPalette({
 
                 {stage === 'confirm' && !editingStage ? (
                   <div className="flex-1 flex items-center justify-end gap-2 ml-auto">
-                    <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110", isLight ? "border-black/30" : "border-white/30")}><X className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); resetAll(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110", isLight ? "border-black/10" : "border-white/10")}><X className="w-3 h-3" /></button>
                     <button onClick={(e) => { e.stopPropagation(); submitBooking(); }} className={cn("w-6 h-6 rounded-full flex items-center justify-center border hover:scale-110 animate-pulse", isLight ? "border-black" : "border-white")}><Check className="w-3 h-3" /></button>
                   </div>
                 ) : (
@@ -454,7 +454,7 @@ export function QuickCommandPalette({
         )}
 
         {/* Divider */}
-        {mode === 'idle' && <div className={cn("w-[1px] h-4", isLight ? "bg-black/20" : "bg-white/20")} />}
+        {mode === 'idle' && <div className={cn("w-[1px] h-4", isLight ? "bg-black/10" : "bg-white/10")} />}
 
         {mode !== 'create' && (
           <div
