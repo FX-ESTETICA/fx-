@@ -1978,11 +1978,11 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  {/* --- 纯键盘流：极速开单控制台已移至顶部 Omnibar --- */}
 
  {/* --- 全能搜索舱 (Omnibar) - 彻底剥离并悬浮在底部 --- */}
-  {viewMode === "day" && isMainContentVisible && (
-  <div className="absolute bottom-6 inset-x-0 mx-auto z-50 flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none">
-  <div className="pointer-events-auto w-full relative z-50">
-  <QuickCommandPalette 
-  services={services}
+   {viewMode === "day" && isMainContentVisible && (
+   <div className="absolute bottom-6 inset-x-0 mx-auto z-50 flex flex-col items-center justify-center w-full max-w-[400px] px-4 pointer-events-none">
+   <div className="pointer-events-auto w-full relative z-[60]">
+   <QuickCommandPalette 
+   services={services}
  staffs={staffs}
  shopId={shopId}
  currentDate={phantomDate}

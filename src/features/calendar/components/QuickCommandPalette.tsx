@@ -370,7 +370,7 @@ export function QuickCommandPalette({
       {/* 物理结界：点击空白处重置 */}
       {mode !== 'idle' && (
         <div 
-          className="fixed inset-0 z-40" 
+          className="fixed inset-0 z-[55]" 
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -390,7 +390,7 @@ export function QuickCommandPalette({
           }}
         />
       )}
-      <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center z-50">
+      <div ref={paletteRef} className="relative w-full h-8 md:h-[38px] flex items-center z-[60]">
         <div 
           className={cn(
             "absolute left-0 right-0 h-full flex items-center rounded-full border overflow-hidden backdrop-blur-md",
@@ -507,8 +507,8 @@ export function QuickCommandPalette({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className={cn(
-              "absolute top-full left-0 right-0 mt-2 max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-50",
-              isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
+              "absolute bottom-full mb-2 left-0 right-0 max-h-[200px] overflow-y-auto rounded-lg border backdrop-blur-md z-[70] shadow-2xl",
+              isLight ? "bg-white/90 border-black/10" : "bg-black/80 border-white/10"
             )}
           >
             {currentList.map((item, idx) => {
@@ -551,8 +551,8 @@ export function QuickCommandPalette({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             className={cn(
-              "absolute top-full left-0 right-0 mt-2 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto border backdrop-blur-md z-50",
-              isLight ? "bg-white/80 border-black/10" : "bg-black/60 border-white/10"
+              "absolute bottom-full mb-2 left-0 right-0 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto border backdrop-blur-md z-[70] shadow-2xl",
+              isLight ? "bg-white/90 border-black/10" : "bg-black/80 border-white/10"
             )}
           >
             {searchResults.length === 0 ? (
