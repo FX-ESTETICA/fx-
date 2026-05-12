@@ -180,9 +180,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         };
         localStorage.setItem(`gx_bookings_snapshot_${resolvedActiveShopId}`, JSON.stringify(snapshotPayload));
       }
-      } catch (e) {
+      } catch (e: any) {
         clearTimeout(timeoutId);
-        console.error("[ShopContext] Failed to load cloud bookings:", e);
+        const errMsg = e?.message || String(e);
+        if (errMsg.includes('Failed to fetch') || errMsg.includes('AbortError')) {
+          console.warn("🛡️ [ShopContext] 监测到网络波动 (Failed to fetch/AbortError)，触发物理快照护盾，界面安全。");
+        } else {
+          console.error("[ShopContext] Failed to load cloud bookings:", e);
+        }
         // 【绝对铁壁法则】：网络超时或报错时，绝对信任并保留本地快照，仅触发 stale 状态供后台监控
         // 废除自毁代码，彻底杜绝切回前台瞬间网速不佳导致的“永久白板” Bug
         setIsDataStale(true);

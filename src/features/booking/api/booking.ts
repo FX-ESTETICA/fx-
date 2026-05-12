@@ -474,7 +474,12 @@ export const BookingService = {
     const { data, error } = await query;
 
     if (error) {
-      console.error("[BookingService] getBookings Error:", error);
+      const errMsg = error.message || String(error);
+      if (errMsg.includes('Failed to fetch') || errMsg.includes('AbortError')) {
+        console.warn("🌐 [BookingService] 监测到断网或请求被截断，触发防线拦截，非代码缺陷:", errMsg);
+      } else {
+        console.error("[BookingService] getBookings Error:", error);
+      }
       // 【绝对铁壁法则】：网络报错或被 Abort 截断时，必须向上抛出，绝不能返回空数组欺骗外层清空数据！
       throw error;
     }

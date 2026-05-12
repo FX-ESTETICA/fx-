@@ -905,7 +905,8 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
      nextState[idx] = { 
        ...nextState[idx], 
        startTime: newStartTime,
-       resourceId: finalTargetResourceId === 'UNASSIGNED_POOL' ? null : finalTargetResourceId
+       resourceId: finalTargetResourceId === 'UNASSIGNED_POOL' ? null : finalTargetResourceId,
+       originalUnassigned: !isAssignedToPerson // 【物理级修复】：瞬间洗掉或赋予未指定印记，消除变色延迟
      };
    }
    return nextState;
