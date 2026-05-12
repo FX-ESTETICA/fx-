@@ -1684,15 +1684,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  {/* 响应式控制中枢 (Unified Cyber Controls) */}
  <div className="flex items-center gap-1 md:gap-4 shrink-0">
 
- <div className="flex items-center gap-0.5 md:gap-2">
- <button 
- onClick={() => handleNavigate('prev')}
- className="p-1 md:p-2 rounded-lg"
- style={{ color: CYBER_COLOR_DICTIONARY[resolvedTheme].hex }}
- >
- <ChevronLeft className="w-4 h-4 md:w-4 md:h-4" />
- </button>
- <div className="flex bg-transparent p-0.5 md:p-1 ">
+ <div className="flex items-center gap-2 md:gap-3">
+ {/* 1. 视图切换胶囊 (View Mode Capsule) */}
  <button
  onClick={() => {
  const modes = ['day', 'week', 'month'] as const;
@@ -1700,9 +1693,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  setViewMode(modes[(currentIndex + 1) % modes.length]);
  }}
  className={cn(
- "px-2 md:px-6 py-1 md:py-1.5 text-[11px] md:text-[11px] uppercase min-w-[32px] md:min-w-[80px] whitespace-nowrap text-center",
+ "px-3 md:px-5 py-1 md:py-1.5 rounded-lg text-[10px] md:text-[11px] uppercase tracking-widest border transition-all duration-300 hover:scale-105",
  CYBER_COLOR_DICTIONARY[resolvedTheme].className
  )}
+ style={{ 
+ borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}40`,
+ boxShadow: `0 0 10px ${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}15`
+ }}
  >
  <span className="md:hidden">
  {viewMode === 'day' ? t('txt_view_day_short') : viewMode === 'week' ? t('txt_view_week_short') : t('txt_view_month_short')}
@@ -1711,14 +1708,18 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  {viewMode === 'day' ? t('txt_view_day') : viewMode === 'week' ? t('txt_view_week') : t('txt_view_month')}
  </span>
  </button>
- </div>
+
+ {/* 2. 时间控制组 (Time Controls: < TODAY >) */}
+ <div className="flex items-center gap-1 md:gap-1.5">
+ {/* 左箭头：仅在拥有精细指针(鼠标)的设备上显示 */}
  <button 
- onClick={() => handleNavigate('next')}
- className="p-1 md:p-2 rounded-lg"
+ onClick={() => handleNavigate('prev')}
+ className="hidden [@media(pointer:fine)]:flex p-1 md:p-1.5 rounded-lg transition-transform hover:-translate-x-0.5"
  style={{ color: CYBER_COLOR_DICTIONARY[resolvedTheme].hex }}
  >
- <ChevronRight className="w-4 h-4 md:w-4 md:h-4" />
+ <ChevronLeft className="w-4 h-4" />
  </button>
+
  <button
  onClick={() => {
  const today = new Date();
@@ -1728,7 +1729,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  matrixScrollRef.current.scrollTop = 0;
  }
  }}
- className="px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-[11px] uppercase tracking-widest ml-1 md:ml-2 border"
+ className="px-3 md:px-4 py-1 md:py-1.5 rounded-lg text-[10px] md:text-[11px] uppercase tracking-widest border transition-all duration-300 hover:scale-105"
  style={{ 
  color: CYBER_COLOR_DICTIONARY[resolvedTheme].hex,
  borderColor: `${CYBER_COLOR_DICTIONARY[resolvedTheme].hex}40`
@@ -1737,7 +1738,17 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  TODAY
  </button>
 
- {/* 设置按钮与回收站 */}
+ {/* 右箭头：仅在拥有精细指针(鼠标)的设备上显示 */}
+ <button 
+ onClick={() => handleNavigate('next')}
+ className="hidden [@media(pointer:fine)]:flex p-1 md:p-1.5 rounded-lg transition-transform hover:translate-x-0.5"
+ style={{ color: CYBER_COLOR_DICTIONARY[resolvedTheme].hex }}
+ >
+ <ChevronRight className="w-4 h-4" />
+ </button>
+ </div>
+
+ {/* 3. 设置按钮与回收站 */}
  {isAdmin && (
  <div className="flex items-center ml-0.5 md:ml-2 gap-0.5 md:gap-1">
  <button 
