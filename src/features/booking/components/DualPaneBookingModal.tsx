@@ -1912,20 +1912,25 @@ export function DualPaneBookingModal({
 
  {/* 核心双窗容器 (Glassmorphism) */}
         <main className={cn(
-          "w-full h-auto min-h-[550px] md:h-[550px] flex flex-col md:flex-row relative group rounded-2xl pointer-events-auto overflow-hidden border",
-          isLight ? "bg-transparent border-black/20" : "bg-transparent border-white/20",
+          "w-full h-auto min-h-[550px] md:h-[550px] flex flex-col md:flex-row relative group rounded-2xl pointer-events-auto overflow-hidden",
+          "bg-transparent gap-2 md:gap-4",
           isAIPending ? " grayscale-[0.2]" : ""
         )}>
         {/* ===================== 左侧/顶部：控制台面板 ===================== */}
         <section 
-          className="w-full md:w-[50%] h-auto md:h-full p-5 md:p-6 flex flex-col gap-4 relative z-10 shrink-0"
+          className="w-full md:w-[50%] h-auto md:h-full p-2 pb-0 md:pb-2 flex flex-col relative z-10 shrink-0"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
+          {/* 内部透明卡片容器：实现左右对称双舱体 */}
+          <div className={cn(
+            "flex-1 flex flex-col relative rounded-xl border p-4 pt-10 pb-0 md:pb-4",
+            isLight ? "border-black/20" : "border-white/20"
+          )}>
         {/* 左窗右上角安静的 X 控制开关 (纯视觉关闭) */}
         <button 
           onClick={handleClose} 
-          className={cn("absolute top-4 right-4 z-50 transition-opacity hover:opacity-100", isLight ? "text-black/30" : "text-white/30")}
+          className={cn("absolute top-4 right-4 z-50 transition-opacity hover:opacity-70", isLight ? "text-black" : "text-white")}
         >
           <X className="w-4 h-4" />
         </button>
@@ -2419,6 +2424,7 @@ export function DualPaneBookingModal({
  </div>
  </>
       )}
+      </div>
       </div>
       </section>
 
