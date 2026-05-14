@@ -231,28 +231,40 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
     };
   }, [isOpen, isLocked, financialPin, isGlobalLockEnabled]);
 
-  const handlePinSubmit = () => {
+  // 处理数字点击并自动验证 (0延迟法则)
+  const handleNumClick = (num: string) => {
+    if (pinInput.length < 4) {
+      const newInput = pinInput + num;
+      setPinInput(newInput);
+      
+      // 当输入达到4位时，瞬间自动触发验证
+      if (newInput.length === 4) {
+        // 使用 setTimeout 将验证逻辑推入下一个事件循环，确保最后一位圆点能瞬间亮起
+        setTimeout(() => {
+          autoSubmitPin(newInput);
+        }, 50);
+      }
+    }
+  };
+
+  // 抽离出的自动验证逻辑
+  const autoSubmitPin = (currentInput: string) => {
     if (isModifyingPin && oldPinValidated) {
-      // Set new PIN to Cloud (密码是全网唯一的，必须存数据库)
-      if (updateShopConfig && pinInput.length >= 4) {
-        // 关键修复：防止因异步导致状态丢失，使用本地变量先行控制
+      // Set new PIN to Cloud
+      if (updateShopConfig) {
         setIsSessionUnlocked(true); 
         setForceLockMode(false);
         setIsModifyingPin(false);
         setOldPinValidated(false);
         setPinInput("");
-        updateShopConfig('financial_pin', pinInput);
-        // 如果是首次设置密码，默认开启全局锁
+        updateShopConfig('financial_pin', currentInput);
         if (!financialPin) {
           updateShopConfig('financial_lock_enabled', true);
         }
-      } else {
-        setPinError(true);
-        setTimeout(() => setPinError(false), 500);
       }
     } else if (isTogglingLock) {
        // 验证密码以切换全局开关
-       if (pinInput === financialPin) {
+       if (currentInput === financialPin) {
           if (updateShopConfig) {
              updateShopConfig('financial_lock_enabled', !isGlobalLockEnabled);
           }
@@ -266,12 +278,12 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
        }
     } else {
       // Validate PIN
-      if (pinInput === financialPin) {
+      if (currentInput === financialPin) {
         if (isModifyingPin) {
           setOldPinValidated(true);
           setPinInput("");
         } else {
-          setIsSessionUnlocked(true); // 密码正确，解锁当前设备的内存状态
+          setIsSessionUnlocked(true);
           setPinInput("");
         }
       } else {
@@ -282,11 +294,8 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
     }
   };
 
-  const handleNumClick = (num: string) => {
-    if (pinInput.length < 6) {
-      setPinInput(prev => prev + num);
-    }
-  };
+  // 废除原来的 handlePinSubmit，改为 autoSubmitPin 接管
+  // const handlePinSubmit = () => { ... } 已经被彻底废弃
 
   const handleDelete = () => {
     setPinInput(prev => prev.slice(0, -1));
@@ -773,13 +782,12 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
     transition={{ duration: 0.3, ease: "easeOut" }}
     className={cn(
       "relative z-10 w-full h-full flex flex-col items-center justify-center pointer-events-auto",
-      // 物理级防窥隔离：纯净的磨砂/实色背景，彻底切断底层透视
-      isLight ? "bg-[#f5f5f5]/95 backdrop-blur-3xl" : "bg-[#0a0a0a]/95 backdrop-blur-3xl"
+      // 全屏沉浸画布：纯净的实色背景，彻底打破卡片，物理级防窥隔离
+      isLight ? "bg-[#f5f5f5]" : "bg-[#0a0a0a]"
     )}
   >
     <div className={cn(
-      "w-full max-w-[340px] max-h-[90dvh] overflow-y-auto scrollbar-hide rounded-[32px] p-6 sm:p-8 flex flex-col items-center border shadow-2xl transition-all duration-300",
-      isLight ? "bg-white/80 border-black/10" : "bg-white/5 border-white/10"
+      "w-full max-w-[360px] h-full overflow-y-auto scrollbar-hide py-12 px-6 sm:px-8 flex flex-col items-center justify-center transition-all duration-300"
     )}>
       <div className={cn(
         "w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-4 shadow-inner shrink-0",
@@ -807,10 +815,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
       <div className="w-full flex items-center justify-center gap-3 sm:gap-4 mb-6 shrink-0 h-4">
         {Array(4).fill(0).map((_, i) => (
           <div key={i} className={cn(
-            "w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full transition-all duration-300",
+            "w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full transition-all duration-75", // 将 duration-300 改为 75，实现 0 延迟极速点亮
             pinInput.length > i 
               ? (isLight ? "bg-black scale-100 shadow-sm" : "bg-white scale-100 shadow-[0_0_8px_rgba(255,255,255,0.5)]") 
-              : (isLight ? "bg-black/10 scale-75" : "bg-white/10 scale-75"),
+              : (isLight ? "bg-black/10 scale-100" : "bg-white/10 scale-100"), // 废弃 scale-75 的缩放动画，保持大小一致
             pinError && "bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
           )} />
         ))}
@@ -870,22 +878,13 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
               setPinInput("");
             }}
             className={cn(
-              "flex-1 py-3.5 sm:py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-[14px] font-medium transition-all tracking-widest uppercase",
+              "w-full py-3.5 sm:py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-[14px] font-medium transition-all tracking-widest uppercase",
               isLight ? "bg-black/5 hover:bg-black/10 text-black/70" : "bg-white/5 hover:bg-white/10 text-white/70"
             )}
           >
             修改密钥
           </button>
         )}
-        <button
-          onClick={handlePinSubmit}
-          className={cn(
-            "flex-1 py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-[14px] font-medium transition-all shadow-md tracking-widest uppercase",
-            isLight ? "bg-black text-white hover:bg-black/90" : "bg-white text-black hover:bg-white/90"
-          )}
-        >
-          授权验证
-        </button>
       </div>
     </div>
   </motion.div>
