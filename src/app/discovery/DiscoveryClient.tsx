@@ -168,7 +168,7 @@ export default function DiscoveryPage() {
  }, [isUploadOpen, registerBack, unregisterBack]);
 
  // 引入 SWR 实现后台数据同步
- const { data: swrPosts, isLoading, mutate } = useSWR(
+ const { isLoading, mutate } = useSWR(
  'discovery_posts_hot', // 暂时写死热点
  async () => {
  const { data, error } = await supabase

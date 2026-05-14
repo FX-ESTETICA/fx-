@@ -467,7 +467,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  }, [queryKey]);
 
  // 3. SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
- const { data: networkData, error: placesError, isLoading: isPlacesLoading } = useSWR(
+ const { error: placesError, isLoading: isPlacesLoading } = useSWR(
  queryKey,
  fetcher,
  {
