@@ -1,4 +1,17 @@
 {
+  "ProductDetail": {
+    "add_to_cart": "Add to Cart",
+    "buy_now": "Buy Now",
+    "customer_service": "Service",
+    "store": "Store",
+    "description": "Details",
+    "reviews": "Reviews",
+    "sold": "Sold",
+    "stock": "In Stock",
+    "shipping": "Free Shipping",
+    "authentic": "Authentic",
+    "related": "You May Like"
+  },
   "Index": {
     "title": "IDENTITY VERIFICATION & PROTOCOL",
     "description": "SUPREME LIFE CONCIERGE"
@@ -44,6 +57,7 @@
     "tabs": {
       "merchant": "Discovery",
       "service": "GX Picks",
+      "mall": "Premium Mall",
       "third": "Services"
     },
     "aggregation": "Deep Scan",
@@ -921,6 +935,20 @@
   },
   "StudioLayout": {
     "txt_d4b097": "Company Name",
+    "txt_digital_store": "Digital Store",
+    "txt_digital_mall": "Digital Mall",
+    "txt_product_list": "Asset Matrix",
+    "txt_add_product": "+ Forge Product",
+    "txt_edit_product": "Edit Product",
+    "txt_product_name": "Product Name",
+    "txt_product_price": "Price",
+    "txt_product_stock": "Stock",
+    "txt_product_tags": "Tags (comma separated)",
+    "txt_product_desc": "One-line Pitch",
+    "txt_product_image": "Hero Image",
+    "txt_save_product": "Publish",
+    "txt_preview": "Preview",
+    "txt_delete": "Unlist",
     "txt_55d479": "Digital",
     "txt_a7da92": "Store",
     "txt_ae4cab": "Business Information",

@@ -1,4 +1,17 @@
 {
+  "ProductDetail": {
+    "add_to_cart": "Aggiungi al Carrello",
+    "buy_now": "Acquista Ora",
+    "customer_service": "Servizio",
+    "store": "Negozio",
+    "description": "Dettagli",
+    "reviews": "Recensioni",
+    "sold": "Venduti",
+    "stock": "Disponibile",
+    "shipping": "Spedizione Gratuita",
+    "authentic": "Autentico",
+    "related": "Potrebbe Piacerti"
+  },
   "Index": {
     "title": "VERIFICA IDENTITÀ & PROTOCOLLO",
     "description": "IL MIGLIOR CONCIERGE PRIVATO"
@@ -44,6 +57,7 @@
     "tabs": {
       "merchant": "Scoperta",
       "service": "Selezione GX",
+      "mall": "Centro Commerciale",
       "third": "Servizi"
     },
     "aggregation": "Scansione profonda",
@@ -919,6 +933,20 @@
     "txt_b8abb4": "Conferma Ritaglio e Carica"
   },
   "StudioLayout": {
+    "txt_digital_store": "Negozio Digitale",
+    "txt_digital_mall": "Centro Commerciale Digitale",
+    "txt_product_list": "Scaffale Prodotti",
+    "txt_add_product": "+ Forgia Nuovo Prodotto",
+    "txt_edit_product": "Modifica Prodotto",
+    "txt_product_name": "Nome Prodotto",
+    "txt_product_price": "Prezzo",
+    "txt_product_stock": "Scorte",
+    "txt_product_tags": "Tag (separati da virgola)",
+    "txt_product_desc": "Descrizione Breve",
+    "txt_product_image": "Immagine Principale",
+    "txt_save_product": "Pubblica",
+    "txt_preview": "Anteprima",
+    "txt_delete": "Rimuovi",
     "txt_d4b097": "Nome Azienda",
     "txt_55d479": "Digitale",
     "txt_a7da92": "Negozio",

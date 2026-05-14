@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 // import { useRouter } from "next/navigation";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MapPin, Search, ImagePlus, X, Clock, Plus } from "lucide-react";
+import { MapPin, Search, ImagePlus, X, Clock, Plus, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { StudioImageCropModal } from "./StudioImageCropModal";
@@ -39,6 +39,38 @@ export function StudioLayout() {
   
   // Google Places Session Token
   const sessionTokenRef = useRef<string | null>(null);
+
+  // Top Level Tab State
+  const [activeTab, setActiveTab] = useState<"store" | "mall">("store");
+  
+  // Mall States
+  const [mallProducts, setMallProducts] = useState<any[]>([
+    {
+      id: "p1",
+      name: "星空磨砂美甲套盒",
+      price: 299,
+      stock: 100,
+      image: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=800&auto=format&fit=crop",
+      tag: "GX PRO 官方认证",
+      desc: "采用纳米级星空磨砂材质，打造独一无二的深邃质感。"
+    },
+    {
+      id: "p2",
+      name: "Lumina 抗老面霜",
+      price: 899,
+      stock: 50,
+      image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop",
+      tag: "包邮",
+      desc: "医美级核心抗老配方，深入肌底重塑胶原蛋白网络。"
+    }
+  ]);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [mallProductName, setMallProductName] = useState("");
+  const [mallProductPrice, setMallProductPrice] = useState("");
+  const [mallProductStock, setMallProductStock] = useState("");
+  const [mallProductTags, setMallProductTags] = useState("");
+  const [mallProductDesc, setMallProductDesc] = useState("");
+  const [mallProductImage, setMallProductImage] = useState<string | null>(null);
 
   // Generate UUID for Session Token
   const generateSessionToken = () => {
@@ -386,6 +418,28 @@ export function StudioLayout() {
  {/* 一镜到底瀑布流表单 */}
  <div className="space-y-10 pb-12">
  
+ {/* Top Level Tab Switcher */}
+ <div className="flex bg-white/5 border border-white/10 rounded-lg p-1 w-full max-w-[400px]">
+ <button
+ onClick={() => setActiveTab('store')}
+ className={`flex-1 py-2 text-xs font-medium tracking-widest rounded-md transition-all ${
+ activeTab === 'store' ? 'bg-white/10 text-white shadow-sm' : 'text-white/50 hover:text-white'
+ }`}
+ >
+ {t('txt_digital_store')}
+ </button>
+ <button
+ onClick={() => setActiveTab('mall')}
+ className={`flex-1 py-2 text-xs font-medium tracking-widest rounded-md transition-all ${
+ activeTab === 'mall' ? 'bg-white/10 text-white shadow-sm' : 'text-white/50 hover:text-white'
+ }`}
+ >
+ {t('txt_digital_mall')}
+ </button>
+ </div>
+
+ {activeTab === 'store' ? (
+ <>
  {/* 区块 1: 商业信息 */}
  <section>
  <div className="mb-4">
@@ -613,6 +667,170 @@ export function StudioLayout() {
  </div>
  </div>
  </section>
+ </>
+ ) : (
+ /* ==================== 数字商城 (Digital Mall) ==================== */
+ <div className="space-y-6">
+ <div className="mb-4 flex items-center justify-between">
+ <div>
+ <h2 className="text-sm tracking-wide text-white">{t('txt_product_list')}</h2>
+ <p className="text-[11px] text-white/50 mt-0.5">管理您的精品好物与库存</p>
+ </div>
+ {!editingProduct && (
+ <button
+ onClick={() => {
+ setEditingProduct({});
+ setMallProductName("");
+ setMallProductPrice("");
+ setMallProductStock("");
+ setMallProductTags("");
+ setMallProductDesc("");
+ setMallProductImage(null);
+ }}
+ className="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs hover:bg-white/20 transition-colors"
+ >
+ {t('txt_add_product')}
+ </button>
+ )}
+ </div>
+
+ {!editingProduct ? (
+ /* 资产列表区 */
+ <div className="grid grid-cols-2 gap-4">
+ {mallProducts.map((p) => (
+ <div key={p.id} className="relative group bg-white/5 border border-white/10 rounded-xl overflow-hidden p-3 hover:border-white/20 transition-colors">
+ <div className="w-full aspect-square bg-black/50 rounded-lg mb-3 relative overflow-hidden">
+ {p.image ? (
+ <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+ ) : (
+ <div className="w-full h-full flex items-center justify-center text-white/20">No Image</div>
+ )}
+ </div>
+ <h3 className="text-xs text-white truncate">{p.name}</h3>
+ <div className="flex justify-between items-center mt-1">
+ <span className="text-xs text-yellow-500">¥{p.price}</span>
+ <span className="text-[10px] text-white/40">库存: {p.stock}</span>
+ </div>
+ 
+ {/* 悬浮操作 */}
+ <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+ <button
+ onClick={() => {
+ setEditingProduct(p);
+ setMallProductName(p.name);
+ setMallProductPrice(p.price.toString());
+ setMallProductStock(p.stock.toString());
+ setMallProductTags(p.tag || "");
+ setMallProductDesc(p.desc || "");
+ setMallProductImage(p.image);
+ }}
+ className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20"
+ >
+ <Plus className="w-3.5 h-3.5 rotate-45" /> {/* Edit icon placeholder */}
+ </button>
+ <button
+ onClick={() => setMallProducts(prev => prev.filter(item => item.id !== p.id))}
+ className="w-7 h-7 rounded-full bg-red-500/20 backdrop-blur-md flex items-center justify-center text-red-400 hover:bg-red-500/40"
+ >
+ <X className="w-3.5 h-3.5" />
+ </button>
+ </div>
+ </div>
+ ))}
+ {mallProducts.length === 0 && (
+  <div className="col-span-2 py-12 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-white/40">
+  <ShoppingBag className="w-8 h-8 mb-2 opacity-50" />
+  <span className="text-xs">暂无商品，点击右上角锻造新商品</span>
+  </div>
+  )}
+ </div>
+ ) : (
+ /* 锻造表单区 */
+ <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-5 relative">
+ <button
+ onClick={() => setEditingProduct(null)}
+ className="absolute top-4 right-4 text-white/40 hover:text-white"
+ >
+ <X className="w-5 h-5" />
+ </button>
+ 
+ <h3 className="text-sm tracking-widest text-white mb-6">
+ {editingProduct.id ? t('txt_edit_product') : t('txt_add_product')}
+ </h3>
+
+ <div className="space-y-4">
+ {/* Image Upload Placeholder */}
+ <div className="space-y-2">
+ <label className="text-[11px] text-white/60 tracking-widest">{t('txt_product_image')}</label>
+ <div 
+ className="w-full aspect-[4/3] rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors overflow-hidden relative"
+ onClick={() => fileInputRef.current?.click()}
+ >
+ {mallProductImage ? (
+ <img src={mallProductImage} alt="preview" className="w-full h-full object-cover" />
+ ) : (
+ <>
+ <ImagePlus className="w-6 h-6 text-white/40 mb-2" />
+ <span className="text-xs text-white/40">点击上传主图</span>
+ </>
+ )}
+ </div>
+ </div>
+
+ <div className="space-y-2">
+ <label className="text-[11px] text-white/60 tracking-widest">{t('txt_product_name')}</label>
+ <input type="text" value={mallProductName} onChange={e => setMallProductName(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-white/30" placeholder="例如：星空磨砂美甲套盒" />
+ </div>
+
+ <div className="grid grid-cols-2 gap-4">
+ <div className="space-y-2">
+ <label className="text-[11px] text-white/60 tracking-widest">{t('txt_product_price')}</label>
+ <input type="number" value={mallProductPrice} onChange={e => setMallProductPrice(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-white/30" placeholder="¥ 0.00" />
+ </div>
+ <div className="space-y-2">
+ <label className="text-[11px] text-white/60 tracking-widest">{t('txt_product_stock')}</label>
+ <input type="number" value={mallProductStock} onChange={e => setMallProductStock(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-white/30" placeholder="0" />
+ </div>
+ </div>
+
+ <div className="space-y-2">
+ <label className="text-[11px] text-white/60 tracking-widest">{t('txt_product_tags')}</label>
+ <input type="text" value={mallProductTags} onChange={e => setMallProductTags(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-white/30" placeholder="例如：GX PRO 官方认证, 包邮" />
+ </div>
+
+ <div className="space-y-2">
+ <label className="text-[11px] text-white/60 tracking-widest">{t('txt_product_desc')}</label>
+ <textarea value={mallProductDesc} onChange={e => setMallProductDesc(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-white/30 min-h-[80px]" placeholder="描述商品的独特卖点..." />
+ </div>
+
+ <button
+ onClick={() => {
+ const newProduct = {
+ id: editingProduct.id || Math.random().toString(),
+ name: mallProductName || "未命名商品",
+ price: Number(mallProductPrice) || 0,
+ stock: Number(mallProductStock) || 0,
+ tag: mallProductTags,
+ desc: mallProductDesc,
+ image: mallProductImage || "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=800&auto=format&fit=crop"
+ };
+ 
+ if (editingProduct.id) {
+ setMallProducts(prev => prev.map(p => p.id === editingProduct.id ? newProduct : p));
+ } else {
+ setMallProducts(prev => [newProduct, ...prev]);
+ }
+ setEditingProduct(null);
+ }}
+ className="w-full py-4 mt-6 rounded-xl bg-white text-black text-sm font-medium tracking-widest hover:bg-white/90"
+ >
+ {t('txt_save_product')}
+ </button>
+ </div>
+ </div>
+ )}
+ </div>
+ )}
  </div>
 
  {/* 部署按钮 */}
@@ -662,7 +880,8 @@ export function StudioLayout() {
  
  {/* 内容渲染区 */}
  <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar w-full">
- {/* ==================== 门店详情视图 (全息瀑布流) ==================== */}
+ {activeTab === 'store' ? (
+ /* ==================== 门店详情视图 (全息瀑布流) ==================== */
  <ShopDetailView 
  coverImages={coverImages}
  storeName={storeName}
@@ -671,6 +890,83 @@ export function StudioLayout() {
  capsules={capsules}
  variant="compact"
  />
+ ) : (
+ /* ==================== 数字商城视图 ==================== */
+ !editingProduct ? (
+ <div className="p-4 space-y-4 pb-20">
+ <div className="text-center py-4">
+ <h2 className="text-white text-lg font-bold">GX 优选商城</h2>
+ <p className="text-white/50 text-xs">商品展示效果预览</p>
+ </div>
+ <div className="grid grid-cols-2 gap-3">
+ {mallProducts.map(p => (
+ <div key={p.id} className="w-full aspect-[3/4] rounded-2xl overflow-hidden relative border border-white/10">
+ <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+ <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+ <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] bg-black/40 backdrop-blur-md text-white border border-white/10">{p.tag || "优选"}</div>
+ <div className="absolute bottom-3 left-3 right-3 flex flex-col">
+ <span className="text-white text-xs font-medium truncate mb-1">{p.name}</span>
+ <div className="flex justify-between items-end">
+ <span className="text-yellow-500 font-bold text-sm">¥{p.price}</span>
+ <span className="text-white/40 text-[9px]">已售 100+</span>
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+ ) : (
+ <div className="relative w-full min-h-full bg-black flex flex-col pb-24">
+ {/* 商品大图 */}
+ <div className="relative w-full aspect-[4/5]">
+ <img 
+ src={mallProductImage || "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=800&auto=format&fit=crop"} 
+ alt="product" 
+ className="w-full h-full object-cover" 
+ />
+ <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+ </div>
+ 
+ {/* 商品信息舱 */}
+ <div className="relative -mt-6 z-10 bg-[#111] rounded-t-3xl border-t border-white/10 p-5 flex flex-col gap-4">
+ <div className="flex justify-between items-start">
+ <div className="flex flex-col">
+ <span className="text-yellow-500 text-2xl font-bold">¥{mallProductPrice || '0.00'}</span>
+ <h1 className="text-white text-lg font-medium mt-1 leading-tight">{mallProductName || '未命名商品'}</h1>
+ </div>
+ {mallProductTags && (
+ <span className="px-2 py-1 rounded bg-white/10 text-white text-[10px]">{mallProductTags.split(',')[0]}</span>
+ )}
+ </div>
+ 
+ <p className="text-white/60 text-xs leading-relaxed">
+ {mallProductDesc || '添加一段引人入胜的描述，吸引顾客购买...'}
+ </p>
+
+ <div className="h-px bg-white/10 w-full my-2" />
+ 
+ <div className="flex items-center gap-3">
+ <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
+ <div className="flex flex-col">
+ <span className="text-white text-sm font-medium">{storeName || '您的门店名称'}</span>
+ <span className="text-white/40 text-[10px]">官方认证门店</span>
+ </div>
+ <button className="ml-auto px-3 py-1.5 rounded-full border border-white/20 text-white text-xs">进店逛逛</button>
+ </div>
+ </div>
+
+ {/* 底部悬浮交易栏 */}
+ <div className="absolute bottom-4 left-4 right-4 h-14 bg-[#1a1a1a]/90 backdrop-blur-xl border border-white/10 rounded-full flex items-center px-2 gap-2">
+ <div className="w-10 h-10 flex flex-col items-center justify-center text-white/60">
+ <div className="w-5 h-5 border border-white/40 rounded-full mb-0.5" />
+ <span className="text-[8px]">客服</span>
+ </div>
+ <button className="flex-1 h-10 rounded-full bg-white/10 text-white text-sm font-medium">加入购物车</button>
+ <button className="flex-1 h-10 rounded-full bg-yellow-500 text-black text-sm font-bold shadow-[0_0_15px_rgba(234,179,8,0.3)]">立即购买</button>
+ </div>
+ </div>
+ )
+ )}
  </div>
 
  {/* 模拟底部 Home Indicator */}

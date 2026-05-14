@@ -1,4 +1,17 @@
 {
+  "ProductDetail": {
+    "add_to_cart": "加入购物车",
+    "buy_now": "立即购买",
+    "customer_service": "客服",
+    "store": "进店逛逛",
+    "description": "商品详情",
+    "reviews": "用户评价",
+    "sold": "已售",
+    "stock": "库存充足",
+    "shipping": "顺丰包邮",
+    "authentic": "正品保证",
+    "related": "猜你喜欢"
+  },
   "Index": {
     "title": "身份验证与协议签署",
     "description": "极 致 私 人 管 家"
@@ -44,6 +57,7 @@
     "tabs": {
       "merchant": "发现附近",
       "service": "GX 精选",
+      "mall": "优选商城",
       "third": "生活服务"
     },
     "aggregation": "启动深度聚合扫描",
@@ -920,6 +934,20 @@
     "txt_b8abb4": "确认裁剪并上传"
   },
   "StudioLayout": {
+    "txt_digital_store": "数字门店",
+    "txt_digital_mall": "数字商城",
+    "txt_product_list": "商品货架",
+    "txt_add_product": "+ 锻造新商品",
+    "txt_edit_product": "编辑商品",
+    "txt_product_name": "商品名称",
+    "txt_product_price": "价格",
+    "txt_product_stock": "库存",
+    "txt_product_tags": "标签 (逗号分隔)",
+    "txt_product_desc": "一句话卖点",
+    "txt_product_image": "商品主图",
+    "txt_save_product": "确认发射 (Publish)",
+    "txt_preview": "预览",
+    "txt_delete": "下架",
     "txt_55d479": "数字",
     "txt_a7da92": "门店",
     "txt_ae4cab": "商业信息",

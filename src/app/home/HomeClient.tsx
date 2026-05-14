@@ -140,6 +140,64 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
  return d.toFixed(1) + "km";
 }
 
+// 优选商城 Mock 数据 (移出组件外部，避免重复声明)
+const MOCK_MALL_PRODUCTS = [
+  {
+    id: "p1",
+    name: "星空磨砂美甲套盒",
+    price: 299,
+    sales: "100+",
+    shopName: "FX ESTETICA",
+    image: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=800&auto=format&fit=crop",
+    tag: "GX PRO 官方认证"
+  },
+  {
+    id: "p2",
+    name: "Lumina 抗老面霜",
+    price: 899,
+    sales: "500+",
+    shopName: "Lumina 医美中心",
+    image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop",
+    tag: "包邮"
+  },
+  {
+    id: "p3",
+    name: "极简碳纤维运动水壶",
+    price: 129,
+    sales: "2k+",
+    shopName: "Zenith 健身俱乐部",
+    image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?q=80&w=800&auto=format&fit=crop",
+    tag: "新品"
+  },
+  {
+    id: "p4",
+    name: "手工冷萃咖啡豆 (250g)",
+    price: 88,
+    sales: "300+",
+    shopName: "Neon Coffee Roasters",
+    image: "https://images.unsplash.com/photo-1559525839-b184a4d698c7?q=80&w=800&auto=format&fit=crop",
+    tag: "热销"
+  },
+  {
+    id: "p5",
+    name: "深海海藻睡眠面膜",
+    price: 199,
+    sales: "800+",
+    shopName: "Lumina 医美中心",
+    image: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop",
+    tag: "GX PRO 官方认证"
+  },
+  {
+    id: "p6",
+    name: "赛博朋克调酒套装",
+    price: 459,
+    sales: "50+",
+    shopName: "午夜霓虹赛博酒馆",
+    image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=800&auto=format&fit=crop",
+    tag: "限量"
+  }
+];
+
 const fetcher = async (url: string) => {
  const res = await fetch(url);
  if (!res.ok) {
@@ -172,7 +230,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  }
  };
  
- const [activeTab, setActiveTab] = useState<"merchant" | "gx_pro" | "service">("gx_pro");
+ const [activeTab, setActiveTab] = useState<"merchant" | "gx_pro" | "mall" | "service">("gx_pro");
  
  // 【Local-First 引擎】：从本地硬盘光速读取大厅商户缓存
  const getCachedRealShops = () => {
@@ -734,6 +792,34 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
  <div className={cn("w-[1px] h-6 shrink-0", isLight ? "bg-black/20" : "bg-white/20")} />
 
+ {/* 优选商城 */}
+ <button 
+ onClick={() => setActiveTab('mall')}
+ className={cn(
+ "relative flex flex-col items-center gap-1 group shrink-0",
+ activeTab === "mall" ? "scale-105" : "scale-100"
+ )}
+ >
+ <div className="flex items-center gap-1.5">
+ <span className={cn(
+ "text-[clamp(14px,3.5vw,18px)] tracking-[clamp(1px,0.5vw,2px)] whitespace-nowrap ",
+ activeTab === "mall"
+ ? (isLight ? "text-black font-black" : "text-white font-black")
+ : (isLight ? "text-black font-normal" : "text-white font-normal")
+ )}>
+ {t("tabs.mall")}
+ </span>
+ </div>
+ {isActive && activeTab === "mall" && (
+ <motion.div 
+ 
+ className={cn("absolute -bottom-[2px] left-1/2 -translate-x-1/2 w-8 h-[2px] rounded-full", isLight ? "bg-black" : "bg-white")}
+ />
+ )}
+ </button>
+
+ <div className={cn("w-[1px] h-6 shrink-0", isLight ? "bg-black/20" : "bg-white/20")} />
+
  {/* 右翼：生活服务 */}
  <button 
  onClick={() => setActiveTab("service")}
@@ -761,6 +847,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  </div>
 
  {/* Categories (Level 1) - 空间磁吸与边缘掠光 (绝对居中悬浮拖拽模式) */}
+ {activeTab !== 'mall' && (
  <div className="relative w-full -mt-2 overflow-hidden" style={{ perspective: "1000px" }}>
  {/* 边缘渐变遮罩 (独立于拖拽层，保持固定) */}
  <div className="absolute inset-0 pointer-events-none z-10 [mask-image:linear-gradient(to_right,#fff_85%,transparent_100%)]" />
@@ -839,11 +926,58 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  </motion.div>
  </div>
  </div>
+ )}
 
  {/* Sub Categories (Level 2) - 已废弃传统横向菜单，采用极简场景微标签架构 */}
  {/* 保留占位但不再渲染，后续可接入 Micro-Tags 场景胶囊 */}
 
  {/* Content Grid (Google Places Aggregation) */}
+ {activeTab === "mall" && (
+ <div className="pt-0 flex flex-col items-center justify-start min-h-[50vh] w-full pb-20">
+ <div className="w-full">
+ <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-[clamp(12px,2vw,20px)]">
+ {MOCK_MALL_PRODUCTS.map((product: any) => (
+ <motion.div
+ key={product.id}
+ onClick={() => router.push(`/mall/product/${product.id}`)}
+ className={cn("cursor-pointer relative w-full aspect-[3/4] rounded-2xl overflow-hidden group border shrink-0", isLight ? "border-black/10 hover:border-yellow-500/50" : "border-white/10 hover:border-yellow-500/50")}
+ >
+ {/* 背景图 */}
+ <Image
+ src={product.image}
+ alt={product.name}
+ fill
+ sizes="(max-width: 768px) 50vw, 33vw"
+ className="object-cover"
+ />
+ {/* 纯黑渐变暗场 */}
+ <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
+
+ {/* 顶部标签 */}
+ <div className="absolute top-3 right-3 flex items-center px-2 py-1 bg-black/60 rounded border border-yellow-500/30 z-10 pointer-events-none">
+ <span className="text-[10px] text-yellow-500 tracking-widest uppercase">{product.tag}</span>
+ </div>
+
+ {/* 底部内容区 */}
+ <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col gap-1 z-20 pointer-events-none">
+ <h3 className="text-sm tracking-wider text-white line-clamp-1">
+ {product.name}
+ </h3>
+ <p className="text-[10px] text-white/60 tracking-widest line-clamp-1 uppercase">
+ {product.shopName}
+ </p>
+ <div className="flex items-end justify-between mt-1">
+ <span className="text-yellow-400 font-bold">¥{product.price}</span>
+ <span className="text-[10px] text-white/40">已售 {product.sales}</span>
+ </div>
+ </div>
+ </motion.div>
+ ))}
+ </div>
+ </div>
+ </div>
+ )}
+
  {activeTab === "gx_pro" && (
  <div className="pt-0 flex flex-col items-center justify-start min-h-[50vh] w-full pb-20">
  {/* 顶部轮播广告位：GX PRO 全站展示 */}
