@@ -458,23 +458,30 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  }
  };
 
- // 3. SWR 核心接管：并发请求与 Edge Cache 支持，并挂载 Local-First 硬盘备份引擎
- const { data: placesData, error: placesError, isLoading: isPlacesLoading } = useSWR(
+ // 【Local-First 状态机】：外部 useState 接管屏幕唯一真理
+ const [placesData, setPlacesData] = useState<any>(() => getCachedPlacesData(queryKey));
+
+ // 当搜索参数改变时，瞬间切换到对应的硬盘缓存
+ useEffect(() => {
+ setPlacesData(getCachedPlacesData(queryKey));
+ }, [queryKey]);
+
+ // 3. SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
+ const { data: networkData, error: placesError, isLoading: isPlacesLoading } = useSWR(
  queryKey,
  fetcher,
  {
  revalidateOnFocus: true, // 必须开启，保证焦点恢复/后台切回时一定能拿到最新
  dedupingInterval: 60000, // 1分钟内相同的请求会被去重
- keepPreviousData: true, // 在请求新数据时保留旧数据，防止闪烁
- fallbackData: getCachedPlacesData(queryKey), // 物理秒开：0毫秒同步灌入上次硬盘缓存
  onSuccess: (data) => {
- // 成功拉取到最新数据后，静默覆写到本地硬盘，供下次秒开
+ // 成功拉取到最新数据后，强制覆写真理状态，并静默落盘
  if (typeof window !== 'undefined' && data && queryKey) {
+ setPlacesData(data);
  localStorage.setItem(`gx_places_${queryKey}`, JSON.stringify(data));
  }
  },
  onError: (err) => {
- // 断网防御：如果报错是因为网络问题，且本地有缓存，抛出异常交由 SWR 拦截以保留 fallbackData
+ // 断网防御：如果报错是因为网络问题，且本地有缓存，抛出异常交由 SWR 拦截
  if (err.message?.includes('Failed to fetch') || err.message?.includes('AbortError')) {
  console.warn("[Local-First Shield] Network offline, preserving cached places data.");
  throw err;

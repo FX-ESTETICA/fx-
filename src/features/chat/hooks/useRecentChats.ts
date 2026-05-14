@@ -359,18 +359,25 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
     }
   };
 
-  // SWR 核心接管：提供缓存、去重、并发安全，并挂载 Local-First 硬盘备份引擎
-  const { data: recentChats = [], isLoading, mutate } = useSWR(
+  // 【Local-First 状态机】：外部 useState 接管屏幕唯一真理
+  const [recentChats, setRecentChats] = useState<RecentChat[]>(() => getCachedRecentChats(currentUserId, currentRole) || []);
+
+  // 当当前用户/角色变化时，瞬间切换到对应的硬盘缓存
+  useEffect(() => {
+    setRecentChats(getCachedRecentChats(currentUserId, currentRole) || []);
+  }, [currentUserId, currentRole]);
+
+  // SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
+  const { isLoading, mutate } = useSWR(
     currentUserId ? `recentChats_${currentUserId}_${currentRole}` : null,
     () => fetchRecentChatsData(currentUserId, currentRole),
     {
       revalidateOnFocus: true, // 焦点回到窗口时刷新
       dedupingInterval: 5000,  // 5秒内的重复请求去重
-      keepPreviousData: true,  // 保持旧数据防闪烁
-      fallbackData: getCachedRecentChats(currentUserId, currentRole) || [], // 物理秒开：0毫秒同步灌入上次硬盘缓存
       onSuccess: (data) => {
-        // 成功拉取到最新数据后，静默覆写到本地硬盘，供下次秒开
+        // 成功拉取到最新数据后，强制覆写真理状态，并静默落盘
         if (typeof window !== 'undefined' && data && currentUserId) {
+          setRecentChats(data);
           localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(data));
         }
       }

@@ -102,14 +102,18 @@ export function useChatEngine(currentUserId: string, currentRole: string, roomId
   // 废弃空数组开局，组件挂载的瞬间直接吞下硬盘缓存，抹平 Hydration Gap
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>(() => getCachedChatHistory() || []);
 
+  // 当聊天对象变化时，瞬间切换到对应的硬盘缓存
+  useEffect(() => {
+    setLocalMessages(getCachedChatHistory() || []);
+  }, [swrKey]);
+
+  // SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
   const { data: swrMessages, isLoading, mutate } = useSWR(
     swrKey,
     () => fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole),
     {
       revalidateOnFocus: true, // 焦点回到窗口时刷新
       dedupingInterval: 2000,  // 2秒内的重复请求去重
-      keepPreviousData: true,  // 保持旧数据防闪烁
-      fallbackData: getCachedChatHistory() || [], // 物理秒开：0毫秒同步灌入硬盘缓存
       onSuccess: (data) => {
         // 静默覆写到本地硬盘，供下次秒开
         if (typeof window !== 'undefined' && data && swrKey) {

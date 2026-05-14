@@ -134,7 +134,6 @@ export default function DiscoveryPage() {
  const t = useTranslations('discovery');
  const [filter, setFilter] = useState<"hot" | "new" | "near">("hot");
  const [isUploadOpen, setIsUploadOpen] = useState(false);
- const [posts, setPosts] = useState<DiscoveryPost[]>([]);
 
  // 【Local-First 引擎】：从本地硬盘光速读取缓存，实现物理级冷启动秒开
  const getCachedPosts = () => {
@@ -146,6 +145,9 @@ export default function DiscoveryPage() {
  return undefined;
  }
  };
+
+ // 【Local-First 状态机】：外部 useState 接管屏幕唯一真理
+ const [posts, setPosts] = useState<DiscoveryPost[]>(() => getCachedPosts() || []);
 
  // 引入 useAuth 确保客户端状态被正确初始化
  useAuth();
@@ -165,7 +167,7 @@ export default function DiscoveryPage() {
  return () => unregisterBack('discovery-upload');
  }, [isUploadOpen, registerBack, unregisterBack]);
 
- // 引入 SWR 实现缓存秒开，并挂载 Local-First 硬盘备份引擎
+ // 引入 SWR 实现后台数据同步
  const { data: swrPosts, isLoading, mutate } = useSWR(
  'discovery_posts_hot', // 暂时写死热点
  async () => {
@@ -179,7 +181,7 @@ export default function DiscoveryPage() {
  .limit(20);
 
  if (error) {
- // 断网防御：如果报错是因为网络问题，且本地有缓存，直接抛出错误让 SWR 保留 fallbackData
+ // 断网防御：如果报错是因为网络问题，直接抛出错误让 SWR 处理
  if (error.message?.includes('Failed to fetch') || error.message?.includes('AbortError')) {
  throw error;
  }
@@ -204,22 +206,17 @@ export default function DiscoveryPage() {
  {
  revalidateOnFocus: true,
  dedupingInterval: 10000,
- keepPreviousData: true,
- fallbackData: getCachedPosts(), // 物理秒开：0毫秒同步灌入上次硬盘缓存
  onSuccess: (data) => {
- // 成功拉取到最新数据后，静默覆写到本地硬盘，供下次秒开
+ // 成功拉取到最新数据后，强制覆写真理状态并落盘
  if (typeof window !== 'undefined' && data && data.length > 0) {
+ setPosts(data);
  localStorage.setItem('gx_discovery_posts_hot', JSON.stringify(data));
  }
  }
  }
  );
 
- useEffect(() => {
- if (swrPosts) {
- setPosts(swrPosts);
- }
- }, [swrPosts]);
+ // 同步 useEffect 已经被 onSuccess 替代，这里删除
 
  const handleUploadSuccess = () => {
  // 成功后触发 SWR 重新验证
