@@ -950,6 +950,10 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  // 【物理视口重置】：强制将滚动条归零，确保新加载的日期恰好对齐屏幕顶部，消灭错位与幽灵闪烁
  if (matrixScrollRef.current) {
  matrixScrollRef.current.scrollTop = 0;
+ matrixScrollRef.current.scrollLeft = 0;
+ }
+ if (headerScrollRef.current) {
+ headerScrollRef.current.scrollLeft = 0;
  }
  }, [viewMode, phantomDate]);
 
@@ -1909,15 +1913,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  </AnimatePresence>
  </div>
 
- <AnimatePresence mode="wait">
- <motion.div
- key={industry + viewMode + "content"}
- 
- 
- 
- 
- className="flex-1 relative overflow-hidden"
- >
+ <div className="flex-1 relative overflow-hidden">
  {/* 交互式矩阵渲染层 */}
  <div className="h-full relative overflow-hidden z-10">
 
@@ -1987,8 +1983,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  {t('txt_0aece4')}</div>
  )}
  </div>
- </motion.div>
- </AnimatePresence>
+ </div>
 
  {/* --- 纯键盘流：极速开单控制台已移至顶部 Omnibar --- */}
 

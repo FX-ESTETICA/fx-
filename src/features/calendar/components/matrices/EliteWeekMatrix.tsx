@@ -321,7 +321,7 @@ export const EliteWeekMatrix = ({ resources, selectedStaffIds, operatingHours, o
  return (
  <div
  key={`${booking.id || bIdx}`}
- className="absolute rounded border-[1.5px] bg-transparent pointer-events-auto cursor-pointer transition-all duration-300"
+ className="absolute rounded border-[1.5px] bg-transparent pointer-events-auto cursor-pointer"
  style={{
  top: `${top}px`,
  height: `${height}px`,

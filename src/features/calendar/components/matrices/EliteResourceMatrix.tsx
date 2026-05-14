@@ -646,6 +646,18 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  // 用于防抖的幻象投影日期缓存
  const currentPhantomDateRef = useRef<string | null>(null);
  const scrollRafRef = useRef<number | null>(null);
+ const radarLockRef = useRef<boolean>(false);
+
+ // 【防留影装甲】：当外部直接改变日期（比如点击按钮切天、横向滑动切天）时，
+ // 强制屏蔽滚动雷达 300ms。避免因为 DOM 重构或 scrollTop=0 时触发原生 scroll 事件
+ // 而读到旧的节点位置，导致 phantomDate 错误反弹。
+ useEffect(() => {
+   radarLockRef.current = true;
+   const timer = setTimeout(() => {
+     radarLockRef.current = false;
+   }, 300);
+   return () => clearTimeout(timer);
+ }, [currentDate]);
 
  const handleMatrixScroll = (e: UIEvent<HTMLDivElement>) => {
  const scrollTop = e.currentTarget.scrollTop;
@@ -660,7 +672,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
  }
  
  // --- 滚动雷达侦测 (Scroll Spy Phantom Radar) ---
- if (onPhantomDateChange && waterfallData.nodes.length > 0) {
+ if (!radarLockRef.current && onPhantomDateChange && waterfallData.nodes.length > 0) {
  // 找到当前滚动视口顶部所属的日期节点
  let activeNode = [...waterfallData.nodes].reverse().find(n => n.top <= scrollTop);
  if (!activeNode) activeNode = waterfallData.nodes[0];
@@ -1411,7 +1423,7 @@ export const EliteResourceMatrix = React.memo(({ dna, resources, operatingHours,
    dragBookingBlockRefs.current[booking.id] = el;
  }}
  className={cn(
- "absolute pointer-events-auto implosion-container transition-all duration-300 ease-out",
+ "absolute pointer-events-auto implosion-container",
  isProcessing ? "" : "",
  isFlashing ? "animate-pulse ring-2 ring-white drop-shadow-[0_0_12px_rgba(255,255,255,0.8)] z-50 rounded-xl" : "",
  isMicro && "hover:z-[200] " // 微缩态悬浮放大补偿
