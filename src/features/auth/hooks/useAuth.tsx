@@ -373,86 +373,86 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("gx_guest_mode");
   }, []);
 
+  // 1. 获取初始 Session (Supabase 真实环境)
+  const initAuth = useCallback(async () => {
+    try {
+      if (isMockMode) {
+        setIsLoading(false);
+        return;
+      }
+
+      // 【Local-First 秒开引擎】：优先尝试从本地缓存恢复身份并直接放行
+      const cachedUserStr = localStorage.getItem("gx_cached_user");
+      let hasCachedUser = false;
+      if (cachedUserStr) {
+        try {
+          const cachedUser = JSON.parse(cachedUserStr);
+          if (cachedUser && cachedUser.id && cachedUser.gxId) {
+            setUser(cachedUser);
+            hasCachedUser = true;
+            setIsLoading(false); // 瞬间砸碎加载结界，实现秒开！
+          }
+        } catch (e) {
+          console.error("Failed to parse cached user", e);
+        }
+      }
+
+      const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.warn("[AuthProvider] Session Error:", sessionError);
+        // 【核心修复：防误踢保护】
+        // 区分网络错误与真正的 Token 失效。套壳 APP 刚唤醒时极易发生 FetchError。
+        const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
+                               sessionError.message?.toLowerCase().includes('network') || 
+                               (sessionError as any).status === 0 || 
+                               (sessionError as any).status >= 500 || 
+                               sessionError.name === 'AuthRetryableFetchError';
+                               
+        if (!isNetworkError) {
+          console.warn("[AuthProvider] Invalid Refresh Token confirmed, clearing session...");
+          // 【致命修复】：将清理逻辑提前，网络请求用 try/catch 隔离，防止 401 熔断导致死缓存
+          setSession(null);
+          setUser(null);
+          localStorage.removeItem("gx_cached_user"); // 清除脏缓存
+          
+          try {
+            await supabase.auth.signOut({ scope: 'local' }); // 自动清除损坏的 token
+          } catch (err) {
+            console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);
+          }
+        } else {
+          console.warn("[AuthProvider] Network error detected during getSession, preserving offline cache...");
+          // 网络错误时不踢人，保持现有离线缓存。SWR 和后续重连会自动接管。
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (initialSession?.user) {
+        setHasConfirmedSession(true);
+      } else {
+        setHasConfirmedSession(false);
+        if (hasCachedUser) {
+          // 如果底层没登录，但上面放行了幽灵，现在必须拉回来
+          setUser(null);
+          localStorage.removeItem("gx_cached_user");
+        }
+      }
+      
+      // 无论如何，在后台静默同步真实数据 (SWR 机制)
+      await hydrateSession(initialSession);
+    } catch (error) {
+      console.error("[AuthProvider] Init Error:", error);
+    } finally {
+      // 兜底解锁
+      setIsLoading(false);
+    }
+  }, [hydrateSession]);
+
   useEffect(() => {
     if (initLock.current) return;
-    initLock.current = true; // 【完美修复法则】: 同步阶段立即上锁，彻底粉碎 React 18 Strict Mode 下的并发挂载请求风暴
-
-    // 1. 获取初始 Session (Supabase 真实环境)
-    const initAuth = async () => {
-      try {
-        if (isMockMode) {
-          setIsLoading(false);
-          return;
-        }
-
-        // 【Local-First 秒开引擎】：优先尝试从本地缓存恢复身份并直接放行
-        const cachedUserStr = localStorage.getItem("gx_cached_user");
-        let hasCachedUser = false;
-        if (cachedUserStr) {
-          try {
-            const cachedUser = JSON.parse(cachedUserStr);
-            if (cachedUser && cachedUser.id && cachedUser.gxId) {
-              setUser(cachedUser);
-              hasCachedUser = true;
-              setIsLoading(false); // 瞬间砸碎加载结界，实现秒开！
-            }
-          } catch (e) {
-            console.error("Failed to parse cached user", e);
-          }
-        }
-
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.warn("[AuthProvider] Session Error:", sessionError);
-          // 【核心修复：防误踢保护】
-          // 区分网络错误与真正的 Token 失效。套壳 APP 刚唤醒时极易发生 FetchError。
-          const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
-                                 sessionError.message?.toLowerCase().includes('network') || 
-                                 (sessionError as any).status === 0 || 
-                                 (sessionError as any).status >= 500 || 
-                                 sessionError.name === 'AuthRetryableFetchError';
-                                 
-          if (!isNetworkError) {
-            console.warn("[AuthProvider] Invalid Refresh Token confirmed, clearing session...");
-            // 【致命修复】：将清理逻辑提前，网络请求用 try/catch 隔离，防止 401 熔断导致死缓存
-            setSession(null);
-            setUser(null);
-            localStorage.removeItem("gx_cached_user"); // 清除脏缓存
-            
-            try {
-              await supabase.auth.signOut({ scope: 'local' }); // 自动清除损坏的 token
-            } catch (err) {
-              console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);
-            }
-          } else {
-            console.warn("[AuthProvider] Network error detected during getSession, preserving offline cache...");
-            // 网络错误时不踢人，保持现有离线缓存。SWR 和后续重连会自动接管。
-          }
-          setIsLoading(false);
-          return;
-        }
-
-        if (initialSession?.user) {
-          setHasConfirmedSession(true);
-        } else {
-          setHasConfirmedSession(false);
-          if (hasCachedUser) {
-            // 如果底层没登录，但上面放行了幽灵，现在必须拉回来
-            setUser(null);
-            localStorage.removeItem("gx_cached_user");
-          }
-        }
-        
-        // 无论如何，在后台静默同步真实数据 (SWR 机制)
-        await hydrateSession(initialSession);
-      } catch (error) {
-        console.error("[AuthProvider] Init Error:", error);
-      } finally {
-        // 兜底解锁
-        setIsLoading(false);
-      }
-    };
+    initLock.current = true; // 同步阶段立即上锁，防止多次执行 initAuth
 
     initAuth();
 
@@ -461,13 +461,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       console.log("[AuthProvider] Auth State Changed:", _event);
       
-      // 【防重排风暴】: 拦截 INITIAL_SESSION，因为它与上方的 initAuth 完全重叠，
-      // 会导致两次并发的 profiles 和 shop_bindings 网络请求，从而引发 React 剧烈重排卡顿。
-      if (_event === 'INITIAL_SESSION') {
-        // 【完美修复法则】：绝对禁止在这里提前释放锁，彻底粉碎并发挂载导致被踢回 login 的幽灵 Bug。
-        // 锁的释放必须且只能由上方的 initAuth 的 finally 块来执行！
-        return;
-      }
+      // 【彻底解除死锁陷阱】：
+      // 在套壳 APP 的 Capacitor 环境下，原生层触发的 INITIAL_SESSION 可能会与我们手动的 initAuth() 发生乱序竞争。
+      // 过去我们为了防浏览器端的重复请求，强行 return 了 INITIAL_SESSION。
+      // 现在我们完全移除这种基于假设的阻断。如果事件是 INITIAL_SESSION，我们允许它继续执行，
+      // 因为 hydrateSession 内部已经通过并发引擎和请求去重优化了性能，我们宁可多发起一次请求，也绝不容忍由于锁死导致的应用脑死亡。
       
       // 世界顶端：剥夺 TOKEN_REFRESHED 和 USER_UPDATED 的全局 Loading 锁权限，仅在初始登入时允许骨架屏
       if (_event === 'SIGNED_IN') {
@@ -490,7 +488,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [hydrateSession]);
+  }, [initAuth, hydrateSession]);
 
   const refreshUserData = useCallback(async (overrideSession?: Session | null) => {
     if (isMockMode) return;
