@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { SWRConfig } from "swr";
+import { SWRConfig, mutate } from "swr";
 
 export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
@@ -48,6 +48,29 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       }
     };
     window.addEventListener("pageshow", handlePageShow);
+
+    // =========================================================================
+    // 【世界顶端：物理级全局缓存核弹】
+    // 彻底抛弃 SWR 脆弱的 initFocus（受限于组件挂载时机和 Key 状态）。
+    // 在这里，作为绝对的最顶层，直接监听唤醒信号，然后向 SWR 中央大脑投掷核弹！
+    // =========================================================================
+    const handleGlobalSyncCommand = () => {
+      console.log("[GlobalSyncEngine] 💥 听到唤醒枪声，执行物理级全局 SWR 缓存核弹轰炸...");
+      
+      // 1. 首发引爆：命令内存中所有存活的 SWR Key 立刻重新验证，不管组件是否挂载
+      mutate(
+        () => true, // 匹配所有 Key
+        undefined,  // 不改变本地乐观数据
+        { revalidate: true } // 强制向服务器发 Fetch
+      );
+
+      // 2. 错峰双发：等待 800ms，Android TCP/IP 彻底苏醒后，再进行一次饱和打击
+      setTimeout(() => {
+        console.log("[GlobalSyncEngine] 💥 SWR 错峰双发：800ms 强心针补刀，确保网络栈已就绪...");
+        mutate(() => true, undefined, { revalidate: true });
+      }, 800);
+    };
+    window.addEventListener("gx-global-sync", handleGlobalSyncCommand);
 
     // 探针 2: 网络恢复 (Online)
     const handleOnline = () => {
@@ -99,6 +122,7 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("gx-global-sync", handleGlobalSyncCommand);
       window.removeEventListener("online", handleOnline);
       if (typeof window !== "undefined") {
         delete (window as any).gxForceWakeUp;
@@ -120,25 +144,7 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
         focusThrottleInterval: 0,
         // 【大拆锁】：缩短全局去重时间到 500ms（原为 2000ms），给“错峰双发”的 800ms 补刀留出绿灯通道
         dedupingInterval: 500,
-        // 【世界顶端：唯一真理发射塔收口】
-        // 废除 SWR 内部原生的冗余监听，直接接管经过 500ms 融合锁提纯的 gx-global-sync
-        initFocus(callback) {
-          const handleGlobalSync = () => {
-            console.log("[GlobalSyncEngine] SWR 接管统一融合唤醒指令，执行首发拉取...");
-            callback();
-            
-            // 【错峰双发】：等待 Android TCP/IP 栈彻底苏醒后补刀，打破 SWR 抢跑死锁
-            setTimeout(() => {
-              console.log("[GlobalSyncEngine] SWR 错峰双发：800ms 强心针补刀，确保网络栈已就绪...");
-              callback();
-            }, 800);
-          };
-          window.addEventListener("gx-global-sync", handleGlobalSync);
-
-          return () => {
-            window.removeEventListener("gx-global-sync", handleGlobalSync);
-          };
-        }
+        // initFocus 已经被废弃，我们在 useEffect 中使用全局 mutate 接管了唤醒轰炸
       }}
     >
       {children}
