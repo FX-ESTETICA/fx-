@@ -88,7 +88,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
   const [session, setSession] = useState<Session | null>(null);
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
-  const [isLoading, setIsLoading] = useState(true);
+  // 世界顶端 Local-First 架构：彻底废除初始 Loading 锁！
+  // 只要硬盘里有缓存的用户数据，瞬间渲染 UI，绝不让骨架屏撕裂 DOM，确保组件和 SWR 拥有物理级的不死之身
+  const [isLoading, setIsLoading] = useState(false);
   const [hasConfirmedSession, setHasConfirmedSession] = useState(false);
   const [isRoleLoaded, setIsRoleLoaded] = useState(false); // 初始化为 false，代表身份正在解析中
   const [localViewRole, setLocalViewRole] = useState<UserRole | null>(() => {
@@ -425,7 +427,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.warn("[AuthProvider] Network error detected during getSession, preserving offline cache...");
           // 网络错误时不踢人，保持现有离线缓存。SWR 和后续重连会自动接管。
         }
-        setIsLoading(false);
         return;
       }
 
@@ -444,9 +445,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await hydrateSession(initialSession);
     } catch (error) {
       console.error("[AuthProvider] Init Error:", error);
-    } finally {
-      // 兜底解锁
-      setIsLoading(false);
     }
   }, [hydrateSession]);
 
@@ -470,10 +468,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 世界顶端：剥夺 SIGNED_IN, TOKEN_REFRESHED 和 USER_UPDATED 的全局 Loading 锁权限
       // 绝对禁止在唤醒重连时用 setIsLoading(true) 撕裂 DOM，否则会导致 SWR 组件被卸载从而永远错过唤醒信号！
       if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
-        // 仅当目前确实是没有 Session 的初始状态下（首屏加载），才允许开启 Loading
-        if (!hasConfirmedSession) {
-          setIsLoading(true);
-        }
+        // 彻底废除 setIsLoading(true)，不再有任何条件下触发 Loading 撕裂
         setHasConfirmedSession(true);
       }
       
@@ -482,9 +477,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       await hydrateSession(currentSession);
-      
-      // 【关键修复】：不仅在 SIGNED_IN 释放，任何改变状态的事件完成后，都必须确保锁是开的，防止死锁
-      setIsLoading(false);
     });
 
     return () => {
