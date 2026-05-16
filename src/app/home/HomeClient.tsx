@@ -210,6 +210,7 @@ const fetcher = async (url: string) => {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useVisualSettings } from "@/hooks/useVisualSettings";
+import { useAppDataStore } from "@/store/useAppDataStore";
 
 export function HomeClient({ initialRealShops, isActive = true }: { initialRealShops: any[], isActive?: boolean }) {
  const t = useTranslations("Home");
@@ -516,13 +517,19 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  }
  };
 
- // 【Local-First 状态机】：外部 useState 接管屏幕唯一真理
- const [placesData, setPlacesData] = useState<any>(() => getCachedPlacesData(queryKey));
+ // 【全局状态提升】：使用 Zustand 在内存中常驻数据，彻底消除组件重新挂载时的渲染闪烁
+ const { homePlacesData, setHomePlacesData } = useAppDataStore();
+ const placesData = queryKey ? homePlacesData[queryKey] : undefined;
 
- // 当搜索参数改变时，瞬间切换到对应的硬盘缓存
+ // 当搜索参数改变时，如果在内存里没有，则瞬间切换到对应的硬盘缓存并写入内存
  useEffect(() => {
- setPlacesData(getCachedPlacesData(queryKey));
- }, [queryKey]);
+   if (queryKey && !homePlacesData[queryKey]) {
+     const cached = getCachedPlacesData(queryKey);
+     if (cached) {
+       setHomePlacesData(queryKey, cached);
+     }
+   }
+ }, [queryKey, homePlacesData, setHomePlacesData]);
 
  // 3. SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
  const { error: placesError, isLoading: isPlacesLoading } = useSWR(
@@ -532,9 +539,9 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  revalidateOnFocus: true, // 必须开启，保证焦点恢复/后台切回时一定能拿到最新
  dedupingInterval: 60000, // 1分钟内相同的请求会被去重
  onSuccess: (data) => {
- // 成功拉取到最新数据后，强制覆写真理状态，并静默落盘
+ // 成功拉取到最新数据后，强制覆写内存状态，并静默落盘
  if (typeof window !== 'undefined' && data && queryKey) {
- setPlacesData(data);
+ setHomePlacesData(queryKey, data);
  localStorage.setItem(`gx_places_${queryKey}`, JSON.stringify(data));
  }
  },

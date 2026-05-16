@@ -108,8 +108,40 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full subpixel-antialiased bg-black`}
     >
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var saved = localStorage.getItem('gx_visual_settings');
+                var settings = saved ? JSON.parse(saved) : {};
+                var path = window.location.pathname;
+                var isCalendar = path.includes('/calendar');
+                var bgIndex = isCalendar 
+                  ? (settings.calendarBgIndex !== undefined ? settings.calendarBgIndex : 1) 
+                  : (settings.frontendBgIndex !== undefined ? settings.frontendBgIndex : 1);
+                
+                var bgSource = '/images/backgrounds/A1.jpg'; // default fallback
+                if (bgIndex === 0) bgSource = '/images/backgrounds/A1.jpg';
+                else if (bgIndex === 1) bgSource = '/images/backgrounds/B3.jpg';
+                else if (bgIndex === 2) bgSource = '/images/backgrounds/B4.jpg';
+                else if (bgIndex === 3) bgSource = '/images/backgrounds/B6.jpg';
+                
+                document.documentElement.style.setProperty('--initial-bg', 'url(' + bgSource + ')');
+              } catch(e) {}
+            `
+          }}
+        />
       </head>
-      <body className="min-h-full flex flex-col bg-transparent relative text-white">
+      <body 
+        className="min-h-full flex flex-col bg-transparent relative text-white transition-colors duration-300"
+        style={{ 
+          backgroundImage: 'var(--initial-bg)', 
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center', 
+          backgroundAttachment: 'fixed', 
+          backgroundRepeat: 'no-repeat' 
+        }}
+      >
         <OTAUpdater />
         <NextIntlClientProvider messages={messages}>
           <WeChatBrowserGuard />

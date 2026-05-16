@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAppDataStore } from '@/store/useAppDataStore';
 
 export interface RecentChat {
   id: string; // 对端用户ID 或 房间ID
@@ -367,14 +368,22 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     }
   };
 
-  // 【Local-First 状态机】：外部 useState 接管屏幕唯一真理
-  const [recentChats, setRecentChats] = useState<RecentChat[]>(() => getCachedRecentChats(currentUserId, currentRole) || []);
+  // 【全局状态提升】：外部 Zustand 接管屏幕唯一真理
+  const { recentChatsData, setRecentChatsData } = useAppDataStore();
+  const cacheKey = currentUserId ? `${currentUserId}_${currentRole}` : '';
+  const recentChats = cacheKey && recentChatsData[cacheKey] ? recentChatsData[cacheKey] : [];
+  
   const [isLoading, setIsLoading] = useState(false);
 
-  // 当当前用户/角色变化时，瞬间切换到对应的硬盘缓存
+  // 当当前用户/角色变化时，如果在内存中不存在，则瞬间切换到对应的硬盘缓存并写入内存
   useEffect(() => {
-    setRecentChats(getCachedRecentChats(currentUserId, currentRole) || []);
-  }, [currentUserId, currentRole]);
+    if (cacheKey && !recentChatsData[cacheKey]) {
+      const cached = getCachedRecentChats(currentUserId, currentRole);
+      if (cached) {
+        setRecentChatsData(cacheKey, cached);
+      }
+    }
+  }, [currentUserId, currentRole, cacheKey, recentChatsData, setRecentChatsData]);
 
   // 【核心改造：屠杀级重构】绝对0秒上屏，然后无锁拉取
   useEffect(() => {
@@ -390,7 +399,7 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
         const newData = await fetchRecentChatsData(currentUserId, currentRole);
         if (isCancelled) return;
         if (typeof window !== 'undefined' && newData) {
-          setRecentChats(newData);
+          setRecentChatsData(`${currentUserId}_${currentRole}`, newData);
           localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
         }
       } catch (e) {
