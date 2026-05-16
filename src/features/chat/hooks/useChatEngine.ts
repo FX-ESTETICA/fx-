@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
+import { useSyncStore } from '@/store/useSyncStore';
 import { compressChatImage } from '@/utils/imageCompression';
 import { generateBlurhash } from '@/utils/blurhash';
 
@@ -89,6 +90,9 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
   if (rawRole) latchedRole.current = rawRole;
   const currentRole = rawRole || latchedRole.current;
 
+  const syncTick = useSyncStore(state => state.syncTick);
+  const resurrectTick = useSyncStore(state => state.resurrectTick);
+
   const [isSending, setIsSending] = useState(false);
 
   // 1. SWR 核心接管：提供缓存、去重、并发安全
@@ -162,28 +166,47 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
         mutate([], false); // 同步清空缓存，不触发重新验证
       }
     };
-
-    const handleGlobalSyncForce = async () => {
-      console.log("[ChatEngine] 🎯 听到唤醒枪声，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！");
-      try {
-        const newData = await fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole);
-        if (typeof window !== 'undefined' && newData && swrKey) {
-          setLocalMessages(newData);
-          localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newData));
-          mutate(newData, false); // 同步给 SWR 闭嘴
-        }
-      } catch (e) {
-        console.error("[ChatEngine] 手动唤醒 Fetch 失败:", e);
-      }
-    };
-
     window.addEventListener('gx_chat_cleared', handleClear);
-    window.addEventListener('gx-global-sync', handleGlobalSyncForce);
     return () => {
       window.removeEventListener('gx_chat_cleared', handleClear);
-      window.removeEventListener('gx-global-sync', handleGlobalSyncForce);
     };
   }, [roomId, receiverId, receiverRole, currentUserId, currentRole, swrKey, mutate]);
+
+  // 监听状态机唤醒事件
+  useEffect(() => {
+    if (syncTick === 0) return; // 初次挂载由 SWR 负责
+    let isCancelled = false;
+
+    const handleGlobalSyncForce = async () => {
+      console.log(`[ChatEngine] 🎯 状态机 Tick=${syncTick}，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！`);
+      let retries = 3;
+      let delay = 1000;
+      
+      while (retries > 0 && !isCancelled) {
+        try {
+          const newData = await fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole);
+          if (!isCancelled && typeof window !== 'undefined' && newData && swrKey) {
+            setLocalMessages(newData);
+            localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newData));
+            mutate(newData, false); // 同步给 SWR 闭嘴
+            break; // 成功则退出循环
+          }
+        } catch (e) {
+          console.error(`[ChatEngine] 手动唤醒 Fetch 失败，剩余重试: ${retries - 1}`, e);
+          retries--;
+          if (retries > 0 && !isCancelled) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+          }
+        }
+      }
+    };
+    handleGlobalSyncForce();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [syncTick, currentUserId, currentRole, roomId, receiverId, receiverRole, swrKey, mutate]);
 
   // 2. 监听 Realtime
   useEffect(() => {
@@ -262,17 +285,17 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
     let channel = setupChannel();
 
     const handleResurrect = () => {
-      console.log("[ChatEngine] ☢️ 收到 Nuke 信号，物理重建 WebSocket...");
+      if (resurrectTick === 0) return;
+      console.log(`[ChatEngine] ☢️ 收到状态机 Nuke 信号 (Tick=${resurrectTick})，物理重建 WebSocket...`);
       if (channel) supabase.removeChannel(channel);
       channel = setupChannel();
     };
-    window.addEventListener('gx-websocket-resurrect', handleResurrect);
+    handleResurrect();
 
     return () => {
-      window.removeEventListener('gx-websocket-resurrect', handleResurrect);
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, roomId, receiverId, mutate]);
+  }, [resurrectTick, currentUserId, currentRole, roomId, receiverId, receiverRole, mutate]);
 
   // 2. 核心发送逻辑 (文本 + 极速图片降维 + 音频支持)
   const sendMessage = useCallback(async (content?: string, file?: File, audioBlob?: Blob, audioDuration?: number) => {

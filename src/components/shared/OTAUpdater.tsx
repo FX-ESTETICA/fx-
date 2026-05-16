@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSyncStore } from '@/store/useSyncStore';
 
 export function OTAUpdater() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [progress, setProgress] = useState(0);
+  const syncTick = useSyncStore(state => state.syncTick);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -81,22 +83,21 @@ export function OTAUpdater() {
     // 初始检查
     checkVersionAndSilentUpdate();
 
-    // 统一接管：监听全局静默同步总线
-    const handleGlobalSync = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      console.log(`[GX Updater] 收到全局唤醒信号 (${customEvent.detail?.reason})，触发版本检查...`);
+    // 监听状态机触发
+    const handleGlobalSync = () => {
+      if (syncTick === 0) return;
+      console.log(`[GX Updater] 收到全局状态机唤醒信号 (Tick=${syncTick})，触发版本检查...`);
       checkVersionAndSilentUpdate();
     };
-    window.addEventListener("gx-global-sync", handleGlobalSync);
+    handleGlobalSync();
 
     // 轮询探针（每3分钟检测一次，确保长驻前台也能收到更新）
     const interval = setInterval(checkVersionAndSilentUpdate, 3 * 60 * 1000);
 
     return () => {
-      window.removeEventListener("gx-global-sync", handleGlobalSync);
       clearInterval(interval);
     };
-  }, []);
+  }, [syncTick]);
 
   const performPhysicalPreload = async () => {
     try {

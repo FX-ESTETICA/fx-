@@ -42,7 +42,8 @@ import { useSubscriptionTimer } from "@/hooks/useSubscriptionTimer";
 
 import { OrbitalPossessionProfile } from "./OrbitalPossessionProfile";
 import { Trash2 } from "lucide-react";
-import { RecycleBinModal } from "./RecycleBinModal";
+import { RecycleBinModal } from './RecycleBinModal';
+import { useSyncStore } from '@/store/useSyncStore';
 import { AiFinanceDashboardModal } from "./AiFinanceDashboardModal";
 import { useTranslations, useLocale } from "next-intl";
 import { GracePeriodBanner } from "@/components/shared/GracePeriodBanner";
@@ -243,6 +244,8 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  // 新增：世界顶端的“靶向雷达”信标，用于控制跨期野单的瞬间物理位移
  const [targetBookingId, setTargetBookingId] = useState<string | null>(null);
 
+ const syncTick = useSyncStore(state => state.syncTick);
+
  // 注册物理返回键拦截（顶端架构：优先收起弹窗/侧边栏，而不后退页面）
   const registerBack = useHardwareBack(state => state.register);
   const unregisterBack = useHardwareBack(state => state.unregister);
@@ -269,13 +272,13 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         });
       };
 
-    // 1. 监听原生壳唤醒总线 (App 从后台切回前台瞬间触发)
-    window.addEventListener('gx-global-sync', handleWakeUpCheck);
+    // 1. 监听状态机唤醒总线 (App 从后台切回前台瞬间触发)
+    if (syncTick > 0) {
+      handleWakeUpCheck();
+    }
     
-    return () => {
-      window.removeEventListener('gx-global-sync', handleWakeUpCheck);
-    };
-  }, []);
+    return () => {};
+  }, [syncTick]);
 
   useEffect(() => {
  if (isBookingModalOpen) {

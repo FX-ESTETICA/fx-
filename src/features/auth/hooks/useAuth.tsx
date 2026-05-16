@@ -478,8 +478,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (typeof window !== 'undefined') {
           setTimeout(() => {
             console.log(`[AuthProvider] 🎯 捕捉到 Auth 引擎苏醒 (${_event})，物理引爆全网 SWR 同步...`);
-            window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason: `auth_${_event}` } }));
-            window.dispatchEvent(new CustomEvent('gx-websocket-resurrect', { detail: { reason: `auth_${_event}` } }));
+            import('@/store/useSyncStore').then(({ useSyncStore }) => {
+              useSyncStore.getState().triggerSync(`auth_${_event}`);
+              useSyncStore.getState().triggerResurrect(`auth_${_event}`);
+            });
           }, 50);
         }
       }
@@ -686,10 +688,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // 废除独立监听原生 visibilitychange，完全臣服于全局融合总线
-    window.addEventListener("gx-global-sync", handlePhantomHeartbeat);
+    import('@/store/useSyncStore').then(({ useSyncStore }) => {
+      useSyncStore.subscribe((state, prevState) => {
+        if (state.syncTick > prevState.syncTick) {
+          handlePhantomHeartbeat();
+        }
+      });
+    });
 
     return () => {
-      window.removeEventListener("gx-global-sync", handlePhantomHeartbeat);
       if (heartbeatTimer) clearTimeout(heartbeatTimer);
     };
   }, []);
@@ -730,10 +737,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await syncDeviceSession(nextSession);
       }
     };
-    window.addEventListener("gx-global-sync", handleGlobalSync);
+    import('@/store/useSyncStore').then(({ useSyncStore }) => {
+      useSyncStore.subscribe((state, prevState) => {
+        if (state.syncTick > prevState.syncTick) {
+          handleGlobalSync();
+        }
+      });
+    });
 
     return () => {
-      window.removeEventListener("gx-global-sync", handleGlobalSync);
     };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 

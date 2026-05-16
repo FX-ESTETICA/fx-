@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { BookingService, BookingRealtimePayload } from "@/features/booking/api/booking";
 import { useVisualSettings } from '@/hooks/useVisualSettings';
 import { useBackground } from '@/hooks/useBackground';
+import { useSyncStore } from '@/store/useSyncStore';
 
 interface SubscriptionState {
   subscriptionTier: string;
@@ -48,6 +49,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   const { user, activeRole } = useAuth() as any; // activeRole is exposed by useAuth
   const { updateSettings } = useVisualSettings();
   const { setSpecificBackground } = useBackground();
+  const syncTick = useSyncStore(state => state.syncTick);
+  const resurrectTick = useSyncStore(state => state.resurrectTick);
   
   const [activeShopId, setActiveShopIdState] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -386,22 +389,27 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 30000);
 
-    // 【全局唤醒探针接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔 (Single Source of Truth)
-    const handleGlobalSyncSync = async (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const reason = customEvent.detail?.reason || "unknown";
-
-      console.log(`[ShopContext] Global sync triggered (${reason}), executing unified recovery pipeline for shop ${resolvedActiveShopId}...`);
+    // 【全局唤醒状态机接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔
+    const handleGlobalSyncSync = async () => {
+      if (syncTick === 0) return; // 初始挂载不管
+      console.log(`[ShopContext] Global sync triggered (Tick=${syncTick}), executing unified recovery pipeline for shop ${resolvedActiveShopId}...`);
       if (isMounted) {
-        // 1. 离线队列同步 (若因网络恢复触发)
-        if (reason === "network_online") {
-          console.log("[ShopContext] 🌍 网络已连接，触发离线队列上传");
-          await BookingService.syncOfflineMutations();
-        }
+        // 1. 离线队列同步
+        console.log("[ShopContext] 🌍 触发离线队列上传");
+        await BookingService.syncOfflineMutations();
 
+        // 3. 重新拉取配置与订单
+        fetchShopConfig();
+        refreshBookings();
+      }
+    };
+    handleGlobalSyncSync();
+
+    const handleResurrect = () => {
+      if (resurrectTick === 0) return;
+      if (isMounted) {
         // 2. 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
-        // 拆除所有“新生保护期锁”。只要唤醒，坚决重连！哪怕前一秒刚连上，也要把旧的干掉换新的。
-        console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
+        console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections (Tick=${resurrectTick})...`);
         if (channelBookings) {
           try { BookingService.unsubscribe(channelBookings); } catch(e) {}
         }
@@ -412,26 +420,21 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         }, () => {
           handleBookingUpdate();
         });
-
-        // 3. 重新拉取配置与订单
-        fetchShopConfig();
-        refreshBookings();
       }
     };
-    window.addEventListener("gx-global-sync", handleGlobalSyncSync);
+    handleResurrect();
 
     return () => {
       isMounted = false;
       if (configDebounceTimer) clearTimeout(configDebounceTimer);
       if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       clearInterval(heartbeatTimer);
-      window.removeEventListener("gx-global-sync", handleGlobalSyncSync);
       supabase.removeChannel(channelConfig);
       if (channelBookings) {
         BookingService.unsubscribe(channelBookings);
       }
     };
-  }, [resolvedActiveShopId, refreshBookings]);
+  }, [resolvedActiveShopId, syncTick, resurrectTick, refreshBookings]);
 
   // 原子级局部更新 API (乐观更新 + 数据库回写)
   const updateShopConfig = useCallback(async (key: string, payload: any) => {

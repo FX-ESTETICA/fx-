@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import { SubscriptionModalMode } from "@/features/shop/ShopContext";
 import { SubscriptionLimitModal } from "@/features/nebula/components/SubscriptionLimitModal";
 
+import { useSyncStore } from '@/store/useSyncStore';
 import { useViewStack } from "@/hooks/useViewStack";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
 
@@ -136,20 +137,18 @@ function useNebulaData(bossId: string | undefined, openSubscriptionModal: (mode:
  }
  };
 
- useEffect(() => {
- fetchNodes();
- }, [bossId]);
+ const syncTick = useSyncStore(state => state.syncTick);
 
- // 世界顶端架构：统一静默同步总线接管
- useEffect(() => {
- const handleGlobalSync = (e: Event) => {
- const customEvent = e as CustomEvent;
- console.log(`[Nebula] 收到全局同步指令 (${customEvent.detail?.reason})，静默刷新星云节点...`);
- fetchNodes();
- };
- window.addEventListener("gx-global-sync", handleGlobalSync);
- return () => window.removeEventListener("gx-global-sync", handleGlobalSync);
- }, [bossId]);
+  useEffect(() => {
+    fetchNodes();
+  }, [bossId]);
+
+  // 状态机同步
+  useEffect(() => {
+    if (syncTick === 0) return;
+    console.log(`[Nebula] 收到全局状态机指令 (Tick=${syncTick})，静默刷新星云节点...`);
+    fetchNodes();
+  }, [syncTick]);
 
  // 激活/更新节点
  const updateNode = async (id: string, updates: any): Promise<PlanetData | null> => {

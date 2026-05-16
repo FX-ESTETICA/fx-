@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
+import { useSyncStore } from '@/store/useSyncStore';
 
 export interface RecentChat {
   id: string; // 对端用户ID 或 房间ID
@@ -356,6 +357,9 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
   if (rawRole) latchedRole.current = rawRole;
   const currentRole = rawRole || latchedRole.current;
 
+  const syncTick = useSyncStore(state => state.syncTick);
+  const resurrectTick = useSyncStore(state => state.resurrectTick);
+
   const activeChatId = activeChat?.id;
   // 【Local-First 引擎】：从本地硬盘光速读取聊天列表缓存
   const getCachedRecentChats = (userId: string, role: string) => {
@@ -406,21 +410,35 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     window.addEventListener('gx_chat_read_updated', handleUpdate);
 
     // 【致命排查】：之前 SWR 的 mutate 核弹无法波及这个组件，是因为我们在 GlobalSyncProvider 里的全局 mutate 没能跨越组件树
-    // 我们在这个组件内部，直接监听核弹信号，并彻底废除对 SWR 的依赖，采用物理直连拉取！
+    // 我们在这个组件内部，直接监听状态机 tick，彻底废除事件监听，采用物理直连拉取并附带重试！
+    let isCancelled = false;
     const handleGlobalSyncForce = async () => {
-      console.log("[RecentChats] 🎯 听到唤醒枪声，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！");
-      try {
-        const newData = await fetchRecentChatsData(currentUserId, currentRole);
-        if (typeof window !== 'undefined' && newData) {
-          setRecentChats(newData);
-          localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
-          mutate(newData, false); // 顺便同步给 SWR 闭嘴
+      if (syncTick === 0) return; // 初次挂载由 SWR 负责，如果有延迟的 tick，必然 > 0
+      
+      console.log(`[RecentChats] 🎯 状态机 Tick=${syncTick}，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！`);
+      let retries = 3;
+      let delay = 1000;
+      
+      while (retries > 0 && !isCancelled) {
+        try {
+          const newData = await fetchRecentChatsData(currentUserId, currentRole);
+          if (!isCancelled && typeof window !== 'undefined' && newData) {
+            setRecentChats(newData);
+            localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
+            mutate(newData, false); // 顺便同步给 SWR 闭嘴
+            break; // 成功则退出重试循环
+          }
+        } catch (e) {
+          console.error(`[RecentChats] 手动唤醒 Fetch 失败，剩余重试: ${retries - 1}`, e);
+          retries--;
+          if (retries > 0 && !isCancelled) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2; // 指数退避 1s, 2s
+          }
         }
-      } catch (e) {
-        console.error("[RecentChats] 手动唤醒 Fetch 失败:", e);
       }
     };
-    window.addEventListener('gx-global-sync', handleGlobalSyncForce); 
+    handleGlobalSyncForce();
 
     // 监听新消息到达，更新列表 (化假为真的关键)
     // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state
@@ -437,7 +455,8 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
       .subscribe();
 
     const handleResurrect = () => {
-      console.log("[RecentChats] ☢️ 收到 Nuke 信号，物理重建 WebSocket...");
+      if (resurrectTick === 0) return;
+      console.log(`[RecentChats] ☢️ 收到状态机 Nuke 信号 (Tick=${resurrectTick})，物理重建 WebSocket...`);
       if (channel) supabase.removeChannel(channel);
       channel = supabase
         .channel('public:messages_list')
@@ -448,7 +467,7 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
         )
         .subscribe();
     };
-    window.addEventListener('gx-websocket-resurrect', handleResurrect);
+    handleResurrect();
 
     // 【核心修复】：挂载底层 Auth 监听。一旦监听到 Token 真正就绪（INITIAL_SESSION 或 SIGNED_IN），
     // 强制静默拉取数据，打破因 0 秒抢跑导致的空数据锁死。
@@ -459,15 +478,14 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     });
 
     return () => {
+      isCancelled = true;
       window.removeEventListener('gx_chat_cleared', handleUpdate);
       window.removeEventListener('gx_chat_message_deleted', handleUpdate);
       window.removeEventListener('gx_chat_read_updated', handleUpdate);
-      window.removeEventListener('gx-global-sync', handleGlobalSyncForce);
-      window.removeEventListener('gx-websocket-resurrect', handleResurrect);
       supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, [currentUserId, mutate]); // 依赖 mutate，移除 activeChatId 依赖
+  }, [currentUserId, currentRole, syncTick, resurrectTick, mutate]); // 依赖 mutate 和状态机
 
   // ==========================================
   // 【动态置顶与幻影注入】(仅在前端内存中进行，不触发网络请求)

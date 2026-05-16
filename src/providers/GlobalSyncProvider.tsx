@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { SWRConfig, mutate } from "swr";
+import { SWRConfig } from "swr";
+import { useSyncStore } from "@/store/useSyncStore";
 
 export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
@@ -22,9 +23,8 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       }
       lastSyncTime = now;
       console.log(`[GlobalSyncEngine] 触发全局静默同步总线. 唤醒源: ${reason}`);
-      window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason } }));
-      // 物理斩杀信号：通知全网重建 WebSocket 长连接
-      window.dispatchEvent(new CustomEvent('gx-websocket-resurrect', { detail: { reason } }));
+      useSyncStore.getState().triggerSync(reason);
+      useSyncStore.getState().triggerResurrect(reason);
     };
 
     // 探针 1: 浏览器前后台切换 (Visibility Change)
@@ -53,25 +53,7 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
     // 【世界顶端：物理级全局缓存核弹 (已降级为仅供参考，实权已下放)】
     // 我们发现全局 mutate 常常因为 matcher 匹配失败而变成哑弹。
     // 因此，真正的唤醒数据拉取，已经全部下放到底层组件 (useRecentChats / useChatEngine) 中用原生 fetch 实现了！
-    // 这里仅保留兜底的 mutate 轰炸，不再作为核心依赖。
     // =========================================================================
-    const handleGlobalSyncCommand = () => {
-      console.log("[GlobalSyncEngine] 💥 听到唤醒枪声，执行兜底级全局 SWR 缓存核弹轰炸 (核心拉取已下放到组件内部物理执行)...");
-      
-      // 1. 首发引爆：命令内存中所有存活的 SWR Key 立刻重新验证，不管组件是否挂载
-      mutate(
-        () => true, // 匹配所有 Key
-        undefined,  // 不改变本地乐观数据
-        { revalidate: true } // 强制向服务器发 Fetch
-      );
-
-      // 2. 错峰双发：等待 800ms，Android TCP/IP 彻底苏醒后，再进行一次饱和打击
-      setTimeout(() => {
-        console.log("[GlobalSyncEngine] 💥 SWR 错峰双发：800ms 强心针补刀，确保网络栈已就绪...");
-        mutate(() => true, undefined, { revalidate: true });
-      }, 800);
-    };
-    window.addEventListener("gx-global-sync", handleGlobalSyncCommand);
 
     // 探针 2: 网络恢复 (Online)
     const handleOnline = () => {
@@ -123,7 +105,6 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("gx-global-sync", handleGlobalSyncCommand);
       window.removeEventListener("online", handleOnline);
       if (typeof window !== "undefined") {
         delete (window as any).gxForceWakeUp;
