@@ -471,13 +471,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 彻底废除 setIsLoading(true)，不再有任何条件下触发 Loading 撕裂
         setHasConfirmedSession(true);
 
-        // 【致命修复：绝对发令枪】
+        // 【致命修复：绝对发令枪 + 让出主线程防抢跑】
         // 既然 Android 的原生探针经常装死，我们就把 Supabase Auth 引擎当做最底层的网络苏醒雷达！
-        // 只要 Auth 活过来了，立刻向全网 SWR 广播唤醒指令！
+        // 【关键防御】：必须使用 setTimeout 50ms 将开火动作推入宏任务队列！
+        // 防止 React 在极端冷启动重绘时，Auth 挂载过快提前开火，导致下层 SWR 监听器还未挂载而错过子弹！
         if (typeof window !== 'undefined') {
-          console.log(`[AuthProvider] 🎯 捕捉到 Auth 引擎苏醒 (${_event})，物理引爆全网 SWR 同步...`);
-          window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason: `auth_${_event}` } }));
-          window.dispatchEvent(new CustomEvent('gx-websocket-resurrect', { detail: { reason: `auth_${_event}` } }));
+          setTimeout(() => {
+            console.log(`[AuthProvider] 🎯 捕捉到 Auth 引擎苏醒 (${_event})，物理引爆全网 SWR 同步...`);
+            window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason: `auth_${_event}` } }));
+            window.dispatchEvent(new CustomEvent('gx-websocket-resurrect', { detail: { reason: `auth_${_event}` } }));
+          }, 50);
         }
       }
       
