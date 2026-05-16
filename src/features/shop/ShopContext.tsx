@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { BookingService } from "@/features/booking/api/booking";
 import { useVisualSettings } from '@/hooks/useVisualSettings';
 import { useBackground } from '@/hooks/useBackground';
+import { useSyncStore } from '@/store/useSyncStore';
 
 interface SubscriptionState {
   subscriptionTier: string;
@@ -369,7 +370,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log(`📡 [ShopContext] 成功订阅 shop_id=${resolvedActiveShopId} 的实时更新`);
+          console.log(`📡 [ShopContext] 成功订阅 shop_id=${resolvedActiveShopId} 的实时更新，执行强制补扫...`);
+          if (isMounted) refreshBookings();
         }
       });
 
@@ -383,6 +385,28 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     };
     handleGlobalSyncSync();
 
+    // 【监听全局同步发令枪】
+    const unsubscribeSync = useSyncStore.subscribe((state, prevState) => {
+      if (state.syncTick > prevState.syncTick) {
+        console.log("📡 [ShopContext] 收到全局发令枪，触发深度唤醒与数据补扫！");
+        handleGlobalSyncSync();
+      }
+      // 【监听探针发现的死锁事件，执行连接物理销毁与重建】
+      if (state.resurrectTick > prevState.resurrectTick) {
+        console.log("⚠️ [ShopContext] 收到死锁重建指令，物理重置 WebSocket 连接池...");
+        // 先销毁现有的幽灵隧道
+        supabase.removeChannel(globalChannel);
+        // 执行重连和补扫
+        handleGlobalSyncSync();
+        // 重新挂载监听隧道
+        globalChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log(`📡 [ShopContext] 死锁重建完毕，成功订阅 shop_id=${resolvedActiveShopId}`);
+          }
+        });
+      }
+    });
+
     const handleResurrect = () => {
       if (isMounted) {
         refreshBookings();
@@ -392,6 +416,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       isMounted = false;
+      unsubscribeSync();
       clearTimeout(fetchTimer);
       window.removeEventListener('gx_global_shops_update', handleShopUpdate);
       window.removeEventListener('gx_global_bookings_update', handleBookingUpdate);

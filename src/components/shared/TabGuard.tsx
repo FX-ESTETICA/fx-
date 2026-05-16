@@ -3,9 +3,56 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap } from "lucide-react";
+import { useSyncStore } from '@/store/useSyncStore';
 
 export const TabGuard = () => {
   const [isSuspended, setIsSuspended] = useState(false);
+
+  // 世界顶级：时空跳跃探测器 (Time Skip Detector) + 物理心跳探针 (Low-Power Ping)
+  useEffect(() => {
+    let lastTick = Date.now();
+    let lastPing = Date.now();
+
+    const interval = setInterval(async () => {
+      const now = Date.now();
+      
+      // 1. 防御休眠：如果两次 tick 间隔超过 10 秒，物理证明 JS 线程刚刚被系统冷冻并解冻了
+      if (now - lastTick > 10000) {
+        console.log("⚠️ [TabGuard] 检测到时空跳跃！强制触发全局唤醒！");
+        useSyncStore.getState().triggerSync("time_skip_detected");
+      }
+      lastTick = now;
+
+      // 2. 防御亮屏死锁：每隔 3 分钟 (180000 毫秒) 射出一发超轻量级物理探针
+      if (now - lastPing > 180000) {
+        lastPing = now;
+        try {
+          // 极低开销探针：仅获取一个最新版本号字符串，不查数据库
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒物理死亡线
+          
+          const res = await fetch(`/api/version?t=${Date.now()}`, { 
+            signal: controller.signal,
+            cache: "no-store" 
+          });
+          
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            throw new Error(`Ping HTTP error: ${res.status}`);
+          }
+          // 探针存活，系统健康，什么都不做
+        } catch (error) {
+          // 探针坠毁！证明 TCP 隧道已被掐断或网络静默死亡
+          console.warn("💀 [TabGuard] 物理心跳探针坠毁！检测到亮屏静默死锁，正在执行全局涅槃重建...", error);
+          // 触发最高级指令：重建底层连接并全量补扫
+          useSyncStore.getState().triggerResurrect("silent_drop_detected");
+        }
+      }
+    }, 2000); // 每 2 秒检查一次时空，但 Ping 探针内部控制 3 分钟发一次
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.BroadcastChannel) return;
