@@ -50,12 +50,13 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
     window.addEventListener("pageshow", handlePageShow);
 
     // =========================================================================
-    // 【世界顶端：物理级全局缓存核弹】
-    // 彻底抛弃 SWR 脆弱的 initFocus（受限于组件挂载时机和 Key 状态）。
-    // 在这里，作为绝对的最顶层，直接监听唤醒信号，然后向 SWR 中央大脑投掷核弹！
+    // 【世界顶端：物理级全局缓存核弹 (已降级为仅供参考，实权已下放)】
+    // 我们发现全局 mutate 常常因为 matcher 匹配失败而变成哑弹。
+    // 因此，真正的唤醒数据拉取，已经全部下放到底层组件 (useRecentChats / useChatEngine) 中用原生 fetch 实现了！
+    // 这里仅保留兜底的 mutate 轰炸，不再作为核心依赖。
     // =========================================================================
     const handleGlobalSyncCommand = () => {
-      console.log("[GlobalSyncEngine] 💥 听到唤醒枪声，执行物理级全局 SWR 缓存核弹轰炸...");
+      console.log("[GlobalSyncEngine] 💥 听到唤醒枪声，执行兜底级全局 SWR 缓存核弹轰炸 (核心拉取已下放到组件内部物理执行)...");
       
       // 1. 首发引爆：命令内存中所有存活的 SWR Key 立刻重新验证，不管组件是否挂载
       mutate(

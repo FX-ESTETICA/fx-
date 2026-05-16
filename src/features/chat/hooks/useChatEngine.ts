@@ -163,17 +163,27 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
       }
     };
 
-    const handleGlobalSync = () => {
-      mutate(); // 后台唤醒或网络恢复时强制 SWR 拉取最新消息
+    const handleGlobalSyncForce = async () => {
+      console.log("[ChatEngine] 🎯 听到唤醒枪声，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！");
+      try {
+        const newData = await fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole);
+        if (typeof window !== 'undefined' && newData && swrKey) {
+          setLocalMessages(newData);
+          localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newData));
+          mutate(newData, false); // 同步给 SWR 闭嘴
+        }
+      } catch (e) {
+        console.error("[ChatEngine] 手动唤醒 Fetch 失败:", e);
+      }
     };
 
     window.addEventListener('gx_chat_cleared', handleClear);
-    window.addEventListener('gx-global-sync', handleGlobalSync);
+    window.addEventListener('gx-global-sync', handleGlobalSyncForce);
     return () => {
       window.removeEventListener('gx_chat_cleared', handleClear);
-      window.removeEventListener('gx-global-sync', handleGlobalSync);
+      window.removeEventListener('gx-global-sync', handleGlobalSyncForce);
     };
-  }, [roomId, receiverId, receiverRole, mutate]);
+  }, [roomId, receiverId, receiverRole, currentUserId, currentRole, swrKey, mutate]);
 
   // 2. 监听 Realtime
   useEffect(() => {

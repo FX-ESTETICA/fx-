@@ -404,7 +404,23 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     window.addEventListener('gx_chat_cleared', handleUpdate);
     window.addEventListener('gx_chat_message_deleted', handleUpdate);
     window.addEventListener('gx_chat_read_updated', handleUpdate);
-    window.addEventListener('gx-global-sync', handleUpdate); // 绑定全局静默同步总线
+
+    // 【致命排查】：之前 SWR 的 mutate 核弹无法波及这个组件，是因为我们在 GlobalSyncProvider 里的全局 mutate 没能跨越组件树
+    // 我们在这个组件内部，直接监听核弹信号，并彻底废除对 SWR 的依赖，采用物理直连拉取！
+    const handleGlobalSyncForce = async () => {
+      console.log("[RecentChats] 🎯 听到唤醒枪声，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！");
+      try {
+        const newData = await fetchRecentChatsData(currentUserId, currentRole);
+        if (typeof window !== 'undefined' && newData) {
+          setRecentChats(newData);
+          localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
+          mutate(newData, false); // 顺便同步给 SWR 闭嘴
+        }
+      } catch (e) {
+        console.error("[RecentChats] 手动唤醒 Fetch 失败:", e);
+      }
+    };
+    window.addEventListener('gx-global-sync', handleGlobalSyncForce); 
 
     // 监听新消息到达，更新列表 (化假为真的关键)
     // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state
@@ -438,7 +454,7 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     // 强制静默拉取数据，打破因 0 秒抢跑导致的空数据锁死。
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        mutate();
+        handleGlobalSyncForce(); // 直接复用物理 Fetch 逻辑
       }
     });
 
@@ -446,6 +462,7 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
       window.removeEventListener('gx_chat_cleared', handleUpdate);
       window.removeEventListener('gx_chat_message_deleted', handleUpdate);
       window.removeEventListener('gx_chat_read_updated', handleUpdate);
+      window.removeEventListener('gx-global-sync', handleGlobalSyncForce);
       window.removeEventListener('gx-websocket-resurrect', handleResurrect);
       supabase.removeChannel(channel);
       subscription.unsubscribe();
