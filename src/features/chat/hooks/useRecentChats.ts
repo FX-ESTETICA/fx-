@@ -356,9 +356,6 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
   if (rawRole) latchedRole.current = rawRole;
   const currentRole = rawRole || latchedRole.current;
 
-  const syncTick = useSyncStore(state => state.syncTick);
-  const resurrectTick = useSyncStore(state => state.resurrectTick);
-
   const activeChatId = activeChat?.id;
   // 【Local-First 引擎】：从本地硬盘光速读取聊天列表缓存
   const getCachedRecentChats = (userId: string, role: string) => {
@@ -380,20 +377,26 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     setRecentChats(getCachedRecentChats(currentUserId, currentRole) || []);
   }, [currentUserId, currentRole]);
 
-  // 【核心改造】：彻底废弃 SWR。使用纯正的状态机 + 版本号防覆盖
+  // 【核心改造】：彻底废弃 SWR。使用纯正的状态机 + 互斥锁防风暴
   useEffect(() => {
     if (!currentUserId) return;
 
     let isCancelled = false;
-    let currentFetchVersion = 0;
+    let isFetching = false; // 互斥锁
 
     const performPhysicalFetch = async (source: string) => {
       if (isCancelled) return;
-      currentFetchVersion++;
-      const thisVersion = currentFetchVersion;
+      
+      // 【互斥锁】：如果已经在拉取中，直接忽略新的并发轰炸，保护当前请求的存活权
+      if (isFetching) {
+        console.log(`[RecentChats] 🛡️ Fetch 已在进行中，忽略并发信号: ${source}`);
+        return;
+      }
+      
+      isFetching = true;
       setIsLoading(true);
 
-      console.log(`[RecentChats] 🎯 触发物理 Fetch (Source: ${source}, Version: ${thisVersion})`);
+      console.log(`[RecentChats] 🎯 触发物理 Fetch (Source: ${source})`);
       let retries = 3;
       let delay = 1000;
       
@@ -402,11 +405,6 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
           const newData = await fetchRecentChatsData(currentUserId, currentRole);
           
           if (isCancelled) break;
-          // 【防覆盖核弹】：如果在我请求期间，有新的请求发出了，我直接把我的数据扔进垃圾桶！
-          if (thisVersion !== currentFetchVersion) {
-            console.warn(`[RecentChats] 🛡️ 拦截旧版本数据覆盖！(Version ${thisVersion} expired)`);
-            break;
-          }
 
           if (typeof window !== 'undefined' && newData) {
             setRecentChats(newData);
@@ -422,7 +420,9 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
           }
         }
       }
-      if (!isCancelled && thisVersion === currentFetchVersion) {
+      
+      isFetching = false;
+      if (!isCancelled) {
         setIsLoading(false);
       }
     };
