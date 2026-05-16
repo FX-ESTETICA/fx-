@@ -558,8 +558,6 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  // 4. 监听 SWR 数据并映射为视图模型
  useEffect(() => {
  if (isPlacesLoading) {
- // 只有在没有缓存的首次加载时才显示骨架屏
- if (!placesData) setIsAggregating(true);
  return;
  }
 
@@ -1027,20 +1025,8 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  )}
 
  {isAggregating ? (
- // 骨架屏 Skeleton
- <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-[clamp(16px,2vw,24px)]">
- {[1, 2, 3, 4, 5, 6].map((i) => (
- <div key={i} className={cn("rounded-3xl border overflow-hidden ", isLight ? "border-black/5 bg-black/5" : "border-white/5 bg-white/5")}>
- <div className={cn("aspect-[16/9]", isLight ? "bg-black/5" : "bg-white/5")} />
- <div className="p-5 space-y-4">
- <div className={cn("h-6 rounded-md w-3/4", isLight ? "bg-black/5" : "bg-white/5")} />
- <div className="flex gap-4">
- <div className={cn("h-4 rounded-md w-1/4", isLight ? "bg-black/5" : "bg-white/5")} />
- <div className={cn("h-4 rounded-md w-1/4", isLight ? "bg-black/5" : "bg-white/5")} />
- </div>
- </div>
- </div>
- ))}
+ // 骨架屏 Skeleton 已废弃，保持透明占位以实现 0 延迟秒出框架
+ <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-[clamp(16px,2vw,24px)] min-h-[50vh]">
  </div>
  ) : (
  // 真实的商家列表卡片
