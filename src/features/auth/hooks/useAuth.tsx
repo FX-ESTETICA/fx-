@@ -467,11 +467,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 现在我们完全移除这种基于假设的阻断。如果事件是 INITIAL_SESSION，我们允许它继续执行，
       // 因为 hydrateSession 内部已经通过并发引擎和请求去重优化了性能，我们宁可多发起一次请求，也绝不容忍由于锁死导致的应用脑死亡。
       
-      // 世界顶端：剥夺 TOKEN_REFRESHED 和 USER_UPDATED 的全局 Loading 锁权限，仅在初始登入时允许骨架屏
-      if (_event === 'SIGNED_IN') {
-        setIsLoading(true);
-        setHasConfirmedSession(true);
-      } else if (_event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+      // 世界顶端：剥夺 SIGNED_IN, TOKEN_REFRESHED 和 USER_UPDATED 的全局 Loading 锁权限
+      // 绝对禁止在唤醒重连时用 setIsLoading(true) 撕裂 DOM，否则会导致 SWR 组件被卸载从而永远错过唤醒信号！
+      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+        // 仅当目前确实是没有 Session 的初始状态下（首屏加载），才允许开启 Loading
+        if (!hasConfirmedSession) {
+          setIsLoading(true);
+        }
         setHasConfirmedSession(true);
       }
       
