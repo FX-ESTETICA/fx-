@@ -122,7 +122,8 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
     () => fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole),
     {
       revalidateOnFocus: true, // 焦点回到窗口时刷新
-      dedupingInterval: 2000,  // 2秒内的重复请求去重
+      // 【大拆锁】：废除 SWR 去重锁，唤醒时必定重发
+      dedupingInterval: 0,
       onSuccess: (data) => {
         // 静默覆写到本地硬盘，供下次秒开
         if (typeof window !== 'undefined' && data && swrKey) {

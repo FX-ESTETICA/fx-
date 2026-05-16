@@ -116,6 +116,10 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
         // 强制开启焦点和重连验证，保证 SWR 层面的绝对最新
         revalidateOnFocus: true,
         revalidateOnReconnect: true,
+        // 【大拆锁】：彻底废除 SWR 默认的 5 秒唤醒冷却期！只要收到唤醒信号，哪怕是 1 毫秒后也要重发！
+        focusThrottleInterval: 0,
+        // 【大拆锁】：缩短全局去重时间到 500ms（原为 2000ms），给“错峰双发”的 800ms 补刀留出绿灯通道
+        dedupingInterval: 500,
         // 【世界顶端：唯一真理发射塔收口】
         // 废除 SWR 内部原生的冗余监听，直接接管经过 500ms 融合锁提纯的 gx-global-sync
         initFocus(callback) {

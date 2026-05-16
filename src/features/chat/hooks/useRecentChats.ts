@@ -382,7 +382,8 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     () => fetchRecentChatsData(currentUserId, currentRole),
     {
       revalidateOnFocus: true, // 焦点回到窗口时刷新
-      dedupingInterval: 5000,  // 5秒内的重复请求去重
+      // 【大拆锁】：废弃原有的 5 秒去重锁！允许密集唤醒，宁可给服务器压力，绝不要死数据！
+      dedupingInterval: 0,
       onSuccess: (data) => {
         // 成功拉取到最新数据后，强制覆写真理状态，并静默落盘
         if (typeof window !== 'undefined' && data && currentUserId) {

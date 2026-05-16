@@ -400,23 +400,18 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // 2. 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
-        // 【新生保护期盾牌拦截】：如果距离上一次建立 WebSocket 还不到 5 秒（比如刚刷新页面时的首屏并发事件）
-        // 坚决拦截核弹！防止浏览器底层 WebSocket 报错: "WebSocket is closed before the connection is established"
-        if (Date.now() - bookingChannelBirthTime < 5000) {
-          console.log(`[ShopContext] 🛡️ 免疫核弹：Booking 通道处于 5 秒新生保护期，物理拦截重建指令...`);
-        } else {
-          console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
-          if (channelBookings) {
-            try { BookingService.unsubscribe(channelBookings); } catch(e) {}
-          }
-
-          bookingChannelBirthTime = Date.now(); // 刷新诞生时间
-          channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
-            handleBookingUpdate();
-          }, () => {
-            handleBookingUpdate();
-          });
+        // 拆除所有“新生保护期锁”。只要唤醒，坚决重连！哪怕前一秒刚连上，也要把旧的干掉换新的。
+        console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections...`);
+        if (channelBookings) {
+          try { BookingService.unsubscribe(channelBookings); } catch(e) {}
         }
+
+        bookingChannelBirthTime = Date.now(); // 刷新诞生时间
+        channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
+          handleBookingUpdate();
+        }, () => {
+          handleBookingUpdate();
+        });
 
         // 3. 重新拉取配置与订单
         fetchShopConfig();
