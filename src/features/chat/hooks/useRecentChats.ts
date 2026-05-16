@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
 
@@ -346,7 +346,16 @@ const fetchRecentChatsData = async (currentUserId: string, currentRole: string):
 
 // 升级版：接入现代 useSWR 架构，防死锁，防竞态，并挂载 Local-First 引擎
 // 修复：传入完整的 activeChat 对象，以获取真实的 name 和 avatar
-export function useRecentChats(currentUserId: string, currentRole: string, activeChat?: { id: string, name: string, targetRole?: string, avatar?: string }) {
+export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: { id: string, name: string, targetRole?: string, avatar?: string }) {
+  // 【金钟罩】：防闪断 ID 锁。抵御切回前台时，useAuth 刷新导致的短暂 ID 丢失
+  const latchedUserId = useRef(rawUserId);
+  if (rawUserId) latchedUserId.current = rawUserId;
+  const currentUserId = rawUserId || latchedUserId.current;
+
+  const latchedRole = useRef(rawRole);
+  if (rawRole) latchedRole.current = rawRole;
+  const currentRole = rawRole || latchedRole.current;
+
   const activeChatId = activeChat?.id;
   // 【Local-First 引擎】：从本地硬盘光速读取聊天列表缓存
   const getCachedRecentChats = (userId: string, role: string) => {

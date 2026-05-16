@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
 import { compressChatImage } from '@/utils/imageCompression';
@@ -79,7 +79,16 @@ const fetchChatHistory = async (currentUserId: string, currentRole: string, room
   return [];
 };
 
-export function useChatEngine(currentUserId: string, currentRole: string, roomId?: string, receiverId?: string, receiverRole?: string) {
+export function useChatEngine(rawUserId: string, rawRole: string, roomId?: string, receiverId?: string, receiverRole?: string) {
+  // 【金钟罩】：防闪断 ID 锁。抵御切回前台时，useAuth 刷新导致的短暂 ID 丢失
+  const latchedUserId = useRef(rawUserId);
+  if (rawUserId) latchedUserId.current = rawUserId;
+  const currentUserId = rawUserId || latchedUserId.current;
+
+  const latchedRole = useRef(rawRole);
+  if (rawRole) latchedRole.current = rawRole;
+  const currentRole = rawRole || latchedRole.current;
+
   const [isSending, setIsSending] = useState(false);
 
   // 1. SWR 核心接管：提供缓存、去重、并发安全

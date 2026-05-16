@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { BookingService, BookingRealtimePayload } from "@/features/booking/api/booking";
@@ -87,10 +87,17 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
   // 完全依赖 user.bindings，废除 isMockMode 逻辑
   // 【致命修复】：使用 JSON.stringify 提取原始签名，防止 user 对象每次内存地址变更导致 availableShops 重算
-  const bindingsSignature = useMemo(() => {
+  const rawBindingsSignature = useMemo(() => {
     if (!user || !("bindings" in user) || !user.bindings) return "[]";
     return JSON.stringify(user.bindings);
   }, [user]);
+
+  // 【金钟罩】：防闪断 bindings 锁。抵御切回前台时，useAuth 刷新导致的短暂 bindings 丢失，从而引发整个 UI 树被卸载
+  const latchedBindings = useRef<string>(rawBindingsSignature);
+  if (rawBindingsSignature !== "[]") {
+    latchedBindings.current = rawBindingsSignature;
+  }
+  const bindingsSignature = rawBindingsSignature !== "[]" ? rawBindingsSignature : latchedBindings.current;
 
   const availableShops = useMemo(() => {
     return JSON.parse(bindingsSignature);
