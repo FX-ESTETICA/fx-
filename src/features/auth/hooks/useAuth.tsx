@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [activeRole, setActiveRoleState] = useState<UserRole>("user");
   // 世界顶端 Local-First 架构：彻底废除初始 Loading 锁！
-  // 只要硬盘里有缓存的用户数据，瞬间渲染 UI，绝不让骨架屏撕裂 DOM，确保组件和 SWR 拥有物理级的不死之身
+  // 只要硬盘里有缓存的用户数据，瞬间渲染 UI，绝不让骨架屏撕裂 DOM
   const [isLoading, setIsLoading] = useState(false);
   const [hasConfirmedSession, setHasConfirmedSession] = useState(false);
   const [isRoleLoaded, setIsRoleLoaded] = useState(false); // 初始化为 false，代表身份正在解析中
@@ -345,7 +345,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     presenceChannel
       .on('presence', { event: 'sync' }, () => {
-        // 全局心跳同步，向浏览器广播原生事件
         const state = presenceChannel.presenceState();
         window.dispatchEvent(new CustomEvent('gx_presence_sync', { detail: state }));
       })
@@ -357,7 +356,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // 成功订阅后立即广播自己的在线状态
           await presenceChannel.track({
             online_at: new Date().toISOString(),
             user_id: user.id,
@@ -400,11 +398,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-      
       if (sessionError) {
-        console.warn("[AuthProvider] Session Error:", sessionError);
-        // 【核心修复：防误踢保护】
-        // 区分网络错误与真正的 Token 失效。套壳 APP 刚唤醒时极易发生 FetchError。
         const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
                                sessionError.message?.toLowerCase().includes('network') || 
                                (sessionError as any).status === 0 || 
@@ -412,20 +406,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                sessionError.name === 'AuthRetryableFetchError';
                                
         if (!isNetworkError) {
-          console.warn("[AuthProvider] Invalid Refresh Token confirmed, clearing session...");
-          // 【致命修复】：将清理逻辑提前，网络请求用 try/catch 隔离，防止 401 熔断导致死缓存
           setSession(null);
           setUser(null);
-          localStorage.removeItem("gx_cached_user"); // 清除脏缓存
+          localStorage.removeItem("gx_cached_user");
           
           try {
-            await supabase.auth.signOut({ scope: 'local' }); // 自动清除损坏的 token
+            await supabase.auth.signOut({ scope: 'local' });
           } catch (err) {
-            console.warn("[AuthProvider] Backend signout rejected (token already dead), ignoring...", err);
           }
-        } else {
-          console.warn("[AuthProvider] Network error detected during getSession, preserving offline cache...");
-          // 网络错误时不踢人，保持现有离线缓存。SWR 和后续重连会自动接管。
         }
         return;
       }
@@ -444,57 +432,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // 无论如何，在后台静默同步真实数据 (SWR 机制)
       await hydrateSession(initialSession);
     } catch (error) {
-      console.error("[AuthProvider] Init Error:", error);
     }
   }, [hydrateSession]);
 
   useEffect(() => {
     if (initLock.current) return;
-    initLock.current = true; // 同步阶段立即上锁，防止多次执行 initAuth
+    initLock.current = true; 
 
-    initAuth();
+    // 屠杀级重构：延后 1 秒执行复杂的 Session 校验，把前 1 秒完全让给 UI 渲染
+    const initTimer = setTimeout(() => {
+      initAuth();
+    }, 1000);
 
     if (isMockMode) return;
-    // 2. 订阅状态变更
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      console.log("[AuthProvider] Auth State Changed:", _event);
-      
-      // 【彻底解除死锁陷阱】：
-      // 在套壳 APP 的 Capacitor 环境下，原生层触发的 INITIAL_SESSION 可能会与我们手动的 initAuth() 发生乱序竞争。
-      // 过去我们为了防浏览器端的重复请求，强行 return 了 INITIAL_SESSION。
-      // 现在我们完全移除这种基于假设的阻断。如果事件是 INITIAL_SESSION，我们允许它继续执行，
-      // 因为 hydrateSession 内部已经通过并发引擎和请求去重优化了性能，我们宁可多发起一次请求，也绝不容忍由于锁死导致的应用脑死亡。
-      
-      // 世界顶端：剥夺 SIGNED_IN, TOKEN_REFRESHED 和 USER_UPDATED 的全局 Loading 锁权限
-      // 绝对禁止在唤醒重连时用 setIsLoading(true) 撕裂 DOM，否则会导致 SWR 组件被卸载从而永远错过唤醒信号！
-      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
-        // 彻底废除 setIsLoading(true)，不再有任何条件下触发 Loading 撕裂
-        setHasConfirmedSession(true);
-
-        // 【致命修复：绝对发令枪 + 让出主线程防抢跑】
-        // 既然 Android 的原生探针经常装死，我们就把 Supabase Auth 引擎当做最底层的网络苏醒雷达！
-        // 【关键防御】：必须使用 setTimeout 50ms 将开火动作推入宏任务队列！
-        // 防止 React 在极端冷启动重绘时，Auth 挂载过快提前开火，导致下层 SWR 监听器还未挂载而错过子弹！
-        if (typeof window !== 'undefined') {
-          setTimeout(() => {
-            console.log(`[AuthProvider] 🎯 捕捉到 Auth 引擎苏醒 (${_event})，物理引爆全网 SWR 同步...`);
-            import('@/store/useSyncStore').then(({ useSyncStore }) => {
-              useSyncStore.getState().triggerSync(`auth_${_event}`);
-              useSyncStore.getState().triggerResurrect(`auth_${_event}`);
-            });
-          }, 50);
+    
+    // 订阅状态变更也延后挂载
+    let subscription: any;
+    const subTimer = setTimeout(() => {
+      const { data } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+        if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
+          setHasConfirmedSession(true);
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              import('@/store/useSyncStore').then(({ useSyncStore }) => {
+                useSyncStore.getState().triggerSync(`auth_${_event}`);
+                useSyncStore.getState().triggerResurrect(`auth_${_event}`);
+              });
+            }, 50);
+          }
         }
-      }
-      
-      if (_event === 'SIGNED_OUT') {
-        setHasConfirmedSession(false);
-      }
+        
+        if (_event === 'SIGNED_OUT') {
+          setHasConfirmedSession(false);
+        }
 
-      await hydrateSession(currentSession);
-    });
+        await hydrateSession(currentSession);
+      });
+      subscription = data.subscription;
+    }, 1000);
 
     return () => {
-      subscription.unsubscribe();
+      clearTimeout(initTimer);
+      clearTimeout(subTimer);
+      if (subscription) subscription.unsubscribe();
     };
   }, [initAuth, hydrateSession]);
 
@@ -580,13 +560,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // 物理分拣：如果是自己的档案、绑定或申请变更，立即触发刷新
       if (payload.table === 'profiles' && payload.new?.id === user.id) {
-        console.log("[AuthProvider] 📡 全局总线分发: Profile update", payload);
         refreshUserData();
       } else if (payload.table === 'bindings' && payload.new?.principal_id === profileGxId) {
-        console.log("[AuthProvider] 📡 全局总线分发: Bindings update", payload);
         refreshUserData();
       } else if (payload.table === 'merchant_applications' && payload.new?.user_id === user.id) {
-        console.log("[AuthProvider] 📡 全局总线分发: Applications update", payload);
         refreshUserData();
       }
     };
@@ -603,12 +580,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === "undefined") return;
     
     const handleGlobalSync = async () => {
-      // 世界顶端 0 妥协法则：统一静默唤醒 (Silent Hydration)
-      // 绝不触发 setIsLoading(true) 摧毁当前 DOM，而是像幽灵一样在后台静默获取最新数据
-      console.log("[GlobalSync] 唤醒信号到达，瞬间拉取全量会话与数据...");
       const { data: { session: nextSession }, error: sessionError } = await supabase.auth.getSession();
       
-      // 【核心修复：防误踢】唤醒瞬间极易发生网络抖动（FetchError）。
       if (sessionError) {
         const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
                                sessionError.message?.toLowerCase().includes('network') || 
@@ -617,11 +590,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                sessionError.name === 'AuthRetryableFetchError';
                                
         if (!isNetworkError) {
-          console.warn("[GlobalSync] Invalid session confirmed, triggering physical reload to resurrect SDK...");
           window.location.reload();
           return;
         } else {
-          console.warn("[GlobalSync] getSession failed on wakeup, aborting sync to prevent false logout.", sessionError);
           return; 
         }
       }

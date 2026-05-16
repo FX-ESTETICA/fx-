@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useSyncStore } from '@/store/useSyncStore';
 
 export interface RecentChat {
   id: string; // 对端用户ID 或 房间ID
@@ -377,88 +376,43 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     setRecentChats(getCachedRecentChats(currentUserId, currentRole) || []);
   }, [currentUserId, currentRole]);
 
-  // 【核心改造】：彻底废弃 SWR 和独立 Channel。接入全局总线
+  // 【核心改造：屠杀级重构】绝对0秒上屏，然后无锁拉取
   useEffect(() => {
     if (!currentUserId) return;
 
     let isCancelled = false;
 
-    const performPhysicalFetch = async (source: string) => {
+    const performPhysicalFetch = async () => {
       if (isCancelled) return;
-      
       setIsLoading(true);
 
-      console.log(`[RecentChats] 🎯 触发物理 Fetch (Source: ${source})`);
-      let retries = 3;
-      let delay = 1000;
-      
-      while (retries > 0 && !isCancelled) {
-        try {
-          const newData = await fetchRecentChatsData(currentUserId, currentRole);
-          
-          if (isCancelled) break;
-
-          if (typeof window !== 'undefined' && newData) {
-            setRecentChats(newData);
-            localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
-            break; // 成功则退出重试循环
-          }
-        } catch (e) {
-          console.error(`[RecentChats] 物理 Fetch 失败，剩余重试: ${retries - 1}`, e);
-          retries--;
-          if (retries > 0 && !isCancelled) {
-            await new Promise(r => setTimeout(r, delay));
-            delay *= 2; // 指数退避 1s, 2s
-          }
+      try {
+        const newData = await fetchRecentChatsData(currentUserId, currentRole);
+        if (isCancelled) return;
+        if (typeof window !== 'undefined' && newData) {
+          setRecentChats(newData);
+          localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
         }
-      }
-      
-      if (!isCancelled) {
-        setIsLoading(false);
-      }
-    };
-
-    // 1. 初次挂载时执行 (代替 SWR 的冷启动)
-    performPhysicalFetch('initial_mount');
-
-    // 2. 监听状态机 Tick (代替 gx-global-sync)
-    const unsubscribeSync = useSyncStore.subscribe((state, prevState) => {
-      if (state.syncTick > prevState.syncTick) {
-        performPhysicalFetch(`sync_tick_${state.syncTick}`);
-      }
-    });
-
-    // 3. 监听内部事件
-    const handleLocalUpdate = () => performPhysicalFetch('local_event');
-    window.addEventListener('gx_chat_cleared', handleLocalUpdate);
-    window.addEventListener('gx_chat_message_deleted', handleLocalUpdate);
-    window.addEventListener('gx_chat_read_updated', handleLocalUpdate);
-
-    // 4. 监听全局 Realtime 消息变动
-    const handleGlobalMessageUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const payload = customEvent.detail;
-      if (payload.table === 'messages') {
-        performPhysicalFetch('global_realtime_insert');
+      } catch (e) {
+        // 0报错洁癖：如果出错，静默吞噬，屏幕上继续保留之前的 localStorage 数据
+      } finally {
+        if (!isCancelled) setIsLoading(false);
       }
     };
-    window.addEventListener('gx_global_messages_update', handleGlobalMessageUpdate);
 
-    // 5. 挂载底层 Auth 监听
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        performPhysicalFetch(`auth_${event}`);
-      }
-    });
+    // 无任何延迟、无任何锁，挂载后立刻发起拉取
+    performPhysicalFetch();
+
+    // 只保留最底层的数据库实时监听
+    const channel = supabase.channel(`recent_chats_${currentUserId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        performPhysicalFetch();
+      })
+      .subscribe();
 
     return () => {
       isCancelled = true;
-      unsubscribeSync();
-      window.removeEventListener('gx_chat_cleared', handleLocalUpdate);
-      window.removeEventListener('gx_chat_message_deleted', handleLocalUpdate);
-      window.removeEventListener('gx_chat_read_updated', handleLocalUpdate);
-      window.removeEventListener('gx_global_messages_update', handleGlobalMessageUpdate);
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [currentUserId, currentRole]);
 

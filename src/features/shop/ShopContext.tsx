@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import { BookingService } from "@/features/booking/api/booking";
 import { useVisualSettings } from '@/hooks/useVisualSettings';
 import { useBackground } from '@/hooks/useBackground';
-import { useSyncStore } from '@/store/useSyncStore';
 
 interface SubscriptionState {
   subscriptionTier: string;
@@ -49,8 +48,6 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   const { user, activeRole } = useAuth() as any; // activeRole is exposed by useAuth
   const { updateSettings } = useVisualSettings();
   const { setSpecificBackground } = useBackground();
-  const syncTick = useSyncStore(state => state.syncTick);
-  const resurrectTick = useSyncStore(state => state.resurrectTick);
   
   const [activeShopId, setActiveShopIdState] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -310,10 +307,12 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         if (isMounted) setIsShopConfigLoaded(true);
       }
     };
-    fetchShopConfig();
-    
-    // 同时也立刻拉取一次订单
-    refreshBookings();
+
+    const fetchTimer = setTimeout(() => {
+      fetchShopConfig();
+      // 同时也立刻拉取一次订单
+      refreshBookings();
+    }, 1000);
 
     // ==========================================
     // 【世界顶端：全局总线分发接管】
@@ -323,7 +322,6 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       const customEvent = e as CustomEvent;
       const payload = customEvent.detail;
       if (payload.table === 'shops' && payload.new?.id === resolvedActiveShopId) {
-        console.log(`[ShopContext] 📡 全局总线分发: Config change received for shop ${resolvedActiveShopId}:`, payload);
         const newConfig = payload.new?.config;
         if (newConfig && isMounted) {
           setShopConfig(newConfig);
@@ -338,11 +336,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const handleBookingUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
       const payload = customEvent.detail;
-      // 注意：这里的 payload 可能只是单条记录，但为了安全起见，我们直接复用 refreshBookings 进行全量物理拉取，确保排序和过滤 100% 正确。
-      // 因为去除了防抖，为了避免短时间内大量事件导致轰炸，我们可以将 refreshBookings 内部设计为拥有短时的幂等性，或者依赖浏览器的并发合并。
-      // 实际上直接调用 refreshBookings 是最安全的降维打击。
       if (payload.table === 'bookings' && payload.new?.shop_id === resolvedActiveShopId) {
-        console.log(`[ShopContext] 📡 全局总线分发: Bookings change received for shop ${resolvedActiveShopId}:`, payload);
         if (isMounted) refreshBookings();
       }
     };
@@ -352,14 +346,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     // 【全局唤醒状态机接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔
     const handleGlobalSyncSync = async () => {
-      if (syncTick === 0) return; // 初始挂载不管
-      console.log(`[ShopContext] Global sync triggered (Tick=${syncTick}), executing unified recovery pipeline for shop ${resolvedActiveShopId}...`);
       if (isMounted) {
-        // 1. 离线队列同步
-        console.log("[ShopContext] 🌍 触发离线队列上传");
         await BookingService.syncOfflineMutations();
-
-        // 3. 重新拉取配置与订单
         fetchShopConfig();
         refreshBookings();
       }
@@ -367,10 +355,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     handleGlobalSyncSync();
 
     const handleResurrect = () => {
-      if (resurrectTick === 0) return;
       if (isMounted) {
-        // 全局重建现在由 GlobalSyncEngine 负责，这里只需拉取最新数据即可
-        console.warn(`[ShopContext] ☢️ 收到 Nuke 信号 (Tick=${resurrectTick})，拉取最新订单数据...`);
         refreshBookings();
       }
     };
@@ -378,10 +363,11 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       isMounted = false;
+      clearTimeout(fetchTimer);
       window.removeEventListener('gx_global_shops_update', handleShopUpdate);
       window.removeEventListener('gx_global_bookings_update', handleBookingUpdate);
     };
-  }, [resolvedActiveShopId, syncTick, resurrectTick, refreshBookings]);
+  }, [resolvedActiveShopId, refreshBookings]);
 
   // 原子级局部更新 API (乐观更新 + 数据库回写)
   const updateShopConfig = useCallback(async (key: string, payload: any) => {

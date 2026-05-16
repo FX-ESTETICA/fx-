@@ -3,14 +3,13 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
 import { ShopProvider } from "@/features/shop/ShopContext";
+import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
 import { AppShell } from "@/components/shared/AppShell";
 import { NebulaBackground } from "@/components/shared/NebulaBackground";
-import { NativeBridgeProvider } from "@/components/shared/NativeBridgeProvider";
 import { WeChatBrowserGuard } from "@/components/shared/WeChatBrowserGuard";
 import { OTAUpdater } from "@/components/shared/OTAUpdater";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-import { GlobalSyncProvider } from "@/providers/GlobalSyncProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -109,113 +108,6 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full subpixel-antialiased bg-black`}
     >
       <head>
-        {/* 0毫秒瞬间注入原生壁纸，彻底消灭 React 渲染延迟与二次闪烁 */}
-        <script
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var saved = localStorage.getItem('gx_visual_settings');
-                  var bgIndex = 1; // 默认前端 B3
-                  var calBgIndex = 1; // 默认日历 B3
-                  if (saved) {
-                    var parsed = JSON.parse(saved);
-                    if (parsed.frontendBgIndex !== undefined) bgIndex = parsed.frontendBgIndex;
-                    if (parsed.calendarBgIndex !== undefined) calBgIndex = parsed.calendarBgIndex;
-                  }
-                  
-                  var isCalendar = window.location.pathname.indexOf('/calendar') !== -1;
-                  var activeIndex = isCalendar ? calBgIndex : bgIndex;
-                  
-                  var bgs = [
-                    '/images/backgrounds/A1.jpg',
-                    '/images/backgrounds/B3.jpg',
-                    '/images/backgrounds/B4.jpg',
-                    '/images/backgrounds/B6.jpg'
-                  ];
-                  var bgUrl = bgs[activeIndex] || bgs[1];
-                  if (bgUrl === 'starry') bgUrl = '/images/backgrounds/A1.jpg';
-                  
-                  var style = document.createElement('style');
-                  style.innerHTML = 'body { background-image: url("' + bgUrl + '"); background-size: cover; background-position: center; background-attachment: fixed; background-repeat: no-repeat; }';
-                  document.head.appendChild(style);
-                } catch(e) {}
-              })();
-            `
-          }}
-        />
-        {/* 终极防线：0毫秒瞬间拦截 PWA 白屏/资源丢失的死锁状态 */}
-        <script
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  // 彻底放过本地开发环境，防止拦截 Next.js 的 Hot Reload 编译
-                  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    // 绝对物理级毁灭：如果本地残留了之前的旧版 Service Worker，强行将其斩杀卸载，防止僵尸接管
-                    if ('serviceWorker' in navigator) {
-                      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                        for(let registration of registrations) {
-                          registration.unregister();
-                        }
-                      });
-                    }
-                    // 清除可能导致死锁的自愈印记
-                    sessionStorage.removeItem('gx_auto_healed');
-                    return;
-                  }
-
-                  // 陷阱1：拦截所有核心资源(JS/CSS) 加载失败的瞬间
-                  window.addEventListener('error', function(e) {
-                    if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
-                      var isChunk = e.target.src && e.target.src.indexOf('_next/static') !== -1;
-                      if (isChunk) {
-                        if (!navigator.onLine) {
-                          console.warn('[GX Offline] 网络断开，阻止资源重载自杀，触发离线降级');
-                          window.dispatchEvent(new Event('gx_offline_mode_activated'));
-                          return;
-                        }
-                        console.error('[GX Auto-Heal] 核心资源加载失败，可能为版本更新缓存冲突。0毫秒瞬间强制重载...');
-                        // 种下自愈印记，防止无限刷新死循环
-                        if (!sessionStorage.getItem('gx_auto_healed')) {
-                          sessionStorage.setItem('gx_auto_healed', 'true');
-                          window.location.reload(true);
-                        }
-                      }
-                    }
-                  }, true);
-
-                  // 陷阱2：拦截 React 引擎内部的动态模块加载失败 (ChunkLoadError)
-                  window.addEventListener('unhandledrejection', function(e) {
-                    if (e.reason && e.reason.name === 'ChunkLoadError') {
-                      if (!navigator.onLine) {
-                        console.warn('[GX Offline] 网络断开，阻止 ChunkLoadError 重载自杀，触发离线降级');
-                        window.dispatchEvent(new Event('gx_offline_mode_activated'));
-                        return;
-                      }
-                      console.error('[GX Auto-Heal] 动态模块读取失败。0毫秒瞬间强制重载...');
-                      if (!sessionStorage.getItem('gx_auto_healed')) {
-                        sessionStorage.setItem('gx_auto_healed', 'true');
-                        window.location.reload(true);
-                      }
-                    }
-                  });
-
-                  // 如果应用成功加载，清除自愈印记
-                  window.addEventListener('load', function() {
-                    setTimeout(function() {
-                      sessionStorage.removeItem('gx_auto_healed');
-                    }, 5000);
-                  });
-                } catch(err) {
-                  // 防御自身报错
-                }
-              })();
-            `
-          }}
-        />
       </head>
       <body className="min-h-full flex flex-col bg-transparent relative text-white">
         <OTAUpdater />
@@ -226,15 +118,11 @@ export default async function RootLayout({
           <div className="fixed inset-0 z-[-1] pointer-events-none bg-transparent">
             <NebulaBackground />
           </div>
-          <GlobalSyncProvider>
-            <AuthProvider>
-              <ShopProvider>
-                <AppShell>
-                  {children}
-                </AppShell>
-              </ShopProvider>
-            </AuthProvider>
-          </GlobalSyncProvider>
+          <AuthProvider>
+            <ShopProvider>
+              <AppShell>{children}</AppShell>
+            </ShopProvider>
+          </AuthProvider>
         </NextIntlClientProvider>
       </body>
     </html>
