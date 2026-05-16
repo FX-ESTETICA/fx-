@@ -344,6 +344,35 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener('gx_global_shops_update', handleShopUpdate);
     window.addEventListener('gx_global_bookings_update', handleBookingUpdate);
 
+    // 【唯一全局 Realtime 隧道】：重新接管跨端秒级同步
+    const globalChannel = supabase
+      .channel(`global_db_changes_${resolvedActiveShopId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings', filter: `shop_id=eq.${resolvedActiveShopId}` },
+        (payload) => {
+          if (isMounted) {
+            console.log("📡 [ShopContext] 收到远端 Bookings 更新，触发全局同步:", payload);
+            refreshBookings();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shops', filter: `id=eq.${resolvedActiveShopId}` },
+        (payload) => {
+          if (isMounted) {
+            console.log("📡 [ShopContext] 收到远端 Shops 更新，触发全局同步:", payload);
+            fetchShopConfig();
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`📡 [ShopContext] 成功订阅 shop_id=${resolvedActiveShopId} 的实时更新`);
+        }
+      });
+
     // 【全局唤醒状态机接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔
     const handleGlobalSyncSync = async () => {
       if (isMounted) {
@@ -366,6 +395,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(fetchTimer);
       window.removeEventListener('gx_global_shops_update', handleShopUpdate);
       window.removeEventListener('gx_global_bookings_update', handleBookingUpdate);
+      supabase.removeChannel(globalChannel);
     };
   }, [resolvedActiveShopId, refreshBookings]);
 
