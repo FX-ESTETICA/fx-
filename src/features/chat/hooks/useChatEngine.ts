@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import useSWR from 'swr';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSyncStore } from '@/store/useSyncStore';
 import { compressChatImage } from '@/utils/imageCompression';
@@ -100,60 +99,76 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
     ? `chat_history_${currentUserId}_${currentRole}_${roomId || ''}_${receiverId || ''}_${receiverRole || ''}` 
     : null;
 
-  // 【Local-First 引擎】：从本地硬盘光速读取聊天记录缓存
-  const getCachedChatHistory = () => {
-    if (typeof window === 'undefined' || !swrKey) return undefined;
-    try {
+  // Local State 接管真理
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window !== 'undefined' && swrKey) {
       const cached = localStorage.getItem(`gx_${swrKey}`);
-      return cached ? JSON.parse(cached) : undefined;
-    } catch (e) {
-      return undefined;
-    }
-  };
-
-  // 【世界顶级：0毫秒同步点火】
-  // 废弃空数组开局，组件挂载的瞬间直接吞下硬盘缓存，抹平 Hydration Gap
-  const [localMessages, setLocalMessages] = useState<ChatMessage[]>(() => getCachedChatHistory() || []);
-
-  // 当聊天对象变化时，瞬间切换到对应的硬盘缓存
-  useEffect(() => {
-    setLocalMessages(getCachedChatHistory() || []);
-  }, [swrKey]);
-
-  // SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
-  const { data: swrMessages, isLoading, mutate } = useSWR(
-    swrKey,
-    () => fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole),
-    {
-      revalidateOnFocus: true, // 焦点回到窗口时刷新
-      // 【大拆锁】：废除 SWR 去重锁，唤醒时必定重发
-      dedupingInterval: 0,
-      onSuccess: (data) => {
-        // 静默覆写到本地硬盘，供下次秒开
-        if (typeof window !== 'undefined' && data && swrKey) {
-          localStorage.setItem(`gx_${swrKey}`, JSON.stringify(data));
-        }
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) {}
       }
     }
-  );
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 同步 SWR 数据到本地状态，以便能够进行乐观更新和实时插入
+  // 【核心改造】：彻底废弃 SWR。使用纯正的状态机 + 版本号防覆盖
   useEffect(() => {
-    if (swrMessages) {
-      setLocalMessages(swrMessages);
-    }
-  }, [swrMessages]);
+    if (!currentUserId || (!roomId && !receiverId)) return;
 
-  // 【Local-First 镜像同步引擎】：确保任何内存状态的变化（WebSocket 接收、乐观更新、撤回）都瞬间刻入硬盘
-  useEffect(() => {
-    if (typeof window !== 'undefined' && swrKey && localMessages.length > 0) {
-      // 通过 debounce 或直接写入来防止高频 IO。这里直接写入因为消息数组通常不会太大。
-      localStorage.setItem(`gx_${swrKey}`, JSON.stringify(localMessages));
-    }
-  }, [localMessages, swrKey]);
+    let isCancelled = false;
+    let currentFetchVersion = 0;
 
-  // 监听全局清空事件与唤醒事件
-  useEffect(() => {
+    const performPhysicalFetch = async (source: string) => {
+      if (isCancelled) return;
+      currentFetchVersion++;
+      const thisVersion = currentFetchVersion;
+      setIsLoading(true);
+
+      console.log(`[ChatEngine] 🎯 触发物理 Fetch (Source: ${source}, Version: ${thisVersion})`);
+      let retries = 3;
+      let delay = 1000;
+      
+      while (retries > 0 && !isCancelled) {
+        try {
+          const newData = await fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole);
+          
+          if (isCancelled) break;
+          // 【防覆盖核弹】：如果在我请求期间，有新的请求发出了，我直接把我的数据扔进垃圾桶！
+          if (thisVersion !== currentFetchVersion) {
+            console.warn(`[ChatEngine] 🛡️ 拦截旧版本数据覆盖！(Version ${thisVersion} expired)`);
+            break;
+          }
+
+          if (typeof window !== 'undefined' && newData && swrKey) {
+            setLocalMessages(newData);
+            localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newData));
+            break; // 成功则退出重试循环
+          }
+        } catch (e) {
+          console.error(`[ChatEngine] 物理 Fetch 失败，剩余重试: ${retries - 1}`, e);
+          retries--;
+          if (retries > 0 && !isCancelled) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2; // 指数退避 1s, 2s
+          }
+        }
+      }
+      if (!isCancelled && thisVersion === currentFetchVersion) {
+        setIsLoading(false);
+      }
+    };
+
+    // 1. 初次挂载时执行
+    performPhysicalFetch('initial_mount');
+
+    // 2. 监听状态机 Tick
+    const unsubscribeSync = useSyncStore.subscribe((state, prevState) => {
+      if (state.syncTick > prevState.syncTick) {
+        performPhysicalFetch(`sync_tick_${state.syncTick}`);
+      }
+    });
+
+    // 3. 监听全局清空事件
     const handleClear = (e: Event) => {
       const customEvent = e as CustomEvent;
       const targetId = roomId || receiverId;
@@ -162,51 +177,19 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
         customEvent.detail?.targetId === targetId && 
         (roomId ? true : customEvent.detail?.targetRole === targetRole)
       ) {
+        currentFetchVersion++; // 强制过期正在路上的 Fetch
         setLocalMessages([]); // 立刻清空当前显示的视图
-        mutate([], false); // 同步清空缓存，不触发重新验证
+        if (swrKey) localStorage.removeItem(`gx_${swrKey}`);
       }
     };
     window.addEventListener('gx_chat_cleared', handleClear);
-    return () => {
-      window.removeEventListener('gx_chat_cleared', handleClear);
-    };
-  }, [roomId, receiverId, receiverRole, currentUserId, currentRole, swrKey, mutate]);
-
-  // 监听状态机唤醒事件
-  useEffect(() => {
-    if (syncTick === 0) return; // 初次挂载由 SWR 负责
-    let isCancelled = false;
-
-    const handleGlobalSyncForce = async () => {
-      console.log(`[ChatEngine] 🎯 状态机 Tick=${syncTick}，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！`);
-      let retries = 3;
-      let delay = 1000;
-      
-      while (retries > 0 && !isCancelled) {
-        try {
-          const newData = await fetchChatHistory(currentUserId, currentRole, roomId, receiverId, receiverRole);
-          if (!isCancelled && typeof window !== 'undefined' && newData && swrKey) {
-            setLocalMessages(newData);
-            localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newData));
-            mutate(newData, false); // 同步给 SWR 闭嘴
-            break; // 成功则退出循环
-          }
-        } catch (e) {
-          console.error(`[ChatEngine] 手动唤醒 Fetch 失败，剩余重试: ${retries - 1}`, e);
-          retries--;
-          if (retries > 0 && !isCancelled) {
-            await new Promise(r => setTimeout(r, delay));
-            delay *= 2;
-          }
-        }
-      }
-    };
-    handleGlobalSyncForce();
 
     return () => {
       isCancelled = true;
+      unsubscribeSync();
+      window.removeEventListener('gx_chat_cleared', handleClear);
     };
-  }, [syncTick, currentUserId, currentRole, roomId, receiverId, receiverRole, swrKey, mutate]);
+  }, [roomId, receiverId, receiverRole, currentUserId, currentRole, swrKey]); // 完全剥离 SWR 依赖
 
   // 2. 监听 Realtime
   useEffect(() => {
@@ -240,15 +223,13 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
 
               if (isForRoom || isForPrivate) {
                 setLocalMessages((prev) => {
-                  // 防止重复插入
                   if (prev.some(m => m.id === newMsg.id)) return prev;
-                  return [...prev, newMsg];
+                  const newArray = [...prev, newMsg];
+                  if (typeof window !== 'undefined' && swrKey) {
+                    localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newArray));
+                  }
+                  return newArray;
                 });
-                // 同步更新 SWR 缓存（必须放在 setState 回调外部，防止 React Cannot update component 报错）
-                mutate((prevData: any = []) => {
-                  if (prevData.some((m: any) => m.id === newMsg.id)) return prevData;
-                  return [...prevData, newMsg];
-                }, false);
 
                 // 物理级复查防线：用户当前处于聊天室内，收到新消息直接将其物理标记为已读
                 if (typeof window !== 'undefined') {
@@ -267,12 +248,11 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
               if (oldMsg && oldMsg.id) {
                 setLocalMessages((prev) => {
                   const newMessages = prev.filter(m => m.id !== oldMsg.id);
-                  console.log('🗑️ [Realtime] 尝试移除消息:', oldMsg.id, '前后数量:', prev.length, '->', newMessages.length);
+                  if (typeof window !== 'undefined' && swrKey) {
+                    localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newMessages));
+                  }
                   return newMessages;
                 });
-                mutate((prevData: any = []) => {
-                  return prevData.filter((m: any) => m.id !== oldMsg.id);
-                }, false);
                 // 发出全局事件，通知左侧的 RecentChats 列表刷新
                 window.dispatchEvent(new CustomEvent('gx_chat_message_deleted', { detail: { targetId: roomId || receiverId } }));
               }
@@ -284,18 +264,19 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
     
     let channel = setupChannel();
 
-    const handleResurrect = () => {
-      if (resurrectTick === 0) return;
-      console.log(`[ChatEngine] ☢️ 收到状态机 Nuke 信号 (Tick=${resurrectTick})，物理重建 WebSocket...`);
-      if (channel) supabase.removeChannel(channel);
-      channel = setupChannel();
-    };
-    handleResurrect();
+    const unsubscribeResurrect = useSyncStore.subscribe((state, prevState) => {
+      if (state.resurrectTick > prevState.resurrectTick) {
+        console.log(`[ChatEngine] ☢️ 收到状态机 Nuke 信号 (Tick=${state.resurrectTick})，物理重建 WebSocket...`);
+        if (channel) supabase.removeChannel(channel);
+        channel = setupChannel();
+      }
+    });
 
     return () => {
+      unsubscribeResurrect();
       supabase.removeChannel(channel);
     };
-  }, [resurrectTick, currentUserId, currentRole, roomId, receiverId, receiverRole, mutate]);
+  }, [resurrectTick, currentUserId, currentRole, roomId, receiverId, receiverRole, swrKey]);
 
   // 2. 核心发送逻辑 (文本 + 极速图片降维 + 音频支持)
   const sendMessage = useCallback(async (content?: string, file?: File, audioBlob?: Blob, audioDuration?: number) => {
@@ -356,6 +337,7 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
       }
 
       // 步骤 4：写入消息表，瞬间触发 Realtime 推送给对方
+      // 乐观更新逻辑已重构：Local State 结合 Realtime
       const { error: insertError } = await supabase
         .from('messages')
         .insert({

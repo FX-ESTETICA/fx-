@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
-import useSWR from 'swr';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSyncStore } from '@/store/useSyncStore';
 
@@ -374,62 +373,48 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
 
   // 【Local-First 状态机】：外部 useState 接管屏幕唯一真理
   const [recentChats, setRecentChats] = useState<RecentChat[]>(() => getCachedRecentChats(currentUserId, currentRole) || []);
+  const [isLoading, setIsLoading] = useState(false);
 
   // 当当前用户/角色变化时，瞬间切换到对应的硬盘缓存
   useEffect(() => {
     setRecentChats(getCachedRecentChats(currentUserId, currentRole) || []);
   }, [currentUserId, currentRole]);
 
-  // SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
-  const { isLoading, mutate } = useSWR(
-    currentUserId ? `recentChats_${currentUserId}_${currentRole}` : null,
-    () => fetchRecentChatsData(currentUserId, currentRole),
-    {
-      revalidateOnFocus: true, // 焦点回到窗口时刷新
-      // 【大拆锁】：废弃原有的 5 秒去重锁！允许密集唤醒，宁可给服务器压力，绝不要死数据！
-      dedupingInterval: 0,
-      onSuccess: (data) => {
-        // 成功拉取到最新数据后，强制覆写真理状态，并静默落盘
-        if (typeof window !== 'undefined' && data && currentUserId) {
-          setRecentChats(data);
-          localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(data));
-        }
-      }
-    }
-  );
-
+  // 【核心改造】：彻底废弃 SWR。使用纯正的状态机 + 版本号防覆盖
   useEffect(() => {
     if (!currentUserId) return;
 
-    // 监听全局清空和删除事件以刷新列表
-    const handleUpdate = () => {
-      mutate(); // 触发 SWR 重新请求
-    };
-    window.addEventListener('gx_chat_cleared', handleUpdate);
-    window.addEventListener('gx_chat_message_deleted', handleUpdate);
-    window.addEventListener('gx_chat_read_updated', handleUpdate);
-
-    // 【致命排查】：之前 SWR 的 mutate 核弹无法波及这个组件，是因为我们在 GlobalSyncProvider 里的全局 mutate 没能跨越组件树
-    // 我们在这个组件内部，直接监听状态机 tick，彻底废除事件监听，采用物理直连拉取并附带重试！
     let isCancelled = false;
-    const handleGlobalSyncForce = async () => {
-      if (syncTick === 0) return; // 初次挂载由 SWR 负责，如果有延迟的 tick，必然 > 0
-      
-      console.log(`[RecentChats] 🎯 状态机 Tick=${syncTick}，彻底抛弃 SWR 自动机制，手动发起绝对物理 Fetch！`);
+    let currentFetchVersion = 0;
+
+    const performPhysicalFetch = async (source: string) => {
+      if (isCancelled) return;
+      currentFetchVersion++;
+      const thisVersion = currentFetchVersion;
+      setIsLoading(true);
+
+      console.log(`[RecentChats] 🎯 触发物理 Fetch (Source: ${source}, Version: ${thisVersion})`);
       let retries = 3;
       let delay = 1000;
       
       while (retries > 0 && !isCancelled) {
         try {
           const newData = await fetchRecentChatsData(currentUserId, currentRole);
-          if (!isCancelled && typeof window !== 'undefined' && newData) {
+          
+          if (isCancelled) break;
+          // 【防覆盖核弹】：如果在我请求期间，有新的请求发出了，我直接把我的数据扔进垃圾桶！
+          if (thisVersion !== currentFetchVersion) {
+            console.warn(`[RecentChats] 🛡️ 拦截旧版本数据覆盖！(Version ${thisVersion} expired)`);
+            break;
+          }
+
+          if (typeof window !== 'undefined' && newData) {
             setRecentChats(newData);
             localStorage.setItem(`gx_recent_chats_${currentUserId}_${currentRole}`, JSON.stringify(newData));
-            mutate(newData, false); // 顺便同步给 SWR 闭嘴
             break; // 成功则退出重试循环
           }
         } catch (e) {
-          console.error(`[RecentChats] 手动唤醒 Fetch 失败，剩余重试: ${retries - 1}`, e);
+          console.error(`[RecentChats] 物理 Fetch 失败，剩余重试: ${retries - 1}`, e);
           retries--;
           if (retries > 0 && !isCancelled) {
             await new Promise(r => setTimeout(r, delay));
@@ -437,55 +422,71 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
           }
         }
       }
+      if (!isCancelled && thisVersion === currentFetchVersion) {
+        setIsLoading(false);
+      }
     };
-    handleGlobalSyncForce();
 
-    // 监听新消息到达，更新列表 (化假为真的关键)
-    // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state
+    // 1. 初次挂载时执行 (代替 SWR 的冷启动)
+    performPhysicalFetch('initial_mount');
+
+    // 2. 监听状态机 Tick (代替 gx-global-sync)
+    const unsubscribeSync = useSyncStore.subscribe((state, prevState) => {
+      if (state.syncTick > prevState.syncTick) {
+        performPhysicalFetch(`sync_tick_${state.syncTick}`);
+      }
+    });
+
+    // 3. 监听内部事件
+    const handleLocalUpdate = () => performPhysicalFetch('local_event');
+    window.addEventListener('gx_chat_cleared', handleLocalUpdate);
+    window.addEventListener('gx_chat_message_deleted', handleLocalUpdate);
+    window.addEventListener('gx_chat_read_updated', handleLocalUpdate);
+
+    // 4. 监听新消息到达 (Realtime)
     let channel = supabase
       .channel('public:messages_list')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (_payload) => {
-          // 有新消息，重新拉取列表以更新顺序和内容
-          mutate();
-        }
+        (_payload) => { performPhysicalFetch('realtime_insert'); }
       )
       .subscribe();
 
-    const handleResurrect = () => {
-      if (resurrectTick === 0) return;
-      console.log(`[RecentChats] ☢️ 收到状态机 Nuke 信号 (Tick=${resurrectTick})，物理重建 WebSocket...`);
-      if (channel) supabase.removeChannel(channel);
-      channel = supabase
-        .channel('public:messages_list')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages' },
-          (_payload) => { mutate(); }
-        )
-        .subscribe();
-    };
-    handleResurrect();
+    // 5. 监听 WebSocket 重建
+    const unsubscribeResurrect = useSyncStore.subscribe((state, prevState) => {
+      if (state.resurrectTick > prevState.resurrectTick) {
+        console.log(`[RecentChats] ☢️ 收到状态机 Nuke 信号 (Tick=${state.resurrectTick})，物理重建 WebSocket...`);
+        if (channel) supabase.removeChannel(channel);
+        channel = supabase
+          .channel('public:messages_list')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            (_payload) => { performPhysicalFetch('realtime_insert_after_nuke'); }
+          )
+          .subscribe();
+      }
+    });
 
-    // 【核心修复】：挂载底层 Auth 监听。一旦监听到 Token 真正就绪（INITIAL_SESSION 或 SIGNED_IN），
-    // 强制静默拉取数据，打破因 0 秒抢跑导致的空数据锁死。
+    // 6. 挂载底层 Auth 监听 (打破 0 秒抢跑空数据)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        handleGlobalSyncForce(); // 直接复用物理 Fetch 逻辑
+        performPhysicalFetch(`auth_${event}`);
       }
     });
 
     return () => {
       isCancelled = true;
-      window.removeEventListener('gx_chat_cleared', handleUpdate);
-      window.removeEventListener('gx_chat_message_deleted', handleUpdate);
-      window.removeEventListener('gx_chat_read_updated', handleUpdate);
+      unsubscribeSync();
+      unsubscribeResurrect();
+      window.removeEventListener('gx_chat_cleared', handleLocalUpdate);
+      window.removeEventListener('gx_chat_message_deleted', handleLocalUpdate);
+      window.removeEventListener('gx_chat_read_updated', handleLocalUpdate);
       supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
-  }, [currentUserId, currentRole, syncTick, resurrectTick, mutate]); // 依赖 mutate 和状态机
+  }, [currentUserId, currentRole]); // 彻底剥离所有的事件依赖，完全由内部的 performPhysicalFetch 掌控
 
   // ==========================================
   // 【动态置顶与幻影注入】(仅在前端内存中进行，不触发网络请求)
