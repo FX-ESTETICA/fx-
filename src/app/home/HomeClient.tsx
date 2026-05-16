@@ -531,8 +531,9 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
    }
  }, [queryKey, homePlacesData, setHomePlacesData]);
 
- // 3. SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
- const { error: placesError, isLoading: isPlacesLoading } = useSWR(
+ // SWR 沦为纯粹的后台打工仔：彻底剥离 fallbackData 和 keepPreviousData，打破死锁
+ // 并且我们不再从 useSWR 返回 isPlacesLoading，因为它已经不配阻断我们的渲染了
+ const { error: placesError } = useSWR(
  queryKey,
  fetcher,
  {
@@ -557,10 +558,9 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
 
  // 4. 监听 SWR 数据并映射为视图模型
  useEffect(() => {
- if (isPlacesLoading) {
- return;
- }
-
+ // 世界顶端 0 妥协法则：废除 isPlacesLoading 拦截！
+ // 哪怕正在 loading，只要内存/硬盘里有 placesData，直接拿去渲染，瞬间呈现过期数据。
+ // 只有在彻底没数据（连缓存都没有）的情况下，才会被视为真正的空白。
  setIsAggregating(false);
 
  if (placesData && placesData.places) {
@@ -601,7 +601,7 @@ export function HomeClient({ initialRealShops, isActive = true }: { initialRealS
  setTargetCount(Math.max(6, Math.ceil(6 / columns) * columns));
  setIsMockMode(true);
  }
- }, [placesData, placesError, isPlacesLoading, columns, userLocation, isMockMode]);
+ }, [placesData, placesError, columns, userLocation, isMockMode]);
 
  return (
  <>
