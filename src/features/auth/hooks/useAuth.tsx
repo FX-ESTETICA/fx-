@@ -470,6 +470,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
         // 彻底废除 setIsLoading(true)，不再有任何条件下触发 Loading 撕裂
         setHasConfirmedSession(true);
+
+        // 【致命修复：绝对发令枪】
+        // 既然 Android 的原生探针经常装死，我们就把 Supabase Auth 引擎当做最底层的网络苏醒雷达！
+        // 只要 Auth 活过来了，立刻向全网 SWR 广播唤醒指令！
+        if (typeof window !== 'undefined') {
+          console.log(`[AuthProvider] 🎯 捕捉到 Auth 引擎苏醒 (${_event})，物理引爆全网 SWR 同步...`);
+          window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason: `auth_${_event}` } }));
+          window.dispatchEvent(new CustomEvent('gx-websocket-resurrect', { detail: { reason: `auth_${_event}` } }));
+        }
       }
       
       if (_event === 'SIGNED_OUT') {
