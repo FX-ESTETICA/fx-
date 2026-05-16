@@ -106,6 +106,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full subpixel-antialiased bg-black`}
+      suppressHydrationWarning
     >
       <head>
         <script
