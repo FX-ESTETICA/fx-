@@ -4,7 +4,6 @@ import { X, Sparkles } from "lucide-react";
 import { AiBookingAssistant } from "./AiBookingAssistant";
 import { useTranslations } from "next-intl";
 import { cn } from "@/utils/cn";
-import { BookingService } from "@/features/booking/api/booking";
 
 import { ShopDetailView } from "./ShopDetailView";
 import { useHardwareBack } from "@/hooks/useHardwareBack";
@@ -37,20 +36,8 @@ export function ShopDetailOverlay({ shop, onClose }: ShopDetailOverlayProps) {
  useEffect(() => {
  if (!shop?.id) return;
  
- // 初始化同步
+ // 初始化同步：使用静态快照，切断 C 端弹窗不必要的实时长连接开销
  setRealtimeConfig(shop.config || {});
-
- // 挂载实时配置雷达
- const channel = BookingService.subscribeToShopConfig(shop.id, (payload) => {
- const newConfig = payload.new?.config as any;
- if (newConfig) {
- setRealtimeConfig(newConfig);
- }
- });
-
- return () => {
- if (channel) BookingService.unsubscribe(channel);
- };
  }, [shop?.id, shop?.config]);
  
  if (!shop) return null;
