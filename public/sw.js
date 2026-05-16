@@ -5,7 +5,10 @@ const isLocalhost = Boolean(
   self.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
 );
 
-if (isLocalhost) {
+// 终极拦截：如果是 Capacitor 远程套壳域名，强制自杀
+const isCapacitorRemote = self.location.hostname === 'fx-rapallo.vercel.app';
+
+if (isLocalhost || isCapacitorRemote) {
   self.addEventListener('install', (event) => {
     self.skipWaiting();
   });

@@ -23,6 +23,8 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       lastSyncTime = now;
       console.log(`[GlobalSyncEngine] 触发全局静默同步总线. 唤醒源: ${reason}`);
       window.dispatchEvent(new CustomEvent('gx-global-sync', { detail: { reason } }));
+      // 物理斩杀信号：通知全网重建 WebSocket 长连接
+      window.dispatchEvent(new CustomEvent('gx-websocket-resurrect', { detail: { reason } }));
     };
 
     // 探针 1: 浏览器前后台切换 (Visibility Change)
@@ -118,8 +120,14 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
         // 废除 SWR 内部原生的冗余监听，直接接管经过 500ms 融合锁提纯的 gx-global-sync
         initFocus(callback) {
           const handleGlobalSync = () => {
-            console.log("[GlobalSyncEngine] SWR 接管统一融合唤醒指令，执行无重叠数据刷新...");
+            console.log("[GlobalSyncEngine] SWR 接管统一融合唤醒指令，执行首发拉取...");
             callback();
+            
+            // 【错峰双发】：等待 Android TCP/IP 栈彻底苏醒后补刀，打破 SWR 抢跑死锁
+            setTimeout(() => {
+              console.log("[GlobalSyncEngine] SWR 错峰双发：800ms 强心针补刀，确保网络栈已就绪...");
+              callback();
+            }, 800);
           };
           window.addEventListener("gx-global-sync", handleGlobalSync);
 

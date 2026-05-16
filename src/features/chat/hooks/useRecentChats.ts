@@ -398,7 +398,7 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
 
     // 监听新消息到达，更新列表 (化假为真的关键)
     // 注意：这里使用 mutate 触发 SWR 重新拉取，不直接改 state
-    const channel = supabase
+    let channel = supabase
       .channel('public:messages_list')
       .on(
         'postgres_changes',
@@ -409,6 +409,20 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
         }
       )
       .subscribe();
+
+    const handleResurrect = () => {
+      console.log("[RecentChats] ☢️ 收到 Nuke 信号，物理重建 WebSocket...");
+      if (channel) supabase.removeChannel(channel);
+      channel = supabase
+        .channel('public:messages_list')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (_payload) => { mutate(); }
+        )
+        .subscribe();
+    };
+    window.addEventListener('gx-websocket-resurrect', handleResurrect);
 
     // 【核心修复】：挂载底层 Auth 监听。一旦监听到 Token 真正就绪（INITIAL_SESSION 或 SIGNED_IN），
     // 强制静默拉取数据，打破因 0 秒抢跑导致的空数据锁死。
@@ -422,6 +436,7 @@ export function useRecentChats(currentUserId: string, currentRole: string, activ
       window.removeEventListener('gx_chat_cleared', handleUpdate);
       window.removeEventListener('gx_chat_message_deleted', handleUpdate);
       window.removeEventListener('gx_chat_read_updated', handleUpdate);
+      window.removeEventListener('gx-websocket-resurrect', handleResurrect);
       supabase.removeChannel(channel);
       subscription.unsubscribe();
     };
