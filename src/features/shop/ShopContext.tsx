@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import { BookingService, BookingRealtimePayload } from "@/features/booking/api/booking";
+import { BookingService } from "@/features/booking/api/booking";
 import { useVisualSettings } from '@/hooks/useVisualSettings';
 import { useBackground } from '@/hooks/useBackground';
 import { useSyncStore } from '@/store/useSyncStore';
@@ -315,79 +315,40 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     // 同时也立刻拉取一次订单
     refreshBookings();
 
-    // 2. Realtime Subscription (Config)
-    let configDebounceTimer: NodeJS.Timeout | null = null;
-    const channelConfig = supabase
-      .channel(`shop_config_${resolvedActiveShopId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'shops', filter: `id=eq.${resolvedActiveShopId}` },
-        (payload) => {
-          console.log(`[ShopContext] Realtime Config change received for shop ${resolvedActiveShopId}:`, payload);
-          const newConfig = payload.new?.config;
-          if (newConfig && isMounted) {
-            setShopConfig(newConfig);
+    // ==========================================
+    // 【世界顶端：全局总线分发接管】
+    // 彻底废除分散的 Realtime Channel、Debounce 锁、和 30秒暴力探针
+    // ==========================================
+    const handleShopUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
+      if (payload.table === 'shops' && payload.new?.id === resolvedActiveShopId) {
+        console.log(`[ShopContext] 📡 全局总线分发: Config change received for shop ${resolvedActiveShopId}:`, payload);
+        const newConfig = payload.new?.config;
+        if (newConfig && isMounted) {
+          setShopConfig(newConfig);
+          if (typeof window !== "undefined") {
+            const configSnapshot = { timestamp: Date.now(), data: newConfig };
+            localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(configSnapshot));
           }
         }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && isMounted) {
-          console.log(`[ShopContext] Realtime Config channel SUBSCRIBED for shop ${resolvedActiveShopId}, fetching latest state...`);
-          if (configDebounceTimer) clearTimeout(configDebounceTimer);
-          configDebounceTimer = setTimeout(() => {
-            fetchShopConfig();
-          }, 300);
-        }
-      });
-      
-    // 3. Realtime Subscription (Bookings)
-    // 接管原有的订单监听，直接在此处触发全局订单拉取
-    let realtimeDebounceTimer: NodeJS.Timeout | null = null;
-    let bookingChannelBirthTime = Date.now(); // 【新生保护期盾牌】
-
-    const handleBookingUpdate = () => {
-      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
-      realtimeDebounceTimer = setTimeout(() => {
-        if (isMounted) refreshBookings();
-      }, 300); // 300ms 防抖，将几十次连续插入合并为 1 次 Fetch
+      }
     };
 
-    let channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, (payload: BookingRealtimePayload) => {
-      console.log(`[ShopContext] Realtime Bookings change received for shop ${resolvedActiveShopId}:`, payload);
-      handleBookingUpdate();
-    }, () => {
-      // 【世界级物理探针】：无论是初次挂载，还是从长达数小时的后台挂起中苏醒重连
-      // 只要 WebSocket 物理通道重建成功，立刻拉取全量快照，填补断连期间的数据黑洞！
-      if (isMounted) {
-        console.log(`[ShopContext] Realtime Bookings channel SUBSCRIBED for shop ${resolvedActiveShopId}, syncing full state...`);
-        handleBookingUpdate(); // 复用已有的防抖逻辑
+    const handleBookingUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
+      // 注意：这里的 payload 可能只是单条记录，但为了安全起见，我们直接复用 refreshBookings 进行全量物理拉取，确保排序和过滤 100% 正确。
+      // 因为去除了防抖，为了避免短时间内大量事件导致轰炸，我们可以将 refreshBookings 内部设计为拥有短时的幂等性，或者依赖浏览器的并发合并。
+      // 实际上直接调用 refreshBookings 是最安全的降维打击。
+      if (payload.table === 'bookings' && payload.new?.shop_id === resolvedActiveShopId) {
+        console.log(`[ShopContext] 📡 全局总线分发: Bookings change received for shop ${resolvedActiveShopId}:`, payload);
+        if (isMounted) refreshBookings();
       }
-    });
+    };
 
-    // 【终极保底探针】：每 30 秒检查一次核心 WebSocket 通道，防止被系统静默掐断
-    const heartbeatTimer = setInterval(() => {
-      if (isMounted && resolvedActiveShopId) {
-        // 【防误杀判断】：如果连接才刚刚诞生不到 5 秒，绝对不可能是僵尸，跳过猎杀！
-        if (Date.now() - bookingChannelBirthTime < 5000) return;
-
-        const activeChannels = supabase.getChannels();
-        const hasBookingChannel = activeChannels.some(c => c.topic === `realtime:public:bookings:${resolvedActiveShopId}`);
-        if (!hasBookingChannel) {
-          console.warn(`[ShopContext] 💔 探针发现 Booking Realtime 通道假死或丢失，执行物理重建...`);
-          // 先尝试清理旧的
-          if (channelBookings) {
-            try { BookingService.unsubscribe(channelBookings); } catch(e) {}
-          }
-          // 强行重建
-          bookingChannelBirthTime = Date.now(); // 刷新诞生时间
-          channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
-            handleBookingUpdate();
-          }, () => {
-            handleBookingUpdate();
-          });
-        }
-      }
-    }, 30000);
+    window.addEventListener('gx_global_shops_update', handleShopUpdate);
+    window.addEventListener('gx_global_bookings_update', handleBookingUpdate);
 
     // 【全局唤醒状态机接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔
     const handleGlobalSyncSync = async () => {
@@ -408,31 +369,17 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const handleResurrect = () => {
       if (resurrectTick === 0) return;
       if (isMounted) {
-        // 2. 【物理级 Nuke Protocol】: 彻底粉碎并重建 WebSocket，击穿基带假死
-        console.warn(`[ShopContext] ☢️ Nuke Protocol: Destroying zombie connections (Tick=${resurrectTick})...`);
-        if (channelBookings) {
-          try { BookingService.unsubscribe(channelBookings); } catch(e) {}
-        }
-
-        bookingChannelBirthTime = Date.now(); // 刷新诞生时间
-        channelBookings = BookingService.subscribeToShopBookings(resolvedActiveShopId, () => {
-          handleBookingUpdate();
-        }, () => {
-          handleBookingUpdate();
-        });
+        // 全局重建现在由 GlobalSyncEngine 负责，这里只需拉取最新数据即可
+        console.warn(`[ShopContext] ☢️ 收到 Nuke 信号 (Tick=${resurrectTick})，拉取最新订单数据...`);
+        refreshBookings();
       }
     };
     handleResurrect();
 
     return () => {
       isMounted = false;
-      if (configDebounceTimer) clearTimeout(configDebounceTimer);
-      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
-      clearInterval(heartbeatTimer);
-      supabase.removeChannel(channelConfig);
-      if (channelBookings) {
-        BookingService.unsubscribe(channelBookings);
-      }
+      window.removeEventListener('gx_global_shops_update', handleShopUpdate);
+      window.removeEventListener('gx_global_bookings_update', handleBookingUpdate);
     };
   }, [resolvedActiveShopId, syncTick, resurrectTick, refreshBookings]);
 
@@ -590,64 +537,37 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
-        // 2. 建立 Supabase Realtime 物理级监听，监听 Boss Profile 的变动
+        // 2. 建立全局事件监听，监听 Boss Profile 的变动
         if (empireId && isMounted) {
-          channel = supabase
-            .channel(`empire_sub_${empireId}`)
-            .on(
-              'postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${empireId}` },
-              (payload) => {
-                if (activeRole === 'boss') return; // Boss 免疫实时覆盖
-                console.log("[ShopContext] Realtime Empire subscription update received:", payload.new);
-                const newData = payload.new;
-                
-                setSubscription(prev => {
-                  const updatedState = {
-                    ...prev,
-                    subscriptionTier: newData.subscription_tier || 'FREE',
-                    trialStartedAt: newData.trial_started_at,
-                    subscriptionEndsAt: newData.current_period_end,
-                    gracePeriodActionsLeft: newData.grace_period_actions_left ?? null,
-                  };
-                  if (typeof window !== "undefined") {
-                    localStorage.setItem("gx_empire_sub_snapshot", JSON.stringify(updatedState));
-                  }
-                  return updatedState;
-                });
-              }
-            )
-            .subscribe((status) => {
-              if (status === 'SUBSCRIBED' && isMounted) {
-                console.log(`[ShopContext] Realtime Empire sub channel SUBSCRIBED for ${empireId}, fetching latest state...`);
-                // 递归调用虽然不太好，但可以提取出来或者直接触发重新拉取。由于 fetchSubscriptionData 已经定义在作用域内，可以直接调。
-                // 为了防止无限死循环，确保 fetchSubscriptionData 内部不会重置 channel，我们可以通过一个 fetchState 独立函数。
-                // 实际上，这里我们可以只发送一条查询。为了简单且安全，直接重新查库
-                supabase
-                  .from('profiles')
-                  .select('subscription_tier, trial_started_at, current_period_end, grace_period_actions_left')
-                  .eq('id', empireId)
-                  .maybeSingle()
-                  .then(({ data: profileData }) => {
-                    if (profileData && isMounted) {
-                      setSubscription(prev => {
-                        if (activeRole === 'boss') return prev;
-                        const updatedState = {
-                          ...prev,
-                          subscriptionTier: profileData.subscription_tier || 'FREE',
-                          trialStartedAt: profileData.trial_started_at,
-                          subscriptionEndsAt: profileData.current_period_end,
-                          gracePeriodActionsLeft: profileData.grace_period_actions_left ?? null,
-                        };
-                        if (typeof window !== "undefined") {
-                          localStorage.setItem("gx_empire_sub_snapshot", JSON.stringify(updatedState));
-                        }
-                        return updatedState;
-                      });
-                    }
-                  });
-              }
-            });
+          const handleEmpireUpdate = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const payload = customEvent.detail;
+            
+            if (payload.table === 'profiles' && payload.new?.id === empireId) {
+              if (activeRole === 'boss') return; // Boss 免疫实时覆盖
+              console.log("[ShopContext] 📡 全局总线分发: Empire subscription update received:", payload.new);
+              const newData = payload.new;
+              
+              setSubscription(prev => {
+                const updatedState = {
+                  ...prev,
+                  subscriptionTier: newData.subscription_tier || 'FREE',
+                  trialStartedAt: newData.trial_started_at,
+                  subscriptionEndsAt: newData.current_period_end,
+                  gracePeriodActionsLeft: newData.grace_period_actions_left ?? null,
+                };
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("gx_empire_sub_snapshot", JSON.stringify(updatedState));
+                }
+                return updatedState;
+              });
+            }
+          };
+
+          window.addEventListener('gx_global_auth_update', handleEmpireUpdate);
+          
+          // 暴露给闭包用于清理
+          channel = handleEmpireUpdate;
         }
 
       } catch (e) {
@@ -660,7 +580,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       isMounted = false;
       if (channel) {
-        supabase.removeChannel(channel);
+        window.removeEventListener('gx_global_auth_update', channel);
       }
     };
   }, [resolvedActiveShopId, activeRole]);

@@ -564,154 +564,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [session, localViewRole]);
 
   // ==========================================
-  // 【世界顶端：全局实时订阅中心】
-  // 使用单例防抖，彻底消除并发频道苏醒导致的风暴请求
+  // 【世界顶端：全局实时订阅中心】(已重构：接入 GlobalRealtimeEngine)
+  // 彻底废除分散的 Channel，仅监听总线发出的 CustomEvent
   // ==========================================
   useEffect(() => {
     if (isMockMode) return;
     if (!user || !user.id) return;
     
-    // 我们需要用户的 gxId 来订阅 bindings 表的变动
-    const profileGxId = 'gxId' in user ? user.gxId : null;
-
-    let subscribedDebounceTimer: NodeJS.Timeout | null = null;
-
-    // 核心函数：防抖刷新数据
-    const triggerDebouncedRefresh = (channelName: string) => {
-      console.log(`[AuthProvider] ${channelName} channel event, queuing refreshUserData...`);
-      if (subscribedDebounceTimer) clearTimeout(subscribedDebounceTimer);
-      subscribedDebounceTimer = setTimeout(() => {
-        console.log(`[AuthProvider] Debounce cleared, executing refreshUserData...`);
-        refreshUserData();
-      }, 500);
-    };
-
-    const profileSubscription = supabase
-      .channel(`public:profiles:${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        (payload) => {
-          console.log("[AuthProvider] Profile realtime update received:", payload);
-          triggerDebouncedRefresh('Profile');
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') triggerDebouncedRefresh('Profile');
-      });
-
-    const bindingsSubscription = supabase
-      .channel(`public:bindings:${profileGxId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bindings', filter: `principal_id=eq.${profileGxId}` },
-        (payload) => {
-          console.log("[AuthProvider] Bindings realtime update received:", payload);
-          triggerDebouncedRefresh('Bindings');
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') triggerDebouncedRefresh('Bindings');
-      });
+    // 监听全局 Auth 数据变动事件
+    const handleAuthUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
       
-    // 监听商户申请状态变更 (实现秒级入驻闭环)
-    const applicationsSubscription = supabase
-      .channel(`public:merchant_applications:${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'merchant_applications', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          console.log("[AuthProvider] Application realtime update received:", payload);
-          triggerDebouncedRefresh('Applications');
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') triggerDebouncedRefresh('Applications');
-      });
+      const profileGxId = 'gxId' in user ? user.gxId : null;
+      
+      // 物理分拣：如果是自己的档案、绑定或申请变更，立即触发刷新
+      if (payload.table === 'profiles' && payload.new?.id === user.id) {
+        console.log("[AuthProvider] 📡 全局总线分发: Profile update", payload);
+        refreshUserData();
+      } else if (payload.table === 'bindings' && payload.new?.principal_id === profileGxId) {
+        console.log("[AuthProvider] 📡 全局总线分发: Bindings update", payload);
+        refreshUserData();
+      } else if (payload.table === 'merchant_applications' && payload.new?.user_id === user.id) {
+        console.log("[AuthProvider] 📡 全局总线分发: Applications update", payload);
+        refreshUserData();
+      }
+    };
 
-    // 修复：取消全局无 filter 的 shops 监听，因为配置更新会导致死循环
-    // 只有在真的需要时（比如新建了店）才手动触发刷新
-    /*
-    const shopsSubscription = supabase
-      .channel('public:shops:global')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shops' },
-        (payload) => {
-          console.log("[AuthProvider] Shops global realtime update received:", payload);
-          triggerDebouncedRefresh('Shops');
-        }
-      )
-      .subscribe();
-    */
+    window.addEventListener('gx_global_auth_update', handleAuthUpdate);
 
     return () => {
-      if (subscribedDebounceTimer) clearTimeout(subscribedDebounceTimer);
-      supabase.removeChannel(profileSubscription);
-      supabase.removeChannel(bindingsSubscription);
-      supabase.removeChannel(applicationsSubscription);
-      // supabase.removeChannel(shopsSubscription);
+      window.removeEventListener('gx_global_auth_update', handleAuthUpdate);
     };
-  }, [user?.id, 'gxId' in (user || {}) ? (user as any).gxId : null, refreshUserData]); // 仅当核心 ID 变化时重新订阅，打破死循环
-
-  // ==========================================
-  // 【世界顶端：幽灵心跳保活引擎 (Phantom Heartbeat)】
-  // 专门对抗 PWA/移动端长时间挂起导致的 Token 自然饿死
-  // ==========================================
-  useEffect(() => {
-    if (isMockMode) return;
-    if (typeof document === "undefined") return;
-
-    let heartbeatTimer: NodeJS.Timeout;
-
-    const handlePhantomHeartbeat = () => {
-      heartbeatTimer = setTimeout(async () => {
-        console.log("[Phantom Heartbeat] Global sync triggered, silently refreshing session...");
-        const { error } = await supabase.auth.getSession();
-        if (error) {
-          const isNetworkError = error.message?.toLowerCase().includes('fetch') || 
-                                  error.message?.toLowerCase().includes('network') || 
-                                  (error as any).status === 0 || 
-                                  (error as any).status >= 500 || 
-                                  error.name === 'AuthRetryableFetchError';
-                                  
-          if (!isNetworkError) {
-            console.warn("[Phantom Heartbeat] Invalid session confirmed, triggering physical reload to resurrect SDK...");
-            // 世界顶端法则：绝不踢人，绝不清除 UI 缓存。
-            // 直接物理重载，让 SDK 从 LocalStorage 重新读取持久化的 Refresh Token 满血复活，彻底粉碎内存僵尸态。
-            window.location.reload();
-          } else {
-            console.warn("[Phantom Heartbeat] Silent refresh failed (likely network jitter), preserving cache.");
-          }
-        }
-      }, 3000);
-    };
-
-    // 废除独立监听原生 visibilitychange，完全臣服于全局融合总线
-    import('@/store/useSyncStore').then(({ useSyncStore }) => {
-      useSyncStore.subscribe((state, prevState) => {
-        if (state.syncTick > prevState.syncTick) {
-          handlePhantomHeartbeat();
-        }
-      });
-    });
-
-    return () => {
-      if (heartbeatTimer) clearTimeout(heartbeatTimer);
-    };
-  }, []);
+  }, [user?.id, 'gxId' in (user || {}) ? (user as any).gxId : null, refreshUserData]);
 
   useEffect(() => {
     if (isMockMode) return;
     if (typeof window === "undefined") return;
+    
     const handleGlobalSync = async () => {
       // 世界顶端 0 妥协法则：统一静默唤醒 (Silent Hydration)
-      // 绝不触发 setIsLoading(true) 摧毁当前 DOM，而是像幽灵一样在后台静默获取最新数据，
-      // 获取后通过 React 响应式精准替换脏数据，让前台画面纹丝不动。
+      // 绝不触发 setIsLoading(true) 摧毁当前 DOM，而是像幽灵一样在后台静默获取最新数据
+      console.log("[GlobalSync] 唤醒信号到达，瞬间拉取全量会话与数据...");
       const { data: { session: nextSession }, error: sessionError } = await supabase.auth.getSession();
       
       // 【核心修复：防误踢】唤醒瞬间极易发生网络抖动（FetchError）。
-      // 绝对不能把网络失败导致的 null session 传给 hydrateSession（会导致物理抹除用户数据）！
       if (sessionError) {
         const isNetworkError = sessionError.message?.toLowerCase().includes('fetch') || 
                                sessionError.message?.toLowerCase().includes('network') || 
@@ -721,13 +618,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                
         if (!isNetworkError) {
           console.warn("[GlobalSync] Invalid session confirmed, triggering physical reload to resurrect SDK...");
-          // 世界顶端法则：绝不踢人，绝不清除 UI 缓存。
-          // 直接物理重载，让 SDK 从 LocalStorage 重新读取持久化的 Refresh Token 满血复活，彻底粉碎内存僵尸态。
           window.location.reload();
           return;
         } else {
           console.warn("[GlobalSync] getSession failed on wakeup, aborting sync to prevent false logout.", sessionError);
-          return; // 物理拦截，保留本地缓存，等网络彻底恢复后 SWR 会接管重试
+          return; 
         }
       }
       
@@ -737,6 +632,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await syncDeviceSession(nextSession);
       }
     };
+    
     import('@/store/useSyncStore').then(({ useSyncStore }) => {
       useSyncStore.subscribe((state, prevState) => {
         if (state.syncTick > prevState.syncTick) {
@@ -745,8 +641,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     });
 
-    return () => {
-    };
+    return () => {};
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 
   const setActiveRole = (role: UserRole) => {

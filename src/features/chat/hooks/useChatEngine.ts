@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSyncStore } from '@/store/useSyncStore';
 import { compressChatImage } from '@/utils/imageCompression';
@@ -88,9 +88,6 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
   const latchedRole = useRef(rawRole);
   if (rawRole) latchedRole.current = rawRole;
   const currentRole = rawRole || latchedRole.current;
-
-  const syncTick = useSyncStore(state => state.syncTick);
-  const resurrectTick = useSyncStore(state => state.resurrectTick);
 
   const [isSending, setIsSending] = useState(false);
 
@@ -191,7 +188,7 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
     };
   }, [roomId, receiverId, receiverRole, currentUserId, currentRole, swrKey]); // 完全剥离 SWR 依赖
 
-  // 2. 监听 Realtime
+  // 2. 监听全局 Realtime 消息变动
   useEffect(() => {
     if (!currentUserId || (!roomId && !receiverId)) return;
 
@@ -204,79 +201,64 @@ export function useChatEngine(rawUserId: string, rawRole: string, roomId?: strin
       window.dispatchEvent(new CustomEvent('gx_chat_read_updated'));
     }
 
-    // 开启 WebSocket 监听 (0延迟体验核心)
-    const setupChannel = () => {
-      return supabase
-        .channel(`chat_${roomId || receiverId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'messages' },
-          (payload) => {
-            if (payload.eventType === 'INSERT') {
-              const newMsg = payload.new as ChatMessage;
-              // 过滤是否属于当前聊天窗口
-              const isForRoom = roomId && newMsg.room_id === roomId;
-              const isForPrivate = !roomId && (
-                (newMsg.sender_id === currentUserId && newMsg.sender_role === currentRole && newMsg.receiver_id === receiverId && (newMsg.receiver_role || 'user') === (receiverRole || 'user')) ||
-                (newMsg.sender_id === receiverId && (newMsg.sender_role || 'user') === (receiverRole || 'user') && newMsg.receiver_id === currentUserId && newMsg.receiver_role === currentRole)
-              );
+    const handleGlobalMessageUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
+      
+      if (payload.table !== 'messages') return;
 
-              if (isForRoom || isForPrivate) {
-                setLocalMessages((prev) => {
-                  if (prev.some(m => m.id === newMsg.id)) return prev;
-                  const newArray = [...prev, newMsg];
-                  if (typeof window !== 'undefined' && swrKey) {
-                    localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newArray));
-                  }
-                  return newArray;
-                });
+      if (payload.eventType === 'INSERT') {
+        const newMsg = payload.new as ChatMessage;
+        // 过滤是否属于当前聊天窗口
+        const isForRoom = roomId && newMsg.room_id === roomId;
+        const isForPrivate = !roomId && (
+          (newMsg.sender_id === currentUserId && newMsg.sender_role === currentRole && newMsg.receiver_id === receiverId && (newMsg.receiver_role || 'user') === (receiverRole || 'user')) ||
+          (newMsg.sender_id === receiverId && (newMsg.sender_role || 'user') === (receiverRole || 'user') && newMsg.receiver_id === currentUserId && newMsg.receiver_role === currentRole)
+        );
 
-                // 物理级复查防线：用户当前处于聊天室内，收到新消息直接将其物理标记为已读
-                if (typeof window !== 'undefined') {
-                  // 加入 2000ms 容差，防御客户端与 Supabase 服务器之间的时钟偏移（Clock Skew）
-                  const msgTime = new Date(newMsg.created_at).getTime();
-                  const readTime = Math.max(Date.now(), msgTime + 2000);
-                  const targetRole = receiverRole || 'user';
-                  const readKey = roomId ? `gx_last_read_${currentUserId}_${roomId}` : `gx_last_read_${currentUserId}_${receiverId}_${targetRole}`;
-                  localStorage.setItem(readKey, readTime.toString());
-                  window.dispatchEvent(new CustomEvent('gx_chat_read_updated'));
-                }
-              }
-            } else if (payload.eventType === 'DELETE') {
-              console.log('🔴 [Realtime] 收到 DELETE 广播:', payload);
-              const oldMsg = payload.old;
-              if (oldMsg && oldMsg.id) {
-                setLocalMessages((prev) => {
-                  const newMessages = prev.filter(m => m.id !== oldMsg.id);
-                  if (typeof window !== 'undefined' && swrKey) {
-                    localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newMessages));
-                  }
-                  return newMessages;
-                });
-                // 发出全局事件，通知左侧的 RecentChats 列表刷新
-                window.dispatchEvent(new CustomEvent('gx_chat_message_deleted', { detail: { targetId: roomId || receiverId } }));
-              }
+        if (isForRoom || isForPrivate) {
+          setLocalMessages((prev) => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            const newArray = [...prev, newMsg];
+            if (typeof window !== 'undefined' && swrKey) {
+              localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newArray));
             }
-          }
-        )
-        .subscribe();
-    };
-    
-    let channel = setupChannel();
+            return newArray;
+          });
 
-    const unsubscribeResurrect = useSyncStore.subscribe((state, prevState) => {
-      if (state.resurrectTick > prevState.resurrectTick) {
-        console.log(`[ChatEngine] ☢️ 收到状态机 Nuke 信号 (Tick=${state.resurrectTick})，物理重建 WebSocket...`);
-        if (channel) supabase.removeChannel(channel);
-        channel = setupChannel();
+          // 物理级复查防线：用户当前处于聊天室内，收到新消息直接将其物理标记为已读
+          if (typeof window !== 'undefined') {
+            const msgTime = new Date(newMsg.created_at).getTime();
+            const readTime = Math.max(Date.now(), msgTime + 2000);
+            const targetRole = receiverRole || 'user';
+            const readKey = roomId ? `gx_last_read_${currentUserId}_${roomId}` : `gx_last_read_${currentUserId}_${receiverId}_${targetRole}`;
+            localStorage.setItem(readKey, readTime.toString());
+            window.dispatchEvent(new CustomEvent('gx_chat_read_updated'));
+          }
+        }
+      } else if (payload.eventType === 'DELETE') {
+        console.log('🔴 [Realtime] 收到全局 DELETE 广播:', payload);
+        const oldMsg = payload.old;
+        if (oldMsg && oldMsg.id) {
+          setLocalMessages((prev) => {
+            const newMessages = prev.filter(m => m.id !== oldMsg.id);
+            if (typeof window !== 'undefined' && swrKey) {
+              localStorage.setItem(`gx_${swrKey}`, JSON.stringify(newMessages));
+            }
+            return newMessages;
+          });
+          // 发出全局事件，通知左侧的 RecentChats 列表刷新
+          window.dispatchEvent(new CustomEvent('gx_chat_message_deleted', { detail: { targetId: roomId || receiverId } }));
+        }
       }
-    });
+    };
+
+    window.addEventListener('gx_global_messages_update', handleGlobalMessageUpdate);
 
     return () => {
-      unsubscribeResurrect();
-      supabase.removeChannel(channel);
+      window.removeEventListener('gx_global_messages_update', handleGlobalMessageUpdate);
     };
-  }, [resurrectTick, currentUserId, currentRole, roomId, receiverId, receiverRole, swrKey]);
+  }, [currentUserId, currentRole, roomId, receiverId, receiverRole, swrKey]);
 
   // 2. 核心发送逻辑 (文本 + 极速图片降维 + 音频支持)
   const sendMessage = useCallback(async (content?: string, file?: File, audioBlob?: Blob, audioDuration?: number) => {

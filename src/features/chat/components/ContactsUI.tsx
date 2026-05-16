@@ -154,18 +154,18 @@ export function ContactsUI({ currentUserId, currentRole, isLight, onChatSelect }
  setIsLoading(true);
  fetchContacts();
 
- // 订阅请求表变化
- const channel = supabase.channel('contacts_changes')
- .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => {
- fetchContacts();
- })
- .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
- fetchContacts();
- })
- .subscribe();
+ // 订阅全局总线事件，代替独立 Channel
+ const handleGlobalUpdate = (e: Event) => {
+   const customEvent = e as CustomEvent;
+   const payload = customEvent.detail;
+   if (payload.table === 'friendships' || payload.table === 'friend_requests') {
+     fetchContacts();
+   }
+ };
+ window.addEventListener('gx_global_auth_update', handleGlobalUpdate);
 
  return () => {
- supabase.removeChannel(channel);
+   window.removeEventListener('gx_global_auth_update', handleGlobalUpdate);
  };
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [currentUserId, currentRole]);

@@ -377,23 +377,15 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     setRecentChats(getCachedRecentChats(currentUserId, currentRole) || []);
   }, [currentUserId, currentRole]);
 
-  // 【核心改造】：彻底废弃 SWR。使用纯正的状态机 + 互斥锁防风暴
+  // 【核心改造】：彻底废弃 SWR 和独立 Channel。接入全局总线
   useEffect(() => {
     if (!currentUserId) return;
 
     let isCancelled = false;
-    let isFetching = false; // 互斥锁
 
     const performPhysicalFetch = async (source: string) => {
       if (isCancelled) return;
       
-      // 【互斥锁】：如果已经在拉取中，直接忽略新的并发轰炸，保护当前请求的存活权
-      if (isFetching) {
-        console.log(`[RecentChats] 🛡️ Fetch 已在进行中，忽略并发信号: ${source}`);
-        return;
-      }
-      
-      isFetching = true;
       setIsLoading(true);
 
       console.log(`[RecentChats] 🎯 触发物理 Fetch (Source: ${source})`);
@@ -421,7 +413,6 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
         }
       }
       
-      isFetching = false;
       if (!isCancelled) {
         setIsLoading(false);
       }
@@ -443,33 +434,17 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     window.addEventListener('gx_chat_message_deleted', handleLocalUpdate);
     window.addEventListener('gx_chat_read_updated', handleLocalUpdate);
 
-    // 4. 监听新消息到达 (Realtime)
-    let channel = supabase
-      .channel('public:messages_list')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (_payload) => { performPhysicalFetch('realtime_insert'); }
-      )
-      .subscribe();
-
-    // 5. 监听 WebSocket 重建
-    const unsubscribeResurrect = useSyncStore.subscribe((state, prevState) => {
-      if (state.resurrectTick > prevState.resurrectTick) {
-        console.log(`[RecentChats] ☢️ 收到状态机 Nuke 信号 (Tick=${state.resurrectTick})，物理重建 WebSocket...`);
-        if (channel) supabase.removeChannel(channel);
-        channel = supabase
-          .channel('public:messages_list')
-          .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'messages' },
-            (_payload) => { performPhysicalFetch('realtime_insert_after_nuke'); }
-          )
-          .subscribe();
+    // 4. 监听全局 Realtime 消息变动
+    const handleGlobalMessageUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const payload = customEvent.detail;
+      if (payload.table === 'messages') {
+        performPhysicalFetch('global_realtime_insert');
       }
-    });
+    };
+    window.addEventListener('gx_global_messages_update', handleGlobalMessageUpdate);
 
-    // 6. 挂载底层 Auth 监听 (打破 0 秒抢跑空数据)
+    // 5. 挂载底层 Auth 监听
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         performPhysicalFetch(`auth_${event}`);
@@ -479,14 +454,13 @@ export function useRecentChats(rawUserId: string, rawRole: string, activeChat?: 
     return () => {
       isCancelled = true;
       unsubscribeSync();
-      unsubscribeResurrect();
       window.removeEventListener('gx_chat_cleared', handleLocalUpdate);
       window.removeEventListener('gx_chat_message_deleted', handleLocalUpdate);
       window.removeEventListener('gx_chat_read_updated', handleLocalUpdate);
-      supabase.removeChannel(channel);
+      window.removeEventListener('gx_global_messages_update', handleGlobalMessageUpdate);
       subscription.unsubscribe();
     };
-  }, [currentUserId, currentRole]); // 彻底剥离所有的事件依赖，完全由内部的 performPhysicalFetch 掌控
+  }, [currentUserId, currentRole]);
 
   // ==========================================
   // 【动态置顶与幻影注入】(仅在前端内存中进行，不触发网络请求)

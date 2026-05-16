@@ -202,8 +202,6 @@ export const BookingService = {
       
       console.log(`[BookingService] 🌐 网络恢复，正在静默重传 ${mutations.length} 个离线修改...`);
       
-      // 这里为简单起见，按时间顺序重放。由于我们保存了完整 payload，可以直接调用对应方法
-      // （注意：需要避免死循环，所以在内部调用时要确保网络是通的，或者传入一个 bypassOffline 标志）
       for (const m of mutations) {
         try {
           if (m.action === 'upsertBookings') {
@@ -223,41 +221,9 @@ export const BookingService = {
       await clearMutations();
       console.log(`[BookingService] ✅ 离线队列重传完毕。`);
       
-      // 通知全局刷新
-      if (typeof window !== 'undefined') {
-        // 由于我们废弃了全局事件，这里其实最好是让 ShopContext 主动拉一次。
-        // 为了解耦，这里可以不发，因为成功 upsert 后 Realtime 会触发（如果你重新连上了 websocket）。
-      }
     } catch (e) {
       console.error("[BookingService] 离线队列同步失败:", e);
     }
-  },
-
-  /**
-   * 订阅单个预约的状态变更
-   */
-  subscribeToBooking(bookingId: string, onUpdate: (details: BookingDetails) => void) {
-    if (isMockMode || !bookingId) return null;
-
-    const channel = supabase
-      .channel(`booking-updates-${bookingId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'bookings',
-          filter: `id=eq.${bookingId}`
-        },
-        (payload) => {
-          console.log('[BookingService] Realtime Update Received:', payload);
-          const updatedBooking = BookingAdapter.fromDB(payload.new as DB_Booking);
-          onUpdate(updatedBooking);
-        }
-      )
-      .subscribe();
-
-    return channel;
   },
 
   // --- 零束缚架构扩展方法 ---
@@ -856,78 +822,8 @@ export const BookingService = {
     }
   },
 
-  subscribeToAllBookings(onUpdate: (payload: BookingRealtimePayload) => void) {
-    if (isMockMode) return null;
-
-    const channel = supabase
-      .channel('public:bookings')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings' },
-        (payload) => {
-          onUpdate(payload);
-        }
-      )
-      .subscribe();
-
-    return channel;
-  },
-
-  subscribeToShopBookings(shopId: string, onUpdate: (payload: BookingRealtimePayload) => void, onSubscribed?: () => void) {
-    if (isMockMode || !shopId || shopId === 'default') return null;
-
-    const channel = supabase
-      .channel(`public:bookings:${shopId}`)
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'bookings',
-          filter: `shop_id=eq.${shopId}`
-        },
-        (payload) => {
-          onUpdate(payload);
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && onSubscribed) {
-          onSubscribed();
-        }
-      });
-
-    return channel;
-  },
-
-  subscribeToShopConfig(shopId: string, onUpdate: (payload: { new?: { config?: ShopConfig } }) => void, onSubscribed?: () => void) {
-    if (isMockMode || !shopId || shopId === 'default') return null;
-
-    const channel = supabase
-      .channel(`public:shops:config:${shopId}`)
-      .on(
-        'postgres_changes',
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'shops',
-          filter: `id=eq.${shopId}`
-        },
-        (payload) => {
-          onUpdate(payload as any);
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && onSubscribed) {
-          onSubscribed();
-        }
-      });
-
-    return channel;
-  },
-
   unsubscribe(channel: RealtimeChannel | null) {
     if (channel) {
-      // 修复内存泄漏：正确断开连接，而不是仅仅从本地对象里移除
       channel.unsubscribe().then(() => {
         supabase.removeChannel(channel);
       });

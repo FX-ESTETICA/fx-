@@ -15,8 +15,6 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
     // 统一探针收口：向全系统广播静默同步事件
     const triggerGlobalSync = (reason: string) => {
       const now = Date.now();
-      // 【融合锁】：如果是 500 毫秒内并发的唤醒事件，直接吞没，物理合并！
-      // 这不影响后续（比如几秒后的）真正网络断开重连。
       if (now - lastSyncTime < 500) {
         console.log(`[GlobalSyncEngine] 🛡️ 信号融合锁启动，吞噬并发冗余信号: ${reason}`);
         return;
@@ -26,6 +24,38 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       useSyncStore.getState().triggerSync(reason);
       useSyncStore.getState().triggerResurrect(reason);
     };
+
+    // =========================================================================
+    // 【世界顶端：总司令部唯一 Realtime 长连接】
+    // 彻底废除散落在各页面的 supabase.channel，全APP仅维持一条物理长连接
+    // =========================================================================
+    import('@/lib/supabase').then(({ supabase }) => {
+      const globalChannel = supabase.channel('gx_global_realtime_engine')
+        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+          console.log('[GlobalRealtimeEngine] 📡 收到全局物理变动:', payload);
+          const table = payload.table;
+          
+          // 物理事件路由分发，各业务模块只负责接收指令，绝对禁止自己建 Channel
+          if (table === 'messages') {
+            window.dispatchEvent(new CustomEvent('gx_global_messages_update', { detail: payload }));
+          } else if (table === 'bookings') {
+            window.dispatchEvent(new CustomEvent('gx_global_bookings_update', { detail: payload }));
+          } else if (table === 'shops') {
+            window.dispatchEvent(new CustomEvent('gx_global_shops_update', { detail: payload }));
+          } else if (['profiles', 'bindings', 'merchant_applications', 'friendships', 'friend_requests'].includes(table)) {
+            window.dispatchEvent(new CustomEvent('gx_global_auth_update', { detail: payload }));
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[GlobalRealtimeEngine] 🟢 全局物理通道连接成功，触发全量追流...');
+            triggerGlobalSync('realtime_subscribed');
+          }
+        });
+
+      // 将通道实例挂载到 window，防止被 GC，也可供调试
+      (window as any).gxGlobalChannel = globalChannel;
+    });
 
     // 探针 1: 浏览器前后台切换 (Visibility Change)
     const handleVisibilityChange = () => {
@@ -108,6 +138,11 @@ export const GlobalSyncProvider = ({ children }: { children: React.ReactNode }) 
       window.removeEventListener("online", handleOnline);
       if (typeof window !== "undefined") {
         delete (window as any).gxForceWakeUp;
+        if ((window as any).gxGlobalChannel) {
+          import('@/lib/supabase').then(({ supabase }) => {
+            supabase.removeChannel((window as any).gxGlobalChannel);
+          });
+        }
       }
       if (appStateListener && appStateListener.remove) {
         appStateListener.remove();
