@@ -346,34 +346,43 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener('gx_global_bookings_update', handleBookingUpdate);
 
     // 【唯一全局 Realtime 隧道】：重新接管跨端秒级同步
-    const globalChannel = supabase
-      .channel(`global_db_changes_${resolvedActiveShopId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings', filter: `shop_id=eq.${resolvedActiveShopId}` },
-        (payload) => {
-          if (isMounted) {
-            console.log("📡 [ShopContext] 收到远端 Bookings 更新，触发全局同步:", payload);
-            refreshBookings();
+    let globalChannel: ReturnType<typeof supabase.channel> | null = null;
+    let channelGeneration = 0;
+
+    const createGlobalChannel = (reason: string) => {
+      channelGeneration += 1;
+      const channel = supabase
+        .channel(`global_db_changes_${resolvedActiveShopId}_${channelGeneration}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bookings', filter: `shop_id=eq.${resolvedActiveShopId}` },
+          (payload) => {
+            if (isMounted && globalChannel === channel) {
+              console.log("📡 [ShopContext] 收到远端 Bookings 更新，触发全局同步:", payload);
+              refreshBookings();
+            }
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shops', filter: `id=eq.${resolvedActiveShopId}` },
-        (payload) => {
-          if (isMounted) {
-            console.log("📡 [ShopContext] 收到远端 Shops 更新，触发全局同步:", payload);
-            fetchShopConfig();
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'shops', filter: `id=eq.${resolvedActiveShopId}` },
+          (payload) => {
+            if (isMounted && globalChannel === channel) {
+              console.log("📡 [ShopContext] 收到远端 Shops 更新，触发全局同步:", payload);
+              fetchShopConfig();
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`📡 [ShopContext] 成功订阅 shop_id=${resolvedActiveShopId} 的实时更新，执行强制补扫...`);
-          if (isMounted) refreshBookings();
-        }
-      });
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED' && isMounted && globalChannel === channel) {
+            console.log(`📡 [ShopContext] ${reason} realtime subscribed for shop_id=${resolvedActiveShopId}`);
+            if (isMounted) refreshBookings();
+          }
+        });
+      globalChannel = channel;
+    };
+
+    createGlobalChannel('initial');
 
     // 【全局唤醒状态机接管】：当 APP 从后台切回、或网络恢复时，执行唯一真理指令塔
     const handleGlobalSyncSync = async () => {
@@ -394,16 +403,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       // 【监听探针发现的死锁事件，执行连接物理销毁与重建】
       if (state.resurrectTick > prevState.resurrectTick) {
         console.log("⚠️ [ShopContext] 收到死锁重建指令，物理重置 WebSocket 连接池...");
-        // 先销毁现有的幽灵隧道
-        supabase.removeChannel(globalChannel);
+        const staleChannel = globalChannel;
+        globalChannel = null;
+        if (staleChannel) {
+          void supabase.removeChannel(staleChannel);
+        }
         // 执行重连和补扫
         handleGlobalSyncSync();
-        // 重新挂载监听隧道
-        globalChannel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log(`📡 [ShopContext] 死锁重建完毕，成功订阅 shop_id=${resolvedActiveShopId}`);
-          }
-        });
+        createGlobalChannel('resurrect');
       }
     });
 
@@ -420,7 +427,9 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(fetchTimer);
       window.removeEventListener('gx_global_shops_update', handleShopUpdate);
       window.removeEventListener('gx_global_bookings_update', handleBookingUpdate);
-      supabase.removeChannel(globalChannel);
+      if (globalChannel) {
+        void supabase.removeChannel(globalChannel);
+      }
     };
   }, [resolvedActiveShopId, refreshBookings]);
 

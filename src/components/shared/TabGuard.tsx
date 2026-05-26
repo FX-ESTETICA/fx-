@@ -99,15 +99,6 @@ export const TabGuard = () => {
     window.location.reload();
   };
 
-  // 物理斩杀：一旦被挂起，强行切断所有底层的 Supabase 连接
-  useEffect(() => {
-    if (isSuspended) {
-      import("@/lib/supabase").then(({ supabase }) => {
-        supabase.removeAllChannels();
-      });
-    }
-  }, [isSuspended]);
-
   return (
     <AnimatePresence>
       {isSuspended && (

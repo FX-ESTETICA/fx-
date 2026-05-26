@@ -604,15 +604,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     
+    let isDisposed = false;
+    let unsubscribeSync: (() => void) | undefined;
+
     import('@/store/useSyncStore').then(({ useSyncStore }) => {
-      useSyncStore.subscribe((state, prevState) => {
+      const unsubscribe = useSyncStore.subscribe((state, prevState) => {
         if (state.syncTick > prevState.syncTick) {
           handleGlobalSync();
         }
       });
+      if (isDisposed) {
+        unsubscribe();
+      } else {
+        unsubscribeSync = unsubscribe;
+      }
     });
 
-    return () => {};
+    return () => {
+      isDisposed = true;
+      unsubscribeSync?.();
+    };
   }, [hydrateSession, refreshUserData, syncDeviceSession]);
 
   const setActiveRole = (role: UserRole) => {
