@@ -338,6 +338,19 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const { settings: visualSettings } = useVisualSettings();
  
  const searchParams = useSearchParams();
+ const [isLocalFinancePreviewHost, setIsLocalFinancePreviewHost] = useState(false);
+ const isFinanceLockPreview = isLocalFinancePreviewHost && searchParams.get('financeLockPreview') === '1';
+
+ useEffect(() => {
+   if (typeof window === 'undefined') return;
+   setIsLocalFinancePreviewHost(['localhost', '127.0.0.1', '::1'].includes(window.location.hostname));
+ }, []);
+
+ useEffect(() => {
+   if (isFinanceLockPreview) {
+     setIsFinanceDashboardOpen(true);
+   }
+ }, [isFinanceLockPreview]);
  
  // 新增动态推导：彻底废弃 localStorage 颜色存储，全权由背景决定
  const isLightBg = visualSettings.calendarBgIndex !== 0;
@@ -2110,6 +2123,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  globalBookings={globalBookings}
  isFinanceSelfOnly={effectiveUserRole === 'user' && myStaffProfile?.financialVisibility === 'self'}
  currentUserId={myStaffProfile?.id || myStaffProfile?.frontendId}
+ forceLockPreview={isFinanceLockPreview}
  />
  
  <RecycleBinModal 

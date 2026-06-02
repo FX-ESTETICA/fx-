@@ -140,17 +140,19 @@ interface AiFinanceDashboardModalProps {
  globalBookings?: BookingEdit[];
  isFinanceSelfOnly?: boolean;
  currentUserId?: string;
+ forceLockPreview?: boolean;
 }
 
 type TimeRange = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
-export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAvatars = {}, globalBookings = [], isFinanceSelfOnly, currentUserId }: AiFinanceDashboardModalProps) => {
+export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAvatars = {}, globalBookings = [], isFinanceSelfOnly, currentUserId, forceLockPreview = false }: AiFinanceDashboardModalProps) => {
  const [timeRange, setTimeRange] = useState<TimeRange>('day');
  const { settings } = useVisualSettings();
  const isLight = settings.calendarBgIndex !== 0;
 
   const { shopConfig, updateShopConfig } = useShop() || {};
   const financialPin = shopConfig?.financial_pin;
+  const effectiveFinancialPin = forceLockPreview ? "0000" : financialPin;
   const isGlobalLockEnabled = shopConfig?.financial_lock_enabled !== false; // 默认为 true（开启状态）
   
   // 真正的商业级隔离防御 (Session Isolation)
@@ -162,7 +164,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
   // 【致命修复】如果刚设置完密码，由于 financialPin 变成 true，而此时如果没有强制解锁，会卡死。
   // 增加判定：如果处于修改密码/强制锁模式，即使 financialPin 存在，只要 forceLockMode 为 true，也依然判定为锁定（渲染密码盘）
   // 【全局开关逻辑】：只有当 isGlobalLockEnabled 为 true 时，才要求验锁。如果为 false，大门敞开。
-  const isLocked = forceLockMode || (Boolean(financialPin) && isGlobalLockEnabled && !isSessionUnlocked);
+  const isLocked = forceLockMode || (Boolean(effectiveFinancialPin) && (forceLockPreview || isGlobalLockEnabled) && !isSessionUnlocked);
 
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -264,7 +266,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
       }
     } else if (isTogglingLock) {
        // 验证密码以切换全局开关
-       if (currentInput === financialPin) {
+       if (currentInput === effectiveFinancialPin) {
           if (updateShopConfig) {
              updateShopConfig('financial_lock_enabled', !isGlobalLockEnabled);
           }
@@ -278,7 +280,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
        }
     } else {
       // Validate PIN
-      if (currentInput === financialPin) {
+      if (currentInput === effectiveFinancialPin) {
         if (isModifyingPin) {
           setOldPinValidated(true);
           setPinInput("");
@@ -770,7 +772,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
  return (
  <AnimatePresence>
  <div className={cn(
- "fixed inset-0 z-[99999] flex items-center justify-center animate-in fade-in pointer-events-none",
+ "fixed inset-0 z-[99999] flex h-[100dvh] w-screen items-center justify-center overflow-hidden animate-in fade-in pointer-events-none",
  isLocked ? "p-0" : "p-0 sm:p-8",
  isLight ? "text-black" : "text-white"
  )}>
@@ -781,13 +783,13 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
     exit={{ opacity: 0, scale: 0.95 }}
     transition={{ duration: 0.3, ease: "easeOut" }}
     className={cn(
-      "relative z-10 w-full h-full flex flex-col items-center justify-center pointer-events-auto",
+      "relative z-10 flex h-[100dvh] w-screen min-h-0 flex-col items-center justify-center overflow-hidden pointer-events-auto",
       // 全屏沉浸画布：纯净的实色背景，彻底打破卡片，物理级防窥隔离
       isLight ? "bg-[#f5f5f5]" : "bg-[#0a0a0a]"
     )}
   >
     <div className={cn(
-      "w-full max-w-[360px] h-full overflow-y-auto scrollbar-hide py-12 px-6 sm:px-8 flex flex-col items-center justify-center transition-all duration-300"
+      "flex h-full w-full max-w-[430px] flex-col items-center justify-center overflow-y-auto scrollbar-hide px-5 py-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)] transition-all duration-300 sm:max-w-[360px] sm:px-8 sm:py-12"
     )}>
       <div className={cn(
         "w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-4 shadow-inner shrink-0",
@@ -825,7 +827,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
       </div>
 
       {/* 核心键盘区：使用 flex-1 占据中间所有剩余空间，内部使用 Grid 按比例撑满高度 */}
-      <div className="w-full flex-1 min-h-[200px] grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+      <div className="mb-6 grid w-full flex-1 min-h-[260px] max-h-[440px] grid-cols-3 grid-rows-4 gap-2 sm:min-h-[200px] sm:max-h-none sm:gap-4">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
           <button
             key={num}
@@ -895,12 +897,12 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
  
  
  className={cn(
- "relative z-10 w-full max-w-6xl h-[100vh] sm:h-[85vh] sm:rounded-2xl flex flex-col overflow-hidden pointer-events-auto bg-black/5 dark:bg-white/5 sm:bg-transparent backdrop-blur-3xl sm:backdrop-blur-none",
+ "relative z-10 flex h-[100dvh] w-screen min-h-0 flex-col overflow-hidden pointer-events-auto bg-black/5 backdrop-blur-3xl dark:bg-white/5 sm:h-[85vh] sm:max-h-[900px] sm:w-full sm:max-w-6xl sm:rounded-2xl sm:bg-transparent sm:backdrop-blur-none",
  )}
  >
  {/* Header */}
  <div className={cn(
- "flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 sm:py-0 sm:h-16 gap-4 sm:gap-0 pointer-events-auto sm:rounded-t-2xl shrink-0",
+ "flex shrink-0 flex-col justify-between gap-4 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 pointer-events-auto sm:h-16 sm:flex-row sm:items-center sm:gap-0 sm:rounded-t-2xl sm:px-6 sm:py-0",
  )}>
  <div className="flex items-center justify-between w-full sm:w-auto shrink-0 z-50">
  <div className="flex items-center gap-3">
@@ -1063,28 +1065,28 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
  </div>
 
  {/* Scrollable Content / Lock Screen */}
- <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+ <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:p-6 space-y-4 sm:space-y-6 scrollbar-hide pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
  
  {/* Bento Box Top Section */}
  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
    
    {/* Col 1 & 2: Revenue Area Chart (Bento Large Block) */}
      <div className={cn(
-        "lg:col-span-2 lg:row-span-3 rounded-2xl p-5 sm:p-8 flex flex-col relative overflow-hidden group border",
+        "lg:col-span-2 lg:row-span-3 rounded-2xl p-5 sm:p-8 flex flex-col relative overflow-hidden group border min-h-[360px] sm:min-h-0",
          isLight ? "bg-transparent border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.05)]" : "bg-transparent border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
        )}>
 
       {/* Super Block: Gross Revenue + Traffic */}
-       <div className="flex flex-row relative z-10 mb-10 items-start justify-between">
+       <div className="relative z-10 mb-28 flex flex-col items-stretch justify-between gap-6 sm:mb-10 sm:flex-row sm:items-start sm:gap-0">
          
          {/* Left: Giant Money */}
-         <div className="flex-1 flex flex-col justify-start pt-1">
+         <div className="flex w-full flex-col justify-start pt-1 sm:flex-1">
            <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2 mb-2", isLight ? "text-black/50" : "text-white/50")}>
              <Crown className="w-3.5 h-3.5" />
              总营业额
            </span>
            
-           <div className="flex flex-col items-start w-max">
+           <div className="flex w-full max-w-full flex-col items-start">
              <span className={cn("text-[36px] sm:text-7xl tracking-tighter drop-shadow-sm leading-none whitespace-nowrap", isLight ? "text-black" : "text-white")}>
                €{currentMetrics.total.toLocaleString()}
              </span>
@@ -1098,10 +1100,10 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
          </div>
  
          {/* Divider Vertical */}
-         <div className={cn("w-[1px] mx-4 sm:mx-8 h-32", isLight ? "bg-black/10" : "bg-white/10")} />
+         <div className={cn("h-px w-full sm:h-32 sm:w-[1px] sm:mx-8", isLight ? "bg-black/10" : "bg-white/10")} />
  
          {/* Right: People & ATV (Stacked vertically) */}
-         <div className="w-auto sm:w-56 flex flex-col justify-start shrink-0">
+         <div className="flex w-full shrink-0 flex-row justify-between gap-4 sm:w-56 sm:flex-col sm:justify-start sm:gap-0">
            
            {/* Top: Traffic */}
             <div className="flex flex-col gap-1">
@@ -1115,7 +1117,7 @@ export const AiFinanceDashboardModal = ({ isOpen, onClose, staffs = [], staffAva
             </div>
  
            {/* Bottom: ATV */}
-           <div className="flex flex-col gap-1 mt-6">
+           <div className="mt-0 flex flex-col gap-1 sm:mt-6">
              <span className={cn("text-[13px] uppercase tracking-widest flex items-center gap-2", isLight ? "text-black/50" : "text-white/50")}>
                <Target className="w-3.5 h-3.5" />
                客单价
