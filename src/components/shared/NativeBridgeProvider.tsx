@@ -97,17 +97,17 @@ export function NativeBridgeProvider() {
 
  const path = window.location.pathname;
  
- // 2. 第二优先级：主导航归位（发现、聊天、我的页 -> 强制归位到首页，修复 SPA Tab 切换无历史记录的问题）
- const mainTabs = ['/discovery', '/chat', '/me', '/dashboard'];
+ // 2. 第二优先级：主导航归位（Home、我的页 -> 强制归位到预约，修复 SPA Tab 切换无历史记录的问题）
+ const mainTabs = ['/home', '/me', '/dashboard'];
  if (mainTabs.some(p => path.startsWith(p))) {
  const { setActiveTab } = useViewStack.getState();
- setActiveTab('home');
- router.replace('/');
+ setActiveTab('calendar');
+ router.replace('/calendar');
  return;
  }
 
- // 3. 第三优先级：如果已经在首页或登录页，则触发【双击退出】逻辑
- if (path === '/home' || path === '/' || path === '/login') {
+ // 3. 第三优先级：如果已经在预约或登录页，则触发【双击退出】逻辑
+ if (path === '/calendar' || path.startsWith('/calendar/') || path === '/' || path === '/login') {
  const currentTime = new Date().getTime();
  if (currentTime - lastBackPressTime < 2000) {
  CapacitorApp.exitApp();
@@ -118,14 +118,8 @@ export function NativeBridgeProvider() {
  // 可选：在这里可以通过一个全局状态展示个幽灵 Toast "再按一次退出"
  }
  } else {
- // 4. 常规后退：比如日历页面，为了保证绝对不会闪退，我们强制将日历退回到“我的”页，因为大多数人是从“我的”进的日历
- if (path.startsWith('/calendar')) {
- const { setActiveTab } = useViewStack.getState();
- setActiveTab('me');
- router.replace('/dashboard');
- } else {
+ // 4. 常规后退
  router.back();
- }
  }
  });
 

@@ -218,6 +218,27 @@ const CyberClock = () => {
  );
 };
 
+const getCalendarDateKey = (date: Date | string) => {
+ if (!date) return "";
+ const rawDate = date instanceof Date ? "" : date.split('T')[0];
+ const source = date instanceof Date ? date : new Date(`${rawDate}T00:00:00`);
+ if (Number.isNaN(source.getTime())) return rawDate;
+ const year = source.getFullYear();
+ const month = String(source.getMonth() + 1).padStart(2, '0');
+ const day = String(source.getDate()).padStart(2, '0');
+ return `${year}-${month}-${day}`;
+};
+
+const buildCalendarDateWindow = (startDate: Date | string, days: number) => {
+ const startKey = getCalendarDateKey(startDate);
+ const start = new Date(`${startKey}T00:00:00`);
+ return Array.from({ length: days }, (_, index) => {
+ const date = new Date(start);
+ date.setDate(start.getDate() + index);
+ return getCalendarDateKey(date);
+ });
+};
+
 export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }: AuroraSchedulerProps) => {
  const t = useTranslations('IndustryCalendar');
  const locale = useLocale();
@@ -426,9 +447,30 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 获取当前商户的专属 shopId，实现多租户数据物理隔离
   // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
-  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction, refreshBookings } = useShop();
+  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction, refreshBookings, loadBookingsForDates, ensureBookingWindow } = useShop();
   const urlShopId = searchParams.get('shopId');
   const shopId = urlShopId || activeShopId || 'default';
+
+  useEffect(() => {
+    if (!shopId || shopId === 'default') return;
+
+    if (viewMode === 'day') {
+      void ensureBookingWindow(currentDate, 1);
+      return;
+    }
+
+    if (viewMode === 'week') {
+      const weekStart = new Date(currentDate);
+      const day = weekStart.getDay();
+      weekStart.setDate(weekStart.getDate() + (day === 0 ? -6 : 1 - day));
+      void loadBookingsForDates(buildCalendarDateWindow(weekStart, 7));
+      return;
+    }
+
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const monthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    void loadBookingsForDates(buildCalendarDateWindow(monthStart, monthDays));
+  }, [shopId, viewMode, currentDate, ensureBookingWindow, loadBookingsForDates]);
 
   // ==========================================
   // 【核心修改】：动态推导有效角色 (Effective Role)
@@ -980,8 +1022,9 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  const newDate = new Date(dateStr);
  if (!isNaN(newDate.getTime())) {
  setPhantomDate(newDate);
+ void ensureBookingWindow(newDate, 1);
  }
- }, []);
+ }, [ensureBookingWindow]);
 
  const handleWeekDateClick = useCallback((date: Date) => {
  setCurrentDate(date);
@@ -1281,6 +1324,33 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
  return paginatedResources;
  }, [industry, staffs, isMounted, currentStaffPage, currentDate, globalBookings, searchParams, effectiveUserRole, userGxId, userBaseGxId, userMerchantGxId, staffAvatars, industryDNAs]);
+
+ const dayWaterfallDateKeys = useMemo(() => buildCalendarDateWindow(currentDate, 4), [currentDate]);
+ const dayWaterfallBookings = useMemo(() => {
+ const visibleDates = new Set(dayWaterfallDateKeys);
+ return globalBookings.filter((booking) => visibleDates.has(getCalendarDateKey(booking.date || "")));
+ }, [globalBookings, dayWaterfallDateKeys]);
+
+ const weekDateKeys = useMemo(() => {
+ const weekStart = new Date(currentDate);
+ const day = weekStart.getDay();
+ weekStart.setDate(weekStart.getDate() + (day === 0 ? -6 : 1 - day));
+ return buildCalendarDateWindow(weekStart, 7);
+ }, [currentDate]);
+ const weekBookings = useMemo(() => {
+ const visibleDates = new Set(weekDateKeys);
+ return globalBookings.filter((booking) => visibleDates.has(getCalendarDateKey(booking.date || "")));
+ }, [globalBookings, weekDateKeys]);
+
+ const monthDateKeys = useMemo(() => {
+ const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+ const monthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+ return buildCalendarDateWindow(monthStart, monthDays);
+ }, [currentDate]);
+ const monthBookings = useMemo(() => {
+ const visibleDates = new Set(monthDateKeys);
+ return globalBookings.filter((booking) => visibleDates.has(getCalendarDateKey(booking.date || "")));
+ }, [globalBookings, monthDateKeys]);
 
  // 表头翻页手势处理
  const handleHeaderPanEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -1929,7 +1999,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  resources={resources} 
  operatingHours={operatingHours} 
  currentDate={currentDate}
- bookings={globalBookings}
+ bookings={dayWaterfallBookings}
  onHorizontalScroll={handleMatrixHorizontalScroll}
  matrixScrollRef={matrixScrollRef}
  onGridClick={handleGridClick}
@@ -1949,7 +2019,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  selectedStaffIds={selectedStaffIds}
  operatingHours={operatingHours} 
  currentDate={currentDate}
- bookings={globalBookings}
+ bookings={weekBookings}
  onGridClick={handleGridClick}
  onDateClick={handleWeekDateClick}
  onBookingClick={handleBookingClick}
@@ -1962,7 +2032,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
  resources={resources}
  selectedStaffIds={selectedStaffIds}
  currentDate={currentDate}
- bookings={globalBookings}
+ bookings={monthBookings}
  onGridClick={handleGridClick}
  onDateClick={(date) => {
  setCurrentDate(date);

@@ -24,11 +24,11 @@ export function useActiveTab(): TabId {
   // SSR / 首帧水合阶段：物理级强制读取 Next.js 路由，实现第一帧 100% 完美贴合
   if (pathname) {
     const segments = pathname.split('/').filter(Boolean);
-    const mainPath = segments[0] || 'home';
-    if (['home', 'discovery', 'calendar', 'chat', 'me', 'dashboard'].includes(mainPath)) {
+    const mainPath = segments[0] || 'calendar';
+    if (['home', 'calendar', 'me', 'dashboard'].includes(mainPath)) {
       return mainPath === 'dashboard' ? 'me' : (mainPath as TabId);
     }
   }
 
-  return 'home';
+  return 'calendar';
 }

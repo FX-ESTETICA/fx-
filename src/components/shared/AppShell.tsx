@@ -55,15 +55,14 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
   
   if (isStandalonePage) return <>{children}</>;
 
-  // 终极上下文屏蔽：发现页和聊天室内彻底拔除底栏
+  // 终极上下文屏蔽：全局弹层打开时彻底拔除底栏
   // 在单页架构中，我们通过 activeTab 和 overlays 来判断
-  const isDiscovery = activeTab === "discovery";
   const hasOverlay = overlays.length > 0;
   
-  // 只有在 Home, Me/Dashboard，且没有全局弹层时才显示底栏
+  // 只有在预约、Home、Me/Dashboard，且没有全局弹层时才显示底栏
   // 【修复】：星云页面（/nebula）或装修页面（/studio）现在是原生路由，它们也不应该显示这个由 MainStage 控制的底导！
-  const isMainStageRoute = ["/", "/home", "/dashboard", "/me", "/chat", "/discovery", "/calendar"].some(p => pathname === p || pathname.startsWith("/calendar/"));
-  const showBottomTabs = !hasOverlay && !isDiscovery && activeTab !== "chat" && ["home", "me", "dashboard"].includes(activeTab) && isMainStageRoute;
+  const isMainStageRoute = ["/", "/home", "/dashboard", "/me", "/calendar"].some(p => pathname === p || pathname.startsWith("/calendar/"));
+  const showBottomTabs = !hasOverlay && ["home", "calendar", "me", "dashboard"].includes(activeTab) && isMainStageRoute;
 
   return (
     <div className="relative min-h-[100dvh] bg-transparent flex flex-col">

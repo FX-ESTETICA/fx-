@@ -36,6 +36,9 @@ interface ShopContextType {
   updateFullShopConfig: (patchObj: Record<string, unknown>) => Promise<void>;
   // --- 全局订单中枢 ---
   globalBookings: any[];
+  loadedBookingDates: string[];
+  loadBookingsForDates: (dates: string[], options?: { force?: boolean }) => Promise<void>;
+  ensureBookingWindow: (startDate: Date | string, aheadDays?: number) => Promise<void>;
   refreshBookings: () => Promise<void>;
   applyOptimisticPatch: (patchFn: (prev: any[]) => any[]) => () => void;
   trackAction: () => Promise<void>;
@@ -44,6 +47,115 @@ interface ShopContextType {
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
+
+type BookingRowPayload = {
+  id?: string;
+  shop_id?: string;
+  date?: string | null;
+  start_time?: string | null;
+  duration_min?: number | null;
+  resource_id?: string | null;
+  status?: string | null;
+  data?: Record<string, unknown> | null;
+};
+
+type BookingChangePayload = {
+  eventType?: string;
+  table?: string;
+  new?: BookingRowPayload;
+  old?: BookingRowPayload;
+};
+
+const normalizeBookingRecord = (booking: BookingRowPayload) => ({
+  id: booking.id || "",
+  shopId: booking.shop_id,
+  date: booking.date || "",
+  startTime: booking.start_time || "00:00",
+  duration: booking.duration_min ?? 0,
+  resourceId: booking.resource_id ?? null,
+  status: booking.status,
+  ...(booking.data || {})
+});
+
+const BOOKING_DATE_SNAPSHOT_TTL = 12 * 60 * 60 * 1000;
+
+const getBookingDateKey = (value: string | Date | null | undefined) => {
+  if (!value) return "";
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  return value.split("T")[0] || "";
+};
+
+const buildBookingDateWindow = (startDate: Date | string, aheadDays = 1) => {
+  const startKey = getBookingDateKey(startDate);
+  if (!startKey) return [];
+
+  const start = new Date(`${startKey}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return [];
+
+  return Array.from({ length: aheadDays + 1 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return getBookingDateKey(date);
+  });
+};
+
+const getBookingDateSnapshotKey = (shopId: string, date: string) => `gx_bookings_snapshot_${shopId}_${date}`;
+
+const normalizeLoadedBooking = (booking: any) => ({
+  ...booking,
+  shopId: booking.shopId ?? booking.shop_id,
+  date: getBookingDateKey(booking.date),
+  startTime: booking.startTime ?? booking.start_time ?? "00:00",
+  duration: booking.duration ?? booking.duration_min ?? 0,
+  resourceId: booking.resourceId ?? booking.resource_id ?? null
+});
+
+const readBookingDateSnapshot = (shopId: string, date: string) => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = localStorage.getItem(getBookingDateSnapshotKey(shopId, date));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed?.timestamp || !Array.isArray(parsed.data)) {
+      localStorage.removeItem(getBookingDateSnapshotKey(shopId, date));
+      return null;
+    }
+
+    if (Date.now() - parsed.timestamp > BOOKING_DATE_SNAPSHOT_TTL) {
+      localStorage.removeItem(getBookingDateSnapshotKey(shopId, date));
+      return null;
+    }
+
+    return parsed.data.map(normalizeLoadedBooking);
+  } catch (error) {
+    console.error("[ShopContext] Failed to read booking date snapshot:", error);
+    localStorage.removeItem(getBookingDateSnapshotKey(shopId, date));
+    return null;
+  }
+};
+
+const persistBookingDateSnapshots = (shopId: string | null, bookings: any[], dates: string[]) => {
+  if (!shopId || typeof window === "undefined") return;
+
+  const uniqueDates = Array.from(new Set(dates.filter(Boolean)));
+  uniqueDates.forEach((date) => {
+    const data = bookings
+      .filter((booking) => getBookingDateKey(booking.date) === date)
+      .map(normalizeLoadedBooking);
+
+    localStorage.setItem(getBookingDateSnapshotKey(shopId, date), JSON.stringify({
+      timestamp: Date.now(),
+      data
+    }));
+  });
+};
 
 export const ShopProvider = ({ children }: { children: ReactNode }) => {
   const { user, activeRole } = useAuth() as any; // activeRole is exposed by useAuth
@@ -159,48 +271,151 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
   // ==========================================
   // 【水合安全】：初始渲染使用 []，在 useEffect 中提取快照以避免 SSR 报错
   const [globalBookings, setGlobalBookings] = useState<any[]>([]);
+  const [loadedBookingDatesMap, setLoadedBookingDatesMap] = useState<Record<string, true>>({});
+  const [dirtyBookingDates, setDirtyBookingDates] = useState<Record<string, true>>({});
+  const loadedBookingDatesRef = useRef<Record<string, true>>({});
+  const dirtyBookingDatesRef = useRef<Record<string, true>>({});
+  const pendingDateLoadsRef = useRef<Record<string, Promise<void>>>({});
+  const activeBookingShopRef = useRef<string | null>(resolvedActiveShopId);
+  activeBookingShopRef.current = resolvedActiveShopId;
 
-  // 将加载订单提炼成一个全局的刷新函数，任何弹窗保存后都可以直接调它，代替原来的事件
-  const refreshBookings = useCallback(async () => {
+  useEffect(() => {
+    loadedBookingDatesRef.current = loadedBookingDatesMap;
+  }, [loadedBookingDatesMap]);
+
+  useEffect(() => {
+    dirtyBookingDatesRef.current = dirtyBookingDates;
+  }, [dirtyBookingDates]);
+
+  const loadedBookingDates = useMemo(() => Object.keys(loadedBookingDatesMap).sort(), [loadedBookingDatesMap]);
+
+  const loadBookingsForDates = useCallback(async (dates: string[], options?: { force?: boolean }) => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒物理死亡线
+    const requestShopId = resolvedActiveShopId;
 
-    try {
-      const { data } = await BookingService.getBookings(resolvedActiveShopId, controller.signal);
-      clearTimeout(timeoutId);
-      setIsDataStale(false); // 成功拉取，解除失联状态
+    const normalizedDates = Array.from(new Set(
+      dates.map((date) => getBookingDateKey(date)).filter(Boolean)
+    )).sort();
 
-      // 预处理，防止空字段
-      const safeBookings = (data || []).map((booking: any) => ({
-        ...booking,
-        resourceId: booking.resourceId ?? null,
-        date: booking.date || "",
-        startTime: booking.startTime || "00:00",
-        duration: booking.duration ?? 0
-      }));
-      setGlobalBookings(safeBookings);
-      // 【快照覆写】：带上时间戳的物理封装
-      if (typeof window !== "undefined") {
-        const snapshotPayload = {
-          timestamp: Date.now(),
-          data: safeBookings
-        };
-        localStorage.setItem(`gx_bookings_snapshot_${resolvedActiveShopId}`, JSON.stringify(snapshotPayload));
+    if (normalizedDates.length === 0) return;
+
+    const datesToFetch = normalizedDates.filter((date) => (
+      options?.force || !loadedBookingDatesRef.current[date] || dirtyBookingDatesRef.current[date]
+    ));
+
+    if (datesToFetch.length === 0) return;
+
+    if (!options?.force) {
+      const cachedRowsByDate = datesToFetch
+        .map((date) => ({ date, rows: readBookingDateSnapshot(requestShopId, date) }))
+        .filter((entry): entry is { date: string; rows: any[] } => Array.isArray(entry.rows));
+
+      if (cachedRowsByDate.length > 0) {
+        const cachedDates = cachedRowsByDate.map((entry) => entry.date);
+        const cachedDateSet = new Set(cachedDates);
+        const cachedRows = cachedRowsByDate.flatMap((entry) => entry.rows);
+
+        setGlobalBookings((prev) => [
+          ...cachedRows,
+          ...prev.filter((booking) => !cachedDateSet.has(getBookingDateKey(booking.date)))
+        ]);
+
+        setLoadedBookingDatesMap((prev) => {
+          const next = { ...prev };
+          cachedDates.forEach((date) => {
+            next[date] = true;
+          });
+          return next;
+        });
       }
+    }
+
+    const loadKey = `${requestShopId}:${datesToFetch.join(",")}:${options?.force ? "force" : "normal"}`;
+    const existingLoad = pendingDateLoadsRef.current[loadKey];
+    if (existingLoad) {
+      await existingLoad;
+      return;
+    }
+
+    const loadPromise = (async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      try {
+        const { data } = await BookingService.getBookingsByDates(requestShopId, datesToFetch, controller.signal);
+        clearTimeout(timeoutId);
+        if (activeBookingShopRef.current !== requestShopId) return;
+        setIsDataStale(false);
+
+        const dateSet = new Set(datesToFetch);
+        const safeBookings = (data || [])
+          .map(normalizeLoadedBooking)
+          .filter((booking) => dateSet.has(getBookingDateKey(booking.date)));
+
+        setGlobalBookings((prev) => {
+          const next = [
+            ...safeBookings,
+            ...prev.filter((booking) => !dateSet.has(getBookingDateKey(booking.date)))
+          ];
+          persistBookingDateSnapshots(requestShopId, next, datesToFetch);
+          return next;
+        });
+
+        setLoadedBookingDatesMap((prev) => {
+          const next = { ...prev };
+          datesToFetch.forEach((date) => {
+            next[date] = true;
+          });
+          return next;
+        });
+
+        setDirtyBookingDates((prev) => {
+          const next = { ...prev };
+          datesToFetch.forEach((date) => {
+            delete next[date];
+          });
+          return next;
+        });
       } catch (e: any) {
         clearTimeout(timeoutId);
+        if (activeBookingShopRef.current !== requestShopId) return;
         const errMsg = e?.message || String(e);
         if (errMsg.includes('Failed to fetch') || errMsg.includes('AbortError')) {
-          console.warn("🛡️ [ShopContext] 监测到网络波动 (Failed to fetch/AbortError)，触发物理快照护盾，界面安全。");
+          console.warn("[ShopContext] booking date-window fetch failed; keeping local snapshots:", errMsg);
         } else {
-          console.error("[ShopContext] Failed to load cloud bookings:", e);
+          console.error("[ShopContext] Failed to load booking date window:", e);
         }
-        // 【绝对铁壁法则】：网络超时或报错时，绝对信任并保留本地快照，仅触发 stale 状态供后台监控
-        // 废除自毁代码，彻底杜绝切回前台瞬间网速不佳导致的“永久白板” Bug
         setIsDataStale(true);
       }
-    }, [resolvedActiveShopId]);
+    })();
+
+    pendingDateLoadsRef.current[loadKey] = loadPromise;
+
+    try {
+      await loadPromise;
+    } finally {
+      delete pendingDateLoadsRef.current[loadKey];
+    }
+  }, [resolvedActiveShopId]);
+
+  const ensureBookingWindow = useCallback(async (startDate: Date | string, aheadDays = 1) => {
+    await loadBookingsForDates(buildBookingDateWindow(startDate, aheadDays));
+  }, [loadBookingsForDates]);
+
+  const refreshBookings = useCallback(async () => {
+    const loadedDates = Object.keys(loadedBookingDatesRef.current);
+    const targetDates = loadedDates.length > 0 ? loadedDates : buildBookingDateWindow(new Date(), 1);
+    await loadBookingsForDates(targetDates, { force: true });
+  }, [loadBookingsForDates]);
+
+  const warmOrRefreshBookings = useCallback(async () => {
+    const loadedDates = Object.keys(loadedBookingDatesRef.current);
+    if (loadedDates.length > 0) {
+      await refreshBookings();
+      return;
+    }
+    await ensureBookingWindow(new Date(), 1);
+  }, [ensureBookingWindow, refreshBookings]);
 
   // ==========================================
   // 【世界顶端：乐观更新引擎 (Optimistic UI Engine)】
@@ -209,26 +424,100 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     let previousState: any[] = [];
     setGlobalBookings(prev => {
       previousState = [...prev];
-      return patchFn(prev);
+      const next = patchFn(prev);
+      persistBookingDateSnapshots(resolvedActiveShopId, next, Object.keys(loadedBookingDatesRef.current));
+      return next;
     });
     
     // 返回回滚函数 (Rollback)
     return () => {
       console.warn("[ShopContext] ⚠️ 乐观更新失败，触发物理回滚...");
+      persistBookingDateSnapshots(resolvedActiveShopId, previousState, Object.keys(loadedBookingDatesRef.current));
       setGlobalBookings(previousState);
     };
-  }, []);
+  }, [resolvedActiveShopId]);
+
+  const applyRealtimeBookingPayload = useCallback((payload: BookingChangePayload) => {
+    if (!resolvedActiveShopId || resolvedActiveShopId === 'default') return;
+
+    const nextRow = payload?.new;
+    const oldRow = payload?.old;
+    const targetRow = nextRow || oldRow;
+    if (!targetRow?.id) return;
+
+    const targetShopId = nextRow?.shop_id || oldRow?.shop_id;
+    if (targetShopId && targetShopId !== resolvedActiveShopId) return;
+
+    const affectedDates = Array.from(new Set([
+      getBookingDateKey(nextRow?.date),
+      getBookingDateKey(oldRow?.date)
+    ].filter(Boolean)));
+
+    const isRemovalEvent = payload?.eventType === 'DELETE' || nextRow?.status === 'VOID';
+    if (isRemovalEvent && affectedDates.length === 0) {
+      setGlobalBookings(prev => {
+        const updated = prev.filter((booking) => booking.id !== targetRow.id);
+        if (updated !== prev) {
+          persistBookingDateSnapshots(resolvedActiveShopId, updated, Object.keys(loadedBookingDatesRef.current));
+        }
+        return updated;
+      });
+      return;
+    }
+
+    const loadedAffectedDates = affectedDates.filter((date) => loadedBookingDatesRef.current[date]);
+    const unloadedAffectedDates = affectedDates.filter((date) => !loadedBookingDatesRef.current[date]);
+
+    if (unloadedAffectedDates.length > 0) {
+      setDirtyBookingDates((prev) => {
+        const next = { ...prev };
+        unloadedAffectedDates.forEach((date) => {
+          next[date] = true;
+        });
+        return next;
+      });
+    }
+
+    if (loadedAffectedDates.length === 0) return;
+
+    setGlobalBookings(prev => {
+      let updated = prev.filter((booking) => booking.id !== targetRow.id);
+
+      if (payload?.eventType !== 'DELETE' && nextRow?.status !== 'VOID' && nextRow) {
+        const normalized = normalizeLoadedBooking(normalizeBookingRecord(nextRow));
+        const normalizedDate = getBookingDateKey(normalized.date);
+        if (loadedBookingDatesRef.current[normalizedDate]) {
+          updated = [normalized, ...updated];
+        }
+      }
+
+      persistBookingDateSnapshots(resolvedActiveShopId, updated, loadedAffectedDates);
+
+      return updated;
+    });
+  }, [resolvedActiveShopId]);
 
   useEffect(() => {
     if (!resolvedActiveShopId || resolvedActiveShopId === 'default') {
       setShopConfig(null);
       setIsShopConfigLoaded(true);
       setGlobalBookings([]);
+      setLoadedBookingDatesMap({});
+      setDirtyBookingDates({});
+      loadedBookingDatesRef.current = {};
+      dirtyBookingDatesRef.current = {};
+      pendingDateLoadsRef.current = {};
       return;
     }
 
     let isMounted = true;
     setIsShopConfigLoaded(false);
+    setGlobalBookings([]);
+    setLoadedBookingDatesMap({});
+    setDirtyBookingDates({});
+    loadedBookingDatesRef.current = {};
+    dirtyBookingDatesRef.current = {};
+    pendingDateLoadsRef.current = {};
 
     // 【水合安全 0秒快照加载】: 在发起网络请求前，瞬间同步读取并更新状态。
     try {
@@ -250,21 +539,6 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      const cachedBookingsRaw = localStorage.getItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
-      if (cachedBookingsRaw && isMounted) {
-        const parsedBookings = JSON.parse(cachedBookingsRaw);
-        if (parsedBookings.timestamp && parsedBookings.data) {
-          // 订单快照 TTL：严格的 12 小时淘汰
-          if (Date.now() - parsedBookings.timestamp < 12 * 60 * 60 * 1000) {
-            setGlobalBookings(parsedBookings.data);
-          } else {
-            localStorage.removeItem(`gx_bookings_snapshot_${resolvedActiveShopId}`);
-          }
-        } else {
-          // 旧版格式，直接使用
-          setGlobalBookings(parsedBookings);
-        }
-      }
     } catch (e) {
       console.error("[ShopContext] Failed to load snapshot", e);
     }
@@ -312,7 +586,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const fetchTimer = setTimeout(() => {
       fetchShopConfig();
       // 同时也立刻拉取一次订单
-      refreshBookings();
+      void ensureBookingWindow(new Date(), 1);
     }, 1000);
 
     // ==========================================
@@ -337,8 +611,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const handleBookingUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
       const payload = customEvent.detail;
-      if (payload.table === 'bookings' && payload.new?.shop_id === resolvedActiveShopId) {
-        if (isMounted) refreshBookings();
+      if (payload.table === 'bookings' && isMounted) {
+        applyRealtimeBookingPayload(payload);
       }
     };
 
@@ -359,7 +633,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           (payload) => {
             if (isMounted && globalChannel === channel) {
               console.log("📡 [ShopContext] 收到远端 Bookings 更新，触发全局同步:", payload);
-              refreshBookings();
+              applyRealtimeBookingPayload(payload);
             }
           }
         )
@@ -376,7 +650,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         .subscribe((status) => {
           if (status === 'SUBSCRIBED' && isMounted && globalChannel === channel) {
             console.log(`📡 [ShopContext] ${reason} realtime subscribed for shop_id=${resolvedActiveShopId}`);
-            if (isMounted) refreshBookings();
+            if (isMounted) void ensureBookingWindow(new Date(), 1);
           }
         });
       globalChannel = channel;
@@ -389,7 +663,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       if (isMounted) {
         await BookingService.syncOfflineMutations();
         fetchShopConfig();
-        refreshBookings();
+        await warmOrRefreshBookings();
       }
     };
     handleGlobalSyncSync();
@@ -416,7 +690,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     const handleResurrect = () => {
       if (isMounted) {
-        refreshBookings();
+        void warmOrRefreshBookings();
       }
     };
     handleResurrect();
@@ -431,7 +705,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         void supabase.removeChannel(globalChannel);
       }
     };
-  }, [resolvedActiveShopId, refreshBookings]);
+  }, [resolvedActiveShopId, ensureBookingWindow, warmOrRefreshBookings, applyRealtimeBookingPayload]);
 
   // 原子级局部更新 API (乐观更新 + 数据库回写)
   const updateShopConfig = useCallback(async (key: string, payload: any) => {
@@ -721,6 +995,9 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       updateShopConfig,
       updateFullShopConfig,
       globalBookings,
+      loadedBookingDates,
+      loadBookingsForDates,
+      ensureBookingWindow,
       refreshBookings,
       applyOptimisticPatch,
       trackAction,
@@ -737,6 +1014,9 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
       updateShopConfig,
       updateFullShopConfig,
       globalBookings,
+      loadedBookingDates,
+      loadBookingsForDates,
+      ensureBookingWindow,
       refreshBookings,
       applyOptimisticPatch,
       trackAction,

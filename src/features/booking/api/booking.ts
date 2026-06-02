@@ -46,6 +46,19 @@ export type MerchantApplicationStatus = {
   brand_name: string;
 };
 
+const BOOKING_SELECT_COLUMNS = 'id, shop_id, date, start_time, duration_min, resource_id, status, data';
+
+const mapBookingRows = (rows: any[] | null): BookingRecord[] => (rows || []).map((b) => ({
+  id: b.id,
+  shopId: b.shop_id,
+  date: b.date,
+  startTime: b.start_time,
+  duration: b.duration_min,
+  resourceId: b.resource_id,
+  status: b.status,
+  ...(b.data || {})
+}));
+
 /**
  * BookingService - 预约模块 API 交互层
  * 封装 Supabase 增删改查逻辑，实现 UI 与 物理数据库的震荡隔离
@@ -429,7 +442,7 @@ export const BookingService = {
 
     let query = supabase
       .from('v_bookings')
-      .select('*')
+      .select(BOOKING_SELECT_COLUMNS)
       .eq('shop_id', shopId)
       .neq('status', 'VOID'); // 过滤被丢入黑洞的卡片
 
@@ -451,18 +464,65 @@ export const BookingService = {
     }
     
     // 铺平 JSONB
-    const formatted: BookingRecord[] = (data || []).map((b) => ({
-      id: b.id,
-      shopId: b.shop_id,
-      date: b.date,
-      startTime: b.start_time,
-      duration: b.duration_min,
-      resourceId: b.resource_id,
-      status: b.status,
-      ...(b.data || {})
-    }));
-    
-    return { data: formatted };
+    return { data: mapBookingRows(data) };
+  },
+
+  async getBookingsByDates(shopId: string, dates: string[], signal?: AbortSignal): Promise<{ data: BookingRecord[] }> {
+    if (isMockMode) return { data: [] };
+
+    const normalizedDates = Array.from(new Set(dates.filter(Boolean)));
+    if (!shopId || shopId === 'default' || normalizedDates.length === 0) {
+       return { data: [] };
+    }
+
+    let query = supabase
+      .from('v_bookings')
+      .select(BOOKING_SELECT_COLUMNS)
+      .eq('shop_id', shopId)
+      .in('date', normalizedDates)
+      .neq('status', 'VOID');
+
+    if (signal) {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[BookingService] getBookingsByDates Error:", error);
+      throw error;
+    }
+
+    return { data: mapBookingRows(data) };
+  },
+
+  async getBookingsByDateRange(shopId: string, startDate: string, endDate: string, signal?: AbortSignal): Promise<{ data: BookingRecord[] }> {
+    if (isMockMode) return { data: [] };
+
+    if (!shopId || shopId === 'default' || !startDate || !endDate) {
+       return { data: [] };
+    }
+
+    let query = supabase
+      .from('v_bookings')
+      .select(BOOKING_SELECT_COLUMNS)
+      .eq('shop_id', shopId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .neq('status', 'VOID');
+
+    if (signal) {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[BookingService] getBookingsByDateRange Error:", error);
+      throw error;
+    }
+
+    return { data: mapBookingRows(data) };
   },
 
   async upsertBookings(bookings: BookingUpsertInput[], bypassOffline = false) {
@@ -740,7 +800,7 @@ export const BookingService = {
      
      const { data, error } = await supabase
        .from('v_bookings')
-       .select('*')
+       .select(BOOKING_SELECT_COLUMNS)
        .eq('shop_id', shopId)
        .eq('status', 'VOID')
        .order('updated_at', { ascending: false }); // 按照更新时间倒序，也就是最新被删除的在最上面
@@ -750,18 +810,7 @@ export const BookingService = {
        return { data: [] };
      }
     
-    const formatted: BookingRecord[] = (data || []).map((b) => ({
-      id: b.id,
-      shopId: b.shop_id,
-      date: b.date,
-      startTime: b.start_time,
-      duration: b.duration_min,
-      resourceId: b.resource_id,
-      status: b.status,
-      ...(b.data || {})
-    }));
-    
-    return { data: formatted };
+    return { data: mapBookingRows(data) };
   },
 
   async restoreBookings(ids: string[], bypassOffline = false) {

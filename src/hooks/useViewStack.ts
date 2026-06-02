@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useHardwareBack } from './useHardwareBack';
 
-export type TabId = 'home' | 'discovery' | 'calendar' | 'chat' | 'me';
+export type TabId = 'home' | 'calendar' | 'me';
 
 interface ViewStackState {
   activeTab: TabId;
@@ -17,12 +17,12 @@ interface ViewStackState {
 }
 
 export const useViewStack = create<ViewStackState>((set) => ({
-  activeTab: 'home',
+  activeTab: 'calendar',
   tabProps: {},
   setActiveTab: (tab, props) => set((state) => {
     // 同步更新浏览器 URL（将底层的 replaceState 升级为 pushState，实现 Web 端的虚拟历史栈）
     if (typeof window !== 'undefined') {
-      const url = tab === 'home' ? '/' : `/${tab}`;
+      const url = tab === 'home' ? '/home' : `/${tab}`;
       const currentState = window.history.state || {};
       if (state.activeTab !== tab) {
         window.history.pushState({ ...currentState, tab, props }, '', url);

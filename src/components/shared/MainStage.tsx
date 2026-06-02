@@ -5,9 +5,7 @@ import { useViewStack } from "@/hooks/useViewStack";
 import { useActiveTab } from "@/hooks/useActiveTab";
 import { cn } from "@/utils/cn";
 import { HomeClient } from "@/app/home/HomeClient";
-import DiscoveryClient from "@/app/discovery/DiscoveryClient";
 import { IndustryCalendar } from "@/features/calendar/components/IndustryCalendar";
-import ChatListClient from "@/app/chat/ChatListClient";
 import DashboardClient from "@/app/dashboard/DashboardClient";
 import MeClient from "@/app/me/MeClient";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -96,10 +94,10 @@ export const MainStage = () => {
  const pathname = window.location.pathname;
  // 处理像 /calendar/beauty 这样的子路径
  const segments = pathname.split('/').filter(Boolean);
- const mainPath = segments[0] || 'home';
+ const mainPath = segments[0] || 'calendar';
  
- let initialTab = mainPath;
- if (mainPath === 'home' || mainPath === 'discovery' || mainPath === 'calendar' || mainPath === 'chat' || mainPath === 'me' || mainPath === 'dashboard') {
+ let initialTab = 'calendar';
+ if (mainPath === 'home' || mainPath === 'calendar' || mainPath === 'me' || mainPath === 'dashboard') {
  initialTab = mainPath === 'dashboard' ? 'me' : mainPath;
  
  // 净化路由劫持：仅做状态补全，坚决不进行暴力的 pushState 垫底操作，避免与 Zustand 竞态冲突
@@ -132,7 +130,7 @@ export const MainStage = () => {
 
  // 全局事件监听器
   useEffect(() => {
-    const handleReturnHome = () => setActiveTab('home');
+    const handleReturnHome = () => setActiveTab('calendar');
     const handleSetTab = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
@@ -178,34 +176,12 @@ export const MainStage = () => {
  </TabContainer>
  )}
 
- {/* 2. 发现 */}
- {mountedTabs.has('discovery') && (
- <TabContainer active={activeTab === 'discovery'}>
- <TabErrorBoundary tabName="Discovery">
- <Suspense fallback={<TabSuspenseFallback />}>
- <DiscoveryClient />
- </Suspense>
- </TabErrorBoundary>
- </TabContainer>
- )}
-
  {/* 3. 日历 */}
  {mountedTabs.has('calendar') && (
  <TabContainer active={activeTab === 'calendar'}>
  <TabErrorBoundary tabName="Calendar">
  <Suspense fallback={<TabSuspenseFallback />}>
  <IndustryCalendar initialIndustry={tabProps['calendar']?.industry || "beauty"} mode="admin" />
- </Suspense>
- </TabErrorBoundary>
- </TabContainer>
- )}
-
- {/* 4. 聊天 */}
- {mountedTabs.has('chat') && (
- <TabContainer active={activeTab === 'chat'}>
- <TabErrorBoundary tabName="Chat">
- <Suspense fallback={<TabSuspenseFallback />}>
- <ChatListClient />
  </Suspense>
  </TabErrorBoundary>
  </TabContainer>
