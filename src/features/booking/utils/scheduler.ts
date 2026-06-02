@@ -12,9 +12,8 @@ export const BookingScheduler = {
     if (!shopId || shopId === 'default') return;
 
     try {
-      // 1. 获取当天所有的订单
-      const { data: allBookings } = await BookingService.getBookings(shopId);
-      const todayBookings = allBookings.filter(b => b.date === dateStr);
+      // 1. 只获取当天订单，避免全店超过 1000 条时被 Supabase 默认行数上限截断
+      const { data: todayBookings } = await BookingService.getBookingsByDates(shopId, [dateStr]);
 
       // 【终极排爆过滤记录】：记录每个订单进场前的原始 resourceId 和 startTime
       // 必须在应用 manualOverrides 之前记录，否则会把拖拽后的新时间当成旧时间，导致存盘被跳过！

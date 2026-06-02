@@ -90,7 +90,7 @@ export function DualPaneBookingModal({
  isPhoneMasked
 }: DualPaneBookingModalProps) {
  const t = useTranslations('DualPaneBookingModal');
- const { activeShopId, availableShops, refreshBookings, trackAction, applyOptimisticPatch } = useShop();
+ const { activeShopId, availableShops, refreshBookings, trackAction, applyOptimisticPatch, loadBookingsForDates } = useShop();
  const { settings } = useVisualSettings();
  const isCalendarView = typeof window !== 'undefined' ? window.location.pathname.includes('calendar') : false;
   const isLight = isCalendarView ? settings.calendarBgIndex !== 0 : settings.frontendBgIndex !== 0;
@@ -1484,9 +1484,8 @@ export function DualPaneBookingModal({
      // 废弃掉 Modal 里这段简陋的老旧重排逻辑，直接调用刚刚升级过的强大智能磁吸引擎
      await BookingScheduler.reflowDayBookings(baseDate, currentShopId, staffs, manualOverrides);
      
-     // 6. 核心修复：由于我们取消了全局重新拉取，
-     // 前端当前组件的 state 并没有更新。我们需要派发事件通知日历组件重新读取数据
-     refreshBookings();
+     // 6. 只强制刷新创建日期，避免全店预约超过 1000 条时被截断
+     await loadBookingsForDates([baseDate], { force: true });
      trackAction();
    } catch (error) {
      console.error("Failed to save bookings to Supabase in background:", error);
@@ -2584,7 +2583,7 @@ export function DualPaneBookingModal({
              });
              await BookingScheduler.reflowDayBookings(selectedDate.replace(/\//g, '-'), currentShopId, staffs, manualOverrides);
 
-             refreshBookings();
+             await loadBookingsForDates([selectedDate.replace(/\//g, '-')], { force: true });
              trackAction();
            } catch (error) {
              console.error("Failed to quick start booking:", error);

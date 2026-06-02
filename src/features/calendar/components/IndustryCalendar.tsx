@@ -447,7 +447,7 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
 
   // 获取当前商户的专属 shopId，实现多租户数据物理隔离
   // 【完美 0 冲突法则】：URL 物理参数拥有绝对最高优先级
-  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction, refreshBookings, loadBookingsForDates, ensureBookingWindow } = useShop();
+  const { activeShopId, availableShops, shopConfig, isShopConfigLoaded, updateFullShopConfig, globalBookings, trackAction, loadBookingsForDates, ensureBookingWindow } = useShop();
   const urlShopId = searchParams.get('shopId');
   const shopId = urlShopId || activeShopId || 'default';
 
@@ -2068,14 +2068,6 @@ export const IndustryCalendar = ({ initialIndustry = "beauty", mode = "admin" }:
         >
           <div className="pointer-events-auto w-full relative z-[60]">
             <QuickCommandPalette 
-              services={services}
- staffs={staffs}
- shopId={shopId}
- currentDate={phantomDate}
- onBookingCreated={() => {
- refreshBookings();
- trackAction();
- }}
  visualSettings={visualSettings}
  setCrosshairDate={setCrosshairDate}
  setCrosshairTime={setCrosshairTime}

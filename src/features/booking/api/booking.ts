@@ -47,6 +47,7 @@ export type MerchantApplicationStatus = {
 };
 
 const BOOKING_SELECT_COLUMNS = 'id, shop_id, date, start_time, duration_min, resource_id, status, data';
+const BOOKING_PAGE_SIZE = 1000;
 
 const mapBookingRows = (rows: any[] | null): BookingRecord[] => (rows || []).map((b) => ({
   id: b.id,
@@ -58,6 +59,24 @@ const mapBookingRows = (rows: any[] | null): BookingRecord[] => (rows || []).map
   status: b.status,
   ...(b.data || {})
 }));
+
+const fetchBookingRowsPaged = async (buildQuery: () => any) => {
+  const rows: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await buildQuery().range(from, from + BOOKING_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = data || [];
+    rows.push(...page);
+
+    if (page.length < BOOKING_PAGE_SIZE) break;
+    from += BOOKING_PAGE_SIZE;
+  }
+
+  return rows;
+};
 
 /**
  * BookingService - 预约模块 API 交互层
@@ -440,20 +459,29 @@ export const BookingService = {
        return { data: [] };
     }
 
-    let query = supabase
-      .from('v_bookings')
-      .select(BOOKING_SELECT_COLUMNS)
-      .eq('shop_id', shopId)
-      .neq('status', 'VOID'); // 过滤被丢入黑洞的卡片
+    const buildQuery = () => {
+      let query = supabase
+        .from('v_bookings')
+        .select(BOOKING_SELECT_COLUMNS)
+        .eq('shop_id', shopId)
+        .neq('status', 'VOID') // 过滤被丢入黑洞的卡片
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .order('id', { ascending: true });
 
-    if (signal) {
-      query = query.abortSignal(signal);
-    }
+      if (signal) {
+        query = query.abortSignal(signal);
+      }
 
-    const { data, error } = await query;
+      return query;
+    };
 
-    if (error) {
-      const errMsg = error.message || String(error);
+    let data: any[] = [];
+
+    try {
+      data = await fetchBookingRowsPaged(buildQuery);
+    } catch (error: any) {
+      const errMsg = error?.message || String(error);
       if (errMsg.includes('Failed to fetch') || errMsg.includes('AbortError')) {
         console.warn("🌐 [BookingService] 监测到断网或请求被截断，触发防线拦截，非代码缺陷:", errMsg);
       } else {
@@ -475,20 +503,29 @@ export const BookingService = {
        return { data: [] };
     }
 
-    let query = supabase
-      .from('v_bookings')
-      .select(BOOKING_SELECT_COLUMNS)
-      .eq('shop_id', shopId)
-      .in('date', normalizedDates)
-      .neq('status', 'VOID');
+    const buildQuery = () => {
+      let query = supabase
+        .from('v_bookings')
+        .select(BOOKING_SELECT_COLUMNS)
+        .eq('shop_id', shopId)
+        .in('date', normalizedDates)
+        .neq('status', 'VOID')
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .order('id', { ascending: true });
 
-    if (signal) {
-      query = query.abortSignal(signal);
-    }
+      if (signal) {
+        query = query.abortSignal(signal);
+      }
 
-    const { data, error } = await query;
+      return query;
+    };
 
-    if (error) {
+    let data: any[] = [];
+
+    try {
+      data = await fetchBookingRowsPaged(buildQuery);
+    } catch (error) {
       console.error("[BookingService] getBookingsByDates Error:", error);
       throw error;
     }
@@ -503,21 +540,30 @@ export const BookingService = {
        return { data: [] };
     }
 
-    let query = supabase
-      .from('v_bookings')
-      .select(BOOKING_SELECT_COLUMNS)
-      .eq('shop_id', shopId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .neq('status', 'VOID');
+    const buildQuery = () => {
+      let query = supabase
+        .from('v_bookings')
+        .select(BOOKING_SELECT_COLUMNS)
+        .eq('shop_id', shopId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .neq('status', 'VOID')
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .order('id', { ascending: true });
 
-    if (signal) {
-      query = query.abortSignal(signal);
-    }
+      if (signal) {
+        query = query.abortSignal(signal);
+      }
 
-    const { data, error } = await query;
+      return query;
+    };
 
-    if (error) {
+    let data: any[] = [];
+
+    try {
+      data = await fetchBookingRowsPaged(buildQuery);
+    } catch (error) {
       console.error("[BookingService] getBookingsByDateRange Error:", error);
       throw error;
     }
@@ -537,6 +583,7 @@ export const BookingService = {
     // 【世界顶端架构法则：物理分流插入与更新，彻底消灭 23502 陷阱】
     const inserts: any[] = [];
     const updates: any[] = [];
+    const savedRows: any[] = [];
 
     bookings.forEach((b) => {
       const {
@@ -573,21 +620,27 @@ export const BookingService = {
     try {
       // 1. 批量处理更新军团
       if (updates.length > 0) {
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('bookings')
-          .upsert(updates, { onConflict: 'id' });
+          .upsert(updates, { onConflict: 'id' })
+          .select(BOOKING_SELECT_COLUMNS);
         
         if (updateError) throw updateError;
+        savedRows.push(...(updateData || []));
       }
 
       // 2. 批量处理新编军团
       if (inserts.length > 0) {
-        const { error: insertError } = await supabase
+        const { data: insertData, error: insertError } = await supabase
           .from('bookings')
-          .insert(inserts);
+          .insert(inserts)
+          .select(BOOKING_SELECT_COLUMNS);
           
         if (insertError) throw insertError;
+        savedRows.push(...(insertData || []));
       }
+
+      return { data: mapBookingRows(savedRows) };
     } catch (error) {
       console.error("[BookingService] upsertBookings Error:", error);
       throw error;
