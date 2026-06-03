@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, R
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { BookingService } from "@/features/booking/api/booking";
-import { useVisualSettings } from '@/hooks/useVisualSettings';
+import { useVisualSettings, type VisualSettings } from '@/hooks/useVisualSettings';
 import { useBackground } from '@/hooks/useBackground';
 import { useSyncStore } from '@/store/useSyncStore';
 
@@ -78,6 +78,7 @@ const normalizeBookingRecord = (booking: BookingRowPayload) => ({
 });
 
 const BOOKING_DATE_SNAPSHOT_TTL = 12 * 60 * 60 * 1000;
+const SHOP_CONFIG_SNAPSHOT_TTL = 24 * 60 * 60 * 1000;
 
 const getBookingDateKey = (value: string | Date | null | undefined) => {
   if (!value) return "";
@@ -105,6 +106,47 @@ const buildBookingDateWindow = (startDate: Date | string, aheadDays = 1) => {
 };
 
 const getBookingDateSnapshotKey = (shopId: string, date: string) => `gx_bookings_snapshot_${shopId}_${date}`;
+const getShopConfigSnapshotKey = (shopId: string) => `gx_shop_config_snapshot_${shopId}`;
+
+const readShopConfigSnapshot = (shopId: string) => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = localStorage.getItem(getShopConfigSnapshotKey(shopId));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (parsed?.timestamp && parsed?.data) {
+      if (Date.now() - parsed.timestamp < SHOP_CONFIG_SNAPSHOT_TTL) {
+        return parsed.data;
+      }
+      localStorage.removeItem(getShopConfigSnapshotKey(shopId));
+      return null;
+    }
+
+    return parsed;
+  } catch (e) {
+    console.error("[ShopContext] Failed to read shop config snapshot", e);
+    localStorage.removeItem(getShopConfigSnapshotKey(shopId));
+    return null;
+  }
+};
+
+const persistShopConfigSnapshot = (shopId: string | null, config: any) => {
+  if (!shopId || typeof window === "undefined") return;
+  localStorage.setItem(getShopConfigSnapshotKey(shopId), JSON.stringify({
+    timestamp: Date.now(),
+    data: config
+  }));
+};
+
+const getVisualPrincipalId = (user: any, activeRole: string) => {
+  if (!user) return "anonymous";
+  if (activeRole === "merchant" || activeRole === "boss") {
+    return user.merchant_gx_id || user.base_gx_id || user.gxId || user.id || "anonymous";
+  }
+  return user.base_gx_id || user.gxId || user.id || "anonymous";
+};
 
 const normalizeLoadedBooking = (booking: any) => ({
   ...booking,
@@ -159,7 +201,7 @@ const persistBookingDateSnapshots = (shopId: string | null, bookings: any[], dat
 
 export const ShopProvider = ({ children }: { children: ReactNode }) => {
   const { user, activeRole } = useAuth() as any; // activeRole is exposed by useAuth
-  const { updateSettings } = useVisualSettings();
+  const { updateSettings, setSettingsScope } = useVisualSettings();
   const { setSpecificBackground } = useBackground();
   
   const [activeShopId, setActiveShopIdState] = useState<string | null>(() => {
@@ -398,6 +440,21 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [resolvedActiveShopId]);
 
+  const visualPrincipalId = useMemo(() => getVisualPrincipalId(user, activeRole), [user, activeRole]);
+  const visualSettingsScopeKey = useMemo(() => {
+    if (!resolvedActiveShopId) return null;
+    return `${visualPrincipalId}:${resolvedActiveShopId}`;
+  }, [resolvedActiveShopId, visualPrincipalId]);
+
+  const visualSettingsSeed = useMemo<Partial<VisualSettings> | null>(() => {
+    if (!resolvedActiveShopId || typeof window === "undefined") return null;
+    return readShopConfigSnapshot(resolvedActiveShopId)?.visualSettings || null;
+  }, [resolvedActiveShopId]);
+
+  useEffect(() => {
+    setSettingsScope(visualSettingsScopeKey, visualSettingsSeed);
+  }, [setSettingsScope, visualSettingsScopeKey, visualSettingsSeed]);
+
   const ensureBookingWindow = useCallback(async (startDate: Date | string, aheadDays = 1) => {
     await loadBookingsForDates(buildBookingDateWindow(startDate, aheadDays));
   }, [loadBookingsForDates]);
@@ -521,22 +578,10 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     // 【水合安全 0秒快照加载】: 在发起网络请求前，瞬间同步读取并更新状态。
     try {
-      const cachedConfigRaw = localStorage.getItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
-      if (cachedConfigRaw && isMounted) {
-        const parsedConfig = JSON.parse(cachedConfigRaw);
-        // 兼容新旧格式：如果有 timestamp，且在 24 小时内，才使用其 data
-        if (parsedConfig.timestamp && parsedConfig.data) {
-          if (Date.now() - parsedConfig.timestamp < 24 * 60 * 60 * 1000) {
-            setShopConfig(parsedConfig.data);
-            setIsShopConfigLoaded(true);
-          } else {
-             localStorage.removeItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
-          }
-        } else {
-          // 旧版无时间戳格式，直接使用但标记过期
-          setShopConfig(parsedConfig);
-          setIsShopConfigLoaded(true);
-        }
+      const cachedConfig = readShopConfigSnapshot(resolvedActiveShopId);
+      if (cachedConfig && isMounted) {
+        setShopConfig(cachedConfig);
+        setIsShopConfigLoaded(true);
       }
 
     } catch (e) {
@@ -564,20 +609,14 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
           setShopConfig(finalConfig);
           setIsShopConfigLoaded(true);
           // 【快照覆写】：带上时间戳的物理封装
-          if (typeof window !== "undefined") {
-            const configSnapshot = {
-              timestamp: Date.now(),
-              data: finalConfig
-            };
-            localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(configSnapshot));
-          }
+          persistShopConfigSnapshot(resolvedActiveShopId, finalConfig);
         }
       } catch (err) {
         clearTimeout(timeoutId);
         console.error("[ShopContext] Failed to load shop config:", err);
         // 【防御性自毁】：连续网络错误导致配置无法拉取，清理过期配置快照
         if (typeof window !== "undefined") {
-          localStorage.removeItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`);
+          localStorage.removeItem(getShopConfigSnapshotKey(resolvedActiveShopId));
         }
         if (isMounted) setIsShopConfigLoaded(true);
       }
@@ -600,10 +639,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         const newConfig = payload.new?.config;
         if (newConfig && isMounted) {
           setShopConfig(newConfig);
-          if (typeof window !== "undefined") {
-            const configSnapshot = { timestamp: Date.now(), data: newConfig };
-            localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(configSnapshot));
-          }
+          persistShopConfigSnapshot(resolvedActiveShopId, newConfig);
         }
       }
     };
@@ -716,9 +752,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     setShopConfig((prev: any) => {
       const newState = { ...(prev || {}), ...patch };
       // 【乐观更新快照同步】
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(newState));
-      }
+      persistShopConfigSnapshot(resolvedActiveShopId, newState);
       return newState;
     });
 
@@ -753,9 +787,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     setShopConfig((prev: any) => {
       const newState = { ...(prev || {}), ...patchObj };
       // 【乐观更新快照同步】
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`gx_shop_config_snapshot_${resolvedActiveShopId}`, JSON.stringify(newState));
-      }
+      persistShopConfigSnapshot(resolvedActiveShopId, newState);
       return newState;
     });
 

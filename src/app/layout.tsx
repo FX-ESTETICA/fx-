@@ -113,7 +113,30 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var saved = localStorage.getItem('gx_visual_settings');
+                var cachedUserRaw = localStorage.getItem('gx_cached_user');
+                var cachedUser = cachedUserRaw ? JSON.parse(cachedUserRaw) : null;
+                var role = localStorage.getItem('gx_view_role') || (cachedUser && cachedUser.role) || 'user';
+                var principalId = cachedUser
+                  ? ((role === 'merchant' || role === 'boss')
+                    ? (cachedUser.merchant_gx_id || cachedUser.base_gx_id || cachedUser.gxId || cachedUser.id)
+                    : (cachedUser.base_gx_id || cachedUser.gxId || cachedUser.id))
+                  : null;
+                var activeShopId = localStorage.getItem('gx_active_shop_id');
+                var scopedKey = principalId && activeShopId ? ('gx_visual_settings:' + principalId + ':' + activeShopId) : null;
+                var saved = scopedKey ? localStorage.getItem(scopedKey) : null;
+
+                if (!saved && activeShopId) {
+                  var shopSnapshotRaw = localStorage.getItem('gx_shop_config_snapshot_' + activeShopId);
+                  if (shopSnapshotRaw) {
+                    var shopSnapshot = JSON.parse(shopSnapshotRaw);
+                    var shopConfig = shopSnapshot && shopSnapshot.data ? shopSnapshot.data : shopSnapshot;
+                    if (shopConfig && shopConfig.visualSettings) {
+                      saved = JSON.stringify(shopConfig.visualSettings);
+                    }
+                  }
+                }
+
+                if (!saved) saved = localStorage.getItem('gx_visual_settings');
                 var settings = saved ? JSON.parse(saved) : {};
                 var path = window.location.pathname;
                 var isCalendar = path.includes('/calendar');

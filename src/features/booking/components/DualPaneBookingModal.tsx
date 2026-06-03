@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useShop } from "@/features/shop/ShopContext";
 import { useTranslations } from "next-intl";
 import { BookingScheduler } from "@/features/booking/utils/scheduler";
+import { useActiveTab } from "@/hooks/useActiveTab";
 
 interface DualPaneBookingModalProps {
  isOpen: boolean;
@@ -92,7 +93,8 @@ export function DualPaneBookingModal({
  const t = useTranslations('DualPaneBookingModal');
  const { activeShopId, availableShops, refreshBookings, trackAction, applyOptimisticPatch, loadBookingsForDates } = useShop();
  const { settings } = useVisualSettings();
- const isCalendarView = typeof window !== 'undefined' ? window.location.pathname.includes('calendar') : false;
+ const activeTab = useActiveTab();
+ const isCalendarView = activeTab === 'calendar';
   const isLight = isCalendarView ? settings.calendarBgIndex !== 0 : settings.frontendBgIndex !== 0;
 
  // -------------------------------

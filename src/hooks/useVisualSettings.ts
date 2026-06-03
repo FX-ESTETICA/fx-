@@ -12,7 +12,7 @@ export interface VisualSettings {
   headerTitleColorTheme: CyberThemeColor;
 }
 
-const DEFAULT_SETTINGS: VisualSettings = {
+export const DEFAULT_VISUAL_SETTINGS: VisualSettings = {
   showNebula: true,
   wallpaperOpacity: 100, // 强制100%不透明
   calendarBgIndex: 1, // 默认浅色壁纸 B3
@@ -21,6 +21,9 @@ const DEFAULT_SETTINGS: VisualSettings = {
   staffNameColorTheme: 'coreblack',
   headerTitleColorTheme: 'coreblack',
 };
+
+const LEGACY_VISUAL_SETTINGS_KEY = 'gx_visual_settings';
+const SCOPED_VISUAL_SETTINGS_PREFIX = 'gx_visual_settings:';
 
 export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string; hex: string; label: string }> = {
   coreblack: {
@@ -45,40 +48,50 @@ export const CYBER_COLOR_DICTIONARY: Record<CyberThemeColor, { className: string
   }
 };
 
+const normalizeVisualSettings = (raw: Partial<VisualSettings> | null | undefined): VisualSettings => {
+  const parsed = { ...(raw || {}) } as Partial<VisualSettings>;
+
+  if (!CYBER_COLOR_DICTIONARY[parsed.timelineColorTheme as CyberThemeColor]) parsed.timelineColorTheme = 'whitegold';
+  if (!CYBER_COLOR_DICTIONARY[parsed.staffNameColorTheme as CyberThemeColor]) parsed.staffNameColorTheme = 'purewhite';
+  if (!CYBER_COLOR_DICTIONARY[parsed.headerTitleColorTheme as CyberThemeColor]) parsed.headerTitleColorTheme = 'purewhite';
+
+  if (parsed.timelineColorTheme === 'purewhite') parsed.timelineColorTheme = 'whitegold';
+  if (parsed.timelineColorTheme === 'coreblack') parsed.timelineColorTheme = 'blackgold';
+  if (parsed.calendarBgIndex === undefined) parsed.calendarBgIndex = 1;
+  if (parsed.frontendBgIndex === undefined) parsed.frontendBgIndex = 1;
+  parsed.wallpaperOpacity = 100;
+
+  return { ...DEFAULT_VISUAL_SETTINGS, ...parsed };
+};
+
+const readVisualSettings = (key: string): VisualSettings | null => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) return null;
+    return normalizeVisualSettings(JSON.parse(saved));
+  } catch (e) {
+    console.error('Failed to parse visual settings from localStorage', e);
+    localStorage.removeItem(key);
+    return null;
+  }
+};
+
 // ==========================================
 // 核心架构升级：零依赖的原子状态引擎 (Pub/Sub)
 // 彻底抛弃 CustomEvent，解决无限渲染卡死问题
 // ==========================================
 
 class VisualSettingsStore {
-  private settings: VisualSettings = DEFAULT_SETTINGS;
+  private settings: VisualSettings = DEFAULT_VISUAL_SETTINGS;
   private listeners: Set<() => void> = new Set();
   private isLoaded: boolean = false;
+  private storageKey: string = LEGACY_VISUAL_SETTINGS_KEY;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('gx_visual_settings');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          
-          // 兼容性/降级处理：如果 localStorage 中存了已经被废弃的颜色（如 cyan，corelight），强制重置为 purewhite
-          if (!CYBER_COLOR_DICTIONARY[parsed.timelineColorTheme as CyberThemeColor]) parsed.timelineColorTheme = 'whitegold';
-          if (!CYBER_COLOR_DICTIONARY[parsed.staffNameColorTheme as CyberThemeColor]) parsed.staffNameColorTheme = 'purewhite';
-          if (!CYBER_COLOR_DICTIONARY[parsed.headerTitleColorTheme as CyberThemeColor]) parsed.headerTitleColorTheme = 'purewhite';
-          
-          // 修正历史遗留问题：将主文本色与分界线色解绑映射
-          if (parsed.timelineColorTheme === 'purewhite') parsed.timelineColorTheme = 'whitegold';
-          if (parsed.timelineColorTheme === 'coreblack') parsed.timelineColorTheme = 'blackgold';
-          if (parsed.calendarBgIndex === undefined) parsed.calendarBgIndex = 1; // 补充日历壁纸缓存为默认的 B3 (1)
-          if (parsed.frontendBgIndex === undefined) parsed.frontendBgIndex = 1; // 补充前端壁纸缓存为默认的 B3 (1)
-          if (parsed.wallpaperOpacity !== undefined) parsed.wallpaperOpacity = 100; // 强制100%不透明
-
-          this.settings = { ...DEFAULT_SETTINGS, ...parsed };
-        }
-      } catch (e) {
-        console.error('Failed to parse visual settings from localStorage', e);
-      }
+      this.settings = readVisualSettings(LEGACY_VISUAL_SETTINGS_KEY) || DEFAULT_VISUAL_SETTINGS;
       this.isLoaded = true;
     }
   }
@@ -99,7 +112,7 @@ class VisualSettingsStore {
 
   // 更新机制 (合并旧值并通知所有订阅者)
   update = (newSettings: Partial<VisualSettings>) => {
-    const nextSettings = { ...this.settings, ...newSettings };
+    const nextSettings = normalizeVisualSettings({ ...this.settings, ...newSettings });
     
     // 深度对比拦截：如果值完全没变，拒绝广播，物理切断无限重绘！
     if (JSON.stringify(this.settings) === JSON.stringify(nextSettings)) {
@@ -108,10 +121,39 @@ class VisualSettingsStore {
 
     this.settings = nextSettings;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('gx_visual_settings', JSON.stringify(this.settings));
+      localStorage.setItem(this.storageKey, JSON.stringify(this.settings));
+      localStorage.setItem(LEGACY_VISUAL_SETTINGS_KEY, JSON.stringify(this.settings));
     }
     
     // 通知所有正在监听的组件强制更新
+    this.listeners.forEach(listener => listener());
+  };
+
+  setScope = (scopeKey: string | null, seedSettings?: Partial<VisualSettings> | null) => {
+    if (typeof window === 'undefined') return;
+
+    const nextStorageKey = scopeKey
+      ? `${SCOPED_VISUAL_SETTINGS_PREFIX}${scopeKey}`
+      : LEGACY_VISUAL_SETTINGS_KEY;
+
+    this.storageKey = nextStorageKey;
+
+    const scopedSettings = readVisualSettings(nextStorageKey);
+    const legacySettings = nextStorageKey === LEGACY_VISUAL_SETTINGS_KEY
+      ? null
+      : readVisualSettings(LEGACY_VISUAL_SETTINGS_KEY);
+    const nextSettings = scopedSettings || normalizeVisualSettings(seedSettings || legacySettings || this.settings);
+
+    if (!scopedSettings) {
+      localStorage.setItem(nextStorageKey, JSON.stringify(nextSettings));
+    }
+
+    if (JSON.stringify(this.settings) === JSON.stringify(nextSettings)) {
+      return;
+    }
+
+    this.settings = nextSettings;
+    localStorage.setItem(LEGACY_VISUAL_SETTINGS_KEY, JSON.stringify(this.settings));
     this.listeners.forEach(listener => listener());
   };
 }
@@ -125,16 +167,21 @@ export function useVisualSettings() {
   const settings = useSyncExternalStore(
     visualSettingsStore.subscribe,
     visualSettingsStore.getSnapshot,
-    () => DEFAULT_SETTINGS // SSR 时的 fallback
+    () => DEFAULT_VISUAL_SETTINGS // SSR 时的 fallback
   );
 
   const updateSettings = useCallback((newSettings: Partial<VisualSettings>) => {
     visualSettingsStore.update(newSettings);
   }, []);
 
+  const setSettingsScope = useCallback((scopeKey: string | null, seedSettings?: Partial<VisualSettings> | null) => {
+    visualSettingsStore.setScope(scopeKey, seedSettings);
+  }, []);
+
   return {
     settings,
     updateSettings,
+    setSettingsScope,
     isLoaded: visualSettingsStore.getIsLoaded()
   };
 }
